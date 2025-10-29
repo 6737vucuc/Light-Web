@@ -548,12 +548,7 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-xs text-gray-500">
-            © 2024 Light of Life. All rights reserved.
-          </p>
-        </div>
+
       </div>
     </div>
   );
