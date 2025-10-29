@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
-import { sendWebRTCSignal, sendToCallChannel, WEBRTC_EVENTS } from '@/lib/webrtc/pusher-signaling';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
-// Initiate a call
+// In-memory store for call notifications (in production, use Redis or database)
+const callNotifications = new Map<number, {
+  callerId: number;
+  callerName: string;
+  timestamp: number;
+}>();
+
+// Clean up old notifications (older than 30 seconds)
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, notification] of callNotifications.entries()) {
+    if (now - notification.timestamp > 30000) {
+      callNotifications.delete(userId);
+    }
+  }
+}, 10000);
+
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
   
@@ -18,7 +33,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, targetUserId, signal } = body;
+    const { action, targetUserId } = body;
 
     if (!targetUserId) {
       return NextResponse.json(
@@ -32,8 +47,8 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'start': {
-        // Send call request to target user
-        await sendWebRTCSignal(targetUserId, WEBRTC_EVENTS.CALL_REQUEST, {
+        // Store call notification for target user
+        callNotifications.set(targetUserId, {
           callerId,
           callerName,
           timestamp: Date.now()
@@ -46,11 +61,8 @@ export async function POST(request: NextRequest) {
       }
 
       case 'accept': {
-        // Notify caller that call was accepted
-        await sendWebRTCSignal(targetUserId, WEBRTC_EVENTS.CALL_ACCEPTED, {
-          userId: callerId,
-          timestamp: Date.now()
-        });
+        // Remove notification when call is accepted
+        callNotifications.delete(callerId);
 
         return NextResponse.json({ 
           success: true,
@@ -59,11 +71,8 @@ export async function POST(request: NextRequest) {
       }
 
       case 'reject': {
-        // Notify caller that call was rejected
-        await sendWebRTCSignal(targetUserId, WEBRTC_EVENTS.CALL_REJECTED, {
-          userId: callerId,
-          timestamp: Date.now()
-        });
+        // Remove notification when call is rejected
+        callNotifications.delete(callerId);
 
         return NextResponse.json({ 
           success: true,
@@ -71,75 +80,10 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      case 'offer': {
-        if (!signal) {
-          return NextResponse.json(
-            { error: 'Signal is required for offer' },
-            { status: 400 }
-          );
-        }
-
-        // Send WebRTC offer
-        await sendToCallChannel(callerId, targetUserId, WEBRTC_EVENTS.OFFER, {
-          from: callerId,
-          signal,
-          timestamp: Date.now()
-        });
-
-        return NextResponse.json({ 
-          success: true,
-          message: 'Offer sent'
-        });
-      }
-
-      case 'answer': {
-        if (!signal) {
-          return NextResponse.json(
-            { error: 'Signal is required for answer' },
-            { status: 400 }
-          );
-        }
-
-        // Send WebRTC answer
-        await sendToCallChannel(callerId, targetUserId, WEBRTC_EVENTS.ANSWER, {
-          from: callerId,
-          signal,
-          timestamp: Date.now()
-        });
-
-        return NextResponse.json({ 
-          success: true,
-          message: 'Answer sent'
-        });
-      }
-
-      case 'ice-candidate': {
-        if (!signal) {
-          return NextResponse.json(
-            { error: 'ICE candidate is required' },
-            { status: 400 }
-          );
-        }
-
-        // Send ICE candidate
-        await sendToCallChannel(callerId, targetUserId, WEBRTC_EVENTS.ICE_CANDIDATE, {
-          from: callerId,
-          candidate: signal,
-          timestamp: Date.now()
-        });
-
-        return NextResponse.json({ 
-          success: true,
-          message: 'ICE candidate sent'
-        });
-      }
-
       case 'end': {
-        // Notify other user that call ended
-        await sendWebRTCSignal(targetUserId, WEBRTC_EVENTS.CALL_ENDED, {
-          userId: callerId,
-          timestamp: Date.now()
-        });
+        // Clean up any notifications
+        callNotifications.delete(targetUserId);
+        callNotifications.delete(callerId);
 
         return NextResponse.json({ 
           success: true,
@@ -160,4 +104,23 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// GET endpoint to check for incoming calls
+export async function GET(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  
+  if ('error' in authResult) {
+    return NextResponse.json(
+      { error: authResult.error },
+      { status: authResult.status }
+    );
+  }
+
+  const userId = authResult.user.id;
+  const incomingCall = callNotifications.get(userId);
+
+  return NextResponse.json({
+    incomingCall: incomingCall || null
+  });
 }

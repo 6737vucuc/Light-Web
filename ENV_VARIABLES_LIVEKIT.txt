@@ -1,0 +1,53 @@
+# Environment Variables for LiveKit Voice Calls
+
+## Required Variables
+
+# LiveKit WebSocket URL (from LiveKit Cloud dashboard)
+NEXT_PUBLIC_LIVEKIT_URL=wss://your-project.livekit.cloud
+
+# LiveKit API Key (from LiveKit Cloud dashboard)
+LIVEKIT_API_KEY=your-api-key-here
+
+# LiveKit API Secret (from LiveKit Cloud dashboard)
+LIVEKIT_API_SECRET=your-api-secret-here
+
+## How to Get These Values
+
+1. Go to https://cloud.livekit.io/
+2. Sign up or log in
+3. Create a new project
+4. Go to Settings > Keys
+5. Copy the values:
+   - WebSocket URL → NEXT_PUBLIC_LIVEKIT_URL
+   - API Key → LIVEKIT_API_KEY
+   - API Secret → LIVEKIT_API_SECRET
+
+## Setting in Vercel
+
+1. Go to your Vercel project dashboard
+2. Click on "Settings" tab
+3. Click on "Environment Variables"
+4. Add each variable:
+   - Name: NEXT_PUBLIC_LIVEKIT_URL
+   - Value: wss://your-project.livekit.cloud
+   - Environment: Production, Preview, Development
+   
+5. Repeat for LIVEKIT_API_KEY and LIVEKIT_API_SECRET
+6. Redeploy your project
+
+## Local Development
+
+Create a `.env.local` file in the project root:
+
+```env
+NEXT_PUBLIC_LIVEKIT_URL=wss://your-project.livekit.cloud
+LIVEKIT_API_KEY=your-api-key-here
+LIVEKIT_API_SECRET=your-api-secret-here
+```
+
+## Security Notes
+
+- ⚠️ NEVER commit .env.local to Git
+- ⚠️ Keep API Secret confidential
+- ✅ NEXT_PUBLIC_* variables are safe to expose to browser
+- ✅ LIVEKIT_API_KEY and LIVEKIT_API_SECRET are server-side only

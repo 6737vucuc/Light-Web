@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, Send, UserPlus, Check, X, Trash2, CheckCheck, MoreVertical, Ban, User, Flag, Image as ImageIcon, Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
 import Image from 'next/image';
-import { useWebRTC } from '@/lib/webrtc/useWebRTC-pusher';
+import { useVoiceCall } from '@/lib/webrtc/useVoiceCall';
 
 interface User {
   id: number;
@@ -64,8 +64,8 @@ export default function FriendsMessaging() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const ringingAudioRef = useRef<HTMLAudioElement>(null);
 
-  // WebRTC Hook
-  const webrtc = useWebRTC({
+  // LiveKit Voice Call Hook
+  const voiceCall = useVoiceCall({
     userId: currentUserId || 0,
     userName: currentUserName || '',
     onIncomingCall: (callerId, callerName) => {
@@ -399,10 +399,10 @@ export default function FriendsMessaging() {
   };
 
   const startVoiceCall = async () => {
-    if (!selectedFriend || !webrtc) return;
+    if (!selectedFriend || !voiceCall) return;
     
     try {
-      await webrtc.startCall(selectedFriend.id);
+      await voiceCall.startCall(selectedFriend.id);
       setIsInCall(true);
       // العداد سيبدأ عندما يقبل الطرف الآخر المكالمة (عبر onCallAccepted)
     } catch (error) {
@@ -412,8 +412,8 @@ export default function FriendsMessaging() {
   };
 
   const endVoiceCall = () => {
-    if (webrtc) {
-      webrtc.endCall();
+    if (voiceCall) {
+      voiceCall.endCall();
     }
     setIsInCall(false);
     setCallDuration(0);
@@ -425,17 +425,17 @@ export default function FriendsMessaging() {
   };
 
   const toggleMute = () => {
-    if (webrtc) {
-      webrtc.toggleMute();
+    if (voiceCall) {
+      voiceCall.toggleMute();
       setIsMuted(!isMuted);
     }
   };
 
   const acceptIncomingCall = async () => {
-    if (!incomingCall || !webrtc) return;
+    if (!incomingCall || !voiceCall) return;
     
     try {
-      await webrtc.acceptCall(incomingCall.callerId);
+      await voiceCall.acceptCall(incomingCall.callerId);
       setIsInCall(true);
       setIncomingCall(null);
       
@@ -454,9 +454,9 @@ export default function FriendsMessaging() {
   };
 
   const rejectIncomingCall = () => {
-    if (!incomingCall || !webrtc) return;
+    if (!incomingCall || !voiceCall) return;
     
-    webrtc.rejectCall(incomingCall.callerId);
+    voiceCall.rejectCall(incomingCall.callerId);
     setIncomingCall(null);
     // إيقاف صوت الرنين عند الرفض
     if (ringingAudioRef.current) {
