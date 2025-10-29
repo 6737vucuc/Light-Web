@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth/middleware';
+import { requireAuth } from '@/lib/auth/middleware';
 import { TwoFactorAuth, Email2FA } from '@/lib/auth/two-factor';
 import QRCode from 'qrcode';
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await verifyAuth(request);
+    const user = await requireAuth(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { reports, users, posts } from '@/lib/db/schema';
-import { verifyAuth } from '@/lib/auth/middleware';
+import { requireAuth } from '@/lib/auth/middleware';
 import { eq, desc } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await verifyAuth(request);
+    const user = await requireAuth(request);
     if (!user || !user.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await verifyAuth(request);
+    const user = await requireAuth(request);
     if (!user || !user.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await verifyAuth(request);
+    const user = await requireAuth(request);
     if (!user || !user.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

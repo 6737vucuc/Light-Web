@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { users, blockedUsers, posts } from '@/lib/db/schema';
-import { verifyAuth } from '@/lib/auth/middleware';
+import { requireAuth } from '@/lib/auth/middleware';
 import { eq, and, desc } from 'drizzle-orm';
 
 export async function GET(
@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const currentUser = await verifyAuth(request);
+    const currentUser = await requireAuth(request);
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
