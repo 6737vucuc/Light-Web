@@ -13,22 +13,38 @@ interface Post {
   imageUrl: string | null;
   likesCount: number;
   commentsCount: number;
+  sharesCount: number;
   isLiked: boolean;
   createdAt: string;
 }
 
 interface Comment {
   id: number;
+  userId: number;
   userName: string;
+  userAvatar: string | null;
   content: string;
+  createdAt: string;
+}
+
+interface Story {
+  id: number;
+  userId: number;
+  userName: string;
+  userAvatar: string | null;
+  mediaUrl: string;
+  mediaType: string;
   createdAt: string;
 }
 
 export default function PublicFeed() {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
   const [newPost, setNewPost] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showFeelingPicker, setShowFeelingPicker] = useState(false);
@@ -39,6 +55,7 @@ export default function PublicFeed() {
   const [comments, setComments] = useState<{ [key: number]: Comment[] }>({});
   const [newComment, setNewComment] = useState<{ [key: number]: string }>({});
   const [showReactions, setShowReactions] = useState<{ [key: number]: boolean }>({});
+  const [loadingComments, setLoadingComments] = useState<{ [key: number]: boolean }>({});
 
   const feelings = [
     { emoji: '😊', text: 'happy' },
@@ -54,16 +71,17 @@ export default function PublicFeed() {
   ];
 
   const reactions = [
-    { emoji: '❤️', name: 'Love' },
-    { emoji: '👍', name: 'Like' },
-    { emoji: '😂', name: 'Haha' },
-    { emoji: '😮', name: 'Wow' },
-    { emoji: '😢', name: 'Sad' },
-    { emoji: '🙏', name: 'Pray' },
+    { emoji: '❤️', name: 'love', color: 'text-red-500' },
+    { emoji: '👍', name: 'like', color: 'text-blue-500' },
+    { emoji: '😂', name: 'haha', color: 'text-yellow-500' },
+    { emoji: '😮', name: 'wow', color: 'text-orange-500' },
+    { emoji: '😢', name: 'sad', color: 'text-blue-400' },
+    { emoji: '🙏', name: 'pray', color: 'text-purple-500' },
   ];
 
   useEffect(() => {
     fetchPosts();
+    fetchStories();
   }, []);
 
   const fetchPosts = async () => {
@@ -78,10 +96,24 @@ export default function PublicFeed() {
     }
   };
 
+  const fetchStories = async () => {
+    try {
+      const response = await fetch('/api/stories');
+      if (response.ok) {
+        const data = await response.json();
+        setStories(data.stories || []);
+      }
+    } catch (error) {
+      console.error('Error fetching stories:', error);
+    }
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedImage(file);
+      setSelectedVideo(null);
+      setVideoPreview(null);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -90,9 +122,25 @@ export default function PublicFeed() {
     }
   };
 
-  const handleRemoveImage = () => {
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedVideo(file);
+      setSelectedImage(null);
+      setImagePreview(null);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVideoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveMedia = () => {
     setSelectedImage(null);
+    setSelectedVideo(null);
     setImagePreview(null);
+    setVideoPreview(null);
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -101,13 +149,13 @@ export default function PublicFeed() {
 
     setLoading(true);
     try {
-      let imageUrl = null;
+      let mediaUrl = null;
 
-      // Upload image if selected
-      if (selectedImage) {
+      // Upload media if selected
+      if (selectedImage || selectedVideo) {
         setUploading(true);
         const formData = new FormData();
-        formData.append('file', selectedImage);
+        formData.append('file', (selectedImage || selectedVideo)!);
 
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
@@ -116,7 +164,7 @@ export default function PublicFeed() {
 
         if (uploadResponse.ok) {
           const uploadData = await uploadResponse.json();
-          imageUrl = uploadData.url;
+          mediaUrl = uploadData.url;
         }
         setUploading(false);
       }
@@ -124,7 +172,8 @@ export default function PublicFeed() {
       // Create post with feeling
       let postContent = newPost;
       if (selectedFeeling) {
-        postContent = `${newPost} — feeling ${selectedFeeling}`;
+        const feelingEmoji = feelings.find(f => f.text === selectedFeeling)?.emoji;
+        postContent = `${newPost} — feeling ${feelingEmoji} ${selectedFeeling}`;
       }
 
       const response = await fetch('/api/posts', {
@@ -132,7 +181,7 @@ export default function PublicFeed() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           content: postContent,
-          imageUrl,
+          imageUrl: mediaUrl,
           privacy: postPrivacy
         }),
       });
@@ -140,7 +189,9 @@ export default function PublicFeed() {
       if (response.ok) {
         setNewPost('');
         setSelectedImage(null);
+        setSelectedVideo(null);
         setImagePreview(null);
+        setVideoPreview(null);
         setSelectedFeeling('');
         setPostPrivacy('public');
         fetchPosts();
@@ -153,25 +204,48 @@ export default function PublicFeed() {
     }
   };
 
-  const handleLike = async (postId: number) => {
+  const handleReaction = async (postId: number, reactionType: string) => {
     try {
-      const response = await fetch(`/api/posts/${postId}/like`, {
+      const response = await fetch(`/api/posts/${postId}/reactions`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reactionType }),
       });
 
       if (response.ok) {
         fetchPosts();
       }
     } catch (error) {
-      console.error('Error liking post:', error);
+      console.error('Error adding reaction:', error);
     }
   };
 
-  const toggleComments = (postId: number) => {
+  const toggleComments = async (postId: number) => {
+    const isCurrentlyShown = showComments[postId];
+    
     setShowComments(prev => ({
       ...prev,
       [postId]: !prev[postId]
     }));
+
+    // Fetch comments if opening and not already loaded
+    if (!isCurrentlyShown && !comments[postId]) {
+      setLoadingComments(prev => ({ ...prev, [postId]: true }));
+      try {
+        const response = await fetch(`/api/posts/${postId}/comments`);
+        if (response.ok) {
+          const data = await response.json();
+          setComments(prev => ({
+            ...prev,
+            [postId]: data.comments || []
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+      } finally {
+        setLoadingComments(prev => ({ ...prev, [postId]: false }));
+      }
+    }
   };
 
   const handleAddComment = async (postId: number) => {
@@ -179,32 +253,99 @@ export default function PublicFeed() {
     if (!commentText?.trim()) return;
 
     try {
-      // TODO: Implement comment API
-      // For now, just add to local state
-      const newCommentObj: Comment = {
-        id: Date.now(),
-        userName: 'You',
-        content: commentText,
-        createdAt: new Date().toISOString(),
-      };
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: commentText }),
+      });
 
-      setComments(prev => ({
-        ...prev,
-        [postId]: [...(prev[postId] || []), newCommentObj]
-      }));
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Add new comment to local state
+        setComments(prev => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), data.comment]
+        }));
 
-      setNewComment(prev => ({
-        ...prev,
-        [postId]: ''
-      }));
+        // Clear input
+        setNewComment(prev => ({
+          ...prev,
+          [postId]: ''
+        }));
+
+        // Refresh posts to update comment count
+        fetchPosts();
+      }
     } catch (error) {
       console.error('Error adding comment:', error);
     }
   };
 
   const handleShare = async (postId: number) => {
-    // TODO: Implement share functionality
-    alert('Share functionality coming soon!');
+    try {
+      const response = await fetch(`/api/posts/${postId}/share`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        fetchPosts();
+        alert('Post shared successfully!');
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to share post');
+      }
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      alert('Failed to share post');
+    }
+  };
+
+  const handleCreateStory = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,video/*';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          
+          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+          
+          const response = await fetch('/api/stories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              mediaUrl: uploadData.url,
+              mediaType
+            }),
+          });
+
+          if (response.ok) {
+            fetchStories();
+            alert('Story created successfully!');
+          }
+        }
+      } catch (error) {
+        console.error('Error creating story:', error);
+        alert('Failed to create story');
+      } finally {
+        setUploading(false);
+      }
+    };
+    input.click();
   };
 
   return (
@@ -212,20 +353,51 @@ export default function PublicFeed() {
       {/* Stories Section - Facebook Style */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          <button className="flex-shrink-0 w-28 h-48 rounded-lg bg-gradient-to-b from-purple-500 to-blue-500 relative overflow-hidden group hover:scale-105 transition-transform">
+          <button 
+            onClick={handleCreateStory}
+            disabled={uploading}
+            className="flex-shrink-0 w-28 h-48 rounded-lg bg-gradient-to-b from-purple-500 to-blue-500 relative overflow-hidden group hover:scale-105 transition-transform disabled:opacity-50"
+          >
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-3">
               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg">
                 <Camera className="w-5 h-5 text-purple-600" />
               </div>
-              <span className="text-white text-xs font-semibold">Create Story</span>
+              <span className="text-white text-xs font-semibold">
+                {uploading ? 'Uploading...' : 'Create Story'}
+              </span>
             </div>
           </button>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex-shrink-0 w-28 h-48 rounded-lg bg-gradient-to-br from-purple-400 to-blue-400 relative overflow-hidden cursor-pointer group hover:scale-105 transition-transform">
+          
+          {stories.map((story) => (
+            <div 
+              key={story.id} 
+              className="flex-shrink-0 w-28 h-48 rounded-lg bg-gradient-to-br from-purple-400 to-blue-400 relative overflow-hidden cursor-pointer group hover:scale-105 transition-transform"
+            >
+              {story.mediaType === 'image' ? (
+                <Image
+                  src={story.mediaUrl}
+                  alt="Story"
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <video 
+                  src={story.mediaUrl} 
+                  className="w-full h-full object-cover"
+                />
+              )}
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black opacity-70"></div>
-              <div className="absolute top-3 left-3 w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 border-4 border-white shadow-lg"></div>
+              <div className="absolute top-3 left-3 w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 border-4 border-white shadow-lg overflow-hidden">
+                {story.userAvatar ? (
+                  <Image src={story.userAvatar} alt={story.userName} fill className="object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
+                    {story.userName.charAt(0)}
+                  </div>
+                )}
+              </div>
               <div className="absolute bottom-3 left-3 right-3">
-                <p className="text-white text-xs font-semibold truncate drop-shadow-lg">Believer {i}</p>
+                <p className="text-white text-xs font-semibold truncate drop-shadow-lg">{story.userName}</p>
               </div>
             </div>
           ))}
@@ -277,7 +449,20 @@ export default function PublicFeed() {
               <img src={imagePreview} alt="Preview" className="w-full rounded-lg" />
               <button
                 type="button"
-                onClick={handleRemoveImage}
+                onClick={handleRemoveMedia}
+                className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
+          {videoPreview && (
+            <div className="relative">
+              <video src={videoPreview} controls className="w-full rounded-lg" />
+              <button
+                type="button"
+                onClick={handleRemoveMedia}
                 className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100"
               >
                 <X className="w-5 h-5" />
@@ -298,10 +483,16 @@ export default function PublicFeed() {
                 />
               </label>
               
-              <button type="button" className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <label className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors">
                 <Video className="w-5 h-5 text-red-500" />
                 <span className="text-sm font-medium text-gray-700 hidden sm:inline">Video</span>
-              </button>
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoSelect}
+                  className="hidden"
+                />
+              </label>
               
               <div className="relative">
                 <button 
@@ -461,7 +652,7 @@ export default function PublicFeed() {
                 <button onClick={() => toggleComments(post.id)} className="hover:underline">
                   {post.commentsCount} comments
                 </button>
-                <span>0 shares</span>
+                <span>{post.sharesCount || 0} shares</span>
               </div>
             </div>
 
@@ -469,7 +660,7 @@ export default function PublicFeed() {
             <div className="px-4 py-2 flex items-center justify-around border-b">
               <div className="relative">
                 <button
-                  onClick={() => handleLike(post.id)}
+                  onClick={() => handleReaction(post.id, 'like')}
                   onMouseEnter={() => setShowReactions(prev => ({ ...prev, [post.id]: true }))}
                   onMouseLeave={() => setShowReactions(prev => ({ ...prev, [post.id]: false }))}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors ${
@@ -485,7 +676,7 @@ export default function PublicFeed() {
                     {reactions.map((reaction) => (
                       <button
                         key={reaction.name}
-                        onClick={() => handleLike(post.id)}
+                        onClick={() => handleReaction(post.id, reaction.name)}
                         className="text-2xl hover:scale-125 transition-transform"
                         title={reaction.name}
                       >
@@ -516,24 +707,38 @@ export default function PublicFeed() {
             {/* Comments Section */}
             {showComments[post.id] && (
               <div className="p-4 bg-gray-50">
-                {comments[post.id]?.map((comment) => (
-                  <div key={comment.id} className="flex gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                      {comment.userName.charAt(0)}
-                    </div>
-                    <div className="flex-1">
-                      <div className="bg-white rounded-2xl px-4 py-2">
-                        <p className="font-semibold text-sm text-gray-900">{comment.userName}</p>
-                        <p className="text-gray-800 text-sm">{comment.content}</p>
-                      </div>
-                      <div className="flex items-center gap-3 px-4 mt-1 text-xs text-gray-600">
-                        <button className="hover:underline font-semibold">Like</button>
-                        <button className="hover:underline font-semibold">Reply</button>
-                        <span>{new Date(comment.createdAt).toLocaleTimeString()}</span>
-                      </div>
-                    </div>
+                {loadingComments[post.id] ? (
+                  <div className="text-center py-4">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                   </div>
-                ))}
+                ) : (
+                  <>
+                    {comments[post.id]?.map((comment) => (
+                      <div key={comment.id} className="flex gap-2 mb-3">
+                        {comment.userAvatar ? (
+                          <div className="w-8 h-8 rounded-full overflow-hidden relative flex-shrink-0">
+                            <Image src={comment.userAvatar} alt={comment.userName} fill className="object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                            {comment.userName.charAt(0)}
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <div className="bg-white rounded-2xl px-4 py-2">
+                            <p className="font-semibold text-sm text-gray-900">{comment.userName}</p>
+                            <p className="text-gray-800 text-sm">{comment.content}</p>
+                          </div>
+                          <div className="flex items-center gap-3 px-4 mt-1 text-xs text-gray-600">
+                            <button className="hover:underline font-semibold">Like</button>
+                            <button className="hover:underline font-semibold">Reply</button>
+                            <span>{new Date(comment.createdAt).toLocaleTimeString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
 
                 {/* Add Comment */}
                 <div className="flex gap-2 mt-3">
