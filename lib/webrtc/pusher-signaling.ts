@@ -26,6 +26,12 @@ export function getPusherClient() {
   return new PusherClient(key, {
     cluster: cluster,
     authEndpoint: '/api/pusher/auth',
+    auth: {
+      headers: {
+        // Cookies will be sent automatically with same-origin requests
+      },
+    },
+    authTransport: 'ajax',
   });
 }
 
