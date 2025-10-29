@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Send, UserPlus, Check, X, Trash2, CheckCheck, MoreVertical, Ban, User, Flag, Image as ImageIcon, Phone, PhoneOff } from 'lucide-react';
+import { Search, Send, UserPlus, Check, X, Trash2, CheckCheck, MoreVertical, Ban, User, Flag, Image as ImageIcon, Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
 import Image from 'next/image';
 
 interface User {
@@ -56,6 +56,7 @@ export default function FriendsMessaging() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isInCall, setIsInCall] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -349,10 +350,15 @@ export default function FriendsMessaging() {
   const endVoiceCall = () => {
     setIsInCall(false);
     setCallDuration(0);
+    setIsMuted(false);
     if ((window as any).callInterval) {
       clearInterval((window as any).callInterval);
       (window as any).callInterval = null;
     }
+  };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
   };
 
   const formatCallDuration = (seconds: number) => {
@@ -664,12 +670,25 @@ export default function FriendsMessaging() {
                   <div className="text-4xl font-mono mb-12">
                     {formatCallDuration(callDuration)}
                   </div>
-                  <button
-                    onClick={endVoiceCall}
-                    className="bg-red-500 hover:bg-red-600 text-white rounded-full p-6 shadow-lg transition-transform hover:scale-110"
-                  >
-                    <PhoneOff className="w-8 h-8" />
-                  </button>
+                  <div className="flex items-center gap-6">
+                    <button
+                      onClick={toggleMute}
+                      className={`rounded-full p-5 shadow-lg transition-all hover:scale-110 ${
+                        isMuted 
+                          ? 'bg-gray-700 hover:bg-gray-800' 
+                          : 'bg-white/20 hover:bg-white/30'
+                      }`}
+                      title={isMuted ? 'Unmute' : 'Mute'}
+                    >
+                      {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
+                    </button>
+                    <button
+                      onClick={endVoiceCall}
+                      className="bg-red-500 hover:bg-red-600 text-white rounded-full p-6 shadow-lg transition-transform hover:scale-110"
+                    >
+                      <PhoneOff className="w-8 h-8" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
