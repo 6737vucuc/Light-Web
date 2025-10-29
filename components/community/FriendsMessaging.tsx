@@ -1062,5 +1062,6 @@ export default function FriendsMessaging() {
       {/* Hidden audio element for remote audio */}
       <audio id="remote-audio" autoPlay />
     </div>
+    </>
   );
 }
