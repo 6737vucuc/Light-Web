@@ -64,7 +64,7 @@ export default function FriendsMessaging() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // WebRTC Hook
-  const webrtc = (typeof window !== 'undefined' && currentUserId && currentUserName) ? useWebRTC({
+  const webrtc = (typeof window !== 'undefined' && currentUserId !== null && currentUserName !== '') ? useWebRTC({
     userId: currentUserId,
     userName: currentUserName,
     onIncomingCall: (callerId, callerName) => {

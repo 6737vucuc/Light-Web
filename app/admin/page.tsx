@@ -1263,7 +1263,7 @@ function VPNLogsManager() {
                         ? 'bg-red-100 text-red-800' 
                         : 'bg-green-100 text-green-800'
                     }`}>
-                      {log.action}
+                      {log.action || 'N/A'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
