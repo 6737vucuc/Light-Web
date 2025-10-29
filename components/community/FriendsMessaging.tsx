@@ -62,6 +62,7 @@ export default function FriendsMessaging() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const ringingAudioRef = useRef<HTMLAudioElement>(null);
 
   // WebRTC Hook
   const webrtc = useWebRTC({
@@ -70,10 +71,19 @@ export default function FriendsMessaging() {
     onIncomingCall: (callerId, callerName) => {
       setIncomingCall({ callerId, callerName });
     },
+    onCallAccepted: () => {
+      // بدء العداد للمتصل عندما يقبل المستقبل المكالمة
+      startCallTimer();
+    },
     onCallEnded: () => {
       setIsInCall(false);
       setCallDuration(0);
       setIsMuted(false);
+      // إيقاف صوت الرنين عند انتهاء المكالمة
+      if (ringingAudioRef.current) {
+        ringingAudioRef.current.pause();
+        ringingAudioRef.current.currentTime = 0;
+      }
     }
   });
 
@@ -116,6 +126,17 @@ export default function FriendsMessaging() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // منطق تشغيل صوت الرنين
+  useEffect(() => {
+    if (incomingCall && ringingAudioRef.current) {
+      ringingAudioRef.current.loop = true;
+      ringingAudioRef.current.play().catch(e => console.error('Error playing ringing sound:', e));
+    } else if (ringingAudioRef.current) {
+      ringingAudioRef.current.pause();
+      ringingAudioRef.current.currentTime = 0;
+    }
+  }, [incomingCall]);
 
   const fetchFriendRequests = async () => {
     try {
@@ -368,20 +389,22 @@ export default function FriendsMessaging() {
     return '/logo.png';
   };
 
+  const startCallTimer = () => {
+    setCallDuration(0);
+    const interval = setInterval(() => {
+      setCallDuration(prev => prev + 1);
+    }, 1000);
+    
+    (window as any).callInterval = interval;
+  };
+
   const startVoiceCall = async () => {
     if (!selectedFriend || !webrtc) return;
     
     try {
       await webrtc.startCall(selectedFriend.id);
       setIsInCall(true);
-      setCallDuration(0);
-      
-      // Start call duration timer
-      const interval = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-      
-      (window as any).callInterval = interval;
+      // العداد سيبدأ عندما يقبل الطرف الآخر المكالمة (عبر onCallAccepted)
     } catch (error) {
       console.error('Error starting call:', error);
       alert('Failed to start call');
@@ -414,15 +437,16 @@ export default function FriendsMessaging() {
     try {
       await webrtc.acceptCall(incomingCall.callerId);
       setIsInCall(true);
-      setCallDuration(0);
       setIncomingCall(null);
       
-      // Start call duration timer
-      const interval = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
+      // بدء العداد للمستقبل مباشرة
+      startCallTimer();
       
-      (window as any).callInterval = interval;
+      // إيقاف صوت الرنين عند القبول
+      if (ringingAudioRef.current) {
+        ringingAudioRef.current.pause();
+        ringingAudioRef.current.currentTime = 0;
+      }
     } catch (error) {
       console.error('Error accepting call:', error);
       alert('Failed to accept call');
@@ -434,6 +458,11 @@ export default function FriendsMessaging() {
     
     webrtc.rejectCall(incomingCall.callerId);
     setIncomingCall(null);
+    // إيقاف صوت الرنين عند الرفض
+    if (ringingAudioRef.current) {
+      ringingAudioRef.current.pause();
+      ringingAudioRef.current.currentTime = 0;
+    }
   };
 
   const formatCallDuration = (seconds: number) => {
@@ -443,9 +472,11 @@ export default function FriendsMessaging() {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="flex border-b">
-        <button
+    <>
+      <audio ref={ringingAudioRef} src="/ringing.mp3" preload="auto" />
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="flex border-b">
+          <button
           onClick={() => setActiveTab('search')}
           className={`flex-1 px-4 py-3 text-sm font-medium ${
             activeTab === 'search'
@@ -485,6 +516,56 @@ export default function FriendsMessaging() {
       </div>
 
       <div className="p-4">
+        {/* Call UI */}
+        {isInCall && (
+          <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl p-6 text-center">
+              <p className="text-xl font-semibold mb-2">Call with {selectedFriend?.name}</p>
+              <p className="text-4xl font-bold text-purple-600 mb-4">{formatCallDuration(callDuration)}</p>
+              <div className="flex justify-center space-x-4 mb-6">
+                <button
+                  onClick={toggleMute}
+                  className={`p-3 rounded-full ${isMuted ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-200 hover:bg-gray-300'} text-white transition-colors`}
+                >
+                  {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6 text-gray-700" />}
+                </button>
+              </div>
+              <button
+                onClick={endVoiceCall}
+                className="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 font-semibold transition-colors flex items-center mx-auto"
+              >
+                <PhoneOff className="w-5 h-5 mr-2" />
+                End Call
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Incoming Call UI */}
+        {incomingCall && (
+          <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl p-8 text-center">
+              <p className="text-2xl font-bold mb-4 text-purple-600">Incoming Call</p>
+              <p className="text-xl mb-6">from {incomingCall.callerName}</p>
+              <div className="flex justify-center space-x-8">
+                <button
+                  onClick={acceptIncomingCall}
+                  className="p-4 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+                >
+                  <Phone className="w-8 h-8" />
+                </button>
+                <button
+                  onClick={rejectIncomingCall}
+                  className="p-4 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                >
+                  <PhoneOff className="w-8 h-8" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* End Incoming Call UI */}
+
         {activeTab === 'search' && (
           <div>
             <div className="flex gap-2 mb-4">

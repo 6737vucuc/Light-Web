@@ -7,6 +7,7 @@ interface UseWebRTCProps {
   userName: string;
   onIncomingCall?: (callerId: number, callerName: string) => void;
   onCallEnded?: () => void;
+  onCallAccepted?: (remoteUserId: number) => void;
 }
 
 interface WebRTCState {
@@ -24,7 +25,7 @@ const ICE_SERVERS = {
   ]
 };
 
-export function useWebRTC({ userId, userName, onIncomingCall, onCallEnded }: UseWebRTCProps) {
+export function useWebRTC({ userId, userName, onIncomingCall, onCallEnded, onCallAccepted }: UseWebRTCProps) {
   const [state, setState] = useState<WebRTCState>({
     isConnected: false,
     isInCall: false,
@@ -71,6 +72,9 @@ export function useWebRTC({ userId, userName, onIncomingCall, onCallEnded }: Use
     userChannel.bind(WEBRTC_EVENTS.CALL_ACCEPTED, async (data: any) => {
       console.log('Call accepted by:', data.userId);
       await createOffer(data.userId);
+      if (onCallAccepted) {
+        onCallAccepted(data.userId);
+      }
     });
 
     // Listen for call rejected
