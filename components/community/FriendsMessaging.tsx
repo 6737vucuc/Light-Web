@@ -1033,31 +1033,11 @@ export default function FriendsMessaging() {
 
       {/* Incoming Call Modal */}
       {incomingCall && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 text-center">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center mx-auto mb-4">
-              <Phone className="w-12 h-12 text-white animate-pulse" />
-            </div>
-            <h3 className="text-2xl font-bold mb-2">{incomingCall.callerName}</h3>
-            <p className="text-gray-600 mb-6">Incoming voice call...</p>
-            <div className="flex gap-4">
-              <button
-                onClick={rejectIncomingCall}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-full py-4 font-semibold transition-colors flex items-center justify-center gap-2"
-              >
-                <PhoneOff className="w-5 h-5" />
-                Decline
-              </button>
-              <button
-                onClick={acceptIncomingCall}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-full py-4 font-semibold transition-colors flex items-center justify-center gap-2"
-              >
-                <Phone className="w-5 h-5" />
-                Accept
-              </button>
-            </div>
-          </div>
-        </div>
+        <IncomingCallPopup
+          callerName={incomingCall.callerName}
+          onAccept={acceptIncomingCall}
+          onReject={rejectIncomingCall}
+        />
       )}
 
       {/* Hidden audio element for remote audio */}
