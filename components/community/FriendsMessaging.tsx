@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Send, UserPlus, Check, X, Trash2, CheckCheck, MoreVertical, Ban, User, Flag, Image as ImageIcon } from 'lucide-react';
+import { Search, Send, UserPlus, Check, X, Trash2, CheckCheck, MoreVertical, Ban, User, Flag, Image as ImageIcon, Phone, PhoneOff } from 'lucide-react';
 import Image from 'next/image';
 
 interface User {
@@ -54,6 +54,8 @@ export default function FriendsMessaging() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isInCall, setIsInCall] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -294,7 +296,8 @@ export default function FriendsMessaging() {
       const response = await fetch(`/api/users/${selectedFriend.id}/profile`);
       if (response.ok) {
         const data = await response.json();
-        setUserProfile(data);
+        // API returns { user: {...}, posts: [...] }
+        setUserProfile({ ...data.user, posts: data.posts });
         setShowProfileModal(true);
         setShowUserMenu(false);
       }
@@ -327,6 +330,35 @@ export default function FriendsMessaging() {
       return avatar;
     }
     return '/logo.png';
+  };
+
+  const startVoiceCall = () => {
+    if (!selectedFriend) return;
+    setIsInCall(true);
+    setCallDuration(0);
+    
+    // Start call duration timer
+    const interval = setInterval(() => {
+      setCallDuration(prev => prev + 1);
+    }, 1000);
+    
+    // Store interval ID to clear it later
+    (window as any).callInterval = interval;
+  };
+
+  const endVoiceCall = () => {
+    setIsInCall(false);
+    setCallDuration(0);
+    if ((window as any).callInterval) {
+      clearInterval((window as any).callInterval);
+      (window as any).callInterval = null;
+    }
+  };
+
+  const formatCallDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -561,7 +593,18 @@ export default function FriendsMessaging() {
                   <p className="text-xs text-gray-500">{formatLastSeen(selectedFriend.lastSeen)}</p>
                 </div>
               </div>
-              <div className="relative">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={isInCall ? endVoiceCall : startVoiceCall}
+                  className={`p-2 rounded-full transition-colors ${
+                    isInCall 
+                      ? 'bg-red-500 hover:bg-red-600 text-white' 
+                      : 'bg-green-500 hover:bg-green-600 text-white'
+                  }`}
+                  title={isInCall ? 'End Call' : 'Start Voice Call'}
+                >
+                  {isInCall ? <PhoneOff className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
+                </button>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="p-2 hover:bg-gray-100 rounded-full"
@@ -595,6 +638,41 @@ export default function FriendsMessaging() {
                 )}
               </div>
             </div>
+
+            {/* Voice Call Overlay */}
+            {isInCall && (
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-blue-500 z-20 flex flex-col items-center justify-center">
+                <div className="text-white text-center">
+                  <div className="w-32 h-32 rounded-full bg-white/20 flex items-center justify-center mb-6 mx-auto">
+                    {selectedFriend?.avatar ? (
+                      <div className="relative w-28 h-28 rounded-full overflow-hidden">
+                        <Image
+                          src={getAvatarUrl(selectedFriend.avatar)}
+                          alt={selectedFriend.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-28 h-28 rounded-full bg-white/30 flex items-center justify-center text-5xl font-bold">
+                        {selectedFriend?.name?.[0] || '?'}
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">{selectedFriend?.name}</h3>
+                  <p className="text-white/80 mb-8">Voice Call</p>
+                  <div className="text-4xl font-mono mb-12">
+                    {formatCallDuration(callDuration)}
+                  </div>
+                  <button
+                    onClick={endVoiceCall}
+                    className="bg-red-500 hover:bg-red-600 text-white rounded-full p-6 shadow-lg transition-transform hover:scale-110"
+                  >
+                    <PhoneOff className="w-8 h-8" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex-1 overflow-y-auto py-4 space-y-3">
               {messages.map((message) => {
