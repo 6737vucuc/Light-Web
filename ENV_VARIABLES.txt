@@ -4,6 +4,11 @@
 # Database (Neon PostgreSQL)
 DATABASE_URL=postgresql://neondb_owner:npg_Hf73CljbDXzF@ep-fancy-forest-aedpagn2-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require
 
+# LiveKit Configuration (Voice Calls) - NEW!
+NEXT_PUBLIC_LIVEKIT_URL=wss://light-of-life-hmc6y7lv.livekit.cloud
+LIVEKIT_API_KEY=APIKpzsAfMt3dqH
+LIVEKIT_API_SECRET=cvNeyXRTJZH1pnDnCXeYfDXrr2VIN8VbO1UKHOnTofkD
+
 # Email Configuration (Nodemailer)
 EMAIL_USER=noreplylightoflife@gmail.com
 EMAIL_PASS=cabjjzptfsxnzxlr
@@ -37,8 +42,14 @@ MESSAGE_ENCRYPTION_KEY=ad1b4ee30aed59d436661dd667653c91a4ea78d4fd27e1235add3cafd
 # 8. Click "Redeploy"
 # 9. Wait for the deployment to complete
 
+# IMPORTANT: Make sure to add the NEW LiveKit variables!
+# These are required for voice calls to work:
+# - NEXT_PUBLIC_LIVEKIT_URL
+# - LIVEKIT_API_KEY
+# - LIVEKIT_API_SECRET
+
 # Alternative: Use Vercel CLI to add environment variables
-# vercel env add DATABASE_URL production
+# vercel env add NEXT_PUBLIC_LIVEKIT_URL production
 # (Then paste the value when prompted)
 # Repeat for each variable above
 
@@ -47,6 +58,7 @@ MESSAGE_ENCRYPTION_KEY=ad1b4ee30aed59d436661dd667653c91a4ea78d4fd27e1235add3cafd
 # - JWT_SECRET is a strong 256-bit hexadecimal key
 # - Change all secrets if they are ever exposed
 # - Use different secrets for development and production
+# - Keep LIVEKIT_API_SECRET confidential!
 
 # After deployment, your website will be available at:
 # https://light-web-project-anwar-kouns-projects.vercel.app
