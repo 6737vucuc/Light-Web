@@ -4,10 +4,11 @@ import { TwoFactorAuth, Email2FA } from '@/lib/auth/two-factor';
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authResult = await requireAuth(request);
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
+    const { user } = authResult;
 
     const { method, code } = await request.json();
 

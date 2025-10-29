@@ -17,11 +17,14 @@ NEXT_PUBLIC_PUSHER_CLUSTER=us2
 # IPInfo API (VPN Detection)
 IPINFO_API_KEY=d6034ac9c81c27
 
-# JWT Secret (IMPORTANT: Change this to a strong random string in production!)
-JWT_SECRET=light-of-life-super-secret-jwt-key-change-in-production-2024
+# JWT Secret (CRITICAL SECURITY - Strong 256-bit key)
+JWT_SECRET=ad1b4ee30aed59d436661dd667653c91a4ea78d4fd27e1235add3cafd09f7c72
+
+# Message Encryption Key (Same as JWT for unified security)
+MESSAGE_ENCRYPTION_KEY=ad1b4ee30aed59d436661dd667653c91a4ea78d4fd27e1235add3cafd09f7c72
 
 # Instructions:
-# 1. Go to your Vercel project: https://vercel.com/anwar-kouns-projects/light-of-life
+# 1. Go to your Vercel project: https://vercel.com/anwar-kouns-projects/light-web-project
 # 2. Click on "Settings" tab
 # 3. Click on "Environment Variables" in the left sidebar
 # 4. Add each variable above:
@@ -39,7 +42,12 @@ JWT_SECRET=light-of-life-super-secret-jwt-key-change-in-production-2024
 # (Then paste the value when prompted)
 # Repeat for each variable above
 
-# After deployment, your website will be available at:
-# https://light-of-life-anwar-kouns-projects.vercel.app
-# or your custom domain if configured
+# SECURITY NOTES:
+# - NEVER commit .env files to Git
+# - JWT_SECRET is a strong 256-bit hexadecimal key
+# - Change all secrets if they are ever exposed
+# - Use different secrets for development and production
 
+# After deployment, your website will be available at:
+# https://light-web-project-anwar-kouns-projects.vercel.app
+# or your custom domain if configured

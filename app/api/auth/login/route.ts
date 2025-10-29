@@ -5,12 +5,23 @@ import { users, vpnLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createToken } from '@/lib/auth/jwt';
 import { detectVPN, getClientIP } from '@/lib/utils/vpn';
+import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting - strict for login attempts
+    const clientId = getClientIdentifier(request);
+    const rateLimit = checkRateLimit(clientId, RateLimitConfigs.AUTH);
+    
+    if (!rateLimit.allowed) {
+      console.warn(`Rate limit exceeded for login attempt from: ${clientId}`);
+      return createRateLimitResponse(rateLimit.resetTime);
+    }
+
     const body = await request.json();
     const { email, password } = body;
 
+    // Input validation
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
@@ -18,12 +29,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
     // Find user
     const user = await db.query.users.findFirst({
-      where: eq(users.email, email),
+      where: eq(users.email, email.toLowerCase().trim()),
     });
 
     if (!user) {
+      // Use generic error message to prevent user enumeration
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -58,10 +79,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Verify password
+    // Verify password - use constant-time comparison
     const isValidPassword = await verify(user.password, password);
 
     if (!isValidPassword) {
+      // Log failed login attempt
+      console.warn(`Failed login attempt for email: ${email} from IP: ${clientId}`);
+      
+      // Use generic error message to prevent user enumeration
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -73,21 +98,32 @@ export async function POST(request: NextRequest) {
     const vpnDetection = await detectVPN(clientIP);
 
     // Log VPN detection
-    await db.insert(vpnLogs).values({
-      userId: user.id,
-      ipAddress: clientIP,
-      isVpn: vpnDetection.isVpn,
-      vpnData: vpnDetection.data,
-    });
+    try {
+      await db.insert(vpnLogs).values({
+        userId: user.id,
+        ipAddress: clientIP,
+        isVpn: vpnDetection.isVpn,
+        vpnData: vpnDetection.data,
+      });
+    } catch (error) {
+      // Don't fail login if VPN logging fails
+      console.error('VPN logging error:', error);
+    }
 
-    // Create JWT token
+    // Create JWT token with minimal payload
     const token = await createToken({
       userId: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
     });
 
-    // Create response
+    // Update last seen
+    await db
+      .update(users)
+      .set({ lastSeen: new Date() })
+      .where(eq(users.id, user.id));
+
+    // Create response with minimal user data
     const response = NextResponse.json({
       message: 'Login successful',
       user: {
@@ -100,13 +136,18 @@ export async function POST(request: NextRequest) {
       vpnDetected: vpnDetection.isVpn,
     });
 
-    // Set cookie
+    // Set secure cookie with strict settings
     response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      httpOnly: true, // Prevent XSS attacks
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: 'strict', // Prevent CSRF attacks
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/', // Available across the entire site
     });
+
+    // Add rate limit headers
+    response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
+    response.headers.set('X-RateLimit-Reset', new Date(rateLimit.resetTime).toISOString());
 
     return response;
   } catch (error) {
@@ -117,4 +158,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
