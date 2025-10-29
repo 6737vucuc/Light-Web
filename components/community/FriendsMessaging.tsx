@@ -63,19 +63,20 @@ export default function FriendsMessaging() {
   const [currentUserName, setCurrentUserName] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // WebRTC Hook
-  const webrtc = currentUserId && currentUserName ? useWebRTC({
-    userId: currentUserId,
-    userName: currentUserName,
-    onIncomingCall: (callerId, callerName) => {
-      setIncomingCall({ callerId, callerName });
-    },
-    onCallEnded: () => {
-      setIsInCall(false);
-      setCallDuration(0);
-      setIsMuted(false);
-    }
-  }) : null;
+  // WebRTC Hook (temporarily disabled for debugging)
+  const webrtc = null; // Will be enabled after fixing
+  // const webrtc = currentUserId && currentUserName ? useWebRTC({
+  //   userId: currentUserId,
+  //   userName: currentUserName,
+  //   onIncomingCall: (callerId, callerName) => {
+  //     setIncomingCall({ callerId, callerName });
+  //   },
+  //   onCallEnded: () => {
+  //     setIsInCall(false);
+  //     setCallDuration(0);
+  //     setIsMuted(false);
+  //   }
+  // }) : null;
 
   // Fetch current user info
   useEffect(() => {

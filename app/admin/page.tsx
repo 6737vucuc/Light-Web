@@ -704,20 +704,572 @@ function StatisticsManager() {
   );
 }
 
-// Placeholder components (keeping existing functionality)
+// Testimonies Manager
 function TestimoniesManager() {
-  return <div className="text-center py-12 text-gray-500">Testimonies management coming soon...</div>;
+  const [testimonies, setTestimonies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchTestimonies();
+  }, []);
+
+  const fetchTestimonies = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/testimonies');
+      const data = await response.json();
+      setTestimonies(data.testimonies || []);
+    } catch (error) {
+      console.error('Fetch testimonies error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteTestimony = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this testimony?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/testimonies/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('Testimony deleted successfully');
+        fetchTestimonies();
+      } else {
+        alert('Failed to delete testimony');
+      }
+    } catch (error) {
+      console.error('Delete testimony error:', error);
+      alert('Failed to delete testimony');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Testimonies</h2>
+        <p className="text-gray-600">Total: {testimonies.length}</p>
+      </div>
+
+      {testimonies.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          No testimonies yet
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {testimonies.map((testimony) => (
+            <div key={testimony.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-semibold text-gray-900">{testimony.userName}</span>
+                    <span className="text-sm text-gray-500">
+                      {new Date(testimony.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-gray-700 whitespace-pre-wrap">{testimony.content}</p>
+                </div>
+                <button
+                  onClick={() => deleteTestimony(testimony.id)}
+                  className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
+// Support Requests Manager
 function SupportManager() {
-  return <div className="text-center py-12 text-gray-500">Support requests management coming soon...</div>;
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('all');
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/support');
+      const data = await response.json();
+      setRequests(data.requests || []);
+    } catch (error) {
+      console.error('Fetch support requests error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateStatus = async (id: number, status: string) => {
+    try {
+      const response = await fetch(`/api/admin/support/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        alert('Status updated successfully');
+        fetchRequests();
+      } else {
+        alert('Failed to update status');
+      }
+    } catch (error) {
+      console.error('Update status error:', error);
+      alert('Failed to update status');
+    }
+  };
+
+  const deleteRequest = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this request?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/support/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('Request deleted successfully');
+        fetchRequests();
+      } else {
+        alert('Failed to delete request');
+      }
+    } catch (error) {
+      console.error('Delete request error:', error);
+      alert('Failed to delete request');
+    }
+  };
+
+  const filteredRequests = requests.filter(req => {
+    if (filter === 'all') return true;
+    return req.status === filter;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Support Requests</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            All ({requests.length})
+          </button>
+          <button
+            onClick={() => setFilter('pending')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'pending' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            Pending ({requests.filter(r => r.status === 'pending').length})
+          </button>
+          <button
+            onClick={() => setFilter('resolved')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'resolved' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            Resolved ({requests.filter(r => r.status === 'resolved').length})
+          </button>
+        </div>
+      </div>
+
+      {filteredRequests.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          No {filter !== 'all' ? filter : ''} support requests
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredRequests.map((request) => (
+            <div key={request.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-gray-900">{request.userName}</span>
+                    <span className="text-sm text-gray-500">{request.userEmail}</span>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {new Date(request.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  request.status === 'pending' 
+                    ? 'bg-yellow-100 text-yellow-800' 
+                    : 'bg-green-100 text-green-800'
+                }`}>
+                  {request.status}
+                </span>
+              </div>
+              <p className="text-gray-700 mb-3 whitespace-pre-wrap">{request.message}</p>
+              <div className="flex gap-2">
+                {request.status === 'pending' && (
+                  <button
+                    onClick={() => updateStatus(request.id, 'resolved')}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                  >
+                    <Check className="h-4 w-4" />
+                    Mark as Resolved
+                  </button>
+                )}
+                {request.status === 'resolved' && (
+                  <button
+                    onClick={() => updateStatus(request.id, 'pending')}
+                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                  >
+                    Mark as Pending
+                  </button>
+                )}
+                <button
+                  onClick={() => deleteRequest(request.id)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
+// Users Manager
 function UsersManager() {
-  return <div className="text-center py-12 text-gray-500">User management coming soon...</div>;
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/users');
+      const data = await response.json();
+      setUsers(data.users || []);
+    } catch (error) {
+      console.error('Fetch users error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleBlockUser = async (userId: number, currentStatus: boolean) => {
+    const action = currentStatus ? 'unblock' : 'block';
+    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isBlocked: !currentStatus }),
+      });
+
+      if (response.ok) {
+        alert(`User ${action}ed successfully`);
+        fetchUsers();
+      } else {
+        alert(`Failed to ${action} user`);
+      }
+    } catch (error) {
+      console.error(`${action} user error:`, error);
+      alert(`Failed to ${action} user`);
+    }
+  };
+
+  const deleteUser = async (userId: number) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('User deleted successfully');
+        fetchUsers();
+      } else {
+        alert('Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Delete user error:', error);
+      alert('Failed to delete user');
+    }
+  };
+
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+        <p className="text-gray-600">Total Users: {users.length}</p>
+      </div>
+
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+        />
+      </div>
+
+      {filteredUsers.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          No users found
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredUsers.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium text-gray-900">{user.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.email}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      user.role === 'admin' 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      user.isBlocked 
+                        ? 'bg-red-100 text-red-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {user.isBlocked ? 'Blocked' : 'Active'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <div className="flex gap-2">
+                      {user.role !== 'admin' && (
+                        <>
+                          <button
+                            onClick={() => toggleBlockUser(user.id, user.isBlocked)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              user.isBlocked
+                                ? 'text-green-600 hover:bg-green-50'
+                                : 'text-yellow-600 hover:bg-yellow-50'
+                            }`}
+                            title={user.isBlocked ? 'Unblock' : 'Block'}
+                          >
+                            <Ban className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteUser(user.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <UserX className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
+// VPN Logs Manager
 function VPNLogsManager() {
-  return <div className="text-center py-12 text-gray-500">VPN logs coming soon...</div>;
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'vpn' | 'clean'>('all');
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/vpn-logs');
+      const data = await response.json();
+      setLogs(data.logs || []);
+    } catch (error) {
+      console.error('Fetch VPN logs error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredLogs = logs.filter(log => {
+    if (filter === 'all') return true;
+    if (filter === 'vpn') return log.isVPN;
+    return !log.isVPN;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">VPN Detection Logs</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            All ({logs.length})
+          </button>
+          <button
+            onClick={() => setFilter('vpn')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'vpn' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            VPN Detected ({logs.filter(l => l.isVPN).length})
+          </button>
+          <button
+            onClick={() => setFilter('clean')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'clean' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            Clean ({logs.filter(l => !l.isVPN).length})
+          </button>
+        </div>
+      </div>
+
+      {filteredLogs.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          No {filter !== 'all' ? filter : ''} logs found
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredLogs.map((log) => (
+                <tr key={log.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium text-gray-900">{log.userName}</div>
+                    <div className="text-sm text-gray-500">{log.userEmail}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                    {log.ipAddress}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      log.isVPN 
+                        ? 'bg-red-100 text-red-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {log.isVPN ? 'VPN Detected' : 'Clean'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {log.country || 'Unknown'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      log.action === 'blocked' 
+                        ? 'bg-red-100 text-red-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {log.action}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(log.createdAt).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 

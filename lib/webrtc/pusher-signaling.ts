@@ -19,8 +19,12 @@ export function getPusherServer() {
 
 // Client-side Pusher instance
 export function getPusherClient() {
-  return new PusherClient(process.env.NEXT_PUBLIC_PUSHER_APP_KEY!, {
-    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+  // Use environment variables from Next.js public config
+  const key = process.env.NEXT_PUBLIC_PUSHER_APP_KEY || 'b0f5756f20e894c0c2e7';
+  const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2';
+  
+  return new PusherClient(key, {
+    cluster: cluster,
   });
 }
 
