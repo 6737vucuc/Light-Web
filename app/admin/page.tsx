@@ -988,18 +988,24 @@ function UsersManager() {
   };
 
   const toggleBlockUser = async (userId: number, currentStatus: boolean) => {
-    const action = currentStatus ? 'unblock' : 'block';
+    const action = currentStatus ? 'unban' : 'ban';
     if (!confirm(`Are you sure you want to ${action} this user?`)) return;
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'PATCH',
+      const bannedUntil = action === 'ban' ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : null;
+      
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isBlocked: !currentStatus }),
+        body: JSON.stringify({ 
+          userId, 
+          action,
+          bannedUntil 
+        }),
       });
 
       if (response.ok) {
-        alert(`User ${action}ed successfully`);
+        alert(`User ${action}ned successfully`);
         fetchUsers();
       } else {
         alert(`Failed to ${action} user`);
@@ -1014,7 +1020,7 @@ function UsersManager() {
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users?id=${userId}`, {
         method: 'DELETE',
       });
 
@@ -1088,20 +1094,20 @@ function UsersManager() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.role === 'admin' 
+                      user.isAdmin 
                         ? 'bg-purple-100 text-purple-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {user.role}
+                      {user.isAdmin ? 'Admin' : 'User'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.isBlocked 
+                      user.isBanned 
                         ? 'bg-red-100 text-red-800' 
                         : 'bg-green-100 text-green-800'
                     }`}>
-                      {user.isBlocked ? 'Blocked' : 'Active'}
+                      {user.isBanned ? 'Banned' : 'Active'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1109,16 +1115,16 @@ function UsersManager() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className="flex gap-2">
-                      {user.role !== 'admin' && (
+                      {!user.isAdmin && (
                         <>
                           <button
-                            onClick={() => toggleBlockUser(user.id, user.isBlocked)}
+                            onClick={() => toggleBlockUser(user.id, user.isBanned)}
                             className={`p-2 rounded-lg transition-colors ${
-                              user.isBlocked
+                              user.isBanned
                                 ? 'text-green-600 hover:bg-green-50'
                                 : 'text-yellow-600 hover:bg-yellow-50'
                             }`}
-                            title={user.isBlocked ? 'Unblock' : 'Block'}
+                            title={user.isBanned ? 'Unban' : 'Ban'}
                           >
                             <Ban className="h-4 w-4" />
                           </button>
