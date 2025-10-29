@@ -1255,15 +1255,15 @@ function VPNLogsManager() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {log.country || 'Unknown'}
+                    {(log.vpnData as any)?.country || 'Unknown'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      log.action === 'blocked' 
+                      (log.vpnData as any)?.action === 'blocked' 
                         ? 'bg-red-100 text-red-800' 
                         : 'bg-green-100 text-green-800'
                     }`}>
-                      {log.action || 'N/A'}
+                      {(log.vpnData as any)?.action || 'allowed'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
