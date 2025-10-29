@@ -1,0 +1,45 @@
+# Environment Variables for Vercel Deployment
+# Copy these variables to your Vercel project settings
+
+# Database (Neon PostgreSQL)
+DATABASE_URL=postgresql://neondb_owner:npg_Hf73CljbDXzF@ep-fancy-forest-aedpagn2-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require
+
+# Email Configuration (Nodemailer)
+EMAIL_USER=noreplylightoflife@gmail.com
+EMAIL_PASS=cabjjzptfsxnzxlr
+
+# Pusher Configuration (Real-time Chat)
+NEXT_PUBLIC_PUSHER_APP_KEY=b0f5756f20e894c0c2e7
+PUSHER_APP_ID=2061314
+PUSHER_SECRET=0af888670cc72dbbf5ab
+NEXT_PUBLIC_PUSHER_CLUSTER=us2
+
+# IPInfo API (VPN Detection)
+IPINFO_API_KEY=d6034ac9c81c27
+
+# JWT Secret (IMPORTANT: Change this to a strong random string in production!)
+JWT_SECRET=light-of-life-super-secret-jwt-key-change-in-production-2024
+
+# Instructions:
+# 1. Go to your Vercel project: https://vercel.com/anwar-kouns-projects/light-of-life
+# 2. Click on "Settings" tab
+# 3. Click on "Environment Variables" in the left sidebar
+# 4. Add each variable above:
+#    - Variable Name: (e.g., DATABASE_URL)
+#    - Value: (paste the value from above)
+#    - Environment: Select "Production", "Preview", and "Development"
+# 5. Click "Save"
+# 6. After adding all variables, go to "Deployments" tab
+# 7. Click on the three dots (...) next to the latest deployment
+# 8. Click "Redeploy"
+# 9. Wait for the deployment to complete
+
+# Alternative: Use Vercel CLI to add environment variables
+# vercel env add DATABASE_URL production
+# (Then paste the value when prompted)
+# Repeat for each variable above
+
+# After deployment, your website will be available at:
+# https://light-of-life-anwar-kouns-projects.vercel.app
+# or your custom domain if configured
+
