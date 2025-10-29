@@ -23,12 +23,22 @@ export function getPusherClient() {
   const key = process.env.NEXT_PUBLIC_PUSHER_APP_KEY || 'b0f5756f20e894c0c2e7';
   const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2';
   
+  // Get token from cookie for auth
+  const getToken = () => {
+    if (typeof document !== 'undefined') {
+      const cookies = document.cookie.split(';');
+      const tokenCookie = cookies.find(c => c.trim().startsWith('token='));
+      return tokenCookie ? tokenCookie.split('=')[1] : null;
+    }
+    return null;
+  };
+  
   return new PusherClient(key, {
     cluster: cluster,
     authEndpoint: '/api/pusher/auth',
     auth: {
       headers: {
-        // Cookies will be sent automatically with same-origin requests
+        'Authorization': `Bearer ${getToken()}`,
       },
     },
     authTransport: 'ajax',
