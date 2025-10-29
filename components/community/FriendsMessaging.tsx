@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, Send, UserPlus, Check, X, Trash2, CheckCheck, MoreVertical, Ban, User, Flag, Image as ImageIcon, Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
 import Image from 'next/image';
+import { useWebRTC } from '@/lib/webrtc/useWebRTC-pusher';
 
 interface User {
   id: number;
@@ -57,7 +58,41 @@ export default function FriendsMessaging() {
   const [isInCall, setIsInCall] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ callerId: number; callerName: string } | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // WebRTC Hook
+  const webrtc = currentUserId && currentUserName ? useWebRTC({
+    userId: currentUserId,
+    userName: currentUserName,
+    onIncomingCall: (callerId, callerName) => {
+      setIncomingCall({ callerId, callerName });
+    },
+    onCallEnded: () => {
+      setIsInCall(false);
+      setCallDuration(0);
+      setIsMuted(false);
+    }
+  }) : null;
+
+  // Fetch current user info
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUserId(data.user.id);
+          setCurrentUserName(data.user.name);
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
 
   useEffect(() => {
     fetchFriendRequests().catch(console.error);
@@ -333,21 +368,30 @@ export default function FriendsMessaging() {
     return '/logo.png';
   };
 
-  const startVoiceCall = () => {
-    if (!selectedFriend) return;
-    setIsInCall(true);
-    setCallDuration(0);
+  const startVoiceCall = async () => {
+    if (!selectedFriend || !webrtc) return;
     
-    // Start call duration timer
-    const interval = setInterval(() => {
-      setCallDuration(prev => prev + 1);
-    }, 1000);
-    
-    // Store interval ID to clear it later
-    (window as any).callInterval = interval;
+    try {
+      await webrtc.startCall(selectedFriend.id);
+      setIsInCall(true);
+      setCallDuration(0);
+      
+      // Start call duration timer
+      const interval = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+      
+      (window as any).callInterval = interval;
+    } catch (error) {
+      console.error('Error starting call:', error);
+      alert('Failed to start call');
+    }
   };
 
   const endVoiceCall = () => {
+    if (webrtc) {
+      webrtc.endCall();
+    }
     setIsInCall(false);
     setCallDuration(0);
     setIsMuted(false);
@@ -358,7 +402,38 @@ export default function FriendsMessaging() {
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    if (webrtc) {
+      webrtc.toggleMute();
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const acceptIncomingCall = async () => {
+    if (!incomingCall || !webrtc) return;
+    
+    try {
+      await webrtc.acceptCall(incomingCall.callerId);
+      setIsInCall(true);
+      setCallDuration(0);
+      setIncomingCall(null);
+      
+      // Start call duration timer
+      const interval = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+      
+      (window as any).callInterval = interval;
+    } catch (error) {
+      console.error('Error accepting call:', error);
+      alert('Failed to accept call');
+    }
+  };
+
+  const rejectIncomingCall = () => {
+    if (!incomingCall || !webrtc) return;
+    
+    webrtc.rejectCall(incomingCall.callerId);
+    setIncomingCall(null);
   };
 
   const formatCallDuration = (seconds: number) => {
@@ -873,6 +948,38 @@ export default function FriendsMessaging() {
           </div>
         </div>
       )}
+
+      {/* Incoming Call Modal */}
+      {incomingCall && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 text-center">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center mx-auto mb-4">
+              <Phone className="w-12 h-12 text-white animate-pulse" />
+            </div>
+            <h3 className="text-2xl font-bold mb-2">{incomingCall.callerName}</h3>
+            <p className="text-gray-600 mb-6">Incoming voice call...</p>
+            <div className="flex gap-4">
+              <button
+                onClick={rejectIncomingCall}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-full py-4 font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                <PhoneOff className="w-5 h-5" />
+                Decline
+              </button>
+              <button
+                onClick={acceptIncomingCall}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white rounded-full py-4 font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                <Phone className="w-5 h-5" />
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden audio element for remote audio */}
+      <audio id="remote-audio" autoPlay />
     </div>
   );
 }
