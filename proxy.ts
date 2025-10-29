@@ -4,7 +4,7 @@ import { applySecurityHeaders } from './lib/security/headers';
 import { WAF, createWAFBlockResponse } from './lib/security/waf';
 import { securityMonitor } from './lib/security/monitoring';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const startTime = Date.now();
 
   // 1. WAF Inspection - First line of defense

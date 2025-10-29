@@ -16,7 +16,7 @@
  * - Advanced Persistent Threats (APT)
  */
 
-import crypto from 'crypto';
+// Crypto functions are now handled server-side only
 
 /**
  * SQL Injection Protection (Multi-layer)
@@ -271,7 +271,17 @@ export function validateSecureInput(input: string): {
  * Generate CSRF Token
  */
 export function generateCSRFToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  // Generate random token without crypto module
+  const array = new Uint8Array(32);
+  if (typeof window !== 'undefined' && window.crypto) {
+    window.crypto.getRandomValues(array);
+  } else {
+    // Fallback for server-side
+    for (let i = 0; i < array.length; i++) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -282,14 +292,16 @@ export function verifyCSRFToken(token: string, expected: string): boolean {
     return false;
   }
 
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(token),
-      Buffer.from(expected)
-    );
-  } catch {
+  if (token.length !== expected.length) {
     return false;
   }
+
+  // Timing-safe comparison without crypto
+  let result = 0;
+  for (let i = 0; i < token.length; i++) {
+    result |= token.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 /**
@@ -317,7 +329,15 @@ export function generateCSPHeader(): string {
  * Secure Random String Generator
  */
 export function generateSecureRandom(length: number = 32): string {
-  return crypto.randomBytes(length).toString('hex');
+  const array = new Uint8Array(length);
+  if (typeof window !== 'undefined' && window.crypto) {
+    window.crypto.getRandomValues(array);
+  } else {
+    for (let i = 0; i < array.length; i++) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -329,14 +349,11 @@ export function timingSafeCompare(a: string, b: string): boolean {
     return false;
   }
 
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(a),
-      Buffer.from(b)
-    );
-  } catch {
-    return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
+  return result === 0;
 }
 
 /**
