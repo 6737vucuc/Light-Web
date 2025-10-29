@@ -164,21 +164,10 @@ export function useWebRTC({ userId, userName, onIncomingCall, onCallEnded, onCal
     pc.ontrack = (event) => {
       console.log('Received remote track');
       // Attach to audio element if needed
-      const remoteStream = event.streams[0];
-      if (!remoteStream) return;
-
-      // Handle audio track
       const audioElement = document.getElementById('remote-audio') as HTMLAudioElement;
-      if (audioElement && remoteStream.getAudioTracks().length > 0) {
-        audioElement.srcObject = remoteStream;
+      if (audioElement && event.streams[0]) {
+        audioElement.srcObject = event.streams[0];
         audioElement.play().catch(e => console.error('Error playing audio:', e));
-      }
-
-      // Handle video track
-      const videoElement = document.getElementById('remote-video') as HTMLVideoElement;
-      if (videoElement && remoteStream.getVideoTracks().length > 0) {
-        videoElement.srcObject = remoteStream;
-        videoElement.play().catch(e => console.error('Error playing video:', e));
       }
     };
 
@@ -196,16 +185,9 @@ export function useWebRTC({ userId, userName, onIncomingCall, onCallEnded, onCal
 
   const startCall = useCallback(async (targetUserId: number) => {
     try {
-      // Request microphone and camera access
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
-
-      // Attach local stream to local video element
-      const localVideoElement = document.getElementById('local-video') as HTMLVideoElement;
-      if (localVideoElement) {
-        localVideoElement.srcObject = stream;
-        localVideoElement.play().catch(e => console.error('Error playing local video:', e));
-      }
 
       // Subscribe to call channel
       subscribeToCallChannel(targetUserId);
@@ -234,16 +216,9 @@ export function useWebRTC({ userId, userName, onIncomingCall, onCallEnded, onCal
 
   const acceptCall = useCallback(async (callerUserId: number) => {
     try {
-      // Request microphone and camera access
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
-
-      // Attach local stream to local video element
-      const localVideoElement = document.getElementById('local-video') as HTMLVideoElement;
-      if (localVideoElement) {
-        localVideoElement.srcObject = stream;
-        localVideoElement.play().catch(e => console.error('Error playing local video:', e));
-      }
 
       // Subscribe to call channel
       subscribeToCallChannel(callerUserId);
@@ -387,11 +362,7 @@ export function useWebRTC({ userId, userName, onIncomingCall, onCallEnded, onCal
         audioTrack.enabled = !audioTrack.enabled;
         setState(prev => ({ ...prev, isMuted: !audioTrack.enabled }));
       }
-      // Also mute video if needed (though usually only audio is muted)
-      // const videoTrack = localStreamRef.current.getVideoTracks()[0];
-      // if (videoTrack) {
-      //   videoTrack.enabled = !videoTrack.enabled;
-      // }
+
     }
   }, []);
 

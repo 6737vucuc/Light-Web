@@ -518,62 +518,25 @@ export default function FriendsMessaging() {
       <div className="p-4">
         {/* Call UI */}
         {isInCall && (
-          <div className="fixed inset-0 z-50 bg-gray-900 flex items-center justify-center p-4">
-            {/* Remote Video (Full Screen) */}
-            <video 
-              id="remote-video" 
-              autoPlay 
-              playsInline 
-              className="absolute inset-0 w-full h-full object-cover" 
-              style={{ transform: 'scaleX(-1)' }} // Mirror remote video
-            />
-
-            {/* Local Video (Small Overlay) */}
-            <video 
-              id="local-video" 
-              autoPlay 
-              playsInline 
-              muted 
-              className="absolute top-4 right-4 w-1/4 h-1/4 bg-black rounded-lg shadow-xl z-10 object-cover border-4 border-white" 
-              style={{ transform: 'scaleX(-1)' }} // Mirror local video
-            />
-
-            {/* Call Controls Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/70 to-transparent z-20">
-              <div className="flex justify-center items-center gap-6">
-                
-                {/* Mute Button */}
+          <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl p-6 text-center">
+              <p className="text-xl font-semibold mb-2">Call with {selectedFriend?.name}</p>
+              <p className="text-4xl font-bold text-purple-600 mb-4">{formatCallDuration(callDuration)}</p>
+              <div className="flex justify-center space-x-4 mb-6">
                 <button
                   onClick={toggleMute}
-                  className={`p-4 rounded-full transition-colors ${isMuted ? 'bg-red-600' : 'bg-white/30 hover:bg-white/50'} text-white`}
-                  title={isMuted ? 'Unmute' : 'Mute'}
+                  className={`p-3 rounded-full ${isMuted ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-200 hover:bg-gray-300'} text-white transition-colors`}
                 >
-                  {isMuted ? <MicOff className="w-8 h-8" /> : <Mic className="w-8 h-8" />}
-                </button>
-
-                {/* End Call Button */}
-                <button
-                  onClick={endVoiceCall}
-                  className="p-4 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg"
-                  title="End Call"
-                >
-                  <PhoneOff className="w-10 h-10" />
-                </button>
-
-                {/* Placeholder for Video Toggle (needs implementation in useWebRTC) */}
-                <button
-                  className={`p-4 rounded-full transition-colors bg-white/30 hover:bg-white/50 text-white`}
-                  title="Toggle Video"
-                  // onClick={toggleVideo} // You can implement this later
-                >
-                  <ImageIcon className="w-8 h-8" />
+                  {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6 text-gray-700" />}
                 </button>
               </div>
-              
-              {/* Call Duration */}
-              <p className="text-white text-xl font-bold text-center mt-4">
-                {formatCallDuration(callDuration)}
-              </p>
+              <button
+                onClick={endVoiceCall}
+                className="px-6 py-3 bg-red-600 text-white rounded-full hover:bg-red-700 font-semibold transition-colors flex items-center mx-auto"
+              >
+                <PhoneOff className="w-5 h-5 mr-2" />
+                End Call
+              </button>
             </div>
           </div>
         )}
