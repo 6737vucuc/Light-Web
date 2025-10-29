@@ -8,6 +8,7 @@ import {
   RemoteParticipant
 } from 'livekit-client';
 import { getCallRoomName, getParticipantIdentity } from './livekit-config';
+import Pusher from 'pusher-js';
 
 interface UseVoiceCallProps {
   userId: number;
@@ -45,6 +46,7 @@ export function useVoiceCall({
   const audioElementsRef = useRef<HTMLAudioElement[]>([]);
   const ringingAudioRef = useRef<HTMLAudioElement | null>(null);
   const incomingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pusherRef = useRef<Pusher | null>(null);
 
   // Initialize audio elements
   useEffect(() => {
@@ -70,6 +72,59 @@ export function useVoiceCall({
       }
     };
   }, []);
+
+  // Initialize Pusher for real-time notifications
+  useEffect(() => {
+    if (!userId) return;
+
+    console.log('[Voice Call] Initializing Pusher for user:', userId);
+
+    // Initialize Pusher
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_APP_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+      authEndpoint: '/api/pusher/auth',
+    });
+
+    pusherRef.current = pusher;
+
+    // Subscribe to user's private channel
+    const channel = pusher.subscribe(`private-user-${userId}`);
+
+    // Listen for incoming call events
+    channel.bind('incoming-call', (data: { callerId: number; callerName: string }) => {
+      console.log('[Voice Call] Incoming call via Pusher:', data);
+      
+      // Play incoming call sound
+      if (incomingAudioRef.current) {
+        incomingAudioRef.current.currentTime = 0;
+        incomingAudioRef.current.play().catch(err => {
+          console.error('Failed to play incoming call sound:', err);
+        });
+      }
+      
+      // Notify parent component
+      if (onIncomingCall) {
+        onIncomingCall(data.callerId, data.callerName);
+      }
+    });
+
+    // Listen for call ended events
+    channel.bind('call-ended', () => {
+      console.log('[Voice Call] Call ended via Pusher');
+      cleanup();
+      if (onCallEnded) {
+        onCallEnded();
+      }
+    });
+
+    return () => {
+      console.log('[Voice Call] Cleaning up Pusher');
+      channel.unbind_all();
+      channel.unsubscribe();
+      pusher.disconnect();
+      pusherRef.current = null;
+    };
+  }, [userId, onIncomingCall, onCallEnded]);
 
   // Stop all ringtones
   const stopRingtones = useCallback(() => {
@@ -143,7 +198,7 @@ export function useVoiceCall({
       // Play ringing sound
       playRinging();
 
-      // Create call in database
+      // Create call in database and notify via Pusher
       const response = await fetch('/api/webrtc/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -414,37 +469,6 @@ export function useVoiceCall({
       console.error('[Voice Call] Error toggling mute:', error);
     }
   }, [state.isMuted]);
-
-  // Check for incoming calls
-  useEffect(() => {
-    if (!userId) return;
-
-    const checkIncomingCalls = async () => {
-      try {
-        const response = await fetch('/api/webrtc/incoming-calls');
-        if (response.ok) {
-          const { hasIncomingCall, callerId, callerName } = await response.json();
-          
-          if (hasIncomingCall && callerId && onIncomingCall) {
-            console.log('[Voice Call] Incoming call from:', callerId, callerName);
-            
-            // Play incoming call sound
-            playIncomingSound();
-            
-            // Notify parent component
-            onIncomingCall(callerId, callerName);
-          }
-        }
-      } catch (error) {
-        console.error('[Voice Call] Error checking incoming calls:', error);
-      }
-    };
-
-    // Check every 2 seconds
-    const interval = setInterval(checkIncomingCalls, 2000);
-
-    return () => clearInterval(interval);
-  }, [userId, onIncomingCall, playIncomingSound]);
 
   // Cleanup on unmount
   useEffect(() => {
