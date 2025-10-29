@@ -62,7 +62,6 @@ const SUSPICIOUS_URL_PATTERNS = [
   /\.php$/, // PHP files (if not using PHP)
   /\.asp$/, // ASP files
   /\.jsp$/, // JSP files
-  /\/admin/, // Admin paths
   /\/phpmyadmin/, // phpMyAdmin
   /\/wp-admin/, // WordPress admin
   /\/wp-login/, // WordPress login
