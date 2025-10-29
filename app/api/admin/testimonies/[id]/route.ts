@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireAdmin(request);
   
@@ -18,7 +18,8 @@ export async function DELETE(
   }
 
   try {
-    const id = parseInt(params.id);
+    const { id: paramId } = await params;
+    const id = parseInt(paramId);
 
     await db.delete(testimonies).where(eq(testimonies.id, id));
 

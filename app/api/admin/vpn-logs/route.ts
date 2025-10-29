@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
       .select({
         id: vpnLogs.id,
         ipAddress: vpnLogs.ipAddress,
-        isVPN: vpnLogs.isVPN,
-        country: vpnLogs.country,
-        action: vpnLogs.action,
+        isVPN: vpnLogs.isVpn,
+        country: vpnLogs.vpnData,
+        action: vpnLogs.vpnData,
         createdAt: vpnLogs.createdAt,
         userName: users.name,
         userEmail: users.email,
