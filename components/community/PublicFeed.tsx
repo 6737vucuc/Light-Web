@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Image as ImageIcon, Send, ThumbsUp, Share2, MoreHorizontal, X, Smile, Video, Camera, Globe, Users, Lock, Laugh, Frown, Angry, MapPin, Tag } from 'lucide-react';
 import Image from 'next/image';
+import FriendsMessaging from './FriendsMessaging';
 
 interface Post {
   id: number;
@@ -349,7 +350,9 @@ export default function PublicFeed() {
   };
 
   return (
-    <div className="space-y-4">
+    <div>
+      {/* Public Feed Content */}
+      <div className="space-y-4">
       {/* Stories Section - Facebook Style */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -769,5 +772,12 @@ export default function PublicFeed() {
         ))
       )}
     </div>
+    </div>
+
+    {/* Friends & Messaging Section */}
+    <div className="mt-8">
+      <FriendsMessaging />
+    </div>
+  </div>
   );
 }

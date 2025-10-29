@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Room, 
   RoomEvent, 
@@ -43,24 +43,85 @@ export function useVoiceCall({
   const roomRef = useRef<Room | null>(null);
   const remoteUserIdRef = useRef<number | null>(null);
   const audioElementsRef = useRef<HTMLAudioElement[]>([]);
+  const ringingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const incomingAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize audio elements
+  useEffect(() => {
+    // Create ringing audio (for outgoing calls)
+    ringingAudioRef.current = new Audio('/sounds/ringing.wav');
+    ringingAudioRef.current.loop = true;
+    ringingAudioRef.current.volume = 0.5;
+
+    // Create incoming call audio
+    incomingAudioRef.current = new Audio('/sounds/incoming-call.wav');
+    incomingAudioRef.current.loop = true;
+    incomingAudioRef.current.volume = 0.7;
+
+    return () => {
+      // Cleanup audio on unmount
+      if (ringingAudioRef.current) {
+        ringingAudioRef.current.pause();
+        ringingAudioRef.current = null;
+      }
+      if (incomingAudioRef.current) {
+        incomingAudioRef.current.pause();
+        incomingAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Stop all ringtones
+  const stopRingtones = useCallback(() => {
+    if (ringingAudioRef.current) {
+      ringingAudioRef.current.pause();
+      ringingAudioRef.current.currentTime = 0;
+    }
+    if (incomingAudioRef.current) {
+      incomingAudioRef.current.pause();
+      incomingAudioRef.current.currentTime = 0;
+    }
+  }, []);
+
+  // Play ringing sound (outgoing call)
+  const playRinging = useCallback(() => {
+    if (ringingAudioRef.current) {
+      ringingAudioRef.current.currentTime = 0;
+      ringingAudioRef.current.play().catch(err => {
+        console.error('Failed to play ringing sound:', err);
+      });
+    }
+  }, []);
+
+  // Play incoming call sound
+  const playIncomingSound = useCallback(() => {
+    if (incomingAudioRef.current) {
+      incomingAudioRef.current.currentTime = 0;
+      incomingAudioRef.current.play().catch(err => {
+        console.error('Failed to play incoming call sound:', err);
+      });
+    }
+  }, []);
 
   // Cleanup function
   const cleanup = useCallback(() => {
+    // Stop all ringtones
+    stopRingtones();
+
     // Remove all audio elements
     audioElementsRef.current.forEach(el => {
       el.pause();
       el.srcObject = null;
-      if (el.parentNode) {
-        el.parentNode.removeChild(el);
-      }
+      el.remove();
     });
     audioElementsRef.current = [];
 
+    // Disconnect from room
     if (roomRef.current) {
       roomRef.current.disconnect();
       roomRef.current = null;
     }
-    remoteUserIdRef.current = null;
+
     setState({
       isConnected: false,
       isInCall: false,
@@ -68,251 +129,255 @@ export function useVoiceCall({
       isConnecting: false,
       error: null
     });
-  }, []);
 
-  // Listen for incoming calls via polling
-  useEffect(() => {
-    if (!userId || userId === 0) return;
+    remoteUserIdRef.current = null;
+  }, [stopRingtones]);
 
-    const checkIncomingCalls = async () => {
-      try {
-        const response = await fetch('/api/webrtc/call');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.incomingCall && onIncomingCall) {
-            onIncomingCall(data.incomingCall.callerId, data.incomingCall.callerName);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking incoming calls:', error);
-      }
-    };
-
-    const interval = setInterval(checkIncomingCalls, 2000);
-    return () => clearInterval(interval);
-  }, [userId, onIncomingCall]);
-
-  // Start a voice call
-  const startCall = useCallback(async (targetUserId: number) => {
+  // Start a call
+  const startCall = useCallback(async (targetUserId: number, targetUserName: string) => {
     try {
+      console.log('[Voice Call] Starting call to:', targetUserId, targetUserName);
+      
       setState(prev => ({ ...prev, isConnecting: true, error: null }));
 
-      // Notify the target user about incoming call
-      const notifyResponse = await fetch('/api/webrtc/call', {
+      // Play ringing sound
+      playRinging();
+
+      // Create call in database
+      const response = await fetch('/api/webrtc/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'start',
-          targetUserId
+          targetUserId,
+          targetUserName
         })
       });
 
-      if (!notifyResponse.ok) {
-        throw new Error('Failed to notify target user');
+      if (!response.ok) {
+        throw new Error('Failed to start call');
       }
 
-      // Get LiveKit token from server
-      const tokenResponse = await fetch('/api/webrtc/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          roomName: getCallRoomName(userId, targetUserId),
-          participantIdentity: getParticipantIdentity(userId, userName)
-        })
-      });
+      const { roomName, token } = await response.json();
+      console.log('[Voice Call] Got room and token:', roomName);
 
-      if (!tokenResponse.ok) {
-        throw new Error('Failed to get access token');
-      }
-
-      const { token, url } = await tokenResponse.json();
-
-      // Create and connect to room
+      // Connect to LiveKit room
       const room = new Room({
         adaptiveStream: true,
         dynacast: true,
         audioCaptureDefaults: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true,
+          autoGainControl: true
         }
       });
 
       roomRef.current = room;
       remoteUserIdRef.current = targetUserId;
 
-      // Set up event listeners
+      // Handle remote participant audio
       room.on(RoomEvent.TrackSubscribed, (
         track: RemoteTrack,
         publication: RemoteTrackPublication,
         participant: RemoteParticipant
       ) => {
+        console.log('[Voice Call] Track subscribed:', track.kind);
+        
         if (track.kind === Track.Kind.Audio) {
           const audioElement = track.attach();
-          audioElement.autoplay = true;
-          document.body.appendChild(audioElement);
+          audioElement.play();
           audioElementsRef.current.push(audioElement);
-          audioElement.play().catch(e => console.error('Error playing audio:', e));
+          
+          // Stop ringing when audio starts
+          stopRingtones();
+          
+          setState(prev => ({ ...prev, isConnected: true, isInCall: true, isConnecting: false }));
+          
+          // Notify that call was accepted
+          if (onCallAccepted) {
+            onCallAccepted();
+          }
         }
       });
 
-      room.on(RoomEvent.Disconnected, () => {
+      // Handle participant disconnection
+      room.on(RoomEvent.ParticipantDisconnected, () => {
+        console.log('[Voice Call] Participant disconnected');
         cleanup();
         if (onCallEnded) {
           onCallEnded();
         }
       });
 
-      room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-        console.log('Participant connected:', participant.identity);
-        setState(prev => ({ ...prev, isInCall: true, isConnecting: false }));
-        if (onCallAccepted) {
-          onCallAccepted();
+      // Handle room disconnection
+      room.on(RoomEvent.Disconnected, () => {
+        console.log('[Voice Call] Room disconnected');
+        cleanup();
+        if (onCallEnded) {
+          onCallEnded();
         }
       });
 
       // Connect to room
-      await room.connect(url, token);
+      await room.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, token);
+      console.log('[Voice Call] Connected to room');
 
       // Enable microphone
       await room.localParticipant.setMicrophoneEnabled(true);
-
-      setState(prev => ({ 
-        ...prev, 
-        isConnected: true,
-        isConnecting: false
-      }));
+      console.log('[Voice Call] Microphone enabled');
 
     } catch (error) {
-      console.error('Error starting call:', error);
+      console.error('[Voice Call] Error starting call:', error);
+      stopRingtones();
       setState(prev => ({ 
         ...prev, 
-        error: error instanceof Error ? error.message : 'Failed to start call',
-        isConnecting: false
+        error: 'Failed to start call', 
+        isConnecting: false 
       }));
       cleanup();
     }
-  }, [userId, userName, cleanup, onCallEnded, onCallAccepted]);
+  }, [cleanup, onCallAccepted, onCallEnded, playRinging, stopRingtones]);
 
   // Accept an incoming call
-  const acceptCall = useCallback(async (callerUserId: number) => {
+  const acceptCall = useCallback(async (callerId: number, callerName: string) => {
     try {
+      console.log('[Voice Call] Accepting call from:', callerId, callerName);
+      
       setState(prev => ({ ...prev, isConnecting: true, error: null }));
 
-      // Notify caller that call was accepted
-      await fetch('/api/webrtc/call', {
+      // Stop incoming call sound
+      stopRingtones();
+
+      // Notify backend that call was accepted
+      const response = await fetch('/api/webrtc/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'accept',
-          targetUserId: callerUserId
+          callerId
         })
       });
 
-      // Get LiveKit token
-      const tokenResponse = await fetch('/api/webrtc/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          roomName: getCallRoomName(userId, callerUserId),
-          participantIdentity: getParticipantIdentity(userId, userName)
-        })
-      });
-
-      if (!tokenResponse.ok) {
-        throw new Error('Failed to get access token');
+      if (!response.ok) {
+        throw new Error('Failed to accept call');
       }
 
-      const { token, url } = await tokenResponse.json();
+      const { roomName, token } = await response.json();
+      console.log('[Voice Call] Got room and token:', roomName);
 
-      // Create and connect to room
+      // Connect to LiveKit room
       const room = new Room({
         adaptiveStream: true,
         dynacast: true,
         audioCaptureDefaults: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true,
+          autoGainControl: true
         }
       });
 
       roomRef.current = room;
-      remoteUserIdRef.current = callerUserId;
+      remoteUserIdRef.current = callerId;
 
-      // Set up event listeners
+      // Handle remote participant audio
       room.on(RoomEvent.TrackSubscribed, (
         track: RemoteTrack,
         publication: RemoteTrackPublication,
         participant: RemoteParticipant
       ) => {
+        console.log('[Voice Call] Track subscribed:', track.kind);
+        
         if (track.kind === Track.Kind.Audio) {
           const audioElement = track.attach();
-          audioElement.autoplay = true;
-          document.body.appendChild(audioElement);
+          audioElement.play();
           audioElementsRef.current.push(audioElement);
-          audioElement.play().catch(e => console.error('Error playing audio:', e));
+          
+          setState(prev => ({ ...prev, isConnected: true, isInCall: true, isConnecting: false }));
         }
       });
 
-      room.on(RoomEvent.Disconnected, () => {
+      // Handle participant disconnection
+      room.on(RoomEvent.ParticipantDisconnected, () => {
+        console.log('[Voice Call] Participant disconnected');
         cleanup();
         if (onCallEnded) {
           onCallEnded();
         }
       });
 
-      room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-        console.log('Participant connected:', participant.identity);
+      // Handle room disconnection
+      room.on(RoomEvent.Disconnected, () => {
+        console.log('[Voice Call] Room disconnected');
+        cleanup();
+        if (onCallEnded) {
+          onCallEnded();
+        }
       });
 
       // Connect to room
-      await room.connect(url, token);
+      await room.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, token);
+      console.log('[Voice Call] Connected to room');
 
       // Enable microphone
       await room.localParticipant.setMicrophoneEnabled(true);
+      console.log('[Voice Call] Microphone enabled');
 
-      setState(prev => ({ 
-        ...prev, 
-        isConnected: true,
-        isInCall: true,
-        isConnecting: false
-      }));
+      setState(prev => ({ ...prev, isConnected: true, isInCall: true, isConnecting: false }));
 
+      // Notify that call was accepted
       if (onCallAccepted) {
         onCallAccepted();
       }
 
     } catch (error) {
-      console.error('Error accepting call:', error);
+      console.error('[Voice Call] Error accepting call:', error);
+      stopRingtones();
       setState(prev => ({ 
         ...prev, 
-        error: error instanceof Error ? error.message : 'Failed to accept call',
-        isConnecting: false
+        error: 'Failed to accept call', 
+        isConnecting: false 
       }));
       cleanup();
     }
-  }, [userId, userName, cleanup, onCallEnded, onCallAccepted]);
+  }, [cleanup, onCallAccepted, onCallEnded, stopRingtones]);
 
   // Reject an incoming call
-  const rejectCall = useCallback(async (callerUserId: number) => {
+  const rejectCall = useCallback(async (callerId: number) => {
     try {
+      console.log('[Voice Call] Rejecting call from:', callerId);
+      
+      // Stop incoming call sound
+      stopRingtones();
+
+      // Notify backend that call was rejected
       await fetch('/api/webrtc/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'reject',
-          targetUserId: callerUserId
+          callerId
         })
       });
+
+      cleanup();
+
     } catch (error) {
-      console.error('Error rejecting call:', error);
+      console.error('[Voice Call] Error rejecting call:', error);
+      stopRingtones();
+      cleanup();
     }
-  }, []);
+  }, [cleanup, stopRingtones]);
 
   // End the current call
   const endCall = useCallback(async () => {
-    if (remoteUserIdRef.current) {
-      try {
+    try {
+      console.log('[Voice Call] Ending call');
+      
+      // Stop all ringtones
+      stopRingtones();
+
+      // Notify backend
+      if (remoteUserIdRef.current) {
         await fetch('/api/webrtc/call', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -321,24 +386,65 @@ export function useVoiceCall({
             targetUserId: remoteUserIdRef.current
           })
         });
-      } catch (error) {
-        console.error('Error ending call:', error);
       }
+
+      cleanup();
+
+      if (onCallEnded) {
+        onCallEnded();
+      }
+
+    } catch (error) {
+      console.error('[Voice Call] Error ending call:', error);
+      stopRingtones();
+      cleanup();
     }
-    cleanup();
-    if (onCallEnded) {
-      onCallEnded();
-    }
-  }, [cleanup, onCallEnded]);
+  }, [cleanup, onCallEnded, stopRingtones]);
 
   // Toggle mute
   const toggleMute = useCallback(async () => {
-    if (roomRef.current) {
+    if (!roomRef.current) return;
+
+    try {
       const newMutedState = !state.isMuted;
       await roomRef.current.localParticipant.setMicrophoneEnabled(!newMutedState);
       setState(prev => ({ ...prev, isMuted: newMutedState }));
+      console.log('[Voice Call] Mute toggled:', newMutedState);
+    } catch (error) {
+      console.error('[Voice Call] Error toggling mute:', error);
     }
   }, [state.isMuted]);
+
+  // Check for incoming calls
+  useEffect(() => {
+    if (!userId) return;
+
+    const checkIncomingCalls = async () => {
+      try {
+        const response = await fetch('/api/webrtc/incoming-calls');
+        if (response.ok) {
+          const { hasIncomingCall, callerId, callerName } = await response.json();
+          
+          if (hasIncomingCall && callerId && onIncomingCall) {
+            console.log('[Voice Call] Incoming call from:', callerId, callerName);
+            
+            // Play incoming call sound
+            playIncomingSound();
+            
+            // Notify parent component
+            onIncomingCall(callerId, callerName);
+          }
+        }
+      } catch (error) {
+        console.error('[Voice Call] Error checking incoming calls:', error);
+      }
+    };
+
+    // Check every 2 seconds
+    const interval = setInterval(checkIncomingCalls, 2000);
+
+    return () => clearInterval(interval);
+  }, [userId, onIncomingCall, playIncomingSound]);
 
   // Cleanup on unmount
   useEffect(() => {

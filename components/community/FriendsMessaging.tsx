@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Send, UserPlus, Check, X, Trash2, CheckCheck, MoreVertical, Ban, User, Flag, Image as ImageIcon, Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
 import Image from 'next/image';
 import { useVoiceCall } from '@/lib/webrtc/useVoiceCall';
+import IncomingCallPopup from './IncomingCallPopup';
 
 interface User {
   id: number;

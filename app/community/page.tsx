@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageCircle, Users, UserPlus } from 'lucide-react';
+import { MessageCircle, Users } from 'lucide-react';
 import GroupChat from '@/components/community/GroupChat';
 import PublicFeed from '@/components/community/PublicFeed';
-import FriendsMessaging from '@/components/community/FriendsMessaging';
 import SecurityLoading from '@/components/SecurityLoading';
 
 export default function CommunityPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'chat' | 'feed' | 'friends'>('feed');
+  const [activeTab, setActiveTab] = useState<'chat' | 'feed'>('feed');
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -90,17 +89,7 @@ export default function CommunityPage() {
               <MessageCircle className="h-5 w-5 mr-2" />
               Group Chat
             </button>
-            <button
-              onClick={() => setActiveTab('friends')}
-              className={`flex items-center px-6 py-2 rounded-md transition-colors ${
-                activeTab === 'friends'
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-500 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <UserPlus className="h-5 w-5 mr-2" />
-              Friends & Messaging
-            </button>
+
           </div>
         </div>
 
@@ -108,10 +97,8 @@ export default function CommunityPage() {
         <div className="max-w-7xl mx-auto">
           {activeTab === 'feed' ? (
             <div className="max-w-4xl mx-auto"><PublicFeed /></div>
-          ) : activeTab === 'chat' ? (
-            <div className="max-w-4xl mx-auto"><GroupChat /></div>
           ) : (
-            <FriendsMessaging />
+            <div className="max-w-4xl mx-auto"><GroupChat /></div>
           )}
         </div>
       </div>
