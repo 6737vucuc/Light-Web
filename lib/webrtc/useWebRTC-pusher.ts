@@ -46,9 +46,6 @@ export function useWebRTC({ userId, userName, onIncomingCall, onCallEnded }: Use
     const pusher = getPusherClient();
     pusherRef.current = pusher;
 
-    // Configure Pusher auth endpoint
-    (pusher as any).config.authEndpoint = '/api/pusher/auth';
-
     // Subscribe to user's private channel
     const userChannel = pusher.subscribe(getUserChannel(userId));
     userChannelRef.current = userChannel;

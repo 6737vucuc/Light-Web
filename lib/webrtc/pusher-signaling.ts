@@ -25,6 +25,7 @@ export function getPusherClient() {
   
   return new PusherClient(key, {
     cluster: cluster,
+    authEndpoint: '/api/pusher/auth',
   });
 }
 
