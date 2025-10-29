@@ -40,8 +40,8 @@ export function useWebRTC({ userId, userName, onIncomingCall, onCallEnded }: Use
 
   // Initialize Pusher connection
   useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return;
+    // Only run on client side and when userId is valid
+    if (typeof window === 'undefined' || !userId || userId === 0) return;
     
     const pusher = getPusherClient();
     pusherRef.current = pusher;

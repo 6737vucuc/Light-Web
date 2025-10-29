@@ -64,9 +64,9 @@ export default function FriendsMessaging() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // WebRTC Hook
-  const webrtc = (typeof window !== 'undefined' && currentUserId !== null && currentUserName !== '') ? useWebRTC({
-    userId: currentUserId,
-    userName: currentUserName,
+  const webrtc = useWebRTC({
+    userId: currentUserId || 0,
+    userName: currentUserName || '',
     onIncomingCall: (callerId, callerName) => {
       setIncomingCall({ callerId, callerName });
     },
@@ -75,7 +75,7 @@ export default function FriendsMessaging() {
       setCallDuration(0);
       setIsMuted(false);
     }
-  }) : null;
+  });
 
   // Fetch current user info
   useEffect(() => {
