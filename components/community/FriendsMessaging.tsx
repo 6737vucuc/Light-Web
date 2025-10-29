@@ -403,7 +403,7 @@ export default function FriendsMessaging() {
     if (!selectedFriend || !voiceCall) return;
     
     try {
-      await voiceCall.startCall(selectedFriend.id);
+      await voiceCall.startCall(selectedFriend.id, selectedFriend.name);
       setIsInCall(true);
       // العداد سيبدأ عندما يقبل الطرف الآخر المكالمة (عبر onCallAccepted)
     } catch (error) {
@@ -436,7 +436,7 @@ export default function FriendsMessaging() {
     if (!incomingCall || !voiceCall) return;
     
     try {
-      await voiceCall.acceptCall(incomingCall.callerId);
+      await voiceCall.acceptCall(incomingCall.callerId, incomingCall.callerName);
       setIsInCall(true);
       setIncomingCall(null);
       

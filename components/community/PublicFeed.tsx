@@ -350,7 +350,7 @@ export default function PublicFeed() {
   };
 
   return (
-    <div>
+    <>
       {/* Public Feed Content */}
       <div className="space-y-4">
       {/* Stories Section - Facebook Style */}
@@ -771,13 +771,12 @@ export default function PublicFeed() {
           </div>
         ))
       )}
-    </div>
-    </div>
+      </div>
 
-    {/* Friends & Messaging Section */}
-    <div className="mt-8">
-      <FriendsMessaging />
-    </div>
-  </div>
+      {/* Friends & Messaging Section */}
+      <div className="mt-8">
+        <FriendsMessaging />
+      </div>
+    </>
   );
 }
