@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MessageCircle, Users, Search, Plus } from 'lucide-react';
+import Image from 'next/image';
 import GroupChat from '@/components/community/GroupChat';
 import PublicFeed from '@/components/community/PublicFeed';
 import SecurityLoading from '@/components/SecurityLoading';
@@ -13,6 +14,9 @@ export default function CommunityPage() {
   const [activeTab, setActiveTab] = useState<'chat' | 'feed'>('feed');
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     // Check authentication
@@ -20,6 +24,8 @@ export default function CommunityPage() {
       try {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
+          const data = await response.json();
+          setCurrentUser(data.user);
           setIsAuthenticated(true);
           // Update lastSeen to show online status
           fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
@@ -49,6 +55,22 @@ export default function CommunityPage() {
     return () => clearInterval(interval);
   }, [router, isAuthenticated]);
 
+  const getAvatarUrl = (avatar?: string) => {
+    if (!avatar) return '/default-avatar.png';
+    if (avatar.startsWith('http')) return avatar;
+    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // يمكن إضافة وظيفة البحث هنا
+      console.log('Searching for:', searchQuery);
+      setShowSearch(false);
+      setSearchQuery('');
+    }
+  };
+
   if (isLoading) {
     return <SecurityLoading />;
   }
@@ -60,20 +82,38 @@ export default function CommunityPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
+            <h1 
+              onClick={() => router.push('/community')}
+              className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent cursor-pointer"
+            >
               Light of Life
             </h1>
 
             {/* Icons */}
             <div className="flex items-center gap-4">
+              {/* User Avatar */}
+              {currentUser && (
+                <button
+                  onClick={() => router.push('/profile')}
+                  className="relative w-10 h-10 rounded-full overflow-hidden bg-purple-100 hover:ring-2 hover:ring-purple-500 transition-all"
+                >
+                  {currentUser.avatar ? (
+                    <Image
+                      src={getAvatarUrl(currentUser.avatar)}
+                      alt={currentUser.name}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-purple-600 font-bold">
+                      {currentUser.name?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </button>
+              )}
+              
               <button
-                onClick={() => router.push('/community')}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                <Plus className="w-6 h-6 text-gray-700" />
-              </button>
-              <button
-                onClick={() => router.push('/community')}
+                onClick={() => setShowSearch(!showSearch)}
                 className="p-2 rounded-full hover:bg-gray-100 transition-colors"
               >
                 <Search className="w-6 h-6 text-gray-700" />
@@ -81,6 +121,22 @@ export default function CommunityPage() {
               <MessageNotifications />
             </div>
           </div>
+
+          {/* Search Bar */}
+          {showSearch && (
+            <div className="pb-4">
+              <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search posts, users..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  autoFocus
+                />
+              </form>
+            </div>
+          )}
         </div>
       </div>
 
@@ -116,7 +172,7 @@ export default function CommunityPage() {
         {/* Content */}
         <div className="max-w-7xl mx-auto">
           {activeTab === 'feed' ? (
-            <PublicFeed />
+            <PublicFeed currentUser={currentUser} />
           ) : (
             <div className="max-w-4xl mx-auto"><GroupChat /></div>
           )}

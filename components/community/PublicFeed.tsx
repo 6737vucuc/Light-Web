@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Image as ImageIcon, Send, ThumbsUp, Share2, MoreHorizontal, X, Smile, Video, Camera, Globe, Users, Lock, Laugh, Frown, Angry, MapPin, Tag } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import StoryViewer from './StoryViewer';
 
 interface Post {
   id: number;
@@ -45,7 +46,11 @@ interface Friend {
   lastSeen: string | null;
 }
 
-export default function PublicFeed() {
+interface PublicFeedProps {
+  currentUser?: any;
+}
+
+export default function PublicFeed({ currentUser }: PublicFeedProps) {
   const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
@@ -66,6 +71,8 @@ export default function PublicFeed() {
   const [showReactions, setShowReactions] = useState<{ [key: number]: boolean }>({});
   const [loadingComments, setLoadingComments] = useState<{ [key: number]: boolean }>({});
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [showStoryViewer, setShowStoryViewer] = useState(false);
+  const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
 
   const feelings = [
     { emoji: '😊', text: 'happy' },
@@ -399,9 +406,13 @@ export default function PublicFeed() {
             </div>
           </button>
           
-          {stories.map((story) => (
+          {stories.map((story, index) => (
             <div 
-              key={story.id} 
+              key={story.id}
+              onClick={() => {
+                setSelectedStoryIndex(index);
+                setShowStoryViewer(true);
+              }}
               className="flex-shrink-0 w-28 h-48 rounded-lg bg-gradient-to-br from-purple-400 to-blue-400 relative overflow-hidden cursor-pointer group hover:scale-105 transition-transform"
             >
               {story.mediaType === 'image' ? (
@@ -438,8 +449,20 @@ export default function PublicFeed() {
       {/* Create Post - Enhanced Facebook Style */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="flex gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-semibold">U</span>
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-purple-100 flex-shrink-0">
+            {currentUser?.avatar ? (
+              <Image
+                src={getAvatarUrl(currentUser.avatar)}
+                alt={currentUser.name}
+                width={40}
+                height={40}
+                className="object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-purple-600 font-bold">
+                {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            )}
           </div>
           <button
             onClick={() => document.getElementById('post-input')?.focus()}
@@ -661,10 +684,11 @@ export default function PublicFeed() {
             {post.imageUrl && (
               <div className="relative w-full h-96 bg-gray-100">
                 <Image
-                  src={post.imageUrl}
+                  src={post.imageUrl.startsWith('http') ? post.imageUrl : `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${post.imageUrl}`}
                   alt="Post image"
                   fill
                   className="object-contain"
+                  unoptimized
                 />
               </div>
             )}
@@ -861,6 +885,19 @@ export default function PublicFeed() {
           </div>
         </div>
       </div>
+
+      {/* Story Viewer */}
+      {showStoryViewer && stories.length > 0 && (
+        <StoryViewer
+          stories={stories}
+          initialIndex={selectedStoryIndex}
+          currentUserId={currentUser?.id || 0}
+          onClose={() => setShowStoryViewer(false)}
+          onDelete={(storyId) => {
+            setStories(stories.filter(s => s.id !== storyId));
+          }}
+        />
+      )}
     </div>
   );
 }
