@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Image as ImageIcon, Send, ThumbsUp, Share2, MoreHorizontal, X, Smile, Video, Camera, Globe, Users, Lock, Laugh, Frown, Angry, MapPin, Tag } from 'lucide-react';
 import Image from 'next/image';
-import FriendsMessaging from './FriendsMessaging';
+import { useRouter } from 'next/navigation';
 
 interface Post {
   id: number;
@@ -38,7 +38,15 @@ interface Story {
   createdAt: string;
 }
 
+interface Friend {
+  id: number;
+  name: string;
+  avatar: string | null;
+  lastSeen: string | null;
+}
+
 export default function PublicFeed() {
+  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [newPost, setNewPost] = useState('');
@@ -57,6 +65,7 @@ export default function PublicFeed() {
   const [newComment, setNewComment] = useState<{ [key: number]: string }>({});
   const [showReactions, setShowReactions] = useState<{ [key: number]: boolean }>({});
   const [loadingComments, setLoadingComments] = useState<{ [key: number]: boolean }>({});
+  const [friends, setFriends] = useState<Friend[]>([]);
 
   const feelings = [
     { emoji: '😊', text: 'happy' },
@@ -83,6 +92,7 @@ export default function PublicFeed() {
   useEffect(() => {
     fetchPosts();
     fetchStories();
+    fetchFriends();
   }, []);
 
   const fetchPosts = async () => {
@@ -106,6 +116,18 @@ export default function PublicFeed() {
       }
     } catch (error) {
       console.error('Error fetching stories:', error);
+    }
+  };
+
+  const fetchFriends = async () => {
+    try {
+      const response = await fetch('/api/friends?type=friends');
+      if (response.ok) {
+        const data = await response.json();
+        setFriends(data.friends || []);
+      }
+    } catch (error) {
+      console.error('Error fetching friends:', error);
     }
   };
 
@@ -349,10 +371,16 @@ export default function PublicFeed() {
     input.click();
   };
 
+  const getAvatarUrl = (avatar: string | null) => {
+    if (!avatar) return '/default-avatar.png';
+    if (avatar.startsWith('http')) return avatar;
+    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
+  };
+
   return (
-    <>
-      {/* Public Feed Content */}
-      <div className="space-y-4">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main Feed */}
+      <div className="lg:col-span-2 space-y-4">
       {/* Stories Section - Facebook Style */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -773,10 +801,68 @@ export default function PublicFeed() {
       )}
       </div>
 
-      {/* Friends & Messaging Section */}
-      <div className="mt-8">
-        <FriendsMessaging />
       </div>
-    </>
+
+      {/* Friends Sidebar */}
+      <div className="lg:col-span-1">
+        <div className="bg-white rounded-lg shadow-md p-4 sticky top-20">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Friends</h3>
+          <div className="space-y-3 max-h-[600px] overflow-y-auto">
+            {friends.length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-4">No friends yet</p>
+            ) : (
+              friends.map((friend) => (
+                <div
+                  key={friend.id}
+                  onClick={() => router.push(`/messages?userId=${friend.id}`)}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <div className="relative flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-purple-100">
+                      {friend.avatar ? (
+                        <Image
+                          src={getAvatarUrl(friend.avatar)}
+                          alt={friend.name}
+                          width={40}
+                          height={40}
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-purple-600 font-bold">
+                          {friend.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    {friend.lastSeen && (() => {
+                      const lastSeenDate = new Date(friend.lastSeen);
+                      const now = new Date();
+                      const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / 1000 / 60;
+                      return diffMinutes < 5;
+                    })() && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm truncate">{friend.name}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {friend.lastSeen && (() => {
+                        const lastSeenDate = new Date(friend.lastSeen);
+                        const now = new Date();
+                        const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / 1000 / 60;
+                        if (diffMinutes < 5) return 'Active now';
+                        if (diffMinutes < 60) return `Active ${Math.floor(diffMinutes)}m ago`;
+                        const diffHours = Math.floor(diffMinutes / 60);
+                        if (diffHours < 24) return `Active ${diffHours}h ago`;
+                        return 'Offline';
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
