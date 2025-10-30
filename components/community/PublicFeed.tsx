@@ -651,7 +651,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
                   {post.userAvatar ? (
                     <div className="w-12 h-12 rounded-full overflow-hidden relative">
                       <Image
-                        src={post.userAvatar}
+                        src={getAvatarUrl(post.userAvatar)}
                         alt={post.userName}
                         fill
                         className="object-cover"
@@ -772,7 +772,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
                       <div key={comment.id} className="flex gap-2 mb-3">
                         {comment.userAvatar ? (
                           <div className="w-8 h-8 rounded-full overflow-hidden relative flex-shrink-0">
-                            <Image src={comment.userAvatar} alt={comment.userName} fill className="object-cover" />
+                            <Image src={getAvatarUrl(comment.userAvatar)} alt={comment.userName} fill className="object-cover" />
                           </div>
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
@@ -797,8 +797,20 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
 
                 {/* Add Comment */}
                 <div className="flex gap-2 mt-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                    U
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-purple-100 flex-shrink-0">
+                    {currentUser?.avatar ? (
+                      <Image
+                        src={getAvatarUrl(currentUser.avatar)}
+                        alt={currentUser.name}
+                        width={32}
+                        height={32}
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-purple-600 font-bold text-sm">
+                        {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 flex gap-2">
                     <input
