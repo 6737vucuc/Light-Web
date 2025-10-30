@@ -801,8 +801,6 @@ export default function PublicFeed() {
       )}
       </div>
 
-      </div>
-
       {/* Friends Sidebar */}
       <div className="lg:col-span-1">
         <div className="bg-white rounded-lg shadow-md p-4 sticky top-20">
