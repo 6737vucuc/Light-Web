@@ -37,6 +37,7 @@ interface Story {
   mediaUrl: string;
   mediaType: string;
   createdAt: string;
+  expiresAt: string;
 }
 
 interface Friend {
