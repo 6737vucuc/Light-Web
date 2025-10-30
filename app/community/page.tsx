@@ -59,7 +59,13 @@ export default function CommunityPage() {
 
   const getAvatarUrl = (avatar?: string) => {
     if (!avatar) return '/default-avatar.png';
+    // Support base64 images
+    if (avatar.startsWith('data:')) return avatar;
+    // Support base64 images
+    if (avatar.startsWith('data:')) return avatar;
+    // Support full URLs
     if (avatar.startsWith('http')) return avatar;
+    // Support S3 paths
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 

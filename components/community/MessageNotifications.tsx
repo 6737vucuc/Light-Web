@@ -95,6 +95,8 @@ export default function MessageNotifications() {
 
   const getAvatarUrl = (avatar: string | null) => {
     if (!avatar) return '/default-avatar.png';
+    // Support base64 images
+    if (avatar.startsWith('data:')) return avatar;
     if (avatar.startsWith('http')) return avatar;
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
