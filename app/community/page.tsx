@@ -25,6 +25,8 @@ export default function CommunityPage() {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
+          console.log('Current user data:', data.user);
+          console.log('User avatar:', data.user.avatar);
           setCurrentUser(data.user);
           setIsAuthenticated(true);
           // Update lastSeen to show online status
@@ -103,6 +105,7 @@ export default function CommunityPage() {
                       alt={currentUser.name}
                       fill
                       className="object-cover"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-purple-600 font-bold">

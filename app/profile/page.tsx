@@ -346,7 +346,6 @@ export default function ProfilePage() {
                     />
                   </div>
                   <h2 className="mt-4 text-2xl font-bold text-gray-900">{user?.name}</h2>
-                  <p className="text-gray-500">{user?.email}</p>
                 </div>
 
                 {/* Profile Information */}
