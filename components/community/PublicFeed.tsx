@@ -5,6 +5,7 @@ import { Heart, MessageCircle, Image as ImageIcon, Send, ThumbsUp, Share2, MoreH
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import StoryViewer from './StoryViewer';
+import StoryCreator from './StoryCreator';
 
 interface Post {
   id: number;
@@ -74,6 +75,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
+  const [showStoryCreator, setShowStoryCreator] = useState(false);
 
   const feelings = [
     { emoji: '😊', text: 'happy' },
@@ -332,51 +334,50 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
     }
   };
 
-  const handleCreateStory = async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*,video/*';
-    input.onchange = async (e: any) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+  const handleCreateStory = () => {
+    setShowStoryCreator(true);
+  };
 
-      try {
-        setUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
+  const handlePublishStory = async (file: File, text: string, textColor: string, textBgColor: string) => {
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
 
-        const uploadResponse = await fetch('/api/upload', {
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (uploadResponse.ok) {
+        const uploadData = await uploadResponse.json();
+        
+        const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+        
+        const response = await fetch('/api/stories', {
           method: 'POST',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            mediaUrl: uploadData.url,
+            mediaType,
+            text,
+            textColor,
+            textBgColor
+          }),
         });
 
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          
-          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
-          
-          const response = await fetch('/api/stories', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              mediaUrl: uploadData.url,
-              mediaType
-            }),
-          });
-
-          if (response.ok) {
-            fetchStories();
-            alert('Story created successfully!');
-          }
+        if (response.ok) {
+          fetchStories();
+        } else {
+          alert('Failed to create story');
         }
-      } catch (error) {
-        console.error('Error creating story:', error);
-        alert('Failed to create story');
-      } finally {
-        setUploading(false);
       }
-    };
-    input.click();
+    } catch (error) {
+      console.error('Error creating story:', error);
+      alert('Failed to create story');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const getAvatarUrl = (avatar: string | null) => {
@@ -915,6 +916,14 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
           onDelete={(storyId) => {
             setStories(stories.filter(s => s.id !== storyId));
           }}
+        />
+      )}
+      
+      {/* Story Creator */}
+      {showStoryCreator && (
+        <StoryCreator
+          onClose={() => setShowStoryCreator(false)}
+          onPublish={handlePublishStory}
         />
       )}
     </div>
