@@ -1,12 +1,19 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, Type, Smile, Palette, Send, Trash2 } from 'lucide-react';
+import { X, Type, Smile, Palette, Send, Trash2, Music, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 
 interface StoryCreatorProps {
   onClose: () => void;
-  onPublish: (file: File, text: string, textColor: string, textBgColor: string) => void;
+  onPublish: (file: File, text: string, textColor: string, textBgColor: string, stickers: Sticker[], filter: string, musicUrl: string) => void;
+}
+
+interface Sticker {
+  emoji: string;
+  x: number;
+  y: number;
+  size: number;
 }
 
 export default function StoryCreator({ onClose, onPublish }: StoryCreatorProps) {
@@ -17,20 +24,17 @@ export default function StoryCreator({ onClose, onPublish }: StoryCreatorProps) 
   const [textBgColor, setTextBgColor] = useState('rgba(0, 0, 0, 0.5)');
   const [showTextInput, setShowTextInput] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showFilterPicker, setShowFilterPicker] = useState(false);
+  const [showMusicPicker, setShowMusicPicker] = useState(false);
+  const [stickers, setStickers] = useState<Sticker[]>([]);
+  const [selectedFilter, setSelectedFilter] = useState('none');
+  const [selectedMusic, setSelectedMusic] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const colors = [
-    '#FFFFFF', // White
-    '#000000', // Black
-    '#FF0000', // Red
-    '#00FF00', // Green
-    '#0000FF', // Blue
-    '#FFFF00', // Yellow
-    '#FF00FF', // Magenta
-    '#00FFFF', // Cyan
-    '#FFA500', // Orange
-    '#800080', // Purple
+    '#FFFFFF', '#000000', '#FF0000', '#00FF00', '#0000FF',
+    '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080',
   ];
 
   const bgColors = [
@@ -42,8 +46,36 @@ export default function StoryCreator({ onClose, onPublish }: StoryCreatorProps) 
     'rgba(0, 0, 255, 0.5)',
   ];
 
+  const emojis = [
+    '😀', '😂', '😍', '🥰', '😎', '🤩', '😇', '🤗', '🤔', '😏',
+    '😢', '😭', '😡', '🤬', '😱', '🥳', '🤪', '😴', '🤤', '😵',
+    '❤️', '💕', '💖', '💗', '💙', '💚', '💛', '🧡', '💜', '🖤',
+    '🔥', '⭐', '✨', '💫', '🌟', '💥', '💯', '👍', '👎', '👏',
+    '🙏', '💪', '🎉', '🎊', '🎈', '🎁', '🏆', '🥇', '🎯', '🎮',
+  ];
+
+  const filters = [
+    { name: 'None', value: 'none', css: 'none' },
+    { name: 'Grayscale', value: 'grayscale', css: 'grayscale(100%)' },
+    { name: 'Sepia', value: 'sepia', css: 'sepia(100%)' },
+    { name: 'Warm', value: 'warm', css: 'sepia(30%) saturate(120%)' },
+    { name: 'Cool', value: 'cool', css: 'hue-rotate(180deg) saturate(120%)' },
+    { name: 'Vintage', value: 'vintage', css: 'sepia(50%) contrast(120%) brightness(90%)' },
+    { name: 'Bright', value: 'bright', css: 'brightness(120%) contrast(110%)' },
+    { name: 'Dark', value: 'dark', css: 'brightness(80%) contrast(120%)' },
+    { name: 'Vivid', value: 'vivid', css: 'saturate(150%) contrast(110%)' },
+    { name: 'Fade', value: 'fade', css: 'contrast(80%) brightness(110%) saturate(80%)' },
+  ];
+
+  const musicTracks = [
+    { name: 'Happy Vibes', url: '/music/happy.mp3' },
+    { name: 'Chill Out', url: '/music/chill.mp3' },
+    { name: 'Energetic', url: '/music/energetic.mp3' },
+    { name: 'Romantic', url: '/music/romantic.mp3' },
+    { name: 'Upbeat', url: '/music/upbeat.mp3' },
+  ];
+
   useEffect(() => {
-    // Open file picker automatically
     fileInputRef.current?.click();
   }, []);
 
@@ -71,16 +103,32 @@ export default function StoryCreator({ onClose, onPublish }: StoryCreatorProps) 
     setPreviewUrl(url);
   };
 
+  const handleAddEmoji = (emoji: string) => {
+    const newSticker: Sticker = {
+      emoji,
+      x: 50,
+      y: 50,
+      size: 48,
+    };
+    setStickers([...stickers, newSticker]);
+    setShowEmojiPicker(false);
+  };
+
   const handlePublish = async () => {
     if (!selectedFile) return;
 
     try {
-      onPublish(selectedFile, text, textColor, textBgColor);
+      onPublish(selectedFile, text, textColor, textBgColor, stickers, selectedFilter, selectedMusic);
       onClose();
     } catch (error) {
       console.error('Error publishing story:', error);
       alert('Failed to publish story');
     }
+  };
+
+  const getFilterStyle = () => {
+    const filter = filters.find(f => f.value === selectedFilter);
+    return filter ? filter.css : 'none';
   };
 
   if (!previewUrl) {
@@ -141,7 +189,10 @@ export default function StoryCreator({ onClose, onPublish }: StoryCreatorProps) 
                 fill
                 className="object-contain"
                 unoptimized
+                style={{ filter: getFilterStyle() }}
               />
+              
+              {/* Text Overlay */}
               {text && (
                 <div
                   className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-4 py-2 rounded-lg text-center max-w-md"
@@ -155,18 +206,56 @@ export default function StoryCreator({ onClose, onPublish }: StoryCreatorProps) 
                   {text}
                 </div>
               )}
+              
+              {/* Stickers */}
+              {stickers.map((sticker, index) => (
+                <div
+                  key={index}
+                  className="absolute cursor-move"
+                  style={{
+                    left: `${sticker.x}%`,
+                    top: `${sticker.y}%`,
+                    fontSize: `${sticker.size}px`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                  draggable
+                  onDragEnd={(e) => {
+                    const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+                    if (rect) {
+                      const x = ((e.clientX - rect.left) / rect.width) * 100;
+                      const y = ((e.clientY - rect.top) / rect.height) * 100;
+                      const newStickers = [...stickers];
+                      newStickers[index] = { ...sticker, x, y };
+                      setStickers(newStickers);
+                    }
+                  }}
+                >
+                  {sticker.emoji}
+                </div>
+              ))}
             </div>
           ) : (
             <video
               src={previewUrl}
               controls
               className="max-w-full max-h-full"
+              style={{ filter: getFilterStyle() }}
             />
+          )}
+          
+          {/* Music Indicator */}
+          {selectedMusic && (
+            <div className="absolute top-4 left-4 bg-black bg-opacity-50 px-3 py-2 rounded-full flex items-center gap-2">
+              <Music className="w-4 h-4 text-white" />
+              <span className="text-white text-sm">
+                {musicTracks.find(m => m.url === selectedMusic)?.name}
+              </span>
+            </div>
           )}
         </div>
 
         {/* Tools */}
-        <div className="bg-black bg-opacity-50 p-4 space-y-4">
+        <div className="bg-black bg-opacity-50 p-4 space-y-4 max-h-96 overflow-y-auto">
           {/* Text Input */}
           {showTextInput && (
             <div className="space-y-2">
@@ -179,7 +268,6 @@ export default function StoryCreator({ onClose, onPublish }: StoryCreatorProps) 
                 maxLength={100}
               />
               
-              {/* Color Pickers */}
               {showColorPicker && (
                 <div className="space-y-2">
                   <div>
@@ -224,12 +312,89 @@ export default function StoryCreator({ onClose, onPublish }: StoryCreatorProps) 
               )}
             </div>
           )}
+          
+          {/* Emoji Picker */}
+          {showEmojiPicker && (
+            <div className="bg-white bg-opacity-10 rounded-lg p-4">
+              <p className="text-white text-sm mb-2">Add Stickers & Emojis:</p>
+              <div className="grid grid-cols-10 gap-2 max-h-48 overflow-y-auto">
+                {emojis.map((emoji, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAddEmoji(emoji)}
+                    className="text-3xl hover:scale-125 transition-transform"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Filter Picker */}
+          {showFilterPicker && (
+            <div className="bg-white bg-opacity-10 rounded-lg p-4">
+              <p className="text-white text-sm mb-2">Choose Filter:</p>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {filters.map((filter) => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setSelectedFilter(filter.value)}
+                    className={`flex-shrink-0 px-4 py-2 rounded-lg text-white text-sm ${
+                      selectedFilter === filter.value
+                        ? 'bg-purple-600'
+                        : 'bg-white bg-opacity-20'
+                    }`}
+                  >
+                    {filter.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Music Picker */}
+          {showMusicPicker && (
+            <div className="bg-white bg-opacity-10 rounded-lg p-4">
+              <p className="text-white text-sm mb-2">Add Music:</p>
+              <div className="space-y-2">
+                {musicTracks.map((track) => (
+                  <button
+                    key={track.url}
+                    onClick={() => {
+                      setSelectedMusic(track.url);
+                      setShowMusicPicker(false);
+                    }}
+                    className={`w-full px-4 py-2 rounded-lg text-white text-sm text-left ${
+                      selectedMusic === track.url
+                        ? 'bg-purple-600'
+                        : 'bg-white bg-opacity-20'
+                    }`}
+                  >
+                    <Music className="w-4 h-4 inline mr-2" />
+                    {track.name}
+                  </button>
+                ))}
+                {selectedMusic && (
+                  <button
+                    onClick={() => setSelectedMusic('')}
+                    className="w-full px-4 py-2 rounded-lg bg-red-600 text-white text-sm"
+                  >
+                    Remove Music
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Tool Buttons */}
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
             <button
               onClick={() => {
                 setShowTextInput(!showTextInput);
+                setShowEmojiPicker(false);
+                setShowFilterPicker(false);
+                setShowMusicPicker(false);
                 if (!showTextInput) setShowColorPicker(false);
               }}
               className={`flex flex-col items-center gap-1 p-3 rounded-lg transition ${
@@ -251,13 +416,63 @@ export default function StoryCreator({ onClose, onPublish }: StoryCreatorProps) 
                 <span className="text-white text-xs">Colors</span>
               </button>
             )}
+            
+            <button
+              onClick={() => {
+                setShowEmojiPicker(!showEmojiPicker);
+                setShowTextInput(false);
+                setShowFilterPicker(false);
+                setShowMusicPicker(false);
+                setShowColorPicker(false);
+              }}
+              className={`flex flex-col items-center gap-1 p-3 rounded-lg transition ${
+                showEmojiPicker ? 'bg-purple-600' : 'bg-white bg-opacity-20'
+              } hover:bg-opacity-30`}
+            >
+              <Smile className="w-6 h-6 text-white" />
+              <span className="text-white text-xs">Stickers</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowFilterPicker(!showFilterPicker);
+                setShowTextInput(false);
+                setShowEmojiPicker(false);
+                setShowMusicPicker(false);
+                setShowColorPicker(false);
+              }}
+              className={`flex flex-col items-center gap-1 p-3 rounded-lg transition ${
+                showFilterPicker ? 'bg-purple-600' : 'bg-white bg-opacity-20'
+              } hover:bg-opacity-30`}
+            >
+              <Sparkles className="w-6 h-6 text-white" />
+              <span className="text-white text-xs">Filters</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowMusicPicker(!showMusicPicker);
+                setShowTextInput(false);
+                setShowEmojiPicker(false);
+                setShowFilterPicker(false);
+                setShowColorPicker(false);
+              }}
+              className={`flex flex-col items-center gap-1 p-3 rounded-lg transition ${
+                showMusicPicker ? 'bg-purple-600' : 'bg-white bg-opacity-20'
+              } hover:bg-opacity-30`}
+            >
+              <Music className="w-6 h-6 text-white" />
+              <span className="text-white text-xs">Music</span>
+            </button>
 
-            {text && (
+            {(text || stickers.length > 0) && (
               <button
                 onClick={() => {
                   setText('');
+                  setStickers([]);
                   setShowTextInput(false);
                   setShowColorPicker(false);
+                  setShowEmojiPicker(false);
                 }}
                 className="flex flex-col items-center gap-1 p-3 rounded-lg bg-red-600 hover:bg-red-700 transition"
               >

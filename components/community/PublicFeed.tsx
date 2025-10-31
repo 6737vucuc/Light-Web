@@ -338,7 +338,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
     setShowStoryCreator(true);
   };
 
-  const handlePublishStory = async (file: File, text: string, textColor: string, textBgColor: string) => {
+  const handlePublishStory = async (file: File, text: string, textColor: string, textBgColor: string, stickers: any[], filter: string, musicUrl: string) => {
     try {
       setUploading(true);
       const formData = new FormData();
@@ -362,7 +362,10 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
             mediaType,
             text,
             textColor,
-            textBgColor
+            textBgColor,
+            stickers: JSON.stringify(stickers),
+            filter,
+            musicUrl
           }),
         });
 

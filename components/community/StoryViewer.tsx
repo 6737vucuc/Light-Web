@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, Trash2, MoreVertical, Globe, Users, Lock } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Trash2, MoreVertical, Globe, Users, Lock, Heart, Smile, ThumbsUp } from 'lucide-react';
 import Image from 'next/image';
 
 interface Story {
@@ -28,6 +28,8 @@ export default function StoryViewer({ stories, initialIndex, currentUserId, onCl
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showReactions, setShowReactions] = useState(false);
+  const [selectedReaction, setSelectedReaction] = useState<string | null>(null);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
   const currentStory = stories[currentIndex];
@@ -255,6 +257,51 @@ export default function StoryViewer({ stories, initialIndex, currentUserId, onCl
         >
           <ChevronRight className="w-6 h-6 text-white" />
         </button>
+      )}
+      
+      {/* Reactions - Only for other people's stories */}
+      {!isOwnStory && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10">
+          {showReactions ? (
+            <div className="bg-white rounded-full px-4 py-3 flex items-center gap-3 shadow-2xl">
+              {['❤️', '😂', '😮', '😢', '😡', '👍'].map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={async () => {
+                    setSelectedReaction(emoji);
+                    setShowReactions(false);
+                    // Send reaction to API
+                    try {
+                      await fetch('/api/stories/react', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          storyId: currentStory.id,
+                          reaction: emoji,
+                        }),
+                      });
+                    } catch (error) {
+                      console.error('Failed to send reaction:', error);
+                    }
+                  }}
+                  className="text-3xl hover:scale-125 transition-transform"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowReactions(true)}
+              className="bg-white bg-opacity-20 backdrop-blur-sm text-white px-6 py-3 rounded-full flex items-center gap-2 hover:bg-opacity-30 transition-all"
+            >
+              <Heart className="w-5 h-5" />
+              <span className="text-sm font-medium">
+                {selectedReaction ? `Reacted ${selectedReaction}` : 'Send Reaction'}
+              </span>
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
