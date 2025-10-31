@@ -37,12 +37,24 @@ const nextConfig = {
     ];
   },
 
-  // Image optimization with Cloudinary support
+  // Image optimization with Cloudinary support (using remotePatterns)
   images: {
-    domains: [
-      'res.cloudinary.com', // Cloudinary
-      'neon-image-bucket.s3.us-east-1.amazonaws.com', // Legacy S3 (for backward compatibility)
-      'neon-image-bucket.s3.amazonaws.com'
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'neon-image-bucket.s3.us-east-1.amazonaws.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'neon-image-bucket.s3.amazonaws.com',
+        pathname: '/**',
+      },
     ],
     formats: ['image/webp'],
     minimumCacheTTL: 60,
@@ -55,14 +67,6 @@ const nextConfig = {
 
   // Compression
   compress: true,
-
-  // Production optimizations
-  swcMinify: true,
-
-  // Environment variables validation
-  env: {
-    CUSTOM_ENV_VAR: process.env.CUSTOM_ENV_VAR,
-  },
 
   // Webpack configuration for additional security
   webpack: (config, { isServer }) => {
