@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { hash } from '@node-rs/argon2';
+import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { users, verificationCodes } from '@/lib/db/schema';
 import { sendVerificationCode, generateVerificationCode } from '@/lib/utils/email';
@@ -108,12 +108,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Hash password BEFORE sending email (in case email fails)
-    const hashedPassword = await hash(password, {
-      memoryCost: 19456, // 19 MB
-      timeCost: 2,
-      outputLen: 32,
-      parallelism: 1,
-    });
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Store user data (will be activated after verification)
     await db.insert(users).values({
