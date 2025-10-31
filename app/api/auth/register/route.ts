@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import { hash } from '@node-rs/argon2';
 import { db } from '@/lib/db';
 import { users, verificationCodes } from '@/lib/db/schema';
 import { sendVerificationCode, generateVerificationCode } from '@/lib/utils/email';
@@ -118,8 +118,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hash password with bcrypt (secure and compatible with Vercel)
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Hash password with Argon2 (winner of Password Hashing Competition)
+    const hashedPassword = await hash(password, {
+      memoryCost: 19456, // 19 MB
+      timeCost: 2,
+      outputLen: 32,
+      parallelism: 1,
+    });
 
     // Store user data temporarily (will be activated after verification)
     await db.insert(users).values({

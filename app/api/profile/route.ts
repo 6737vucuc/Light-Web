@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import { hash, verify } from '@node-rs/argon2';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
@@ -49,7 +49,7 @@ export async function PUT(request: NextRequest) {
       }
 
       // Verify current password
-      const isValid = await bcrypt.compare(currentPassword, authResult.user.password);
+      const isValid = await verify(authResult.user.password, currentPassword);
       if (!isValid) {
         return NextResponse.json(
           { error: 'Current password is incorrect' },
@@ -58,7 +58,12 @@ export async function PUT(request: NextRequest) {
       }
 
       // Hash new password
-      updateData.password = await bcrypt.hash(newPassword, 12);
+      updateData.password = await hash(newPassword, {
+        memoryCost: 19456,
+        timeCost: 2,
+        outputLen: 32,
+        parallelism: 1,
+      });
     }
 
     if (Object.keys(updateData).length > 0) {
