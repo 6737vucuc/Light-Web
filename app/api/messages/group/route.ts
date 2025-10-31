@@ -29,13 +29,17 @@ export async function GET(request: NextRequest) {
       .select({
         id: groupMessages.id,
         userId: groupMessages.userId,
-        userName: users.name,
-        userAvatar: users.avatar,
         content: groupMessages.content,
         createdAt: groupMessages.createdAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+        },
       })
       .from(groupMessages)
       .leftJoin(users, eq(groupMessages.userId, users.id))
+      .where(eq(groupMessages.isDeleted, false))
       .orderBy(desc(groupMessages.createdAt))
       .limit(100);
 
@@ -64,26 +68,38 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { content } = body;
 
-    if (!content) {
+    if (!content || !content.trim()) {
       return NextResponse.json(
         { error: 'Content is required' },
         { status: 400 }
       );
     }
 
+    if (content.length > 500) {
+      return NextResponse.json(
+        { error: 'Message is too long (max 500 characters)' },
+        { status: 400 }
+      );
+    }
+
     const [newMessage] = await db.insert(groupMessages).values({
       userId: authResult.user.id,
-      content,
+      content: content.trim(),
+      isEncrypted: false,
+      isDeleted: false,
     }).returning();
 
     // Trigger Pusher event
     await pusher.trigger('group-chat', 'new-message', {
       id: newMessage.id,
       userId: authResult.user.id,
-      userName: authResult.user.name,
-      userAvatar: authResult.user.avatar,
       content: newMessage.content,
       createdAt: newMessage.createdAt,
+      user: {
+        id: authResult.user.id,
+        name: authResult.user.name,
+        avatar: authResult.user.avatar,
+      },
     });
 
     return NextResponse.json({ message: newMessage }, { status: 201 });
@@ -95,4 +111,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

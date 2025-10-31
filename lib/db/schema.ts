@@ -13,6 +13,20 @@ export const users = pgTable('users', {
   gender: varchar('gender', { length: 10 }),
   country: varchar('country', { length: 100 }),
   avatar: text('avatar'),
+  coverPhoto: text('cover_photo'),
+  bio: text('bio'),
+  location: varchar('location', { length: 255 }),
+  work: varchar('work', { length: 255 }),
+  education: varchar('education', { length: 255 }),
+  website: varchar('website', { length: 255 }),
+  relationshipStatus: varchar('relationship_status', { length: 50 }),
+  privacyPosts: varchar('privacy_posts', { length: 20 }).default('public'),
+  privacyFriendsList: varchar('privacy_friends_list', { length: 20 }).default('public'),
+  privacyProfile: varchar('privacy_profile', { length: 20 }).default('public'),
+  privacyPhotos: varchar('privacy_photos', { length: 20 }).default('public'),
+  privacyMessages: varchar('privacy_messages', { length: 20 }).default('everyone'),
+  privacyFriendRequests: varchar('privacy_friend_requests', { length: 20 }).default('everyone'),
+  hideOnlineStatus: boolean('hide_online_status').default(false),
   isAdmin: boolean('is_admin').default(false),
   isBanned: boolean('is_banned').default(false),
   bannedUntil: timestamp('banned_until'),
@@ -171,6 +185,71 @@ export const blockedUsers = pgTable('blocked_users', {
 });
 
 // Reports table
+// Stories table
+export const stories = pgTable('stories', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  mediaUrl: text('media_url').notNull(),
+  mediaType: varchar('media_type', { length: 20 }).notNull(), // 'image' or 'video'
+  caption: text('caption'),
+  viewsCount: integer('views_count').default(0),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Story views table
+export const storyViews = pgTable('story_views', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  viewedAt: timestamp('viewed_at').defaultNow(),
+});
+
+// Groups table
+export const groups = pgTable('groups', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  coverPhoto: text('cover_photo'),
+  privacy: varchar('privacy', { length: 20 }).default('public'), // 'public', 'private'
+  createdBy: integer('created_by').references(() => users.id).notNull(),
+  membersCount: integer('members_count').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Group members table
+export const groupMembers = pgTable('group_members', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => groups.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  role: varchar('role', { length: 20 }).default('member'), // 'admin', 'moderator', 'member'
+  joinedAt: timestamp('joined_at').defaultNow(),
+});
+
+// Group posts table
+export const groupPosts = pgTable('group_posts', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => groups.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  content: text('content').notNull(),
+  imageUrl: text('image_url'),
+  likesCount: integer('likes_count').default(0),
+  commentsCount: integer('comments_count').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Lesson progress table
+export const lessonProgress = pgTable('lesson_progress', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  lessonId: integer('lesson_id').references(() => lessons.id).notNull(),
+  completed: boolean('completed').default(false),
+  progress: integer('progress').default(0), // 0-100
+  lastWatchedAt: timestamp('last_watched_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const reports = pgTable('reports', {
   id: serial('id').primaryKey(),
   reporterId: integer('reporter_id').references(() => users.id).notNull(),
