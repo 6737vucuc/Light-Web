@@ -107,18 +107,7 @@ export async function POST(request: NextRequest) {
       expiresAt,
     });
 
-    // Send verification email
-    try {
-      await sendVerificationCode(normalizedEmail, code, firstName || name);
-    } catch (emailError) {
-      console.error('Email sending error:', emailError);
-      return NextResponse.json(
-        { error: 'Failed to send verification email. Please try again.' },
-        { status: 500 }
-      );
-    }
-
-    // Hash password with Argon2 (winner of Password Hashing Competition)
+    // Hash password BEFORE sending email (in case email fails)
     const hashedPassword = await hash(password, {
       memoryCost: 19456, // 19 MB
       timeCost: 2,
@@ -126,7 +115,7 @@ export async function POST(request: NextRequest) {
       parallelism: 1,
     });
 
-    // Store user data temporarily (will be activated after verification)
+    // Store user data (will be activated after verification)
     await db.insert(users).values({
       name: name.trim(),
       firstName: firstName.trim(),
@@ -141,6 +130,22 @@ export async function POST(request: NextRequest) {
       isAdmin: false,
       isBanned: false,
     });
+
+    // Send verification email (after user is created)
+    try {
+      await sendVerificationCode(normalizedEmail, code, firstName || name);
+    } catch (emailError: any) {
+      console.error('Email sending error:', emailError);
+      console.error('Email error details:', {
+        message: emailError?.message,
+        code: emailError?.code,
+        command: emailError?.command,
+      });
+      // Don't fail registration if email fails - user can request new code
+      console.warn(`User registered but email failed: ${normalizedEmail}`);
+    }
+
+
 
     // Log successful registration (without sensitive data)
     console.log(`New user registered: ${normalizedEmail} from IP: ${clientId}`);
