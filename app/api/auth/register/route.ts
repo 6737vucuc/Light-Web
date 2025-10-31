@@ -155,10 +155,27 @@ export async function POST(request: NextRequest) {
     response.headers.set('X-RateLimit-Reset', new Date(rateLimit.resetTime).toISOString());
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Registration error:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      code: error?.code,
+    });
+    
+    // Provide more specific error messages
+    let errorMessage = 'An error occurred during registration';
+    
+    if (error?.message?.includes('duplicate key')) {
+      errorMessage = 'Email already registered';
+    } else if (error?.message?.includes('database')) {
+      errorMessage = 'Database connection error. Please try again later.';
+    } else if (error?.code === 'ECONNREFUSED') {
+      errorMessage = 'Unable to connect to database. Please try again later.';
+    }
+    
     return NextResponse.json(
-      { error: 'An error occurred during registration' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
