@@ -13,12 +13,13 @@ if (!databaseUrl) {
   console.warn('DATABASE_URL not set, using dummy connection for build');
 }
 
-// Drizzle ORM instance with conditional initialization
-export const db = databaseUrl 
-  ? drizzle(databaseUrl, { schema })
-  : drizzle('postgresql://dummy:dummy@localhost:5432/dummy', { schema });
-
-// Raw SQL client for complex queries
-export const sql = databaseUrl 
+// Create SQL client first
+const sqlClient = databaseUrl 
   ? neon(databaseUrl)
   : neon('postgresql://dummy:dummy@localhost:5432/dummy');
+
+// Drizzle ORM instance with proper initialization
+export const db = drizzle(sqlClient, { schema });
+
+// Raw SQL client for complex queries
+export const sql = sqlClient;
