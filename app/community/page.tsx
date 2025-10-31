@@ -8,6 +8,7 @@ import GroupChat from '@/components/community/GroupChat';
 import PublicFeed from '@/components/community/PublicFeed';
 import SecurityLoading from '@/components/SecurityLoading';
 import MessageNotifications from '@/components/community/MessageNotifications';
+import Notifications from '@/components/community/Notifications';
 
 export default function CommunityPage() {
   const router = useRouter();
@@ -105,6 +106,8 @@ export default function CommunityPage() {
               </button>
               
               <MessageNotifications />
+              
+              <Notifications currentUser={currentUser} />
               
               {currentUser && (
                 <button

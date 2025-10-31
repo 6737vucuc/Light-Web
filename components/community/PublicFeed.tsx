@@ -6,6 +6,10 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import StoryViewer from './StoryViewer';
 import StoryCreator from './StoryCreator';
+import SocialProfile from './SocialProfile';
+import Groups from './Groups';
+import Messenger from './Messenger';
+import PrivacySettings from './PrivacySettings';
 
 interface Post {
   id: number;
@@ -76,6 +80,12 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
   const [showStoryCreator, setShowStoryCreator] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [showGroups, setShowGroups] = useState(false);
+  const [showMessenger, setShowMessenger] = useState(false);
+  const [showPrivacySettings, setShowPrivacySettings] = useState(false);
+  const [activeView, setActiveView] = useState<'feed' | 'profile' | 'groups' | 'messenger'>('feed');
 
   const feelings = [
     { emoji: '😊', text: 'happy' },

@@ -238,6 +238,18 @@ export const groupPosts = pgTable('group_posts', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// Notifications table
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  type: varchar('type', { length: 50 }).notNull(), // 'like', 'comment', 'friend_request', etc.
+  fromUserId: integer('from_user_id').references(() => users.id).notNull(),
+  postId: integer('post_id').references(() => posts.id),
+  content: text('content').notNull(),
+  isRead: boolean('is_read').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // Lesson progress table
 export const lessonProgress = pgTable('lesson_progress', {
   id: serial('id').primaryKey(),
