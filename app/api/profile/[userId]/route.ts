@@ -6,8 +6,9 @@ import { eq, or, and, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
+  const { userId: userIdParam } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -18,7 +19,7 @@ export async function GET(
   }
 
   try {
-    const userId = parseInt(params.userId);
+    const userId = parseInt(userIdParam);
 
     // Get user profile
     const [user] = await db
@@ -55,7 +56,7 @@ export async function GET(
       WHERE (${friendships.userId} = ${userId} OR ${friendships.friendId} = ${userId})
         AND ${friendships.status} = 'accepted'
     `);
-    const friendsCount = parseInt(friendsCountResult.rows[0]?.count || '0');
+    const friendsCount = parseInt(String(friendsCountResult.rows[0]?.count || '0'));
 
     // Count posts
     const postsCountResult = await db.execute(sql`
@@ -63,7 +64,7 @@ export async function GET(
       FROM ${posts}
       WHERE ${posts.userId} = ${userId}
     `);
-    const postsCount = parseInt(postsCountResult.rows[0]?.count || '0');
+    const postsCount = parseInt(String(postsCountResult.rows[0]?.count || '0'));
 
     // Count photos (posts with images)
     const photosCountResult = await db.execute(sql`
@@ -72,7 +73,7 @@ export async function GET(
       WHERE ${posts.userId} = ${userId}
         AND ${posts.imageUrl} IS NOT NULL
     `);
-    const photosCount = parseInt(photosCountResult.rows[0]?.count || '0');
+    const photosCount = parseInt(String(photosCountResult.rows[0]?.count || '0'));
 
     // Check friendship status
     let isFriend = false;

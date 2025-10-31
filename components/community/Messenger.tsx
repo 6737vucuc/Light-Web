@@ -25,7 +25,7 @@ interface Conversation {
 }
 
 interface MessengerProps {
-  currentUser: any;
+  currentUser?: any;
 }
 
 export default function Messenger({ currentUser }: MessengerProps) {

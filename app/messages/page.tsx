@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import PrivateMessages from '@/components/community/PrivateMessages';
+import Messenger from '@/components/community/Messenger';
 import SecurityLoading from '@/components/SecurityLoading';
 
 export default function MessagesPage() {
@@ -57,7 +57,7 @@ export default function MessagesPage() {
         </div>
 
         <div className="max-w-5xl mx-auto">
-          <PrivateMessages />
+          <Messenger />
         </div>
       </div>
     </div>

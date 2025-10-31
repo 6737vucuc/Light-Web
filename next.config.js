@@ -88,6 +88,9 @@ const nextConfig = {
     optimizeCss: true,
     scrollRestoration: true,
   },
+
+  // Turbopack configuration (Next.js 16+)
+  turbopack: {},
 };
 
 module.exports = nextConfig;

@@ -6,8 +6,9 @@ import { eq, and, sql } from 'drizzle-orm';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -18,7 +19,7 @@ export async function POST(
   }
 
   try {
-    const groupId = parseInt(params.id);
+    const groupId = parseInt(id);
 
     // Check if already a member
     const [existingMember] = await db
