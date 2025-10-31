@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/neon-serverless';
-import { Pool } from '@neondatabase/serverless';
+import { Pool, neon } from '@neondatabase/serverless';
 import * as schema from './schema';
 
 // Check if DATABASE_URL is available
@@ -13,7 +13,7 @@ if (!databaseUrl) {
   console.warn('DATABASE_URL not set, using dummy connection for build');
 }
 
-// Create connection pool
+// Create connection pool for Drizzle ORM
 const pool = databaseUrl 
   ? new Pool({ connectionString: databaseUrl })
   : new Pool({ connectionString: 'postgresql://dummy:dummy@localhost:5432/dummy' });
@@ -21,5 +21,7 @@ const pool = databaseUrl
 // Drizzle ORM instance
 export const db = drizzle(pool, { schema });
 
-// Export pool for raw queries if needed
-export const sql = pool;
+// Raw SQL client using neon (for template literal queries)
+export const sql = databaseUrl
+  ? neon(databaseUrl)
+  : neon('postgresql://dummy:dummy@localhost:5432/dummy');
