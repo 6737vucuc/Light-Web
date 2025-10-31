@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
-import { uploadCoverPhoto, deleteFromCloudinary, extractPublicId } from '@/lib/cloudinary';
-import { eq } from 'drizzle-orm';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
@@ -17,7 +14,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData();
-    const file = formData.get('cover') as File;
+    const file = formData.get('image') as File;
+    const folder = (formData.get('folder') as string) || 'general';
 
     if (!file) {
       return NextResponse.json(
@@ -34,7 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (10MB for cover photos)
+    // Validate file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json(
         { error: 'File size must be less than 10MB' },
@@ -46,14 +44,12 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Get current cover photo to delete old one
-    const [currentUser] = await db
-      .select({ coverPhoto: users.coverPhoto })
-      .from(users)
-      .where(eq(users.id, authResult.user.id));
-
     // Upload to Cloudinary
-    const uploadResult = await uploadCoverPhoto(buffer, authResult.user.id);
+    const uploadResult = await uploadToCloudinary(
+      buffer,
+      folder,
+      `${folder}-${authResult.user.id}-${Date.now()}`
+    );
 
     if (!uploadResult.success) {
       return NextResponse.json(
@@ -62,32 +58,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete old cover photo from Cloudinary if exists
-    if (currentUser?.coverPhoto && currentUser.coverPhoto.includes('cloudinary.com')) {
-      const oldPublicId = extractPublicId(currentUser.coverPhoto);
-      if (oldPublicId) {
-        await deleteFromCloudinary(oldPublicId);
-      }
-    }
-
-    // Update user cover photo in database
-    await db
-      .update(users)
-      .set({ 
-        coverPhoto: uploadResult.url,
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, authResult.user.id));
-
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      message: 'Cover photo updated successfully',
-      coverPhoto: uploadResult.url
+      message: 'Image uploaded successfully',
+      url: uploadResult.url,
+      publicId: uploadResult.publicId,
+      width: uploadResult.width,
+      height: uploadResult.height,
+      format: uploadResult.format,
     });
   } catch (error) {
-    console.error('Error updating cover photo:', error);
+    console.error('Error uploading image:', error);
     return NextResponse.json(
-      { error: 'Failed to update cover photo' },
+      { error: 'Failed to upload image' },
       { status: 500 }
     );
   }

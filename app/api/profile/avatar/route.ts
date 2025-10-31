@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
+import { uploadAvatar, deleteFromCloudinary, extractPublicId } from '@/lib/cloudinary';
 import { eq } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
@@ -45,19 +46,39 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Convert to base64 for storage (in production, use cloud storage like S3)
-    const base64Image = buffer.toString('base64');
-    const avatarUrl = `data:${file.type};base64,${base64Image}`;
+    // Get current avatar to delete old one
+    const [currentUser] = await db
+      .select({ avatar: users.avatar })
+      .from(users)
+      .where(eq(users.id, authResult.user.id));
+
+    // Upload to Cloudinary
+    const uploadResult = await uploadAvatar(buffer, authResult.user.id);
+
+    if (!uploadResult.success) {
+      return NextResponse.json(
+        { error: uploadResult.error || 'Failed to upload image' },
+        { status: 500 }
+      );
+    }
+
+    // Delete old avatar from Cloudinary if exists
+    if (currentUser?.avatar && currentUser.avatar.includes('cloudinary.com')) {
+      const oldPublicId = extractPublicId(currentUser.avatar);
+      if (oldPublicId) {
+        await deleteFromCloudinary(oldPublicId);
+      }
+    }
 
     // Update user avatar in database
     await db
       .update(users)
-      .set({ avatar: avatarUrl })
+      .set({ avatar: uploadResult.url })
       .where(eq(users.id, authResult.user.id));
 
     return NextResponse.json({
       message: 'Avatar uploaded successfully',
-      avatarUrl,
+      avatarUrl: uploadResult.url,
     });
   } catch (error) {
     console.error('Error uploading avatar:', error);
@@ -67,4 +88,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -37,10 +37,11 @@ const nextConfig = {
     ];
   },
 
-  // Image optimization with security
+  // Image optimization with Cloudinary support
   images: {
     domains: [
-      'neon-image-bucket.s3.us-east-1.amazonaws.com',
+      'res.cloudinary.com', // Cloudinary
+      'neon-image-bucket.s3.us-east-1.amazonaws.com', // Legacy S3 (for backward compatibility)
       'neon-image-bucket.s3.amazonaws.com'
     ],
     formats: ['image/webp'],
