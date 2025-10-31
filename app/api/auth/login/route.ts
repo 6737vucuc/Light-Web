@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify } from 'argon2';
+import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { users, vpnLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password - use constant-time comparison
-    const isValidPassword = await verify(user.password, password);
+    const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
       // Log failed login attempt
