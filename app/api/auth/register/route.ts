@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { users, verificationCodes } from '@/lib/db/schema';
