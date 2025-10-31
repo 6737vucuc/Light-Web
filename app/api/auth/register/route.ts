@@ -164,7 +164,10 @@ export async function POST(request: NextRequest) {
       message: error?.message,
       stack: error?.stack,
       code: error?.code,
+      name: error?.name,
+      cause: error?.cause,
     });
+    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     
     // Provide more specific error messages
     let errorMessage = 'An error occurred during registration';
@@ -178,7 +181,10 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { error: errorMessage },
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined 
+      },
       { status: 500 }
     );
   }
