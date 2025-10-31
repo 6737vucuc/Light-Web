@@ -284,7 +284,6 @@ export default function RegisterPage() {
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                   className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  required
                 >
                   <option value="">Select...</option>
                   <option value="Male">Male</option>
@@ -300,7 +299,6 @@ export default function RegisterPage() {
                   value={formData.country}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  required
                 >
                   <option value="">Select...</option>
                   <option value="United States">United States</option>
