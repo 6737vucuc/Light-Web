@@ -21,7 +21,7 @@ export async function GET(
 
   const { user } = authResult;
   const params = await context.params;
-  const storyId = parseInt(params.storyId);
+  const storyId = parseInt(params.id);
 
   try {
     // Check if user owns the story
