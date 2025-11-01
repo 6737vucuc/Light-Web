@@ -39,9 +39,9 @@ export async function GET(
       );
 
     // Get friend user details
-    const friendIds = userFriendships.map(f => 
-      f.userId === userId ? f.friendId : f.userId
-    );
+    const friendIds: number[] = userFriendships
+      .map(f => f.userId === userId ? f.friendId : f.userId)
+      .filter((id): id is number => id !== null && id !== undefined);
 
     if (friendIds.length === 0) {
       return NextResponse.json({ friends: [] });
