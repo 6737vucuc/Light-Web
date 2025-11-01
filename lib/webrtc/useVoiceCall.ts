@@ -79,9 +79,17 @@ export function useVoiceCall({
 
     console.log('[Voice Call] Initializing Pusher for user:', userId);
 
-    // Initialize Pusher
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_APP_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    // Initialize Pusher - Get env vars safely for client-side
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+    
+    if (!pusherKey || !pusherCluster) {
+      console.error('[Voice Call] Pusher credentials not configured');
+      return;
+    }
+    
+    const pusher = new Pusher(pusherKey, {
+      cluster: pusherCluster,
       authEndpoint: '/api/pusher/auth',
     });
 
@@ -274,7 +282,11 @@ export function useVoiceCall({
       });
 
       // Connect to room
-      await room.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, token);
+      const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+      if (!livekitUrl) {
+        throw new Error('LiveKit URL not configured');
+      }
+      await room.connect(livekitUrl, token);
       console.log('[Voice Call] Connected to room');
 
       // Enable microphone
@@ -370,7 +382,11 @@ export function useVoiceCall({
       });
 
       // Connect to room
-      await room.connect(process.env.NEXT_PUBLIC_LIVEKIT_URL!, token);
+      const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+      if (!livekitUrl) {
+        throw new Error('LiveKit URL not configured');
+      }
+      await room.connect(livekitUrl, token);
       console.log('[Voice Call] Connected to room');
 
       // Enable microphone
