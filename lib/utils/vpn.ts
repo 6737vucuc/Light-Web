@@ -2,8 +2,19 @@ import axios from 'axios';
 
 export async function detectVPN(ipAddress: string) {
   try {
+    // Skip VPN detection if no API key or invalid IP
+    if (!process.env.IPINFO_API_KEY || ipAddress === 'unknown' || !ipAddress) {
+      return {
+        isVpn: false,
+        data: null,
+      };
+    }
+
     const response = await axios.get(
-      `https://ipinfo.io/${ipAddress}?token=${process.env.IPINFO_API_KEY}`
+      `https://ipinfo.io/${ipAddress}?token=${process.env.IPINFO_API_KEY}`,
+      {
+        timeout: 3000, // 3 seconds timeout
+      }
     );
     
     const data = response.data;
@@ -22,6 +33,7 @@ export async function detectVPN(ipAddress: string) {
     };
   } catch (error) {
     console.error('VPN detection error:', error);
+    // Don't fail the request if VPN detection fails
     return {
       isVpn: false,
       data: null,
@@ -43,4 +55,3 @@ export function getClientIP(request: Request): string {
   
   return 'unknown';
 }
-
