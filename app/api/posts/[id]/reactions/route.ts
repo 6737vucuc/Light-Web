@@ -80,6 +80,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -128,6 +129,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const postId = parseInt(id);
 
