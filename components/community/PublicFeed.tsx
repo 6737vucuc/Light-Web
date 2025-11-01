@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Image as ImageIcon, Send, ThumbsUp, Share2, MoreHorizontal, X, Smile, Video, Camera, Globe, Users, Lock, Laugh, Frown, Angry, MapPin, Tag } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import StoryViewer from './StoryViewer';
-import StoryCreator from './StoryCreator';
+
 import SocialProfile from './SocialProfile';
 import Groups from './Groups';
 import Messenger from './Messenger';
@@ -412,9 +411,9 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
       {/* Stories Section - Facebook Style */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          <button 
-            onClick={handleCreateStory}
-            disabled={uploading}
+          <button
+            onClick={() => {/* Create story disabled - using new Stories component */}}
+            disabled={true}
             className="flex-shrink-0 w-28 h-48 rounded-lg bg-gradient-to-b from-purple-500 to-blue-500 relative overflow-hidden group hover:scale-105 transition-transform disabled:opacity-50"
           >
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-3">
@@ -431,8 +430,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
             <div 
               key={story.id}
               onClick={() => {
-                setSelectedStoryIndex(index);
-                setShowStoryViewer(true);
+                // Story viewer removed - using new Stories component
               }}
               className="flex-shrink-0 w-28 h-48 rounded-lg bg-gradient-to-br from-purple-400 to-blue-400 relative overflow-hidden cursor-pointer group hover:scale-105 transition-transform"
             >
@@ -919,26 +917,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
         </div>
       </div>
 
-      {/* Story Viewer */}
-      {showStoryViewer && stories.length > 0 && (
-        <StoryViewer
-          stories={stories}
-          initialIndex={selectedStoryIndex}
-          currentUserId={currentUser?.id || 0}
-          onClose={() => setShowStoryViewer(false)}
-          onDelete={(storyId) => {
-            setStories(stories.filter(s => s.id !== storyId));
-          }}
-        />
-      )}
-      
-      {/* Story Creator */}
-      {showStoryCreator && (
-        <StoryCreator
-          onClose={() => setShowStoryCreator(false)}
-          onPublish={handlePublishStory}
-        />
-      )}
+
     </div>
   );
 }
