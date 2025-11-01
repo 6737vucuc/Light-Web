@@ -8,7 +8,7 @@ import { eq, desc, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ userId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const params = await context.params;

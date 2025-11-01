@@ -9,9 +9,9 @@ import { eq, or, and, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId: userIdParam } = await params;
+  const { id: paramId } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -22,7 +22,7 @@ export async function GET(
   }
 
   try {
-    const userId = parseInt(userIdParam);
+    const userId = parseInt(paramId);
 
     // Get user profile
     const [user] = await db

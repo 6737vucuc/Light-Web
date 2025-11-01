@@ -8,7 +8,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 // POST /api/stories/[storyId]/view - Mark story as viewed
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ storyId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireAuth(request);
   
