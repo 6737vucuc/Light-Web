@@ -103,31 +103,36 @@ export async function POST(request: NextRequest) {
     const code = generateVerificationCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Save verification code
-    await db.insert(verificationCodes).values({
-      email: normalizedEmail,
-      code,
-      expiresAt,
-    });
+    // Hash password with 10 rounds (faster while still secure)
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Hash password BEFORE sending email (in case email fails)
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Store user data (will be activated after verification)
-    await db.insert(users).values({
-      name: name.trim(),
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      birthDate: birthDate || null,
-      email: normalizedEmail,
-      password: hashedPassword,
-      religion: religion || null,
-      gender: gender || null,
-      country: country || null,
-      emailVerified: false,
-      isAdmin: false,
-      isBanned: false,
-    });
+    // Save verification code and user in parallel for speed
+    try {
+      await Promise.all([
+        db.insert(verificationCodes).values({
+          email: normalizedEmail,
+          code,
+          expiresAt,
+        }),
+        db.insert(users).values({
+          name: name.trim(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          birthDate: birthDate || null,
+          email: normalizedEmail,
+          password: hashedPassword,
+          religion: religion || null,
+          gender: gender || null,
+          country: country || null,
+          emailVerified: false,
+          isAdmin: false,
+          isBanned: false,
+        })
+      ]);
+    } catch (dbError: any) {
+      console.error('Database error during registration:', dbError);
+      throw new Error('Database connection error. Please try again later.');
+    }
 
     // Send verification email asynchronously (non-blocking)
     sendVerificationCode(normalizedEmail, code, firstName || name)
