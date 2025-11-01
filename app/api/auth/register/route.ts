@@ -129,19 +129,21 @@ export async function POST(request: NextRequest) {
       isBanned: false,
     });
 
-    // Send verification email (after user is created)
-    try {
-      await sendVerificationCode(normalizedEmail, code, firstName || name);
-    } catch (emailError: any) {
-      console.error('Email sending error:', emailError);
-      console.error('Email error details:', {
-        message: emailError?.message,
-        code: emailError?.code,
-        command: emailError?.command,
+    // Send verification email asynchronously (non-blocking)
+    sendVerificationCode(normalizedEmail, code, firstName || name)
+      .then(() => {
+        console.log(`Verification email sent successfully to: ${normalizedEmail}`);
+      })
+      .catch((emailError: any) => {
+        console.error('Email sending error:', emailError);
+        console.error('Email error details:', {
+          message: emailError?.message,
+          code: emailError?.code,
+          command: emailError?.command,
+        });
+        // Don't fail registration if email fails - user can request new code
+        console.warn(`User registered but email failed: ${normalizedEmail}`);
       });
-      // Don't fail registration if email fails - user can request new code
-      console.warn(`User registered but email failed: ${normalizedEmail}`);
-    }
 
 
 
