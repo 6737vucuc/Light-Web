@@ -11,7 +11,6 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@neondatabase/serverless": "^1.0.2",
-
     "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.5.1",
@@ -19,19 +18,16 @@
     "drizzle-kit": "^0.31.5",
     "drizzle-orm": "^0.44.7",
     "jose": "^6.1.0",
-
     "lucide-react": "^0.548.0",
     "next": "16.0.0",
-    "nodemailer": "^7.0.10",
-
     "pusher": "^5.2.0",
     "pusher-js": "^8.4.0",
     "qrcode": "^1.5.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-hook-form": "^7.65.0",
+    "resend": "^6.4.0",
     "tailwind-merge": "^3.3.1",
-
     "zod": "^4.1.12"
   },
   "devDependencies": {
