@@ -1,0 +1,9 @@
+.git
+.next
+node_modules
+*.md
+!README.md
+.env.local
+.env.development
+.env.test
+pnpm-lock.yaml
