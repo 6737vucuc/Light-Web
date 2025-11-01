@@ -134,21 +134,28 @@ export async function POST(request: NextRequest) {
       throw new Error('Database connection error. Please try again later.');
     }
 
-    // Send verification email asynchronously (non-blocking)
-    sendVerificationCode(normalizedEmail, code, firstName || name)
-      .then(() => {
-        console.log(`Verification email sent successfully to: ${normalizedEmail}`);
-      })
-      .catch((emailError: any) => {
-        console.error('Email sending error:', emailError);
-        console.error('Email error details:', {
-          message: emailError?.message,
-          code: emailError?.code,
-          command: emailError?.command,
-        });
-        // Don't fail registration if email fails - user can request new code
-        console.warn(`User registered but email failed: ${normalizedEmail}`);
+    // Send verification email (synchronous to ensure delivery)
+    try {
+      await sendVerificationCode(normalizedEmail, code, firstName || name);
+      console.log(`Verification email sent successfully to: ${normalizedEmail}`);
+    } catch (emailError: any) {
+      console.error('Email sending error:', emailError);
+      console.error('Email error details:', {
+        message: emailError?.message,
+        code: emailError?.code,
+        statusCode: emailError?.statusCode,
+        name: emailError?.name,
       });
+      
+      // Return error to user if email fails
+      return NextResponse.json(
+        { 
+          error: 'Failed to send verification email. Please check your email address and try again.',
+          details: process.env.NODE_ENV === 'development' ? emailError?.message : undefined
+        },
+        { status: 500 }
+      );
+    }
 
 
 
