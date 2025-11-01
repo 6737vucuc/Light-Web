@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { friendships, users } from '@/lib/db/schema';
-import { eq, or, and } from 'drizzle-orm';
+import { eq, or, and, inArray } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -47,9 +47,6 @@ export async function GET(
       return NextResponse.json({ friends: [] });
     }
 
-    // Build the where conditions
-    const conditions = friendIds.map(id => eq(users.id, id));
-    
     const friendsData = await db
       .select({
         id: users.id,
@@ -57,7 +54,7 @@ export async function GET(
         avatar: users.avatar,
       })
       .from(users)
-      .where(conditions.length === 1 ? conditions[0] : or(...conditions));
+      .where(inArray(users.id, friendIds));
 
     return NextResponse.json({
       friends: friendsData,
