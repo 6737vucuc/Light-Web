@@ -20,6 +20,7 @@ A professional Christian ministry website built with Next.js, featuring end-to-e
   - Public posts with images, likes, and comments
   - Long-press reactions (Facebook-style emojis)
   - Friend system (add, search, message)
+  - Instagram-style stories with 24-hour expiration
 - **Profile**: Upload avatar, edit name and password (real-time updates)
 
 ### Admin Dashboard

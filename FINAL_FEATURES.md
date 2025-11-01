@@ -68,32 +68,9 @@ Real-time messaging powered by Pusher enables instant communication between user
 ---
 
 ### 📞 Voice Calling System
-**Status: ✅ Completed**
+**Status: ❌ Removed**
 
-WebRTC-powered voice calling enables high-quality audio communication between users.
-
-**Key Features:**
-- Peer-to-peer voice calls using WebRTC
-- Crystal-clear audio quality
-- Mute/unmute functionality
-- Call status indicators (ringing, connected, ended)
-- ICE candidate exchange for NAT traversal
-- STUN server integration for connectivity
-- Call history and duration tracking
-
-**Technical Implementation:**
-- WebRTC API in `lib/calls/voice.ts`
-- RTCPeerConnection for peer communication
-- MediaStream handling for audio
-- Signaling server integration with Pusher
-
-**Call Features:**
-1. One-to-one voice calls
-2. Call notifications with ringtone
-3. Accept/decline call controls
-4. Mute/unmute during call
-5. Call duration timer
-6. Network quality indicators
+Voice calling feature has been removed to improve application performance and reduce load issues.
 
 ---
 
@@ -405,7 +382,7 @@ MESSAGE_ENCRYPTION_KEY=ca1775cd96ae1463e1cb07c67441914daeadea5804c7a6ace9df86f1f
 ✅ Facebook-style news feed
 ✅ Stories (24-hour temporary content)
 ✅ Real-time messaging with encryption
-✅ Voice calling
+❌ Voice calling (removed)
 ✅ Post creation with media
 ✅ Reactions (Like, Love, Haha, Sad, Angry)
 ✅ Comments and replies

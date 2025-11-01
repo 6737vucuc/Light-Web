@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Search, MoreVertical, Phone, Video, Image as ImageIcon, Smile } from 'lucide-react';
+import { Send, Search, MoreVertical, Image as ImageIcon, Smile } from 'lucide-react';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
-import VoiceCall from '@/components/messages/VoiceCall';
+
 
 interface Message {
   id: number;
@@ -36,7 +36,7 @@ export default function Messenger({ currentUser }: MessengerProps) {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showVoiceCall, setShowVoiceCall] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
 
@@ -274,15 +274,6 @@ export default function Messenger({ currentUser }: MessengerProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => setShowVoiceCall(true)}
-                    className="p-2 hover:bg-purple-50 rounded-lg transition-colors group"
-                  >
-                    <Phone className="w-5 h-5 text-gray-600 group-hover:text-purple-600" />
-                  </button>
-                  <button className="p-2 hover:bg-white rounded-lg transition-colors">
-                    <Video className="w-5 h-5 text-gray-600" />
-                  </button>
                   <button className="p-2 hover:bg-white rounded-lg transition-colors">
                     <MoreVertical className="w-5 h-5 text-gray-600" />
                   </button>
@@ -363,15 +354,7 @@ export default function Messenger({ currentUser }: MessengerProps) {
       </div>
     </div>
 
-    {/* Voice Call Modal */}
-    {showVoiceCall && selectedConversation && currentUser && (
-      <VoiceCall
-        currentUserId={currentUser.id}
-        targetUserId={selectedConversation.userId}
-        targetUserName={selectedConversation.userName}
-        onClose={() => setShowVoiceCall(false)}
-      />
-    )}
+
     </>
   );
 }
