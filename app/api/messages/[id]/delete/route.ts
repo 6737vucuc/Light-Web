@@ -22,7 +22,7 @@ export async function POST(
   }
 
   try {
-    const messageId = parseInt(resolvedParams.id);
+    const messageId = parseInt(id);
     const { deleteForEveryone } = await request.json();
 
     // Get the message

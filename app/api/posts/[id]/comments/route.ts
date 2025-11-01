@@ -10,7 +10,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const resolvedParams = await params;
+  const { id } = await params;
   try {
     const postId = parseInt(id);
 
