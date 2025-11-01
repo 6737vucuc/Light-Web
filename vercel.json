@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/cron/cleanup-messages",
-      "schedule": "0 0 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }

@@ -1,131 +1,51 @@
-# Changelog - November 2025
+# سجل التحديثات - Light of Life
 
-## Version 3.0.0 - Performance & Features Update
+## الإصدار 4.0.0 - تحديثات الأمان والتشفير المتقدمة
 
-### 🗑️ Removed Features
+### التاريخ: 2 نوفمبر 2025
 
-#### Voice Calling System
-- **Reason**: Performance optimization and load reduction
-- **Removed Components**:
-  - `lib/calls/voice.ts` - Voice call service
-  - `lib/webrtc/` - WebRTC configuration and hooks
-  - `app/api/webrtc/` - WebRTC API endpoints
-  - `components/messages/VoiceCall.tsx` - Voice call UI component
-  - Audio files: `ringing.mp3`, `incoming-call.wav`, `ringing.wav`
+### التحديثات الرئيسية
 
-- **Removed Dependencies**:
-  - `peerjs` - Peer-to-peer connections
-  - `livekit-client` - LiveKit client SDK
-  - `livekit-server-sdk` - LiveKit server SDK
-  - `ws` - WebSocket library
-  - `@types/peerjs` - TypeScript definitions
-  - `@types/ws` - TypeScript definitions
+#### 1. نظام التشفير الفائق (Ultra-Encryption)
+- إضافة تشفير متعدد الطبقات: AES-256-GCM + ChaCha20-Poly1305
+- تطبيق HMAC-SHA512 لضمان سلامة البيانات
+- استخدام Scrypt لاشتقاق مفاتيح التشفير
+- دعم Perfect Forward Secrecy
+- دوال تشفير للكائنات والملفات
 
-- **Updated Files**:
-  - `components/community/Messenger.tsx` - Removed voice call button and modal
-  - `package.json` - Removed voice calling dependencies
-  - `FINAL_FEATURES.md` - Marked voice calling as removed
+#### 2. نظام الحماية الفائقة (Ultra-Protection)
+- Advanced Rate Limiter للحماية من DDoS
+- Brute Force Protection مع حظر تدريجي
+- IP Reputation System لتقييم سمعة عناوين IP
+- Bot Detection للكشف عن الروبوتات
+- Session Security Manager للحماية من اختطاف الجلسات
 
-### ✨ Enhanced Features
+#### 3. تحديث Cron Job
+- تغيير جدولة حذف الرسائل من يومياً إلى كل ساعة
+- حذف رسائل الدردشة الجماعية الأقدم من ساعة واحدة
 
-#### Instagram-Style Stories System
-- **New Features**:
-  - ✅ Circular story avatars with gradient rings for unviewed stories
-  - ✅ Automatic story progression with progress bars
-  - ✅ Tap to pause/resume stories
-  - ✅ Swipe left/right navigation between stories
-  - ✅ Story grouping by user
-  - ✅ Reply to stories via direct message
-  - ✅ View story viewers list (for your own stories)
-  - ✅ Delete your own stories
-  - ✅ Upload photos and videos with captions
-  - ✅ Full-screen story viewer with smooth transitions
-  - ✅ Story expiration after 24 hours
-  - ✅ View count tracking
+#### 4. نظام أكواد التحقق عبر Resend
+- تحسين توليد الأكواد باستخدام crypto.randomInt
+- إضافة قوالب بريد إلكتروني متعددة:
+  - التحقق عند التسجيل
+  - إعادة تعيين كلمة المرور
+  - التحقق الثنائي (2FA)
+- تضمين شعار المشروع في جميع رسائل البريد
 
-- **New API Endpoints**:
-  - `GET /api/stories/[storyId]/viewers` - Get list of story viewers
-  - `POST /api/stories/[storyId]/view` - Record story view
+#### 5. تنظيف الملفات
+- حذف ملفات التوثيق القديمة والمكررة
+- الاحتفاظ بملفات التوثيق الأساسية فقط
 
-- **Database Changes**:
-  - Added `story_views` table for tracking viewers
-  - Added `caption` column to `stories` table
-  - Added indexes for better query performance
+### الملفات الجديدة
+- `lib/security/ultra-encryption.ts` - نظام التشفير المتقدم
+- `lib/security/ultra-protection.ts` - نظام الحماية الفائقة
+- `UPDATES_SUMMARY_AR.md` - ملخص التحديثات بالعربية
 
-- **UI/UX Improvements**:
-  - Instagram-like circular story avatars
-  - Gradient ring for unviewed stories (yellow → pink → purple)
-  - Gray ring for viewed stories
-  - Smooth progress bars at the top
-  - Tap left/right to navigate
-  - Hold to pause
-  - Swipe gestures support
-  - Reply input at the bottom
-  - Viewers modal for story owners
-  - Delete button for story owners
-
-### 📊 Performance Improvements
-
-- **Reduced Bundle Size**: Removed ~2MB of WebRTC-related dependencies
-- **Faster Load Times**: Eliminated unnecessary WebSocket connections
-- **Better Mobile Performance**: Removed heavy peer-to-peer connection logic
-- **Optimized Stories**: Added database indexes for faster queries
-
-### 🔧 Technical Details
-
-**Stories Component** (`components/community/Stories.tsx`):
-- Complete rewrite with Instagram-style UI
-- Story grouping by user
-- Auto-progression with configurable duration
-- Pause/resume on tap
-- Navigation buttons for better UX
-- Reply functionality integrated
-- Viewers list for story owners
-
-**Stories API** (`app/api/stories/`):
-- Enhanced GET endpoint with user grouping
-- View tracking with unique constraint
-- Viewers list endpoint with authorization
-- Caption support in story creation
-
-**Database Schema**:
-```sql
-CREATE TABLE story_views (
-  id SERIAL PRIMARY KEY,
-  story_id INTEGER REFERENCES stories(id),
-  user_id INTEGER REFERENCES users(id),
-  viewed_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(story_id, user_id)
-);
-
-ALTER TABLE stories ADD COLUMN caption TEXT;
-```
-
-### 📝 Migration Guide
-
-**For Developers**:
-1. Run database migration: `pnpm drizzle-kit push`
-2. Remove old dependencies: `pnpm install`
-3. Test stories functionality
-4. Update any custom integrations
-
-**For Users**:
-- Voice calling feature is no longer available
-- Use Instagram-style stories for sharing moments
-- Stories expire after 24 hours automatically
-- Reply to stories via direct messages
-
-### 🎯 Next Steps
-
-- [ ] Add story reactions (like, heart, etc.)
-- [ ] Add story highlights (save stories permanently)
-- [ ] Add story filters and effects
-- [ ] Add story mentions and hashtags
-- [ ] Add story music integration
-- [ ] Add story polls and questions
+### الملفات المعدلة
+- `vercel.json` - تحديث جدولة Cron
+- `app/api/cron/cleanup-messages/route.ts` - تحديث منطق حذف الرسائل
+- `lib/utils/email.ts` - تحسين نظام أكواد التحقق وقوالب البريد
 
 ---
 
-**Date**: November 1, 2025  
-**Version**: 3.0.0  
-**Status**: ✅ Completed
+**ملاحظة:** هذا الإصدار يركز على تعزيز الأمان والخصوصية بشكل كبير.
