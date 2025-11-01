@@ -96,22 +96,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Detect VPN
+    // Detect VPN (non-blocking)
     const clientIP = getClientIP(request);
-    const vpnDetection = await detectVPN(clientIP);
-
-    // Log VPN detection
-    try {
-      await db.insert(vpnLogs).values({
-        userId: user.id,
-        ipAddress: clientIP,
-        isVpn: vpnDetection.isVpn,
-        vpnData: vpnDetection.data,
+    let vpnDetection = { isVpn: false, data: null };
+    
+    // Run VPN detection in background without blocking login
+    detectVPN(clientIP)
+      .then(async (detection) => {
+        vpnDetection = detection;
+        // Log VPN detection asynchronously
+        try {
+          await db.insert(vpnLogs).values({
+            userId: user.id,
+            ipAddress: clientIP,
+            isVpn: detection.isVpn,
+            vpnData: detection.data,
+          });
+        } catch (error) {
+          console.error('VPN logging error:', error);
+        }
+      })
+      .catch((error) => {
+        console.error('VPN detection error:', error);
       });
-    } catch (error) {
-      // Don't fail login if VPN logging fails
-      console.error('VPN logging error:', error);
-    }
 
     // Create JWT token with minimal payload
     const token = await createToken({

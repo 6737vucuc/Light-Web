@@ -30,21 +30,23 @@ function LoginForm() {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        const data = await response.json();
         throw new Error(data.error || 'Login failed');
       }
 
+      const data = await response.json();
+
       if (data.vpnDetected) {
-        alert('VPN detected! Please note that VPN usage is logged.');
+        console.log('VPN detected - logging for security purposes');
       }
 
       // Redirect to specified page or home
       router.push(redirectUrl);
       router.refresh();
     } catch (err: any) {
-      setError(err.message);
+      console.error('Login error:', err);
+      setError(err.message || 'An error occurred during login. Please try again.');
     } finally {
       setLoading(false);
     }

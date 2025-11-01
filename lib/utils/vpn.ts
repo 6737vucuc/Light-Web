@@ -13,7 +13,7 @@ export async function detectVPN(ipAddress: string) {
     const response = await axios.get(
       `https://ipinfo.io/${ipAddress}?token=${process.env.IPINFO_API_KEY}`,
       {
-        timeout: 3000, // 3 seconds timeout
+        timeout: 5000, // 5 seconds timeout
       }
     );
     
