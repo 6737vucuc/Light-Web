@@ -22,7 +22,6 @@ export async function POST(
   }
 
   try {
-    const resolvedParams = await params;
     const messageId = parseInt(resolvedParams.id);
     const { deleteForEveryone } = await request.json();
 

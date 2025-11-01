@@ -22,7 +22,6 @@ export async function POST(
   }
 
   try {
-    const { id } = await params;
     const postId = parseInt(id);
 
     // Check if already liked
@@ -67,4 +66,3 @@ export async function POST(
     );
   }
 }
-

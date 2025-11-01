@@ -11,7 +11,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const resolvedParams = await params;
   const authResult = await requireAdmin(request);
   
   if ('error' in authResult) {
@@ -22,7 +22,6 @@ export async function PATCH(
   }
 
   try {
-    const { id: paramId } = await params;
     const id = parseInt(paramId);
     const body = await request.json();
     const { status } = body;
@@ -56,7 +55,6 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
   const authResult = await requireAdmin(request);
   
   if ('error' in authResult) {
@@ -67,7 +65,6 @@ export async function DELETE(
   }
 
   try {
-    const { id: paramId } = await params;
     const id = parseInt(paramId);
 
     await db.delete(supportRequests).where(eq(supportRequests.id, id));

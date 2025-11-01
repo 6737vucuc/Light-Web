@@ -8,7 +8,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 // GET /api/stories/[storyId]/viewers - Get story viewers
 export async function GET(
   request: NextRequest,
-  { params }: { params: { storyId: string } }
+  context: { params: Promise<{ storyId: string }> }
 ) {
   const authResult = await requireAuth(request);
   
@@ -20,6 +20,7 @@ export async function GET(
   }
 
   const { user } = authResult;
+  const params = await context.params;
   const storyId = parseInt(params.storyId);
 
   try {

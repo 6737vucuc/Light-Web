@@ -10,7 +10,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const resolvedParams = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -80,7 +80,6 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -130,7 +129,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
     const postId = parseInt(id);
 
     const result = await sql`

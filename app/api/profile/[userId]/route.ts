@@ -11,7 +11,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
-  const { userId: userIdParam } = await params;
+  const resolvedParams = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {

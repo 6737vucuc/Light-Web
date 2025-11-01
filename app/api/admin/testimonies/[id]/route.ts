@@ -11,7 +11,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const resolvedParams = await params;
   const authResult = await requireAdmin(request);
   
   if ('error' in authResult) {
@@ -22,7 +22,6 @@ export async function DELETE(
   }
 
   try {
-    const { id: paramId } = await params;
     const id = parseInt(paramId);
 
     await db.delete(testimonies).where(eq(testimonies.id, id));
