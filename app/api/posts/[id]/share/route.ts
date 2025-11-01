@@ -10,7 +10,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: paramId } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -23,7 +23,7 @@ export async function POST(
   const { user } = authResult;
 
   try {
-    const postId = parseInt(id);
+    const postId = parseInt(paramId);
 
     // Check if post exists
     const postCheck = await sql`
@@ -81,7 +81,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: paramId } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -94,7 +94,7 @@ export async function DELETE(
   const { user } = authResult;
 
   try {
-    const postId = parseInt(id);
+    const postId = parseInt(paramId);
 
     // Delete share
     const result = await sql`

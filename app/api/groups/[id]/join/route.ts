@@ -11,7 +11,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: paramId } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -22,7 +22,7 @@ export async function POST(
   }
 
   try {
-    const groupId = parseInt(id);
+    const groupId = parseInt(paramId);
 
     // Check if already a member
     const [existingMember] = await db

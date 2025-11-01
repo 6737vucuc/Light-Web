@@ -10,7 +10,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: paramId } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -23,7 +23,7 @@ export async function POST(
   const { user } = authResult;
 
   try {
-    const postId = parseInt(id);
+    const postId = parseInt(paramId);
     const { reactionType } = await request.json();
 
     const validReactions = ['love', 'like', 'haha', 'wow', 'sad', 'pray'];
@@ -80,7 +80,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: paramId } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -93,7 +93,7 @@ export async function DELETE(
   const { user } = authResult;
 
   try {
-    const postId = parseInt(id);
+    const postId = parseInt(paramId);
 
     // Delete reaction
     const result = await sql`
@@ -129,9 +129,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: paramId } = await params;
   try {
-    const postId = parseInt(id);
+    const postId = parseInt(paramId);
 
     const result = await sql`
       SELECT 

@@ -10,9 +10,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: paramId } = await params;
   try {
-    const postId = parseInt(id);
+    const postId = parseInt(paramId);
 
     const result = await sql`
       SELECT 
@@ -53,7 +53,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: paramId } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
@@ -66,7 +66,7 @@ export async function POST(
   const { user } = authResult;
 
   try {
-    const postId = parseInt(id);
+    const postId = parseInt(paramId);
     const { content } = await request.json();
 
     if (!content || !content.trim()) {

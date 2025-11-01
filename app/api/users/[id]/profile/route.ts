@@ -18,8 +18,8 @@ export async function GET(
     }
     const currentUser = authResult.user;
 
-    const { id } = await params;
-    const userId = parseInt(id);
+    const { id: paramId } = await params;
+    const userId = parseInt(paramId);
 
     // Check if the user is blocked
     const isBlocked = await db
