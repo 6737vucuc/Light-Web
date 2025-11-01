@@ -9,6 +9,7 @@ import PublicFeed from '@/components/community/PublicFeed';
 import SecurityLoading from '@/components/SecurityLoading';
 import MessageNotifications from '@/components/community/MessageNotifications';
 import Notifications from '@/components/community/Notifications';
+import Stories from '@/components/community/Stories';
 
 export default function CommunityPage() {
   const router = useRouter();
@@ -190,7 +191,10 @@ export default function CommunityPage() {
               <GroupChat currentUser={currentUser} />
             </div>
           ) : (
-            <PublicFeed currentUser={currentUser} />
+            <>
+              <Stories currentUser={currentUser} />
+              <PublicFeed currentUser={currentUser} />
+            </>
           )}
         </div>
       </div>

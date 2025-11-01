@@ -119,12 +119,6 @@ export default function ProfilePage() {
                 <p className="text-gray-600">Lesson Progress Tracker</p>
               </div>
             </div>
-            <button
-              onClick={() => router.push('/community')}
-              className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium"
-            >
-              Go to Community
-            </button>
           </div>
         </div>
       </div>

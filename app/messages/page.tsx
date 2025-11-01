@@ -9,17 +9,20 @@ export default function MessagesPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
+          const data = await response.json();
+          setCurrentUser(data.user);
           setIsAuthenticated(true);
           fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
           setTimeout(() => {
             setIsLoading(false);
-          }, 2000);
+          }, 1500);
         } else {
           router.push('/auth/login?redirect=/messages');
         }
@@ -45,21 +48,8 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Messages
-          </h1>
-          <p className="text-xl text-gray-600">
-            Connect with your friends
-          </p>
-        </div>
-
-        <div className="max-w-5xl mx-auto">
-          <Messenger />
-        </div>
-      </div>
+    <div className="h-screen bg-white">
+      <Messenger currentUser={currentUser} />
     </div>
   );
 }
