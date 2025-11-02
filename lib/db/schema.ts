@@ -249,3 +249,91 @@ export const groupChatMessages = pgTable('group_chat_messages', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+
+// Lessons table
+export const lessons = pgTable('lessons', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  content: text('content').notNull(),
+  imageUrl: text('image_url'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Lesson progress table
+export const lessonProgress = pgTable('lesson_progress', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  lessonId: integer('lesson_id').references(() => lessons.id).notNull(),
+  completed: boolean('completed').default(false),
+  progress: integer('progress').default(0),
+  lastWatchedAt: timestamp('last_watched_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Daily verses table
+export const dailyVerses = pgTable('daily_verses', {
+  id: serial('id').primaryKey(),
+  verse: text('verse').notNull(),
+  reference: varchar('reference', { length: 255 }).notNull(),
+  imageUrl: text('image_url'),
+  scheduledDate: timestamp('scheduled_date').notNull(),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Support requests table
+export const supportRequests = pgTable('support_requests', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id),
+  type: varchar('type', { length: 50 }).notNull(),
+  subject: varchar('subject', { length: 255 }),
+  message: text('message').notNull(),
+  status: varchar('status', { length: 50 }).default('pending'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Testimonies table
+export const testimonies = pgTable('testimonies', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id),
+  content: text('content').notNull(),
+  status: varchar('status', { length: 50 }).default('pending'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Encryption keys table
+export const encryptionKeys = pgTable('encryption_keys', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull().unique(),
+  publicKey: text('public_key').notNull(),
+  privateKey: text('private_key').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Friendships table
+export const friendships = pgTable('friendships', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  friendId: integer('friend_id').references(() => users.id).notNull(),
+  status: varchar('status', { length: 20 }).default('pending'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// User privacy settings table
+export const userPrivacySettings = pgTable('user_privacy_settings', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull().unique(),
+  isPrivate: boolean('is_private').default(false),
+  hideFollowers: boolean('hide_followers').default(false),
+  hideFollowing: boolean('hide_following').default(false),
+  allowTagging: varchar('allow_tagging', { length: 20 }).default('everyone'),
+  allowComments: varchar('allow_comments', { length: 20 }).default('everyone'),
+  allowMessages: varchar('allow_messages', { length: 20 }).default('everyone'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
