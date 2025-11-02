@@ -1,13 +1,13 @@
-import nodemailer from 'nodemailer';
+import { createTransport } from 'nodemailer';
 
 // Create transporter using Gmail
-const transporter = nodemailer.createTransporter({
+const transporter = createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-} as any);
+});
 
 export async function sendVerificationCode(email: string, code: string, userName?: string) {
   try {
