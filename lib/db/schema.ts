@@ -35,6 +35,7 @@ export const users = pgTable('users', {
   // Status
   isAdmin: boolean('is_admin').default(false),
   isBanned: boolean('is_banned').default(false),
+  bannedUntil: timestamp('banned_until'),
   emailVerified: boolean('email_verified').default(false),
   lastSeen: timestamp('last_seen').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
