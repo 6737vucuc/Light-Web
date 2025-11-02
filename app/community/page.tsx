@@ -162,7 +162,7 @@ export default function CommunityPage() {
           <div className="flex-1 max-w-[630px] mx-auto">
             {/* Stories Bar */}
             <div className="mb-6">
-              <StoriesBar currentUser={currentUser} />
+              <StoriesBar currentUserId={currentUser?.id} />
             </div>
 
             {/* Posts Feed */}
