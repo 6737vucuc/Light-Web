@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { content } = body;
+    const { content, groupId } = body;
 
     if (!content || !content.trim()) {
       return NextResponse.json(
@@ -87,9 +87,8 @@ export async function POST(request: NextRequest) {
 
     const [newMessage] = await db.insert(groupChatMessages).values({
       userId: authResult.user.id,
+      groupId: parseInt(groupId),
       content: content.trim(),
-      isEncrypted: false,
-      isDeleted: false,
     }).returning();
 
     // Trigger Pusher event

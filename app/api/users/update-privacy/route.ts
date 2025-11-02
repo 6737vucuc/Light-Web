@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const userId = decoded.userId;
+    const userId = decoded.userId as number;
     const body = await request.json();
     const { isPrivate, hideFollowers, hideFollowing, allowComments, allowMessages } = body;
 

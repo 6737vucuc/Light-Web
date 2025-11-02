@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { savedPosts, posts, users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { verifyToken } from '@/lib/auth/jwt';
 
 export async function GET(request: NextRequest) {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const userId = decoded.userId;
+    const userId = decoded.userId as number;
 
     // Get saved posts
     const saved = await db
@@ -64,23 +64,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const userId = decoded.userId;
+    const userId = decoded.userId as number;
     const { postId } = await request.json();
 
     // Check if already saved
     const existing = await db
       .select()
       .from(savedPosts)
-      .where(eq(savedPosts.userId, userId))
-      .where(eq(savedPosts.postId, postId))
+      .where(
+        and(
+          eq(savedPosts.userId, userId),
+          eq(savedPosts.postId, postId)
+        )
+      )
       .limit(1);
 
     if (existing.length > 0) {
       // Unsave
       await db
         .delete(savedPosts)
-        .where(eq(savedPosts.userId, userId))
-        .where(eq(savedPosts.postId, postId));
+        .where(
+          and(
+            eq(savedPosts.userId, userId),
+            eq(savedPosts.postId, postId)
+          )
+        );
 
       return NextResponse.json({ saved: false });
     } else {

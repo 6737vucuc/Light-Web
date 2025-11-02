@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
         }),
         db.insert(users).values({
           name: name.trim(),
+          username: normalizedEmail.split('@')[0] + Math.floor(Math.random() * 10000),
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           birthDate: birthDate || null,

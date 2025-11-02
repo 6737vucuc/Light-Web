@@ -19,7 +19,7 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const currentUserId = decoded.userId;
+    const currentUserId = decoded.userId as number;
     const { userId } = await params;
     const targetUserId = parseInt(userId);
 

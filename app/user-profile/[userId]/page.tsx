@@ -55,10 +55,12 @@ export default function UserProfilePage() {
     const fetchData = async () => {
       try {
         // Get current user
+        let currentUserId = null;
         const meResponse = await fetch('/api/auth/me');
         if (meResponse.ok) {
           const meData = await meResponse.json();
           setCurrentUser(meData.user);
+          currentUserId = meData.user?.id;
         }
 
         // Get profile user data
@@ -68,7 +70,7 @@ export default function UserProfilePage() {
           setUser(userData.user);
           
           // Check if can view profile (if private and not following)
-          if (userData.user.isPrivate && !userData.isFollowing && userData.user.id !== meData.user?.id) {
+          if (userData.user.isPrivate && !userData.isFollowing && userData.user.id !== currentUserId) {
             setCanViewProfile(false);
           }
         }
@@ -90,7 +92,7 @@ export default function UserProfilePage() {
           }
 
           // Get saved posts (only for own profile)
-          if (meData.user?.id === parseInt(userId)) {
+          if (currentUserId === parseInt(userId)) {
             const savedResponse = await fetch(`/api/posts/saved`);
             if (savedResponse.ok) {
               const savedData = await savedResponse.json();

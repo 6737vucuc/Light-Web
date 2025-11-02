@@ -17,8 +17,10 @@ export async function GET(
     
     if (token) {
       try {
-        const decoded = verifyToken(token);
-        currentUserId = decoded.userId;
+        const decoded = await verifyToken(token);
+        if (decoded) {
+          currentUserId = decoded.userId as number;
+        }
       } catch (error) {
         // Token invalid, continue as guest
       }
@@ -144,10 +146,10 @@ export async function GET(
       work: user.work,
       education: user.education,
       postsCount: user.postsCount || 0,
-      followersCount: privacySettings?.hideFollowers && currentUserId !== user.id 
+      followersCount: user.hideFollowers && currentUserId !== user.id 
         ? null 
         : user.followersCount || 0,
-      followingCount: privacySettings?.hideFollowing && currentUserId !== user.id 
+      followingCount: user.hideFollowing && currentUserId !== user.id 
         ? null 
         : user.followingCount || 0,
       isPrivate,

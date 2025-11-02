@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { messages, users, friendships } from '@/lib/db/schema';
+import { messages, users, friendships, conversations } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, or, and, desc } from 'drizzle-orm';
 import { encryptMessageMilitary, decryptMessageMilitary } from '@/lib/security/military-encryption';
@@ -212,10 +212,41 @@ export async function POST(request: NextRequest) {
     // Same level as NSA, CIA, WhatsApp, Signal
     const encryptedContent = encryptMessageMilitary(sanitizedContent);
 
+    // Get or create conversation
+    let conversation = await db
+      .select()
+      .from(conversations)
+      .where(
+        or(
+          and(
+            eq(conversations.participant1Id, authResult.user.id),
+            eq(conversations.participant2Id, receiverId)
+          ),
+          and(
+            eq(conversations.participant1Id, receiverId),
+            eq(conversations.participant2Id, authResult.user.id)
+          )
+        )
+      )
+      .limit(1);
+
+    if (conversation.length === 0) {
+      // Create new conversation
+      const [newConv] = await db
+        .insert(conversations)
+        .values({
+          participant1Id: authResult.user.id,
+          participant2Id: receiverId,
+        })
+        .returning();
+      conversation = [newConv];
+    }
+
     // Create message
     const [message] = await db
       .insert(messages)
       .values({
+        conversationId: conversation[0].id,
         senderId: authResult.user.id,
         receiverId,
         content: '[🔒 Military-Grade Encrypted]', // Placeholder in database

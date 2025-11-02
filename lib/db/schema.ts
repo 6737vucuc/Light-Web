@@ -32,6 +32,13 @@ export const users = pgTable('users', {
   hideFollowing: boolean('hide_following').default(false),
   allowComments: varchar('allow_comments', { length: 20 }).default('everyone'), // 'everyone', 'followers', 'nobody'
   allowMessages: varchar('allow_messages', { length: 20 }).default('everyone'),
+  privacyPosts: varchar('privacy_posts', { length: 20 }).default('everyone'), // 'everyone', 'friends', 'only_me'
+  privacyFriendsList: varchar('privacy_friends_list', { length: 20 }).default('everyone'),
+  privacyProfile: varchar('privacy_profile', { length: 20 }).default('everyone'),
+  privacyPhotos: varchar('privacy_photos', { length: 20 }).default('everyone'),
+  privacyMessages: varchar('privacy_messages', { length: 20 }).default('everyone'),
+  privacyFriendRequests: varchar('privacy_friend_requests', { length: 20 }).default('everyone'),
+  hideOnlineStatus: boolean('hide_online_status').default(false),
   // Status
   isAdmin: boolean('is_admin').default(false),
   isBanned: boolean('is_banned').default(false),
@@ -148,6 +155,8 @@ export const messages = pgTable('messages', {
   receiverId: integer('receiver_id').references(() => users.id).notNull(),
   messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video', 'voice', 'post'
   content: text('content'), // Text content
+  encryptedContent: text('encrypted_content'), // Encrypted content for E2E encryption
+  isEncrypted: boolean('is_encrypted').default(false), // Whether message is encrypted
   mediaUrl: text('media_url'), // Image/video/voice URL
   postId: integer('post_id').references(() => posts.id), // Shared post
   replyToId: integer('reply_to_id'), // Reply to message ID
@@ -235,6 +244,9 @@ export const groupChats = pgTable('group_chats', {
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   avatar: text('avatar'),
+  coverPhoto: text('cover_photo'),
+  privacy: varchar('privacy', { length: 20 }).default('public'), // 'public', 'private'
+  membersCount: integer('members_count').default(0),
   createdBy: integer('created_by').references(() => users.id).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -254,9 +266,12 @@ export const groupChatMessages = pgTable('group_chat_messages', {
   id: serial('id').primaryKey(),
   groupId: integer('group_id').references(() => groupChats.id).notNull(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  content: text('content').notNull(),
+  content: text('content'),
+  encryptedContent: text('encrypted_content'),
   mediaUrl: text('media_url'),
   messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video'
+  isDeleted: boolean('is_deleted').default(false),
+  deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

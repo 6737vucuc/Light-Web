@@ -18,8 +18,14 @@ export async function POST(
       );
     }
 
-    const decoded = verifyToken(token);
-    const currentUserId = decoded.userId;
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+    const currentUserId = decoded.userId as number;
     const { userId } = await params;
     const targetUserId = parseInt(userId);
 
@@ -153,8 +159,14 @@ export async function DELETE(
       );
     }
 
-    const decoded = verifyToken(token);
-    const currentUserId = decoded.userId;
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+    const currentUserId = decoded.userId as number;
     const { userId } = await params;
     const targetUserId = parseInt(userId);
 

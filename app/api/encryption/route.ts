@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         .update(encryptionKeys)
         .set({
           publicKey,
-          encryptedPrivateKey,
+          privateKey: encryptedPrivateKey,
           updatedAt: new Date(),
         })
         .where(eq(encryptionKeys.userId, authResult.user.id));
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       await db.insert(encryptionKeys).values({
         userId: authResult.user.id,
         publicKey,
-        encryptedPrivateKey,
+        privateKey: encryptedPrivateKey,
       });
     }
 
