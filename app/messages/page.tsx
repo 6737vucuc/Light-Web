@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Messenger from '@/components/community/Messenger';
+import { useRouter, useSearchParams } from 'next/navigation';
+import MessengerInstagram from '@/components/community/MessengerInstagram';
 import SecurityLoading from '@/components/SecurityLoading';
 
 export default function MessagesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const userId = searchParams?.get('userId');
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -19,10 +22,9 @@ export default function MessagesPage() {
           const data = await response.json();
           setCurrentUser(data.user);
           setIsAuthenticated(true);
-          fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
           setTimeout(() => {
             setIsLoading(false);
-          }, 1500);
+          }, 1000);
         } else {
           router.push('/auth/login?redirect=/messages');
         }
@@ -33,23 +35,39 @@ export default function MessagesPage() {
     };
 
     checkAuth();
-    
-    const interval = setInterval(() => {
-      if (isAuthenticated) {
-        fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [router, isAuthenticated]);
+  }, [router]);
 
   if (isLoading) {
     return <SecurityLoading />;
   }
 
   return (
-    <div className="h-screen bg-white">
-      <Messenger currentUser={currentUser} />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <button
+              onClick={() => router.push('/community')}
+              className="flex items-center cursor-pointer group"
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-500 rounded-full flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                <span className="text-white font-bold text-xl">L</span>
+              </div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
+                Light Messages
+              </h1>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <MessengerInstagram 
+          currentUser={currentUser} 
+          initialUserId={userId ? parseInt(userId) : undefined}
+        />
+      </div>
     </div>
   );
 }
