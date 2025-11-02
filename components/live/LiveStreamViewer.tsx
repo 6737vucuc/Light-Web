@@ -28,7 +28,7 @@ function ViewerStats() {
 
   useEffect(() => {
     const updateViewers = () => {
-      setViewersCount(room.participants.size);
+      setViewersCount(room.numParticipants);
     };
 
     updateViewers();

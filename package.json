@@ -11,6 +11,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@livekit/components-react": "^2.9.15",
+    "@livekit/components-styles": "^1.1.6",
     "@neondatabase/serverless": "^1.0.2",
     "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.12.2",

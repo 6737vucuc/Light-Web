@@ -9,9 +9,9 @@ import { eq, and } from 'drizzle-orm';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
-  const { id: paramId } = await params;
+  const { messageId: paramId } = await params;
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {

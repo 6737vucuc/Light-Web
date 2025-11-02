@@ -24,10 +24,8 @@ function StreamStats() {
   useEffect(() => {
     const updateViewers = () => {
       // Count participants excluding broadcaster
-      const viewers = Array.from(room.participants.values()).filter(
-        (p) => p.identity !== room.localParticipant.identity
-      ).length;
-      setViewersCount(viewers);
+      const viewers = room.numParticipants - 1; // Exclude broadcaster
+      setViewersCount(Math.max(0, viewers));
     };
 
     updateViewers();
