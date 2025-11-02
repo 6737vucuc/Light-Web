@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
             ipAddress: clientIP,
             isVpn: detection.isVpn,
             vpnData: detection.data,
+            action: 'login',
           });
         } catch (error) {
           console.error('VPN logging error:', error);
