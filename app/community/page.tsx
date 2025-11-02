@@ -159,8 +159,17 @@ export default function CommunityPage() {
 
       {/* Search Modal */}
       {showSearch && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center pt-20">
-          <div className="bg-white rounded-lg w-full max-w-2xl mx-4 shadow-2xl">
+        <div 
+          className="fixed inset-0 z-50 flex items-start justify-center pt-20 backdrop-blur-sm"
+          onClick={() => {
+            setShowSearch(false);
+            setSearchQuery('');
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg w-full max-w-2xl mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
