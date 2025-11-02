@@ -50,6 +50,7 @@ export default function MessengerInstagram({ currentUser, initialUserId }: Messe
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null);
+  const [showConversationInfo, setShowConversationInfo] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
@@ -342,8 +343,33 @@ export default function MessengerInstagram({ currentUser, initialUserId }: Messe
       conv.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleStartCall = async (type: 'audio' | 'video') => {
+    if (!selectedConversation) return;
+
+    try {
+      // Create a call
+      const response = await fetch('/api/calls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiverId: selectedConversation.userId,
+          callType: type,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Redirect to call page
+        window.location.href = `/call/${data.call.id}`;
+      }
+    } catch (error) {
+      console.error('Error starting call:', error);
+      alert('Failed to start call. Please try again.');
+    }
+  };
+
   return (
-    <div className="flex h-[calc(100vh-200px)] bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="flex h-[calc(100vh-200px)] bg-white border border-gray-200 rounded-lg overflow-hidden relative">
       {/* Conversations List */}
       <div className="w-96 border-r border-gray-200 flex flex-col">
         {/* Header */}
@@ -450,13 +476,25 @@ export default function MessengerInstagram({ currentUser, initialUserId }: Messe
               </div>
 
               <div className="flex items-center gap-4">
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <button 
+                  onClick={() => handleStartCall('audio')}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="Audio Call"
+                >
                   <Phone className="w-5 h-5" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <button 
+                  onClick={() => handleStartCall('video')}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="Video Call"
+                >
                   <Video className="w-5 h-5" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <button 
+                  onClick={() => setShowConversationInfo(!showConversationInfo)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="Conversation Info"
+                >
                   <Info className="w-5 h-5" />
                 </button>
               </div>
@@ -628,6 +666,70 @@ export default function MessengerInstagram({ currentUser, initialUserId }: Messe
           </div>
         )}
       </div>
+
+      {/* Conversation Info Sidebar (Instagram Style) */}
+      {showConversationInfo && selectedConversation && (
+        <div className="w-80 border-l border-gray-200 flex flex-col bg-white">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="font-semibold">Details</h3>
+            <button
+              onClick={() => setShowConversationInfo(false)}
+              className="p-1 hover:bg-gray-100 rounded-full"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* User Info */}
+          <div className="p-6 flex flex-col items-center border-b border-gray-200">
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 mb-3">
+              <Image
+                src={getAvatarUrl(selectedConversation.userAvatar)}
+                alt={selectedConversation.userName}
+                width={80}
+                height={80}
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+            <h4 className="font-semibold text-lg">{selectedConversation.userName}</h4>
+            <p className="text-sm text-gray-500">@{selectedConversation.username}</p>
+            <button
+              onClick={() => window.location.href = `/user-profile/${selectedConversation.userId}`}
+              className="mt-3 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition-colors"
+            >
+              View Profile
+            </button>
+          </div>
+
+          {/* Options */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4 space-y-2">
+              <button className="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3">
+                <Phone className="w-5 h-5" />
+                <span>Audio Call</span>
+              </button>
+              <button className="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3">
+                <Video className="w-5 h-5" />
+                <span>Video Call</span>
+              </button>
+            </div>
+
+            <div className="border-t border-gray-200 p-4 space-y-2">
+              <button className="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors text-sm">
+                Mute Notifications
+              </button>
+              <button className="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors text-sm text-red-600">
+                Block User
+              </button>
+              <button className="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors text-sm text-red-600">
+                Delete Conversation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
