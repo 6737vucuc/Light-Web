@@ -230,11 +230,22 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
       if (response.ok) {
         const data = await response.json();
-        setMessages((prev) => [...prev, data.message]);
+        // Decrypt and add the new message
+        const newMsg = data.data || data.message;
+        if (newMsg) {
+          setMessages((prev) => [...prev, {
+            ...newMsg,
+            content: newMessage, // Use the original message content
+          }]);
+        }
         setNewMessage('');
         setSelectedImage(null);
         setImagePreview(null);
         fetchConversations();
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to send message:', errorData);
+        alert(errorData.error || 'Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -348,20 +359,31 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
     if (!selectedConversation) return;
 
     try {
+      // Map 'audio' to 'voice' for API
+      const apiCallType = type === 'audio' ? 'voice' : 'video';
+      
       // Create a call
       const response = await fetch('/api/calls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiverId: selectedConversation.userId,
-          callType: type,
+          callType: apiCallType,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        // Redirect to call page
-        window.location.href = `/call/${data.call.id}`;
+        if (data.success && data.call) {
+          // Redirect to call page
+          window.location.href = `/call/${data.call.id}`;
+        } else {
+          alert('Failed to start call. Please try again.');
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to start call:', errorData);
+        alert(errorData.error || 'Failed to start call. Please try again.');
       }
     } catch (error) {
       console.error('Error starting call:', error);
