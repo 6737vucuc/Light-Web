@@ -337,3 +337,15 @@ export const userPrivacySettings = pgTable('user_privacy_settings', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// VPN logs table
+export const vpnLogs = pgTable('vpn_logs', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id),
+  ipAddress: varchar('ip_address', { length: 45 }).notNull(),
+  isVpn: boolean('is_vpn').default(false),
+  vpnProvider: varchar('vpn_provider', { length: 255 }),
+  country: varchar('country', { length: 100 }),
+  action: varchar('action', { length: 50 }).notNull(), // 'login', 'register', 'blocked'
+  createdAt: timestamp('created_at').defaultNow(),
+});
