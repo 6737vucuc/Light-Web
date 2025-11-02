@@ -177,7 +177,7 @@ export default function CommunityPage() {
       <main className="max-w-5xl mx-auto">
         {/* Stories Bar */}
         <div className="border-b border-gray-200 bg-white">
-          <StoriesBar currentUser={currentUser} />
+          <StoriesBar currentUserId={currentUser?.id} />
         </div>
 
         {/* Feed */}
