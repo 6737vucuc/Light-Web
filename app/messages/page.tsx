@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MessengerInstagram from '@/components/community/MessengerInstagram';
 import SecurityLoading from '@/components/SecurityLoading';
 
-export default function MessagesPage() {
+function MessagesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams?.get('userId');
@@ -69,5 +69,13 @@ export default function MessagesPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<SecurityLoading />}>
+      <MessagesContent />
+    </Suspense>
   );
 }
