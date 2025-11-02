@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { messages, groupMessages } from '@/lib/db/schema';
+import { messages, groupChatMessages } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, and } from 'drizzle-orm';
 
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (isGroupMessage) {
       // Delete group message (only sender can delete)
       await db
-        .update(groupMessages)
+        .update(groupChatMessages)
         .set({
           isDeleted: true,
           deletedAt: new Date(),
@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
         })
         .where(
           and(
-            eq(groupMessages.id, messageId),
-            eq(groupMessages.userId, authResult.user.id)
+            eq(groupChatMessages.id, messageId),
+            eq(groupChatMessages.userId, authResult.user.id)
           )
         );
     } else {

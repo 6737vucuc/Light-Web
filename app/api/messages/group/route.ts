@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { groupMessages, users } from '@/lib/db/schema';
+import { groupChatMessages, users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { desc, eq } from 'drizzle-orm';
 import Pusher from 'pusher';
@@ -30,20 +30,20 @@ export async function GET(request: NextRequest) {
   try {
     const messages = await db
       .select({
-        id: groupMessages.id,
-        userId: groupMessages.userId,
-        content: groupMessages.content,
-        createdAt: groupMessages.createdAt,
+        id: groupChatMessages.id,
+        userId: groupChatMessages.userId,
+        content: groupChatMessages.content,
+        createdAt: groupChatMessages.createdAt,
         user: {
           id: users.id,
           name: users.name,
           avatar: users.avatar,
         },
       })
-      .from(groupMessages)
-      .leftJoin(users, eq(groupMessages.userId, users.id))
-      .where(eq(groupMessages.isDeleted, false))
-      .orderBy(desc(groupMessages.createdAt))
+      .from(groupChatMessages)
+      .leftJoin(users, eq(groupChatMessages.userId, users.id))
+      .where(eq(groupChatMessages.isDeleted, false))
+      .orderBy(desc(groupChatMessages.createdAt))
       .limit(100);
 
     return NextResponse.json({ messages: messages.reverse() });
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const [newMessage] = await db.insert(groupMessages).values({
+    const [newMessage] = await db.insert(groupChatMessages).values({
       userId: authResult.user.id,
       content: content.trim(),
       isEncrypted: false,

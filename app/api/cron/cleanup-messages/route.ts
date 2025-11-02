@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { groupMessages } from '@/lib/db/schema';
+import { groupChatMessages } from '@/lib/db/schema';
 import { lt } from 'drizzle-orm';
 
 // This endpoint is called by Vercel Cron daily
@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
 
     // Delete group messages older than 24 hours
     await db
-      .delete(groupMessages)
-      .where(lt(groupMessages.createdAt, oneDayAgo));
+      .delete(groupChatMessages)
+      .where(lt(groupChatMessages.createdAt, oneDayAgo));
 
     return NextResponse.json({
       success: true,

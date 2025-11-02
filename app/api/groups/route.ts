@@ -3,11 +3,11 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { groups, groupMembers, users } from '@/lib/db/schema';
+import { groupChats, groupChatMembers, users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { desc, eq } from 'drizzle-orm';
 
-// GET all groups or user's groups
+// GET all groupChats or user's groupChats
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
   
@@ -23,52 +23,52 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type'); // 'all' or 'my'
 
     if (type === 'my') {
-      // Get user's groups
+      // Get user's groupChats
       const userGroups = await db
         .select({
-          id: groups.id,
-          name: groups.name,
-          description: groups.description,
-          coverPhoto: groups.coverPhoto,
-          privacy: groups.privacy,
-          membersCount: groups.membersCount,
-          createdAt: groups.createdAt,
-          role: groupMembers.role,
+          id: groupChats.id,
+          name: groupChats.name,
+          description: groupChats.description,
+          coverPhoto: groupChats.coverPhoto,
+          privacy: groupChats.privacy,
+          membersCount: groupChats.membersCount,
+          createdAt: groupChats.createdAt,
+          role: groupChatMembers.role,
         })
-        .from(groupMembers)
-        .leftJoin(groups, eq(groupMembers.groupId, groups.id))
-        .where(eq(groupMembers.userId, authResult.user.id))
-        .orderBy(desc(groups.createdAt));
+        .from(groupChatMembers)
+        .leftJoin(groupChats, eq(groupChatMembers.groupId, groupChats.id))
+        .where(eq(groupChatMembers.userId, authResult.user.id))
+        .orderBy(desc(groupChats.createdAt));
 
-      return NextResponse.json({ groups: userGroups });
+      return NextResponse.json({ groupChats: userGroups });
     } else {
-      // Get all public groups
+      // Get all public groupChats
       const allGroups = await db
         .select({
-          id: groups.id,
-          name: groups.name,
-          description: groups.description,
-          coverPhoto: groups.coverPhoto,
-          privacy: groups.privacy,
-          membersCount: groups.membersCount,
-          createdAt: groups.createdAt,
+          id: groupChats.id,
+          name: groupChats.name,
+          description: groupChats.description,
+          coverPhoto: groupChats.coverPhoto,
+          privacy: groupChats.privacy,
+          membersCount: groupChats.membersCount,
+          createdAt: groupChats.createdAt,
           creator: {
             id: users.id,
             name: users.name,
             avatar: users.avatar,
           },
         })
-        .from(groups)
-        .leftJoin(users, eq(groups.createdBy, users.id))
-        .where(eq(groups.privacy, 'public'))
-        .orderBy(desc(groups.createdAt));
+        .from(groupChats)
+        .leftJoin(users, eq(groupChats.createdBy, users.id))
+        .where(eq(groupChats.privacy, 'public'))
+        .orderBy(desc(groupChats.createdAt));
 
-      return NextResponse.json({ groups: allGroups });
+      return NextResponse.json({ groupChats: allGroups });
     }
   } catch (error) {
-    console.error('Error fetching groups:', error);
+    console.error('Error fetching groupChats:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch groups' },
+      { error: 'Failed to fetch groupChats' },
       { status: 500 }
     );
   }
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create group
-    const [newGroup] = await db.insert(groups).values({
+    const [newGroup] = await db.insert(groupChats).values({
       name: name.trim(),
       description: description || null,
       coverPhoto: coverPhoto || null,
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     }).returning();
 
     // Add creator as admin member
-    await db.insert(groupMembers).values({
+    await db.insert(groupChatMembers).values({
       groupId: newGroup.id,
       userId: authResult.user.id,
       role: 'admin',

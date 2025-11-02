@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { groups, groupMembers } from '@/lib/db/schema';
+import { groupChats, groupChatMembers } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, and, sql } from 'drizzle-orm';
 
@@ -27,11 +27,11 @@ export async function POST(
     // Check if already a member
     const [existingMember] = await db
       .select()
-      .from(groupMembers)
+      .from(groupChatMembers)
       .where(
         and(
-          eq(groupMembers.groupId, groupId),
-          eq(groupMembers.userId, authResult.user.id)
+          eq(groupChatMembers.groupId, groupId),
+          eq(groupChatMembers.userId, authResult.user.id)
         )
       );
 
@@ -43,7 +43,7 @@ export async function POST(
     }
 
     // Add user as member
-    await db.insert(groupMembers).values({
+    await db.insert(groupChatMembers).values({
       groupId,
       userId: authResult.user.id,
       role: 'member',
@@ -51,11 +51,11 @@ export async function POST(
 
     // Increment members count
     await db
-      .update(groups)
+      .update(groupChats)
       .set({
-        membersCount: sql`${groups.membersCount} + 1`,
+        membersCount: sql`${groupChats.membersCount} + 1`,
       })
-      .where(eq(groups.id, groupId));
+      .where(eq(groupChats.id, groupId));
 
     return NextResponse.json({ 
       success: true,

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { groupMessages } from '@/lib/db/schema';
+import { groupChatMessages } from '@/lib/db/schema';
 import Pusher from 'pusher';
 
 const pusher = new Pusher({
@@ -17,7 +17,7 @@ const pusher = new Pusher({
 export async function POST() {
   try {
     // Delete all group messages
-    await db.delete(groupMessages);
+    await db.delete(groupChatMessages);
 
     // Notify all clients that messages have been cleared
     await pusher.trigger('group-chat', 'messages-cleared', {
