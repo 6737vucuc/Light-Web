@@ -6,8 +6,8 @@ import { db } from '@/lib/db';
 import { groupMessages } from '@/lib/db/schema';
 import { lt } from 'drizzle-orm';
 
-// This endpoint is called by Vercel Cron every hour
-    // Deletes group chat messages older than 1 hour
+// This endpoint is called by Vercel Cron daily
+    // Deletes group chat messages older than 24 hours
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret (optional but recommended)
@@ -20,12 +20,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Delete group messages older than 1 hour
+    // Delete group messages older than 24 hours
     await db
       .delete(groupMessages)
-      .where(lt(groupMessages.createdAt, oneHourAgo));
+      .where(lt(groupMessages.createdAt, oneDayAgo));
 
     return NextResponse.json({
       success: true,
