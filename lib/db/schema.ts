@@ -357,6 +357,7 @@ export const vpnLogs = pgTable('vpn_logs', {
   isVpn: boolean('is_vpn').default(false),
   vpnProvider: varchar('vpn_provider', { length: 255 }),
   country: varchar('country', { length: 100 }),
+  vpnData: text('vpn_data'),
   action: varchar('action', { length: 50 }).notNull(), // 'login', 'register', 'blocked'
   createdAt: timestamp('created_at').defaultNow(),
 });
