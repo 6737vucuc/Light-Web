@@ -109,7 +109,7 @@ export default function CommunityPage() {
               
               {currentUser && (
                 <button
-                  onClick={() => router.push(`/user-profile/${currentUser.id}`)}
+                  onClick={() => router.push('/profile')}
                   className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-purple-100 to-blue-100 hover:ring-2 hover:ring-purple-500 transition-all duration-200 hover:scale-105"
                   title={currentUser.name}
                 >
