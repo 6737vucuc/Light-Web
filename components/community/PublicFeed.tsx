@@ -109,9 +109,12 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
   ];
 
   useEffect(() => {
-    fetchPosts();
-    fetchStories();
-    fetchFriends();
+    // Load all data in parallel
+    Promise.all([
+      fetchPosts(),
+      fetchStories(),
+      fetchFriends()
+    ]).catch(console.error);
   }, []);
 
   const fetchPosts = async () => {

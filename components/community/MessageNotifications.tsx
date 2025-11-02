@@ -67,7 +67,7 @@ export default function MessageNotifications() {
     };
 
     fetchUnread();
-    const interval = setInterval(fetchUnread, 5000); // Check every 5 seconds
+    const interval = setInterval(fetchUnread, 60000); // Check every 1 minute (reduced from 5 seconds)
 
     return () => clearInterval(interval);
   }, []);

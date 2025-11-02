@@ -69,7 +69,7 @@ export default function GroupChat({ currentUser }: GroupChatProps) {
       });
     }
 
-    // Check for cleanup every minute
+    // Check for cleanup every 5 minutes (reduced from 1 minute)
     const cleanupInterval = setInterval(() => {
       const now = new Date();
       if (nextCleanup && now >= nextCleanup) {
@@ -77,7 +77,7 @@ export default function GroupChat({ currentUser }: GroupChatProps) {
         fetch('/api/messages/group/cleanup', { method: 'POST' })
           .catch(console.error);
       }
-    }, 60000); // Check every minute
+    }, 300000); // Check every 5 minutes
 
     return () => {
       clearInterval(cleanupInterval);

@@ -44,12 +44,12 @@ export default function CommunityPage() {
 
     checkAuth();
     
-    // Update lastSeen every 30 seconds to maintain online status
+    // Update lastSeen every 2 minutes to maintain online status (reduced from 30s)
     const interval = setInterval(() => {
       if (isAuthenticated) {
         fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
       }
-    }, 30000);
+    }, 120000); // 2 minutes
 
     return () => clearInterval(interval);
   }, [router, isAuthenticated]);

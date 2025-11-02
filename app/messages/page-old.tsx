@@ -36,7 +36,7 @@ export default function MessagesPage() {
       if (isAuthenticated) {
         fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
       }
-    }, 30000);
+    }, 120000); // 2 minutes (reduced from 30 seconds)
 
     return () => clearInterval(interval);
   }, [router, isAuthenticated]);

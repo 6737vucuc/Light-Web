@@ -29,8 +29,8 @@ export default function Notifications({ currentUser }: NotificationsProps) {
   useEffect(() => {
     fetchNotifications();
     
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
+    // Poll for new notifications every 2 minutes (reduced from 30 seconds)
+    const interval = setInterval(fetchNotifications, 120000);
     return () => clearInterval(interval);
   }, []);
 
