@@ -248,3 +248,4 @@ export const groupChatMessages = pgTable('group_chat_messages', {
   messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video'
   createdAt: timestamp('created_at').defaultNow(),
 });
+

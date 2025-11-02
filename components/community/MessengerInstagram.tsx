@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Send, Search, MoreVertical, Image as ImageIcon, Smile, 
-  Phone, Video, Info, Heart, Trash2, Reply, Check, CheckCheck
+  Phone, Video, Info, Heart, Trash2, Reply, Check, CheckCheck,
+  MessageCircle, X
 } from 'lucide-react';
 import Image from 'next/image';
 import Pusher from 'pusher-js';

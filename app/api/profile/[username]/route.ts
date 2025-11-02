@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { users, follows, userPrivacySettings, blockedUsers, posts } from '@/lib/db/schema';
+import { users, follows, blockedUsers, posts } from '@/lib/db/schema';
 import { eq, and, or, desc, sql } from 'drizzle-orm';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth/jwt';
 
 export async function GET(
   request: NextRequest,
@@ -65,14 +65,8 @@ export async function GET(
       }
     }
 
-    // Get privacy settings
-    const [privacySettings] = await db
-      .select()
-      .from(userPrivacySettings)
-      .where(eq(userPrivacySettings.userId, user.id))
-      .limit(1);
-
-    const isPrivate = privacySettings?.isPrivate || false;
+    // Get privacy settings from user
+    const isPrivate = user.isPrivate || false;
 
     // Check if current user follows this user
     let isFollowing = false;

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { follows, users, userPrivacySettings, blockedUsers, notifications } from '@/lib/db/schema';
+import { follows, users, blockedUsers, notifications } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth/jwt';
 
 // Follow user
 export async function POST(
@@ -73,14 +73,14 @@ export async function POST(
       );
     }
 
-    // Get target user's privacy settings
-    const [privacySettings] = await db
+    // Get target user to check privacy settings
+    const [targetUser] = await db
       .select()
-      .from(userPrivacySettings)
-      .where(eq(userPrivacySettings.userId, targetUserId))
+      .from(users)
+      .where(eq(users.id, targetUserId))
       .limit(1);
 
-    const isPrivate = privacySettings?.isPrivate || false;
+    const isPrivate = targetUser?.isPrivate || false;
     const followStatus = isPrivate ? 'pending' : 'accepted';
 
     // Create follow record
