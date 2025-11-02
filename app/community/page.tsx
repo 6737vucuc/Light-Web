@@ -17,6 +17,8 @@ export default function CommunityPage() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any>({ users: [], posts: [] });
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     // Check authentication
@@ -176,7 +178,27 @@ export default function CommunityPage() {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={async (e) => {
+                    const value = e.target.value;
+                    setSearchQuery(value);
+                    
+                    if (value.trim().length > 0) {
+                      setIsSearching(true);
+                      try {
+                        const response = await fetch(`/api/search?q=${encodeURIComponent(value)}`);
+                        if (response.ok) {
+                          const data = await response.json();
+                          setSearchResults(data);
+                        }
+                      } catch (error) {
+                        console.error('Search error:', error);
+                      } finally {
+                        setIsSearching(false);
+                      }
+                    } else {
+                      setSearchResults({ users: [], posts: [] });
+                    }
+                  }}
                   placeholder="Search posts, users, topics..."
                   className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   autoFocus
@@ -192,11 +214,121 @@ export default function CommunityPage() {
               </div>
               
               {/* Search Results */}
-              <div className="mt-4">
-                {searchQuery.trim() ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>Search results for "{searchQuery}"</p>
-                    <p className="text-sm mt-2">Coming soon...</p>
+              <div className="mt-4 max-h-96 overflow-y-auto">
+                {isSearching ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                    <p className="text-sm text-gray-500 mt-2">Searching...</p>
+                  </div>
+                ) : searchQuery.trim() ? (
+                  <div className="space-y-4">
+                    {/* Users Results */}
+                    {searchResults.users && searchResults.users.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Users</h3>
+                        <div className="space-y-2">
+                          {searchResults.users.map((user: any) => (
+                            <button
+                              key={user.id}
+                              onClick={() => {
+                                router.push(`/user-profile/${user.id}`);
+                                setShowSearch(false);
+                                setSearchQuery('');
+                              }}
+                              className="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                            >
+                              <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                                {user.avatar ? (
+                                  <Image
+                                    src={getAvatarUrl(user.avatar)}
+                                    alt={user.name}
+                                    fill
+                                    className="object-cover"
+                                    unoptimized
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold">
+                                    {user.name?.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 text-left">
+                                <p className="font-semibold text-sm text-gray-900">{user.name}</p>
+                                <p className="text-xs text-gray-500">@{user.username}</p>
+                                {user.bio && (
+                                  <p className="text-xs text-gray-400 truncate">{user.bio}</p>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Posts Results */}
+                    {searchResults.posts && searchResults.posts.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-2 mt-4">Posts</h3>
+                        <div className="space-y-2">
+                          {searchResults.posts.map((post: any) => (
+                            <div
+                              key={post.id}
+                              className="p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                              onClick={() => {
+                                // TODO: Navigate to post detail
+                                setShowSearch(false);
+                                setSearchQuery('');
+                              }}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                                  {post.userAvatar ? (
+                                    <Image
+                                      src={getAvatarUrl(post.userAvatar)}
+                                      alt={post.userName}
+                                      fill
+                                      className="object-cover"
+                                      unoptimized
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
+                                      {post.userName?.charAt(0).toUpperCase()}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-semibold text-sm text-gray-900">{post.userName}</p>
+                                  <p className="text-sm text-gray-700 line-clamp-2">{post.content}</p>
+                                  <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                                    <span>❤️ {post.likesCount || 0}</span>
+                                    <span>💬 {post.commentsCount || 0}</span>
+                                  </div>
+                                </div>
+                                {post.imageUrl && (
+                                  <div className="relative w-12 h-12 rounded overflow-hidden bg-gray-100 flex-shrink-0">
+                                    <Image
+                                      src={post.imageUrl}
+                                      alt="Post"
+                                      fill
+                                      className="object-cover"
+                                      unoptimized
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* No Results */}
+                    {searchResults.users?.length === 0 && searchResults.posts?.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No results found for "{searchQuery}"</p>
+                        <p className="text-sm mt-2 text-gray-400">Try searching for something else</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
