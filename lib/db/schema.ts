@@ -364,3 +364,17 @@ export const userPrivacySettings = pgTable('user_privacy_settings', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+// Calls table - Video/Audio calls with LiveKit
+export const calls = pgTable('calls', {
+  id: serial('id').primaryKey(),
+  callerId: integer('caller_id').references(() => users.id).notNull(),
+  receiverId: integer('receiver_id').references(() => users.id).notNull(),
+  callType: varchar('call_type', { length: 20 }).notNull(), // 'video' or 'audio'
+  roomId: varchar('room_id', { length: 255 }).notNull().unique(),
+  status: varchar('status', { length: 20 }).default('ringing'), // 'ringing', 'ongoing', 'ended', 'declined', 'missed'
+  startedAt: timestamp('started_at').defaultNow(),
+  endedAt: timestamp('ended_at'),
+  duration: integer('duration'), // Duration in seconds
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});

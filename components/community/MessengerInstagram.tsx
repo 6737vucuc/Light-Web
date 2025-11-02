@@ -216,7 +216,7 @@ export default function MessengerInstagram({ currentUser, initialUserId }: Messe
         }
       }
 
-      const response = await fetch('/api/messages', {
+      const response = await fetch('/api/messages/private', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
