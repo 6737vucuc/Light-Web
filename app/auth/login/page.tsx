@@ -37,9 +37,6 @@ function LoginForm() {
 
       const data = await response.json();
 
-      if (data.vpnDetected) {
-        console.log('VPN detected - logging for security purposes');
-      }
 
       // Redirect to specified page or home
       router.push(redirectUrl);

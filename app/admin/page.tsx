@@ -17,7 +17,7 @@ export default function AdminPage() {
     { id: 'testimonies', label: 'Testimonies', icon: Heart },
     { id: 'support', label: 'Support Requests', icon: MessageCircle },
     { id: 'users', label: 'User Management', icon: Users },
-    { id: 'vpn', label: 'VPN Logs', icon: Shield },
+
   ];
 
   return (
@@ -61,7 +61,7 @@ export default function AdminPage() {
           {activeTab === 'testimonies' && <TestimoniesManager />}
           {activeTab === 'support' && <SupportManager />}
           {activeTab === 'users' && <UsersManager />}
-          {activeTab === 'vpn' && <VPNLogsManager />}
+
         </div>
       </div>
     </div>
@@ -1149,133 +1149,4 @@ function UsersManager() {
   );
 }
 
-// VPN Logs Manager
-function VPNLogsManager() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'vpn' | 'clean'>('all');
-
-  useEffect(() => {
-    fetchLogs();
-  }, []);
-
-  const fetchLogs = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/admin/vpn-logs');
-      const data = await response.json();
-      setLogs(data.logs || []);
-    } catch (error) {
-      console.error('Fetch VPN logs error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredLogs = logs.filter(log => {
-    if (filter === 'all') return true;
-    if (filter === 'vpn') return log.isVPN;
-    return !log.isVPN;
-  });
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">VPN Detection Logs</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            All ({logs.length})
-          </button>
-          <button
-            onClick={() => setFilter('vpn')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'vpn' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            VPN Detected ({logs.filter(l => l.isVPN).length})
-          </button>
-          <button
-            onClick={() => setFilter('clean')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'clean' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            Clean ({logs.filter(l => !l.isVPN).length})
-          </button>
-        </div>
-      </div>
-
-      {filteredLogs.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          No {filter !== 'all' ? filter : ''} logs found
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">{log.userName}</div>
-                    <div className="text-sm text-gray-500">{log.userEmail}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                    {log.ipAddress}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      log.isVPN 
-                        ? 'bg-red-100 text-red-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {log.isVPN ? 'VPN Detected' : 'Clean'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {(log.vpnData as any)?.country || 'Unknown'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      (log.vpnData as any)?.action === 'blocked' 
-                        ? 'bg-red-100 text-red-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {(log.vpnData as any)?.action || 'allowed'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(log.createdAt).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
 

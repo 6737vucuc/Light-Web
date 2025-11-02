@@ -4,10 +4,10 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
-import { users, vpnLogs } from '@/lib/db/schema';
+import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createToken } from '@/lib/auth/jwt';
-import { detectVPN, getClientIP } from '@/lib/utils/vpn';
+
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
 export async function POST(request: NextRequest) {
@@ -96,31 +96,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Detect VPN (non-blocking)
-    const clientIP = getClientIP(request);
-    let vpnDetection = { isVpn: false, data: null };
-    
-    // Run VPN detection in background without blocking login
-    detectVPN(clientIP)
-      .then(async (detection) => {
-        vpnDetection = detection;
-        // Log VPN detection asynchronously
-        try {
-          await db.insert(vpnLogs).values({
-            userId: user.id,
-            ipAddress: clientIP,
-            isVpn: detection.isVpn,
-            vpnData: detection.data,
-            action: 'login',
-          });
-        } catch (error) {
-          console.error('VPN logging error:', error);
-        }
-      })
-      .catch((error) => {
-        console.error('VPN detection error:', error);
-      });
-
     // Create JWT token with minimal payload
     const token = await createToken({
       userId: user.id,
@@ -144,7 +119,7 @@ export async function POST(request: NextRequest) {
         avatar: user.avatar,
         isAdmin: user.isAdmin,
       },
-      vpnDetected: vpnDetection.isVpn,
+
     });
 
     // Set secure cookie with strict settings
