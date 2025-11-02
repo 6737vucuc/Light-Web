@@ -21,7 +21,8 @@ export async function POST(
 
   const { user } = authResult;
   const params = await context.params;
-  const storyId = parseInt(params.id);
+  const { id } = await params;
+    const storyId = parseInt(id);
 
   try {
     // Check if story exists

@@ -6,7 +6,7 @@ import { verifyToken } from '@/lib/auth/jwt';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const token = request.cookies.get('token')?.value;
@@ -20,7 +20,8 @@ export async function GET(
     }
 
     const currentUserId = decoded.userId;
-    const targetUserId = parseInt(params.userId);
+    const { userId } = await params;
+    const targetUserId = parseInt(userId);
 
     // Check if following
     const followRecord = await db

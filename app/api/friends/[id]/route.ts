@@ -12,7 +12,8 @@ export async function GET(
 ) {
   try {
     const params = await context.params;
-    const userId = parseInt(params.id);
+    const { id } = await params;
+    const userId = parseInt(id);
 
     if (isNaN(userId)) {
       return NextResponse.json(

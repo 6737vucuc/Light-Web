@@ -7,7 +7,7 @@ import { verifyToken } from '@/lib/auth/jwt';
 // Follow user
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const token = request.cookies.get('token')?.value;
@@ -20,7 +20,8 @@ export async function POST(
 
     const decoded = verifyToken(token);
     const currentUserId = decoded.userId;
-    const targetUserId = parseInt(params.userId);
+    const { userId } = await params;
+    const targetUserId = parseInt(userId);
 
     if (currentUserId === targetUserId) {
       return NextResponse.json(
@@ -141,7 +142,7 @@ export async function POST(
 // Unfollow user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const token = request.cookies.get('token')?.value;
@@ -154,7 +155,8 @@ export async function DELETE(
 
     const decoded = verifyToken(token);
     const currentUserId = decoded.userId;
-    const targetUserId = parseInt(params.userId);
+    const { userId } = await params;
+    const targetUserId = parseInt(userId);
 
     // Find and delete follow record
     const [existingFollow] = await db
