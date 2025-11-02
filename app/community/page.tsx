@@ -2,23 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageCircle, Users, Search, Bell } from 'lucide-react';
+import { Home, Search, PlusSquare, Heart, Menu } from 'lucide-react';
 import Image from 'next/image';
-import GroupChat from '@/components/community/GroupChat';
 import PublicFeed from '@/components/community/PublicFeed';
 import SecurityLoading from '@/components/SecurityLoading';
-import MessageNotifications from '@/components/community/MessageNotifications';
 import Notifications from '@/components/community/Notifications';
-import Stories from '@/components/community/Stories';
+import StoriesBar from '@/components/stories/StoriesBar';
 
 export default function CommunityPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'chat' | 'public'>('public');
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     // Check authentication
@@ -44,7 +40,7 @@ export default function CommunityPage() {
 
     checkAuth();
     
-    // Update lastSeen every 2 minutes to maintain online status (reduced from 30s)
+    // Update lastSeen every 2 minutes to maintain online status
     const interval = setInterval(() => {
       if (isAuthenticated) {
         fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
@@ -61,56 +57,82 @@ export default function CommunityPage() {
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      console.log('Searching for:', searchQuery);
-      setShowSearch(false);
-      setSearchQuery('');
-    }
-  };
-
   if (isLoading) {
     return <SecurityLoading />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50">
+      {/* Instagram-style Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div 
               onClick={() => router.push('/community')}
-              className="flex items-center cursor-pointer group"
+              className="cursor-pointer"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-500 rounded-full flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
-                <span className="text-white font-bold text-xl">L</span>
-              </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
-                Light Community
+              <h1 className="text-2xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Light of Life
               </h1>
             </div>
 
             {/* Right Icons */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-6">
               <button
-                onClick={() => setShowSearch(!showSearch)}
-                className="p-2.5 rounded-full hover:bg-gray-100 transition-all duration-200 relative group"
-                title="Search"
+                onClick={() => router.push('/community')}
+                className="hover:scale-110 transition-transform"
+                title="Home"
               >
-                <Search className="w-6 h-6 text-gray-600 group-hover:text-purple-600 transition-colors" />
+                <Home className="w-6 h-6 text-gray-800" />
               </button>
               
-              <MessageNotifications />
-              
-              <Notifications currentUser={currentUser} />
-              
+              <button
+                onClick={() => router.push('/messages')}
+                className="hover:scale-110 transition-transform"
+                title="Messages"
+              >
+                <svg className="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </button>
+
+              <button
+                onClick={() => {/* TODO: Add create post modal */}}
+                className="hover:scale-110 transition-transform"
+                title="Create"
+              >
+                <PlusSquare className="w-6 h-6 text-gray-800" />
+              </button>
+
+              <button
+                onClick={() => router.push('/lessons')}
+                className="hover:scale-110 transition-transform"
+                title="Explore"
+              >
+                <Search className="w-6 h-6 text-gray-800" />
+              </button>
+
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="hover:scale-110 transition-transform"
+                  title="Notifications"
+                >
+                  <Heart className="w-6 h-6 text-gray-800" />
+                </button>
+                
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2">
+                    <Notifications currentUser={currentUser} />
+                  </div>
+                )}
+              </div>
+
               {currentUser && (
                 <button
                   onClick={() => router.push('/profile')}
-                  className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-purple-100 to-blue-100 hover:ring-2 hover:ring-purple-500 transition-all duration-200 hover:scale-105"
+                  className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-gray-300 hover:border-gray-400 transition-all"
                   title={currentUser.name}
                 >
                   {currentUser.avatar ? (
@@ -122,7 +144,7 @@ export default function CommunityPage() {
                       unoptimized
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-purple-600 font-bold text-lg">
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-sm">
                       {currentUser.name?.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -130,71 +152,160 @@ export default function CommunityPage() {
               )}
             </div>
           </div>
-
-          {/* Search Bar */}
-          {showSearch && (
-            <div className="pb-4 animate-fadeIn">
-              <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search posts, users, topics..."
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-gray-50 transition-all"
-                    autoFocus
-                  />
-                </div>
-              </form>
-            </div>
-          )}
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Tab Navigation */}
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`flex items-center px-8 py-3 rounded-lg font-medium transition-all duration-200 ${
-                activeTab === 'chat'
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-500 text-white shadow-md transform scale-105'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <MessageCircle className="h-5 w-5 mr-2" />
-              Group Chat
-            </button>
-            <button
-              onClick={() => setActiveTab('public')}
-              className={`flex items-center px-8 py-3 rounded-lg font-medium transition-all duration-200 ${
-                activeTab === 'public'
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-500 text-white shadow-md transform scale-105'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <Users className="h-5 w-5 mr-2" />
-              Public
-            </button>
+      {/* Main Content */}
+      <main className="max-w-5xl mx-auto">
+        <div className="flex gap-8 pt-8">
+          {/* Feed Section */}
+          <div className="flex-1 max-w-[630px] mx-auto">
+            {/* Stories Bar */}
+            <div className="mb-6">
+              <StoriesBar currentUser={currentUser} />
+            </div>
+
+            {/* Posts Feed */}
+            <PublicFeed currentUser={currentUser} />
+          </div>
+
+          {/* Sidebar - Hidden on mobile */}
+          <div className="hidden xl:block w-80 pt-8">
+            <div className="fixed w-80">
+              {/* User Profile Card */}
+              {currentUser && (
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <button
+                      onClick={() => router.push('/profile')}
+                      className="relative w-14 h-14 rounded-full overflow-hidden"
+                    >
+                      {currentUser.avatar ? (
+                        <Image
+                          src={getAvatarUrl(currentUser.avatar)}
+                          alt={currentUser.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-xl">
+                          {currentUser.name?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </button>
+                    <div className="flex-1">
+                      <button
+                        onClick={() => router.push('/profile')}
+                        className="font-semibold text-gray-900 hover:text-gray-600 text-sm"
+                      >
+                        {currentUser.username || currentUser.name}
+                      </button>
+                      <p className="text-gray-500 text-xs">{currentUser.name}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                        router.push('/auth/login');
+                      }}
+                      className="text-blue-500 text-xs font-semibold hover:text-blue-700"
+                    >
+                      Switch
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Suggestions */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-gray-500 font-semibold text-sm">
+                    Suggestions For You
+                  </h3>
+                  <button className="text-gray-900 text-xs font-semibold hover:text-gray-600">
+                    See All
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Suggestion items will be loaded dynamically */}
+                  <p className="text-gray-400 text-sm">No suggestions available</p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-8 text-xs text-gray-400 space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <a href="#" className="hover:underline">About</a>
+                  <span>·</span>
+                  <a href="#" className="hover:underline">Help</a>
+                  <span>·</span>
+                  <a href="#" className="hover:underline">Press</a>
+                  <span>·</span>
+                  <a href="#" className="hover:underline">API</a>
+                  <span>·</span>
+                  <a href="#" className="hover:underline">Jobs</a>
+                  <span>·</span>
+                  <a href="#" className="hover:underline">Privacy</a>
+                  <span>·</span>
+                  <a href="#" className="hover:underline">Terms</a>
+                </div>
+                <p className="text-gray-400">© 2025 LIGHT OF LIFE</p>
+              </div>
+            </div>
           </div>
         </div>
+      </main>
 
-        {/* Content */}
-        <div className="max-w-7xl mx-auto">
-          {activeTab === 'chat' ? (
-            <div className="max-w-4xl mx-auto">
-              <GroupChat currentUser={currentUser} />
-            </div>
-          ) : (
-            <>
-              <Stories currentUser={currentUser} />
-              <PublicFeed currentUser={currentUser} />
-            </>
-          )}
+      {/* Mobile Bottom Navigation */}
+      <nav className="xl:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+        <div className="flex items-center justify-around h-14">
+          <button
+            onClick={() => router.push('/community')}
+            className="p-2"
+          >
+            <Home className="w-6 h-6 text-gray-800" />
+          </button>
+          <button
+            onClick={() => router.push('/lessons')}
+            className="p-2"
+          >
+            <Search className="w-6 h-6 text-gray-800" />
+          </button>
+          <button
+            onClick={() => {/* TODO: Add create post */}}
+            className="p-2"
+          >
+            <PlusSquare className="w-6 h-6 text-gray-800" />
+          </button>
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="p-2"
+          >
+            <Heart className="w-6 h-6 text-gray-800" />
+          </button>
+          <button
+            onClick={() => router.push('/profile')}
+            className="p-2"
+          >
+            {currentUser?.avatar ? (
+              <div className="relative w-6 h-6 rounded-full overflow-hidden border border-gray-300">
+                <Image
+                  src={getAvatarUrl(currentUser.avatar)}
+                  alt={currentUser.name}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-xs font-bold">
+                {currentUser?.name?.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </button>
         </div>
-      </div>
+      </nav>
     </div>
   );
 }
