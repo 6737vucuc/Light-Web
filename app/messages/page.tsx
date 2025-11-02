@@ -22,9 +22,7 @@ function MessagesContent() {
           const data = await response.json();
           setCurrentUser(data.user);
           setIsAuthenticated(true);
-          setTimeout(() => {
-            setIsLoading(false);
-          }, 1000);
+          setIsLoading(false);
         } else {
           router.push('/auth/login?redirect=/messages');
         }

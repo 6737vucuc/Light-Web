@@ -20,9 +20,7 @@ export default function MessagesPage() {
           setCurrentUser(data.user);
           setIsAuthenticated(true);
           fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
-          setTimeout(() => {
-            setIsLoading(false);
-          }, 1500);
+          setIsLoading(false);
         } else {
           router.push('/auth/login?redirect=/messages');
         }

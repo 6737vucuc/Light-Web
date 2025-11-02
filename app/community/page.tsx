@@ -31,10 +31,7 @@ export default function CommunityPage() {
           setIsAuthenticated(true);
           // Update lastSeen to show online status
           fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
-          // Simulate security initialization
-          setTimeout(() => {
-            setIsLoading(false);
-          }, 2000);
+          setIsLoading(false);
         } else {
           // Not authenticated, redirect to login
           router.push('/auth/login?redirect=/community');
