@@ -1,0 +1,22 @@
+
+> light-of-life@0.1.0 dev /home/ubuntu/Light-Web
+> next dev
+
+   ▲ Next.js 16.0.0 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://169.254.0.21:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ✓ optimizeCss
+     ✓ scrollRestoration
+
+ ✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+Error: You cannot use different slug names for the same dynamic path ('id' !== 'username').
+    at ignore-listed frames
+[?25h
+ ELIFECYCLE  Command failed with exit code 1.

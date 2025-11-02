@@ -3,9 +3,9 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { users, friendships, posts } from '@/lib/db/schema';
+import { users, follows, posts, lessonProgress, lessons, postTags } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
-import { eq, or, and, sql } from 'drizzle-orm';
+import { eq, and, or, desc, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -24,11 +24,12 @@ export async function GET(
   try {
     const userId = parseInt(paramId);
 
-    // Get user profile
+    // Get user profile - Instagram style
     const [user] = await db
       .select({
         id: users.id,
         name: users.name,
+        username: users.username,
         firstName: users.firstName,
         lastName: users.lastName,
         avatar: users.avatar,
@@ -40,6 +41,9 @@ export async function GET(
         website: users.website,
         relationshipStatus: users.relationshipStatus,
         birthDate: users.birthDate,
+        isPrivate: users.isPrivate,
+        hideFollowers: users.hideFollowers,
+        hideFollowing: users.hideFollowing,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -52,16 +56,8 @@ export async function GET(
       );
     }
 
-    // Count friends
-    const friendsCountResult = await db.execute(sql`
-      SELECT COUNT(*) as count
-      FROM ${friendships}
-      WHERE (${friendships.userId} = ${userId} OR ${friendships.friendId} = ${userId})
-        AND ${friendships.status} = 'accepted'
-    `);
-    const friendsCount = parseInt(String(friendsCountResult.rows[0]?.count || '0'));
-
-    // Count posts
+    // Instagram-style stats
+    // 1. Posts count
     const postsCountResult = await db.execute(sql`
       SELECT COUNT(*) as count
       FROM ${posts}
@@ -69,52 +65,204 @@ export async function GET(
     `);
     const postsCount = parseInt(String(postsCountResult.rows[0]?.count || '0'));
 
-    // Count photos (posts with images)
-    const photosCountResult = await db.execute(sql`
+    // 2. Followers count
+    const followersCountResult = await db.execute(sql`
       SELECT COUNT(*) as count
-      FROM ${posts}
-      WHERE ${posts.userId} = ${userId}
-        AND ${posts.imageUrl} IS NOT NULL
+      FROM ${follows}
+      WHERE ${follows.followingId} = ${userId}
+        AND ${follows.status} = 'accepted'
     `);
-    const photosCount = parseInt(String(photosCountResult.rows[0]?.count || '0'));
+    const followersCount = parseInt(String(followersCountResult.rows[0]?.count || '0'));
 
-    // Check friendship status
-    let isFriend = false;
-    let friendRequestSent = false;
+    // 3. Following count
+    const followingCountResult = await db.execute(sql`
+      SELECT COUNT(*) as count
+      FROM ${follows}
+      WHERE ${follows.followerId} = ${userId}
+        AND ${follows.status} = 'accepted'
+    `);
+    const followingCount = parseInt(String(followingCountResult.rows[0]?.count || '0'));
+
+    // Check follow status (am I following this user?)
+    let isFollowing = false;
+    let isFollowingMe = false;
+    let followRequestPending = false;
 
     if (userId !== authResult.user.id) {
-      const [friendship] = await db
+      // Check if I'm following them
+      const [myFollow] = await db
         .select()
-        .from(friendships)
+        .from(follows)
         .where(
-          or(
-            and(
-              eq(friendships.userId, authResult.user.id),
-              eq(friendships.friendId, userId)
-            ),
-            and(
-              eq(friendships.userId, userId),
-              eq(friendships.friendId, authResult.user.id)
-            )
+          and(
+            eq(follows.followerId, authResult.user.id),
+            eq(follows.followingId, userId)
           )
         );
 
-      if (friendship) {
-        if (friendship.status === 'accepted') {
-          isFriend = true;
-        } else if (friendship.userId === authResult.user.id && friendship.status === 'pending') {
-          friendRequestSent = true;
+      if (myFollow) {
+        if (myFollow.status === 'accepted') {
+          isFollowing = true;
+        } else if (myFollow.status === 'pending') {
+          followRequestPending = true;
         }
+      }
+
+      // Check if they're following me
+      const [theirFollow] = await db
+        .select()
+        .from(follows)
+        .where(
+          and(
+            eq(follows.followerId, userId),
+            eq(follows.followingId, authResult.user.id)
+          )
+        );
+
+      if (theirFollow && theirFollow.status === 'accepted') {
+        isFollowingMe = true;
       }
     }
 
+    // Get recent posts (for Posts tab)
+    const recentPosts = await db
+      .select({
+        id: posts.id,
+        content: posts.content,
+        imageUrl: posts.imageUrl,
+        videoUrl: posts.videoUrl,
+        mediaType: posts.mediaType,
+        likesCount: posts.likesCount,
+        commentsCount: posts.commentsCount,
+        createdAt: posts.createdAt,
+      })
+      .from(posts)
+      .where(eq(posts.userId, userId))
+      .orderBy(desc(posts.createdAt))
+      .limit(12); // Instagram shows 12 posts per page
+
+    // Get posts with videos (for Reels tab)
+    const reelsPosts = await db
+      .select({
+        id: posts.id,
+        content: posts.content,
+        videoUrl: posts.videoUrl,
+        likesCount: posts.likesCount,
+        commentsCount: posts.commentsCount,
+        createdAt: posts.createdAt,
+      })
+      .from(posts)
+      .where(
+        and(
+          eq(posts.userId, userId),
+          sql`${posts.videoUrl} IS NOT NULL`
+        )
+      )
+      .orderBy(desc(posts.createdAt))
+      .limit(12);
+
+    // Get tagged posts (for Tagged tab)
+    const taggedPostsData = await db
+      .select({
+        id: posts.id,
+        content: posts.content,
+        imageUrl: posts.imageUrl,
+        videoUrl: posts.videoUrl,
+        mediaType: posts.mediaType,
+        likesCount: posts.likesCount,
+        commentsCount: posts.commentsCount,
+        createdAt: posts.createdAt,
+      })
+      .from(posts)
+      .innerJoin(postTags, eq(posts.id, postTags.postId))
+      .where(eq(postTags.userId, userId))
+      .orderBy(desc(posts.createdAt))
+      .limit(12);
+
+    // Get lesson progress (NEW - for Lessons tab)
+    const lessonsProgressData = await db
+      .select({
+        lessonId: lessonProgress.lessonId,
+        lessonTitle: lessons.title,
+        lessonContent: lessons.content,
+        lessonImageUrl: lessons.imageUrl,
+        completed: lessonProgress.completed,
+        progress: lessonProgress.progress,
+        completedAt: lessonProgress.completedAt,
+        createdAt: lessonProgress.createdAt,
+      })
+      .from(lessonProgress)
+      .innerJoin(lessons, eq(lessonProgress.lessonId, lessons.id))
+      .where(eq(lessonProgress.userId, userId))
+      .orderBy(desc(lessonProgress.createdAt));
+
+    // Calculate lessons stats
+    const totalLessons = lessonsProgressData.length;
+    const completedLessons = lessonsProgressData.filter(l => l.completed).length;
+    const inProgressLessons = lessonsProgressData.filter(l => !l.completed && (l.progress || 0) > 0).length;
+    const overallProgress = totalLessons > 0 
+      ? Math.round((completedLessons / totalLessons) * 100) 
+      : 0;
+
+    // Build Instagram-style profile response
     const profile = {
-      ...user,
-      friendsCount,
-      postsCount,
-      photosCount,
-      isFriend,
-      friendRequestSent,
+      // Basic info
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatar: user.avatar,
+      coverPhoto: user.coverPhoto,
+      bio: user.bio,
+      location: user.location,
+      work: user.work,
+      education: user.education,
+      website: user.website,
+      relationshipStatus: user.relationshipStatus,
+      birthDate: user.birthDate,
+      createdAt: user.createdAt,
+      
+      // Privacy settings
+      isPrivate: user.isPrivate,
+      hideFollowers: user.hideFollowers,
+      hideFollowing: user.hideFollowing,
+      
+      // Instagram-style stats
+      stats: {
+        posts: postsCount,
+        followers: followersCount,
+        following: followingCount,
+      },
+      
+      // Follow status
+      isFollowing,
+      isFollowingMe,
+      followRequestPending,
+      isOwnProfile: userId === authResult.user.id,
+      
+      // Tabs content
+      tabs: {
+        // Posts tab
+        posts: recentPosts,
+        
+        // Reels tab
+        reels: reelsPosts,
+        
+        // Tagged tab
+        tagged: taggedPostsData,
+        
+        // Lessons tab (NEW)
+        lessons: {
+          stats: {
+            total: totalLessons,
+            completed: completedLessons,
+            inProgress: inProgressLessons,
+            overallProgress: overallProgress,
+          },
+          progress: lessonsProgressData,
+        },
+      },
     };
 
     return NextResponse.json({ profile });
