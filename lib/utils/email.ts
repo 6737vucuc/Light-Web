@@ -1,12 +1,19 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Create transporter using Gmail
+const transporter = nodemailer.createTransporter({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 export async function sendVerificationCode(email: string, code: string, userName?: string) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'Light of Life <noreply@no-reply.lightoflife.com>',
-      to: [email],
+    const mailOptions = {
+      from: `"Light of Life" <${process.env.EMAIL_USER}>`,
+      to: email,
       subject: 'Light of Life - Verification Code',
       html: `
         <!DOCTYPE html>
@@ -104,15 +111,11 @@ export async function sendVerificationCode(email: string, code: string, userName
         </body>
         </html>
       `,
-    });
+    };
 
-    if (error) {
-      console.error('Resend error:', error);
-      throw error;
-    }
-
-    console.log('Email sent successfully:', data);
-    return data;
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', info.messageId);
+    return info;
   } catch (error) {
     console.error('Failed to send email:', error);
     throw error;
@@ -135,9 +138,9 @@ export function generateVerificationCode(): string {
  */
 export async function sendPasswordResetCode(email: string, code: string, userName?: string) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'Light of Life <noreply@no-reply.lightoflife.com>',
-      to: [email],
+    const mailOptions = {
+      from: `"Light of Life" <${process.env.EMAIL_USER}>`,
+      to: email,
       subject: 'Light of Life - Password Reset Code',
       html: `
         <!DOCTYPE html>
@@ -250,15 +253,11 @@ export async function sendPasswordResetCode(email: string, code: string, userNam
         </body>
         </html>
       `,
-    });
+    };
 
-    if (error) {
-      console.error('Resend error:', error);
-      throw error;
-    }
-
-    console.log('Password reset email sent successfully:', data);
-    return data;
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Password reset email sent successfully:', info.messageId);
+    return info;
   } catch (error) {
     console.error('Failed to send password reset email:', error);
     throw error;
@@ -270,9 +269,9 @@ export async function sendPasswordResetCode(email: string, code: string, userNam
  */
 export async function sendLoginVerificationCode(email: string, code: string, userName?: string, ipAddress?: string) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'Light of Life <noreply@no-reply.lightoflife.com>',
-      to: [email],
+    const mailOptions = {
+      from: `"Light of Life" <${process.env.EMAIL_USER}>`,
+      to: email,
       subject: 'Light of Life - Login Verification Code',
       html: `
         <!DOCTYPE html>
@@ -336,17 +335,16 @@ export async function sendLoginVerificationCode(email: string, code: string, use
               margin: 10px 0;
             }
             .info-box {
-              background: #f3f4f6;
+              background: #e0e7ff;
+              border-left: 4px solid #667eea;
               padding: 15px;
               margin: 20px 0;
               border-radius: 5px;
-              border-left: 4px solid #667eea;
             }
             .info-box p {
               margin: 5px 0;
-              color: #374151;
+              color: #3730a3;
               text-align: left;
-              font-size: 14px;
             }
             .footer {
               margin-top: 30px;
@@ -368,18 +366,18 @@ export async function sendLoginVerificationCode(email: string, code: string, use
             </div>
             <div class="message">
               <p>Hello ${userName || 'Friend'},</p>
-              <p>Someone is trying to log in to your account.</p>
-              <p>Your login verification code is:</p>
+              <p>We detected a login attempt to your account.</p>
+              <p>Your verification code is:</p>
             </div>
             <div class="code">${code}</div>
             <div class="info-box">
-              <p><strong>🔐 Login Details:</strong></p>
-              <p>• Time: ${new Date().toLocaleString()}</p>
+              <p><strong>ℹ️ Login Information:</strong></p>
               ${ipAddress ? `<p>• IP Address: ${ipAddress}</p>` : ''}
-              <p>• Code expires in: 10 minutes</p>
+              <p>• Time: ${new Date().toLocaleString()}</p>
+              <p>• This code is valid for 10 minutes</p>
             </div>
             <div class="message">
-              <p><strong>If this wasn't you, please secure your account immediately!</strong></p>
+              <p>If this wasn't you, please secure your account immediately.</p>
             </div>
             <div class="footer">
               <p>© 2025 Light of Life</p>
@@ -389,57 +387,13 @@ export async function sendLoginVerificationCode(email: string, code: string, use
         </body>
         </html>
       `,
-    });
+    };
 
-    if (error) {
-      console.error('Resend error:', error);
-      throw error;
-    }
-
-    console.log('Login verification email sent successfully:', data);
-    return data;
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Login verification email sent successfully:', info.messageId);
+    return info;
   } catch (error) {
     console.error('Failed to send login verification email:', error);
     throw error;
   }
-}
-
-/**
- * Verify code expiration (10 minutes)
- */
-export function isCodeExpired(createdAt: Date): boolean {
-  const TEN_MINUTES = 10 * 60 * 1000; // 10 minutes in milliseconds
-  const now = new Date().getTime();
-  const codeTime = new Date(createdAt).getTime();
-  return (now - codeTime) > TEN_MINUTES;
-}
-
-/**
- * Generate and hash verification code for storage
- */
-export function generateAndHashCode(): { code: string; hashedCode: string } {
-  const crypto = require('crypto');
-  const code = generateVerificationCode();
-  const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
-  return { code, hashedCode };
-}
-
-/**
- * Verify code against hashed version
- */
-export function verifyCode(inputCode: string, hashedCode: string): boolean {
-  const crypto = require('crypto');
-  const inputHash = crypto.createHash('sha256').update(inputCode).digest('hex');
-  
-  // Timing-safe comparison
-  if (inputHash.length !== hashedCode.length) {
-    return false;
-  }
-  
-  let result = 0;
-  for (let i = 0; i < inputHash.length; i++) {
-    result |= inputHash.charCodeAt(i) ^ hashedCode.charCodeAt(i);
-  }
-  
-  return result === 0;
 }

@@ -20,6 +20,7 @@
     "jose": "^6.1.0",
     "lucide-react": "^0.548.0",
     "next": "16.0.0",
+    "nodemailer": "^7.0.10",
     "pusher": "^5.2.0",
     "pusher-js": "^8.4.0",
     "qrcode": "^1.5.3",
