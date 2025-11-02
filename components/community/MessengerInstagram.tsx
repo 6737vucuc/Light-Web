@@ -372,7 +372,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
   return (
     <div className={`flex ${fullPage ? 'h-full' : 'h-[calc(100vh-200px)]'} bg-white ${fullPage ? '' : 'border border-gray-200 rounded-lg'} overflow-hidden relative`}>
       {/* Conversations List */}
-      <div className="w-96 border-r border-gray-200 flex flex-col">
+      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-96 border-r border-gray-200 flex-col`}>
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
@@ -452,12 +452,22 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${selectedConversation ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
         {selectedConversation ? (
           <>
             {/* Chat Header */}
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
+                {/* Back Button for Mobile */}
+                <button
+                  onClick={() => setSelectedConversation(null)}
+                  className="md:hidden p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="Back"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
                   <Image
                     src={getAvatarUrl(selectedConversation.userAvatar)}
