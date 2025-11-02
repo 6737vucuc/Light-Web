@@ -36,9 +36,10 @@ interface Conversation {
 interface MessengerInstagramProps {
   currentUser?: any;
   initialUserId?: number;
+  fullPage?: boolean;
 }
 
-export default function MessengerInstagram({ currentUser, initialUserId }: MessengerInstagramProps) {
+export default function MessengerInstagram({ currentUser, initialUserId, fullPage = false }: MessengerInstagramProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -369,7 +370,7 @@ export default function MessengerInstagram({ currentUser, initialUserId }: Messe
   };
 
   return (
-    <div className="flex h-[calc(100vh-200px)] bg-white border border-gray-200 rounded-lg overflow-hidden relative">
+    <div className={`flex ${fullPage ? 'h-full' : 'h-[calc(100vh-200px)]'} bg-white ${fullPage ? '' : 'border border-gray-200 rounded-lg'} overflow-hidden relative`}>
       {/* Conversations List */}
       <div className="w-96 border-r border-gray-200 flex flex-col">
         {/* Header */}

@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MessengerInstagram from '@/components/community/MessengerInstagram';
 import SecurityLoading from '@/components/SecurityLoading';
+import { ArrowLeft } from 'lucide-react';
 
 function MessagesContent() {
   const router = useRouter();
@@ -40,30 +41,36 @@ function MessagesContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+    <div className="h-screen flex flex-col bg-white">
+      {/* Instagram-style Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex items-center justify-between h-14">
+            {/* Back Button */}
             <button
               onClick={() => router.push('/community')}
-              className="flex items-center cursor-pointer group"
+              className="hover:scale-110 transition-transform"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-500 rounded-full flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
-                <span className="text-white font-bold text-xl">L</span>
-              </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
-                Light Messages
-              </h1>
+              <ArrowLeft className="w-6 h-6 text-gray-800" />
             </button>
+
+            {/* Title */}
+            <h1 className="text-lg font-semibold text-gray-900">
+              {currentUser?.username || 'Messages'}
+            </h1>
+
+            {/* Empty space for balance */}
+            <div className="w-6"></div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Messenger Component - Full Page */}
+      <div className="flex-1 overflow-hidden">
         <MessengerInstagram 
           currentUser={currentUser} 
           initialUserId={userId ? parseInt(userId) : undefined}
+          fullPage={true}
         />
       </div>
     </div>
