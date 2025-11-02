@@ -14,6 +14,7 @@ interface Notification {
   content: string;
   postId: number | null;
   commentId: number | null;
+  relatedId: number | null;
   isRead: boolean;
   createdAt: string;
 }
