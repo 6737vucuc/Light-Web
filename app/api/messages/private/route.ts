@@ -180,33 +180,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify friendship exists
-    const friendship = await db
-      .select()
-      .from(friendships)
-      .where(
-        and(
-          or(
-            and(
-              eq(friendships.userId, authResult.user.id),
-              eq(friendships.friendId, receiverId)
-            ),
-            and(
-              eq(friendships.userId, receiverId),
-              eq(friendships.friendId, authResult.user.id)
-            )
-          ),
-          eq(friendships.status, 'accepted')
-        )
-      )
-      .limit(1);
-
-    if (friendship.length === 0) {
-      return NextResponse.json(
-        { error: 'You are not friends with this user' },
-        { status: 403 }
-      );
-    }
+    // Allow messaging to anyone (Instagram-style)
+    // No friendship requirement
 
     // Encrypt the message with MILITARY-GRADE encryption
     // Same level as NSA, CIA, WhatsApp, Signal

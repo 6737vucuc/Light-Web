@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Heart, MessageCircle, UserPlus, Users, Share2, X } from 'lucide-react';
+import { Bell, Heart, MessageCircle, UserPlus, Users, Share2, X, Phone, Video } from 'lucide-react';
 import Image from 'next/image';
 
 interface Notification {
   id: number;
-  type: 'like' | 'comment' | 'friend_request' | 'friend_accept' | 'share' | 'mention' | 'message';
+  type: 'like' | 'comment' | 'friend_request' | 'friend_accept' | 'share' | 'mention' | 'message' | 'call';
   userId: number;
   userName: string;
   userAvatar: string | null;
@@ -114,6 +114,13 @@ export default function Notifications({ currentUser, onClose }: NotificationsPro
         }
         break;
       
+      case 'call':
+        // Navigate to call page
+        if (notification.relatedId) {
+          router.push(`/call/${notification.relatedId}`);
+        }
+        break;
+      
       default:
         break;
     }
@@ -134,6 +141,8 @@ export default function Notifications({ currentUser, onClose }: NotificationsPro
         return <Users className="w-5 h-5 text-orange-500" />;
       case 'message':
         return <MessageCircle className="w-5 h-5 text-blue-500" />;
+      case 'call':
+        return <Phone className="w-5 h-5 text-green-500" />;
       default:
         return <Bell className="w-5 h-5 text-gray-500" />;
     }

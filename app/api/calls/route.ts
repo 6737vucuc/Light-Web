@@ -75,6 +75,30 @@ export async function POST(request: NextRequest) {
       RETURNING id, caller_id, receiver_id, call_type, room_id, status, started_at
     `;
 
+    // Create notification for receiver
+    try {
+      await sql`
+        INSERT INTO notifications (
+          user_id,
+          type,
+          content,
+          related_user_id,
+          related_id,
+          created_at
+        )
+        VALUES (
+          ${receiverId},
+          'call',
+          ${callType === 'video' ? 'Video call' : 'Voice call'},
+          ${decoded.userId},
+          ${result[0].id},
+          NOW()
+        )
+      `;
+    } catch (notifError) {
+      console.error('Failed to create call notification:', notifError);
+    }
+
     return NextResponse.json({
       success: true,
       call: {
