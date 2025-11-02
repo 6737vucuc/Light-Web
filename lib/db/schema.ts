@@ -32,6 +32,10 @@ export const users = pgTable('users', {
   bannedUntil: timestamp('banned_until'),
   emailVerified: boolean('email_verified').default(false),
   lastSeen: timestamp('last_seen').defaultNow(),
+  // Instagram-style stats
+  postsCount: integer('posts_count').default(0),
+  followersCount: integer('followers_count').default(0),
+  followingCount: integer('following_count').default(0),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -116,62 +120,86 @@ export const comments = pgTable('comments', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Friendships table
-export const friendships = pgTable('friendships', {
+// Conversations table - Instagram-style DMs
+export const conversations = pgTable('conversations', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id),
-  friendId: integer('friend_id').references(() => users.id),
-  status: varchar('status', { length: 50 }).default('pending'), // 'pending', 'accepted', 'rejected'
+  participant1Id: integer('participant1_id').references(() => users.id).notNull(),
+  participant2Id: integer('participant2_id').references(() => users.id).notNull(),
+  lastMessageId: integer('last_message_id'),
+  lastMessageAt: timestamp('last_message_at').defaultNow(),
+  isPinned1: boolean('is_pinned_1').default(false), // Pinned for participant 1
+  isPinned2: boolean('is_pinned_2').default(false), // Pinned for participant 2
+  isMuted1: boolean('is_muted_1').default(false),
+  isMuted2: boolean('is_muted_2').default(false),
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Messages table
+// Messages table - Instagram-style messages
 export const messages = pgTable('messages', {
   id: serial('id').primaryKey(),
-  senderId: integer('sender_id').references(() => users.id),
-  receiverId: integer('receiver_id').references(() => users.id),
-  content: text('content').notNull(),
+  conversationId: integer('conversation_id').references(() => conversations.id).notNull(),
+  senderId: integer('sender_id').references(() => users.id).notNull(),
+  receiverId: integer('receiver_id').references(() => users.id).notNull(),
+  messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video', 'voice', 'post', 'story'
+  content: text('content'), // Text content
+  mediaUrl: text('media_url'), // Image/video/voice URL
+  postId: integer('post_id').references(() => posts.id), // Shared post
+  replyToId: integer('reply_to_id'), // Reply to message ID
   encryptedContent: text('encrypted_content'),
   isEncrypted: boolean('is_encrypted').default(true),
   isRead: boolean('is_read').default(false),
   readAt: timestamp('read_at'),
+  isEdited: boolean('is_edited').default(false),
+  editedAt: timestamp('edited_at'),
   isDeleted: boolean('is_deleted').default(false),
   deletedAt: timestamp('deleted_at'),
   deletedBySender: boolean('deleted_by_sender').default(false),
   deletedByReceiver: boolean('deleted_by_receiver').default(false),
+  isTemporary: boolean('is_temporary').default(false), // Disappearing message
+  expiresAt: timestamp('expires_at'), // For temporary messages
+  reaction: varchar('reaction', { length: 10 }), // Emoji reaction
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Group chat messages table
-export const groupMessages = pgTable('group_messages', {
+// Message reactions table
+export const messageReactions = pgTable('message_reactions', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id),
-  content: text('content').notNull(),
-  encryptedContent: text('encrypted_content'),
-  isEncrypted: boolean('is_encrypted').default(true),
-  isDeleted: boolean('is_deleted').default(false),
-  deletedAt: timestamp('deleted_at'),
+  messageId: integer('message_id').references(() => messages.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  reaction: varchar('reaction', { length: 10 }).notNull(), // '❤️', '😂', '😮', '😢', '😡', '👍'
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// VPN detection logs
-export const vpnLogs = pgTable('vpn_logs', {
+// Typing indicators table
+export const typingIndicators = pgTable('typing_indicators', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id),
-  ipAddress: varchar('ip_address', { length: 45 }).notNull(),
-  isVpn: boolean('is_vpn').default(false),
-  vpnData: jsonb('vpn_data'),
+  conversationId: integer('conversation_id').references(() => conversations.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  isTyping: boolean('is_typing').default(true),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Follows table - Instagram-style following system
+export const follows = pgTable('follows', {
+  id: serial('id').primaryKey(),
+  followerId: integer('follower_id').references(() => users.id).notNull(), // User who follows
+  followingId: integer('following_id').references(() => users.id).notNull(), // User being followed
+  status: varchar('status', { length: 20 }).default('accepted'), // 'pending' or 'accepted'
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-
-
-// Encryption keys table
-export const encryptionKeys = pgTable('encryption_keys', {
+// User privacy settings - Instagram-style privacy
+export const userPrivacySettings = pgTable('user_privacy_settings', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull().unique(),
-  publicKey: text('public_key').notNull(),
-  encryptedPrivateKey: text('encrypted_private_key').notNull(),
+  isPrivate: boolean('is_private').default(false), // Private account
+  hideFollowers: boolean('hide_followers').default(false),
+  hideFollowing: boolean('hide_following').default(false),
+  allowTagging: varchar('allow_tagging', { length: 20 }).default('everyone'), // 'everyone', 'followers', 'nobody'
+  allowComments: varchar('allow_comments', { length: 20 }).default('everyone'),
+  allowMessages: varchar('allow_messages', { length: 20 }).default('everyone'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -203,39 +231,6 @@ export const storyViews = pgTable('story_views', {
   storyId: integer('story_id').references(() => stories.id).notNull(),
   userId: integer('user_id').references(() => users.id).notNull(),
   viewedAt: timestamp('viewed_at').defaultNow(),
-});
-
-// Groups table
-export const groups = pgTable('groups', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  coverPhoto: text('cover_photo'),
-  privacy: varchar('privacy', { length: 20 }).default('public'), // 'public', 'private'
-  createdBy: integer('created_by').references(() => users.id).notNull(),
-  membersCount: integer('members_count').default(0),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Group members table
-export const groupMembers = pgTable('group_members', {
-  id: serial('id').primaryKey(),
-  groupId: integer('group_id').references(() => groups.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  role: varchar('role', { length: 20 }).default('member'), // 'admin', 'moderator', 'member'
-  joinedAt: timestamp('joined_at').defaultNow(),
-});
-
-// Group posts table
-export const groupPosts = pgTable('group_posts', {
-  id: serial('id').primaryKey(),
-  groupId: integer('group_id').references(() => groups.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  content: text('content').notNull(),
-  imageUrl: text('image_url'),
-  likesCount: integer('likes_count').default(0),
-  commentsCount: integer('comments_count').default(0),
-  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // Notifications table
