@@ -15,6 +15,8 @@ export default function CommunityPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     // Check authentication
@@ -106,9 +108,9 @@ export default function CommunityPage() {
               </button>
 
               <button
-                onClick={() => router.push('/lessons')}
+                onClick={() => setShowSearch(!showSearch)}
                 className="hover:scale-110 transition-transform"
-                title="Explore"
+                title="Search"
               >
                 <Search className="w-6 h-6 text-gray-800" />
               </button>
@@ -154,6 +156,62 @@ export default function CommunityPage() {
           </div>
         </div>
       </header>
+
+      {/* Search Modal */}
+      {showSearch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center pt-20">
+          <div className="bg-white rounded-lg w-full max-w-2xl mx-4 shadow-2xl">
+            <div className="p-4">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search posts, users, topics..."
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  autoFocus
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && searchQuery.trim()) {
+                      // TODO: Implement search functionality
+                      console.log('Searching for:', searchQuery);
+                      setShowSearch(false);
+                      setSearchQuery('');
+                    }
+                  }}
+                />
+              </div>
+              
+              {/* Search Results */}
+              <div className="mt-4">
+                {searchQuery.trim() ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Search results for "{searchQuery}"</p>
+                    <p className="text-sm mt-2">Coming soon...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-500">Recent</h3>
+                    <p className="text-center py-8 text-gray-400 text-sm">No recent searches</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="border-t border-gray-200 p-4 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowSearch(false);
+                  setSearchQuery('');
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto">
