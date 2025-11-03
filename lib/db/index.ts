@@ -20,9 +20,9 @@ if (!databaseUrl) {
 const pool = databaseUrl 
   ? new Pool({ 
       connectionString: databaseUrl,
-      connectionTimeoutMillis: 10000, // 10 seconds timeout
-      idleTimeoutMillis: 30000, // 30 seconds idle timeout
-      max: 20, // Maximum 20 connections
+      connectionTimeoutMillis: 5000, // 5 seconds timeout
+      idleTimeoutMillis: 20000, // 20 seconds idle timeout
+      max: 10, // Maximum 10 connections
     })
   : new Pool({ connectionString: 'postgresql://dummy:dummy@localhost:5432/dummy' });
 
