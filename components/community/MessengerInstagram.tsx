@@ -225,7 +225,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiverId: selectedConversation.userId,
-          content: newMessage,
+          content: mediaUrl || newMessage, // Use mediaUrl if no text message
           mediaUrl,
           messageType: mediaUrl ? 'image' : 'text',
         }),

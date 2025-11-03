@@ -182,10 +182,19 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
     try {
       // Request microphone permission first
       try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         console.log('Microphone permission granted');
-      } catch (permError) {
-        throw new Error('Microphone access denied. Please allow microphone access and try again.');
+        // Stop the test stream
+        stream.getTracks().forEach(track => track.stop());
+      } catch (permError: any) {
+        console.error('Microphone permission error:', permError);
+        if (permError.name === 'NotAllowedError') {
+          throw new Error('Microphone access denied. Please allow microphone access in your browser settings and refresh the page.');
+        } else if (permError.name === 'NotFoundError') {
+          throw new Error('No microphone found. Please connect a microphone and try again.');
+        } else {
+          throw new Error(`Microphone error: ${permError.message}`);
+        }
       }
 
       // 1. Fetch call details to get the LiveKit room ID
