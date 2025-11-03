@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useId } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
@@ -9,6 +9,7 @@ function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email') || '';
+  const baseId = useId();
   
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -25,14 +26,14 @@ function VerifyContent() {
 
     // Auto-focus next input
     if (value && index < 5) {
-      const nextInput = document.getElementById(`code-${index + 1}`);
+      const nextInput = document.getElementById(`${baseId}-code-${index + 1}`);
       nextInput?.focus();
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === 'Backspace' && !code[index] && index > 0) {
-      const prevInput = document.getElementById(`code-${index - 1}`);
+      const prevInput = document.getElementById(`${baseId}-code-${index - 1}`);
       prevInput?.focus();
     }
   };
@@ -112,7 +113,7 @@ function VerifyContent() {
             {code.map((digit, index) => (
               <input
                 key={index}
-                id={`code-${index}`}
+                id={`${baseId}-code-${index}`}
                 type="text"
                 maxLength={1}
                 value={digit}

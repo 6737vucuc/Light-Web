@@ -1,9 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Heart, Wrench, BookHeart, Loader2, CheckCircle } from 'lucide-react';
 
 export default function SupportPage() {
+  const typeId = useId();
+  const subjectId = useId();
+  const messageId = useId();
+  
   const [formData, setFormData] = useState({
     type: '',
     subject: '',
@@ -118,11 +122,11 @@ export default function SupportPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor={typeId} className="block text-sm font-medium text-gray-700 mb-2">
                 Request Type *
               </label>
               <select
-                id="type"
+                id={typeId}
                 required
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
@@ -138,11 +142,11 @@ export default function SupportPage() {
             </div>
 
             <div>
-              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor={subjectId} className="block text-sm font-medium text-gray-700 mb-2">
                 Subject {formData.type === 'technical' && '*'}
               </label>
               <input
-                id="subject"
+                id={subjectId}
                 type="text"
                 required={formData.type === 'technical'}
                 value={formData.subject}
@@ -153,11 +157,11 @@ export default function SupportPage() {
             </div>
 
             <div>
-              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor={messageId} className="block text-sm font-medium text-gray-700 mb-2">
                 Message *
               </label>
               <textarea
-                id="message"
+                id={messageId}
                 required
                 rows={6}
                 value={formData.message}
@@ -193,4 +197,3 @@ export default function SupportPage() {
     </div>
   );
 }
-
