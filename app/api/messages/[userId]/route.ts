@@ -37,7 +37,7 @@ function decryptMessage(encryptedData: string): string {
 // GET /api/messages/[userId] - Fetch messages with a specific user
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const token = request.cookies.get('token')?.value;
@@ -47,7 +47,8 @@ export async function GET(
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    const otherUserId = parseInt(params.userId);
+    const resolvedParams = await params;
+    const otherUserId = parseInt(resolvedParams.userId);
 
     if (isNaN(otherUserId)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
