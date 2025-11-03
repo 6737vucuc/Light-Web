@@ -230,7 +230,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiverId: selectedConversation.userId,
-          content: mediaUrl || newMessage, // Use mediaUrl if no text message
+          content: newMessage.trim() || (mediaUrl ? '📷 Image' : ''), // Default text for image
           mediaUrl,
           messageType: mediaUrl ? 'image' : 'text',
         }),
@@ -524,13 +524,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                 >
                   <Phone className="w-5 h-5" />
                 </button>
-                <button 
-                  onClick={() => handleStartCall('video')}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  title="Video Call"
-                >
-                  <Video className="w-5 h-5" />
-                </button>
+                {/* Video Call removed - Voice only */}
                 <button 
                   onClick={() => setShowConversationInfo(!showConversationInfo)}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -751,10 +745,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                 <Phone className="w-5 h-5" />
                 <span>Audio Call</span>
               </button>
-              <button className="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3">
-                <Video className="w-5 h-5" />
-                <span>Video Call</span>
-              </button>
+              {/* Video Call removed - Voice only */}
             </div>
 
             <div className="border-t border-gray-200 p-4 space-y-2">

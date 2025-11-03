@@ -180,22 +180,8 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
 
   const fetchCallDetailsAndToken = async () => {
     try {
-      // Request microphone permission first
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('Microphone permission granted');
-        // Stop the test stream
-        stream.getTracks().forEach(track => track.stop());
-      } catch (permError: any) {
-        console.error('Microphone permission error:', permError);
-        if (permError.name === 'NotAllowedError') {
-          throw new Error('Microphone access denied. Please allow microphone access in your browser settings and refresh the page.');
-        } else if (permError.name === 'NotFoundError') {
-          throw new Error('No microphone found. Please connect a microphone and try again.');
-        } else {
-          throw new Error(`Microphone error: ${permError.message}`);
-        }
-      }
+      // LiveKit will handle microphone permissions automatically
+      // No need to request permissions beforehand
 
       // 1. Fetch call details to get the LiveKit room ID
       const callDetailsResponse = await fetch(`/api/calls/${callId}`);
@@ -240,7 +226,9 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
   const handleError = (error: Error) => {
     console.error('LiveKit connection error:', error);
     if (error.message.includes('denied') || error.message.includes('permission')) {
-      setError('Microphone access denied. Please allow microphone access in your browser settings.');
+      setError('Microphone access denied. Please allow microphone access in your browser settings and try again.');
+    } else if (error.message.includes('NotFoundError') || error.message.includes('not found')) {
+      setError('No microphone found. Please connect a microphone and try again.');
     } else {
       setError(`Connection error: ${error.message}`);
     }
@@ -253,9 +241,6 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-lg">
             Connecting to call...
-          </p>
-          <p className="text-white/60 text-sm mt-2">
-            Requesting microphone access
           </p>
         </div>
       </div>
