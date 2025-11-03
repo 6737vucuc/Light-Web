@@ -36,6 +36,8 @@ export interface ChatMessage {
   encrypted?: boolean;
   timestamp: Date;
   isRead: boolean;
+  isDelivered?: boolean;
+  deliveredAt?: Date;
 }
 
 export interface TypingIndicator {
