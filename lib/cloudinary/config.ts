@@ -16,7 +16,12 @@ export async function uploadToCloudinary(
   folder: string = 'light-of-life'
 ): Promise<{ url: string; publicId: string }> {
   try {
-    const result = await cloudinary.uploader.upload(file, {
+    // Convert Buffer to base64 data URI if needed
+    const fileToUpload = Buffer.isBuffer(file)
+      ? `data:image/png;base64,${file.toString('base64')}`
+      : file;
+
+    const result = await cloudinary.uploader.upload(fileToUpload, {
       folder,
       resource_type: 'auto',
       transformation: [
@@ -50,7 +55,12 @@ export async function uploadVideoToCloudinary(
   folder: string = 'light-of-life/videos'
 ): Promise<{ url: string; publicId: string; duration: number }> {
   try {
-    const result = await cloudinary.uploader.upload(file, {
+    // Convert Buffer to base64 data URI if needed
+    const fileToUpload = Buffer.isBuffer(file)
+      ? `data:video/mp4;base64,${file.toString('base64')}`
+      : file;
+
+    const result = await cloudinary.uploader.upload(fileToUpload, {
       folder,
       resource_type: 'video',
       transformation: [
