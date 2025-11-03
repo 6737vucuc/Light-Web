@@ -217,6 +217,11 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         if (uploadResponse.ok) {
           const uploadData = await uploadResponse.json();
           mediaUrl = uploadData.url;
+        } else {
+          const uploadError = await uploadResponse.json();
+          console.error('Upload failed:', uploadError);
+          alert(uploadError.error || 'Failed to upload image');
+          return; // Stop if upload fails
         }
       }
 
