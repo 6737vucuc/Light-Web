@@ -66,9 +66,8 @@ export async function GET(
         message_type,
         is_read,
         read_at,
-        reaction,
         created_at
-      FROM private_messages
+      FROM messages
       WHERE (sender_id = ${decoded.userId} AND receiver_id = ${otherUserId})
          OR (sender_id = ${otherUserId} AND receiver_id = ${decoded.userId})
       ORDER BY created_at ASC
@@ -91,7 +90,6 @@ export async function GET(
         messageType: msg.message_type,
         isRead: msg.is_read,
         readAt: msg.read_at,
-        reaction: msg.reaction,
         createdAt: msg.created_at,
       };
     });

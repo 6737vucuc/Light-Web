@@ -159,9 +159,12 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
   const fetchMessages = async (userId: number) => {
     try {
+      console.log('Fetching messages for user:', userId);
       const response = await fetch(`/api/messages/user/${userId}`);
+      console.log('Response status:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('Messages data:', data);
         setMessages(data.messages || []);
         
         // Mark all messages as read
