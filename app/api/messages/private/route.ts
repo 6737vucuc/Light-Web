@@ -251,8 +251,21 @@ const response = NextResponse.json({
 	// Send real-time notification via Pusher
 	const sender = await db.query.users.findFirst({ where: eq(users.id, authResult.user.id) });
 	if (sender) {
-	  const channelId = RealtimeChatService.getPrivateChannelName(authResult.user.id, receiverId);
-	  await RealtimeChatService.sendMessage(channelId, {
+		  // Send message to the sender's channel
+		  const senderChannelId = RealtimeChatService.getPrivateChannelName(authResult.user.id, receiverId);
+		  await RealtimeChatService.sendMessage(senderChannelId, {
+		    id: message.id,
+		    senderId: message.senderId,
+		    senderName: sender.name,
+		    senderAvatar: sender.avatar || undefined,
+		    content: sanitizedContent,
+		    timestamp: message.createdAt || new Date(),
+		    isRead: message.isRead || false,
+		  });
+
+		  // Send message to the receiver's channel
+		  const receiverChannelId = RealtimeChatService.getPrivateChannelName(receiverId, authResult.user.id);
+		  await RealtimeChatService.sendMessage(receiverChannelId, {
 	    id: message.id,
 	    senderId: message.senderId,
 		    senderName: sender.name,
