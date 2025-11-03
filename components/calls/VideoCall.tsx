@@ -28,33 +28,36 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
   const livekitUrl = process.env.LIVEKIT_URL || 'wss://light-web-4bn0nvjb.livekit.cloud';
 
   useEffect(() => {
-    fetchToken();
+    fetchCallDetailsAndToken();
   }, [callId]);
 
-  const fetchToken = async () => {
+  const fetchCallDetailsAndToken = async () => {
     try {
-      // Use the callId as the LiveKit room name
-      const roomName = `call-${callId}`;
-      
-      // Fetch token from the new LiveKit API route
-      const response = await fetch(`/api/livekit/token?room=${roomName}&publisher=true`);
+      // 1. Fetch call details to get the LiveKit room ID
+      const callDetailsResponse = await fetch(`/api/calls/${callId}`);
+      if (!callDetailsResponse.ok) {
+        const errorData = await callDetailsResponse.json();
+        throw new Error(errorData.error || 'Failed to fetch call details');
+      }
+      const callDetails = await callDetailsResponse.json();
+      const roomName = callDetails.call.roomId;
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      // 2. Fetch token from the LiveKit API route
+      // The `publisher=true` is used here to grant publishing rights to the participant.
+      const tokenResponse = await fetch(`/api/livekit/token?room=${roomName}&publisher=true`);
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json();
         throw new Error(errorData.error || 'Failed to get call token');
       }
 
-      const data = await response.json();
-      setToken(data.token);
+      const tokenData = await tokenResponse.json();
+      setToken(tokenData.token);
       setRoomId(roomName);
       setLoading(false);
-
-      // NOTE: The call status update logic is removed here. 
-      // It should be handled by the application's core logic 
-      // (e.g., when a user initiates a call).
       
     } catch (error: any) {
-      console.error('Error fetching token:', error);
+      console.error('Error fetching call details or token:', error);
       setError(error.message || 'Failed to join call');
       setLoading(false);
     }

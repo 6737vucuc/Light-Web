@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot initiate call' }, { status: 403 });
     }
 
-    // Generate a unique room ID for the call
-    const roomId = `call_${decoded.userId}_${receiverId}_${Date.now()}`;
+    // LiveKit room ID will be the call ID itself, generated after insertion.
+    const roomId = `call_placeholder`;
 
     // Create call record
     const result = await sql`
@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
         caller_id,
         receiver_id,
         call_type,
-        room_id,
         status,
         started_at
       )
@@ -68,11 +67,18 @@ export async function POST(request: NextRequest) {
         ${decoded.userId},
         ${receiverId},
         ${callType},
-        ${roomId},
         'ringing',
         NOW()
       )
-      RETURNING id, caller_id, receiver_id, call_type, room_id, status, started_at
+      RETURNING id, caller_id, receiver_id, call_type, status, started_at
+    `;
+
+    // Update the room_id with the generated call ID
+    const finalRoomId = `call_${result[0].id}`;
+    await sql`
+      UPDATE calls
+      SET room_id = ${finalRoomId}
+      WHERE id = ${result[0].id}
     `;
 
     // Create notification for receiver
@@ -106,7 +112,7 @@ export async function POST(request: NextRequest) {
         callerId: result[0].caller_id,
         receiverId: result[0].receiver_id,
         callType: result[0].call_type,
-        roomId: result[0].room_id,
+        roomId: finalRoomId,
         status: result[0].status,
         startedAt: result[0].started_at,
       },
