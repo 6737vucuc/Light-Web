@@ -90,8 +90,8 @@ export async function GET(request: NextRequest) {
         return !msg.deletedByReceiver;
       })
       .map((msg) => {
-        // Decrypt message with military-grade encryption
-        if (msg.isEncrypted && msg.encryptedContent) {
+        // Decrypt message with military-grade encryption if content is the placeholder
+        if (msg.isEncrypted && msg.encryptedContent && msg.content === '[🔒 Encrypted in DB]') {
           try {
             return {
               ...msg,
@@ -107,7 +107,11 @@ export async function GET(request: NextRequest) {
             };
           }
         }
-        return msg;
+        // For new messages, content is already plain text, so return as is
+        return {
+          ...msg,
+          encryptedContent: undefined, // Always remove encrypted content before sending to client
+        };
       });
 
     // Mark messages as read
@@ -220,14 +224,14 @@ export async function POST(request: NextRequest) {
 // Create message
 	const [message] = await db
 	  .insert(messages)
-	  .values({
-	    conversationId: conversation[0].id,
-	    senderId: authResult.user.id,
-	    receiverId,
-	    content: '[🔒 Encrypted in DB]', // Placeholder in database
-	    encryptedContent,
-	    isEncrypted: true,
-	  })
+		  .values({
+		    conversationId: conversation[0].id,
+		    senderId: authResult.user.id,
+		    receiverId,
+		    content: sanitizedContent, // Store plain text for display
+		    encryptedContent, // Store encrypted content for security
+		    isEncrypted: true,
+		  })
 	  .returning();
 
 // Log successful message sent
