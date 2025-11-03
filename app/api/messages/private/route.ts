@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { messages, users, friendships, conversations } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, or, and, desc } from 'drizzle-orm';
+import { RealtimeChatService } from '@/lib/realtime/chat';
 import { encryptMessageMilitary, decryptMessageMilitary } from '@/lib/security/military-encryption';
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Send a private message with military-grade encryption
+// Send a private message
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
   
@@ -183,9 +184,8 @@ export async function POST(request: NextRequest) {
     // Allow messaging to anyone (Instagram-style)
     // No friendship requirement
 
-    // Encrypt the message with MILITARY-GRADE encryption
-    // Same level as NSA, CIA, WhatsApp, Signal
-    const encryptedContent = encryptMessageMilitary(sanitizedContent);
+// Encrypt the message with MILITARY-GRADE encryption for database storage
+	const encryptedContent = encryptMessageMilitary(sanitizedContent);
 
     // Get or create conversation
     let conversation = await db
@@ -217,32 +217,47 @@ export async function POST(request: NextRequest) {
       conversation = [newConv];
     }
 
-    // Create message
-    const [message] = await db
-      .insert(messages)
-      .values({
-        conversationId: conversation[0].id,
-        senderId: authResult.user.id,
-        receiverId,
-        content: '[🔒 Military-Grade Encrypted]', // Placeholder in database
-        encryptedContent,
-        isEncrypted: true,
-      })
-      .returning();
+// Create message
+	const [message] = await db
+	  .insert(messages)
+	  .values({
+	    conversationId: conversation[0].id,
+	    senderId: authResult.user.id,
+	    receiverId,
+	    content: '[🔒 Encrypted in DB]', // Placeholder in database
+	    encryptedContent,
+	    isEncrypted: true,
+	  })
+	  .returning();
 
-    // Log successful message encryption (without content)
-    console.log(`Military-encrypted message sent: User ${authResult.user.id} -> User ${receiverId}`);
+// Log successful message sent
+	console.log(`Message sent: User ${authResult.user.id} -> User ${receiverId}`);
 
-    const response = NextResponse.json({
-      message: 'Message sent successfully with military-grade encryption',
-      data: {
-        ...message,
-        encryptedContent: undefined, // Don't send encrypted content back
-      },
-    });
+const response = NextResponse.json({
+	  message: 'Message sent successfully',
+	  data: {
+	    ...message,
+	    encryptedContent: undefined, // Don't send encrypted content back
+	  },
+	});
 
-    // Add rate limit headers
-    response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
+// Add rate limit headers
+	response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
+
+	// Send real-time notification via Pusher
+	const sender = await db.query.users.findFirst({ where: eq(users.id, authResult.user.id) });
+	if (sender) {
+	  const channelId = RealtimeChatService.getPrivateChannelName(authResult.user.id, receiverId);
+	  await RealtimeChatService.sendMessage(channelId, {
+	    id: message.id,
+	    senderId: message.senderId,
+		    senderName: sender.name,
+		    senderAvatar: sender.avatar || undefined, // Fix: Ensure senderAvatar is string or undefined
+		    content: sanitizedContent,
+	    timestamp: message.createdAt || new Date(),
+	    isRead: message.isRead || false,
+	  });
+	}
     response.headers.set('X-Encryption-Level', 'MILITARY-GRADE-AES-256-GCM');
 
     return response;

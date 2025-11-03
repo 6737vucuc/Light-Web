@@ -5,15 +5,11 @@ import { useRouter } from 'next/navigation';
 import {
   LiveKitRoom,
   VideoConference,
-  GridLayout,
-  ParticipantTile,
   RoomAudioRenderer,
   ControlBar,
-  useTracks,
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
 import '@livekit/components-styles';
-import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff } from 'lucide-react';
+import { PhoneOff } from 'lucide-react';
 
 interface VideoCallProps {
   callId: number;
@@ -29,52 +25,19 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
   const [error, setError] = useState<string>('');
   const [permissionsGranted, setPermissionsGranted] = useState(false);
 
-  const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://light-web-4bn0nvjb.livekit.cloud';
+  const livekitUrl = process.env.LIVEKIT_URL || 'wss://light-web-4bn0nvjb.livekit.cloud';
 
   useEffect(() => {
-    requestPermissions();
-  }, []);
-
-  useEffect(() => {
-    if (permissionsGranted) {
-      fetchToken();
-    }
-  }, [callId, permissionsGranted]);
-
-  const requestPermissions = async () => {
-    try {
-      // Request camera and microphone permissions
-      const constraints = {
-        audio: true,
-        video: callType === 'video',
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      
-      // Stop the stream immediately (we just needed permissions)
-      stream.getTracks().forEach(track => track.stop());
-      
-      setPermissionsGranted(true);
-    } catch (error: any) {
-      console.error('Permission error:', error);
-      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        setError('Camera/Microphone access denied. Please allow access and try again.');
-      } else if (error.name === 'NotFoundError') {
-        setError('No camera or microphone found on your device.');
-      } else {
-        setError('Failed to access camera/microphone: ' + error.message);
-      }
-      setLoading(false);
-    }
-  };
+    fetchToken();
+  }, [callId]);
 
   const fetchToken = async () => {
     try {
-      const response = await fetch('/api/calls/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callId }),
-      });
+      // Use the callId as the LiveKit room name
+      const roomName = `call-${callId}`;
+      
+      // Fetch token from the new LiveKit API route
+      const response = await fetch(`/api/livekit/token?room=${roomName}&publisher=true`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -83,15 +46,13 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
 
       const data = await response.json();
       setToken(data.token);
-      setRoomId(data.roomId);
+      setRoomId(roomName);
       setLoading(false);
 
-      // Update call status to ongoing
-      await fetch(`/api/calls/${callId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'ongoing' }),
-      });
+      // NOTE: The call status update logic is removed here. 
+      // It should be handled by the application's core logic 
+      // (e.g., when a user initiates a call).
+      
     } catch (error: any) {
       console.error('Error fetching token:', error);
       setError(error.message || 'Failed to join call');
@@ -120,7 +81,7 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-lg">
-            {!permissionsGranted ? 'Requesting permissions...' : 'Connecting to call...'}
+            Connecting to call...
           </p>
         </div>
       </div>
@@ -134,16 +95,6 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
           <PhoneOff className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-white text-2xl font-bold mb-2">Call Failed</h2>
           <p className="text-gray-300 mb-6">{error}</p>
-          <button
-            onClick={() => {
-              setError('');
-              setLoading(true);
-              requestPermissions();
-            }}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mr-2"
-          >
-            Try Again
-          </button>
           <button
             onClick={onEndCall}
             className="px-6 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100"
@@ -159,7 +110,7 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900">
         <div className="text-center">
-          <p className="text-white text-lg">Preparing call...</p>
+          <p className="text-white text-lg">Preparing LiveKit room...</p>
         </div>
       </div>
     );
@@ -174,7 +125,7 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
         serverUrl={livekitUrl}
         data-lk-theme="default"
         style={{ height: '100vh' }}
-        onDisconnected={handleDisconnect}
+        onDisconnected={onEndCall}
         onError={(error) => {
           console.error('LiveKit error:', error);
           setError('Connection error: ' + error.message);
@@ -183,6 +134,7 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
       >
         <VideoConference />
         <RoomAudioRenderer />
+        <ControlBar />
       </LiveKitRoom>
     </div>
   );
