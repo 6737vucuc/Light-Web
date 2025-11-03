@@ -263,17 +263,17 @@ const response = NextResponse.json({
 		    isRead: message.isRead || false,
 		  });
 
-		  // Send message to the receiver's channel
-		  const receiverChannelId = RealtimeChatService.getPrivateChannelName(receiverId, authResult.user.id);
-		  await RealtimeChatService.sendMessage(receiverChannelId, {
-	    id: message.id,
-	    senderId: message.senderId,
-		    senderName: sender.name,
-		    senderAvatar: sender.avatar || undefined, // Fix: Ensure senderAvatar is string or undefined
-		    content: sanitizedContent,
-	    timestamp: message.createdAt || new Date(),
-	    isRead: message.isRead || false,
-	  });
+			  // Send message to the receiver's channel
+			  const receiverChannelId = RealtimeChatService.getPrivateChannelName(receiverId, authResult.user.id);
+			  await RealtimeChatService.sendMessage(receiverChannelId, {
+		    id: message.id,
+		    senderId: message.senderId,
+			    senderName: sender.name,
+			    senderAvatar: sender.avatar || undefined,
+			    content: sanitizedContent,
+		    timestamp: message.createdAt || new Date(),
+		    isRead: message.isRead || false,
+		  });
 	}
     response.headers.set('X-Encryption-Level', 'MILITARY-GRADE-AES-256-GCM');
 
