@@ -73,12 +73,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot initiate call' }, { status: 403 });
     }
 
-    // Create call record
+    // Generate room_id first
+    const tempRoomId = `call_temp_${Date.now()}_${decoded.userId}`;
+
+    // Create call record with room_id
     const result = await sql`
       INSERT INTO calls (
         caller_id,
         receiver_id,
         call_type,
+        room_id,
         status,
         started_at
       )
@@ -86,10 +90,11 @@ export async function POST(request: NextRequest) {
         ${decoded.userId},
         ${receiverId},
         ${callType},
+        ${tempRoomId},
         'ringing',
         NOW()
       )
-      RETURNING id, caller_id, receiver_id, call_type, status, started_at
+      RETURNING id, caller_id, receiver_id, call_type, room_id, status, started_at
     `;
 
     if (result.length === 0) {
@@ -97,14 +102,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create call record' }, { status: 500 });
     }
 
-    // Update the room_id with the generated call ID
+    // Update the room_id with the actual call ID
     const finalCallId = result[0].id;
     const finalRoomId = `call_${finalCallId}`;
+    
     await sql`
       UPDATE calls
       SET room_id = ${finalRoomId}
       WHERE id = ${finalCallId}
     `;
+
+    console.log(`Call created successfully: ID=${finalCallId}, Room=${finalRoomId}`);
 
     // Create notification for receiver
     try {
@@ -122,7 +130,7 @@ export async function POST(request: NextRequest) {
           'call',
           ${callType === 'video' ? 'Video call' : 'Voice call'},
           ${decoded.userId},
-          ${result[0].id},
+          ${finalCallId},
           NOW()
         )
       `;
@@ -148,12 +156,13 @@ export async function POST(request: NextRequest) {
       console.log(`Pusher notification sent to user ${receiverId} for call ${finalCallId}`);
     } catch (pusherError) {
       console.error('Failed to send Pusher notification:', pusherError);
+      // Don't fail the call if Pusher fails
     }
 
     return NextResponse.json({
       success: true,
       call: {
-        id: result[0].id,
+        id: finalCallId,
         callerId: result[0].caller_id,
         receiverId: result[0].receiver_id,
         callType: result[0].call_type,
@@ -162,10 +171,14 @@ export async function POST(request: NextRequest) {
         startedAt: result[0].started_at,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error initiating call:', error);
     return NextResponse.json(
-      { error: 'Failed to initiate call' },
+      { 
+        error: 'Failed to initiate call',
+        details: error.message || 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
@@ -221,10 +234,13 @@ export async function GET(request: NextRequest) {
         callerAvatar: c.caller_avatar,
       })),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching calls:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch calls' },
+      { 
+        error: 'Failed to fetch calls',
+        details: error.message || 'Unknown error'
+      },
       { status: 500 }
     );
   }

@@ -370,7 +370,7 @@ export const calls = pgTable('calls', {
   callerId: integer('caller_id').references(() => users.id).notNull(),
   receiverId: integer('receiver_id').references(() => users.id).notNull(),
   callType: varchar('call_type', { length: 20 }).notNull(), // 'video' or 'audio'
-  roomId: varchar('room_id', { length: 255 }).notNull().unique(),
+  roomId: varchar('room_id', { length: 255 }).unique(),
   status: varchar('status', { length: 20 }).default('ringing'), // 'ringing', 'ongoing', 'ended', 'declined', 'missed'
   startedAt: timestamp('started_at').defaultNow(),
   endedAt: timestamp('ended_at'),
