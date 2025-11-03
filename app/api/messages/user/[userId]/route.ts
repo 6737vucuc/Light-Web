@@ -1,38 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import { decryptMessageMilitary } from '@/lib/security/military-encryption';
 
 const sql = neon(process.env.DATABASE_URL!);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const ENCRYPTION_KEY = process.env.MESSAGE_ENCRYPTION_KEY || '12345678901234567890123456789012';
-
-// Decrypt message from database
-function decryptMessage(encryptedData: string): string {
-  try {
-    const parts = encryptedData.split(':');
-    if (parts.length !== 3) return encryptedData;
-
-    const iv = Buffer.from(parts[0], 'hex');
-    const authTag = Buffer.from(parts[1], 'hex');
-    const encrypted = Buffer.from(parts[2], 'hex');
-
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      Buffer.from(ENCRYPTION_KEY.substring(0, 32)),
-      iv
-    );
-    decipher.setAuthTag(authTag);
-
-    let decrypted = decipher.update(encrypted);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-
-    return decrypted.toString('utf8');
-  } catch (error) {
-    console.error('Decryption error:', error);
-    return encryptedData;
-  }
-}
 
 // GET /api/messages/[userId] - Fetch messages with a specific user
 export async function GET(
@@ -62,6 +34,7 @@ export async function GET(
         receiver_id,
         content,
         encrypted_content,
+        is_encrypted,
         media_url,
         message_type,
         is_read,
@@ -77,8 +50,14 @@ export async function GET(
     const formattedMessages = messages.map((msg: any) => {
       // Decrypt the content if it's encrypted
       let decryptedContent = msg.content;
-      if (msg.encrypted_content) {
-        decryptedContent = decryptMessage(msg.encrypted_content);
+      if (msg.encrypted_content && msg.is_encrypted) {
+        try {
+          decryptedContent = decryptMessageMilitary(msg.encrypted_content);
+        } catch (error) {
+          console.error('Failed to decrypt message:', error);
+          // Fallback to content if decryption fails
+          decryptedContent = msg.content;
+        }
       }
 
       return {
