@@ -23,44 +23,66 @@ export default function CommunityPage() {
   const [activeTab, setActiveTab] = useState('home');
 
   useEffect(() => {
+    let mounted = true;
+    
     // Check authentication
     const checkAuth = async () => {
       try {
         const response = await fetch('/api/auth/me');
+        if (!mounted) return;
+        
         if (response.ok) {
           const data = await response.json();
-          setCurrentUser(data.user);
-          setIsAuthenticated(true);
-          // Update lastSeen to show online status
-          fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
-          setIsLoading(false);
-          
-          // Get unread messages count
-          fetchUnreadCount();
+          if (mounted) {
+            setCurrentUser(data.user);
+            setIsAuthenticated(true);
+            setIsLoading(false);
+            
+            // Update lastSeen to show online status
+            fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
+            
+            // Get unread messages count
+            fetchUnreadCount();
+          }
         } else {
           // Not authenticated, redirect to login
-          router.push('/auth/login?redirect=/community');
+          if (mounted) {
+            router.push('/auth/login?redirect=/community');
+          }
         }
       } catch (error) {
         console.error('Auth check error:', error);
-        router.push('/auth/login?redirect=/community');
+        if (mounted) {
+          router.push('/auth/login?redirect=/community');
+        }
       }
     };
 
     checkAuth();
+    
+    return () => {
+      mounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     
+    let mounted = true;
+    
     // Update lastSeen every 2 minutes to maintain online status
     const interval = setInterval(() => {
-      fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
-      fetchUnreadCount();
+      if (mounted) {
+        fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
+        fetchUnreadCount();
+      }
     }, 120000); // 2 minutes
 
-    return () => clearInterval(interval);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 

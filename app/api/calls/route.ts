@@ -6,14 +6,18 @@ import Pusher from 'pusher';
 const sql = neon(process.env.DATABASE_URL!);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Initialize Pusher for real-time call notifications
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.NEXT_PUBLIC_PUSHER_APP_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-  useTLS: true,
-});
+// Initialize Pusher for real-time call notifications (optional)
+let pusher: Pusher | null = null;
+
+if (process.env.PUSHER_APP_ID && process.env.PUSHER_SECRET && process.env.NEXT_PUBLIC_PUSHER_APP_KEY) {
+  pusher = new Pusher({
+    appId: process.env.PUSHER_APP_ID,
+    key: process.env.NEXT_PUBLIC_PUSHER_APP_KEY,
+    secret: process.env.PUSHER_SECRET,
+    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu',
+    useTLS: true,
+  });
+}
 
 // Initiate a call (video or voice)
 export async function POST(request: NextRequest) {
@@ -139,8 +143,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Send real-time notification via Pusher to receiver
-    try {
-      await pusher.trigger(`private-user-${receiverId}`, 'incoming-call', {
+    if (pusher) {
+      try {
+        await pusher.trigger(`private-user-${receiverId}`, 'incoming-call', {
         callId: finalCallId,
         callType: callType,
         roomId: finalRoomId,
@@ -153,10 +158,13 @@ export async function POST(request: NextRequest) {
         status: 'ringing',
         startedAt: result[0].started_at,
       });
-      console.log(`Pusher notification sent to user ${receiverId} for call ${finalCallId}`);
-    } catch (pusherError) {
-      console.error('Failed to send Pusher notification:', pusherError);
-      // Don't fail the call if Pusher fails
+        console.log(`Pusher notification sent to user ${receiverId} for call ${finalCallId}`);
+      } catch (pusherError) {
+        console.error('Failed to send Pusher notification:', pusherError);
+        // Don't fail the call if Pusher fails
+      }
+    } else {
+      console.log('Pusher not configured, call notification will be via database only');
     }
 
     return NextResponse.json({
