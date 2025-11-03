@@ -38,9 +38,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['video', 'voice'].includes(callType)) {
+    // Only voice calls are supported
+    if (callType !== 'voice') {
       return NextResponse.json(
-        { error: 'Invalid call type' },
+        { error: 'Only voice calls are supported' },
         { status: 400 }
       );
     }
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
         VALUES (
           ${receiverId},
           'call',
-          ${callType === 'video' ? 'Video call' : 'Voice call'},
+          'Voice call',
           ${decoded.userId},
           ${finalCallId},
           NOW()

@@ -64,7 +64,7 @@ export default function CallPage() {
   return (
     <VideoCall
       callId={callId}
-      callType={callData.callType}
+      callType="voice"
       onEndCall={handleEndCall}
     />
   );

@@ -128,10 +128,15 @@ export async function GET(request: NextRequest) {
         };
       });
 
-    // Mark messages as read
+    // Mark messages as delivered and read
     await db
       .update(messages)
-      .set({ isRead: true })
+      .set({ 
+        isDelivered: true,
+        deliveredAt: new Date(),
+        isRead: true,
+        readAt: new Date()
+      })
       .where(
         and(
           eq(messages.receiverId, authResult.user.id),
@@ -287,6 +292,7 @@ export async function POST(request: NextRequest) {
         content: sanitizedContent, // PLAIN TEXT - NOT ENCRYPTED
         timestamp: message.createdAt || new Date(),
         isRead: message.isRead || false,
+        isDelivered: false, // Will be updated when receiver opens chat
       });
     }
     response.headers.set('X-Encryption-Level', 'STORAGE-ONLY-AES-256-GCM');

@@ -162,6 +162,8 @@ export const messages = pgTable('messages', {
   replyToId: integer('reply_to_id'), // Reply to message ID
   isRead: boolean('is_read').default(false),
   readAt: timestamp('read_at'),
+  isDelivered: boolean('is_delivered').default(false),
+  deliveredAt: timestamp('delivered_at'),
   isDeleted: boolean('is_deleted').default(false),
   deletedAt: timestamp('deleted_at'),
   deletedBySender: boolean('deleted_by_sender').default(false),
