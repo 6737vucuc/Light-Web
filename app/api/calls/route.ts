@@ -51,8 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot initiate call' }, { status: 403 });
     }
 
-    // LiveKit room ID will be the call ID itself, generated after insertion.
-    const roomId = `call_placeholder`;
+
 
     // Create call record
     const result = await sql`
@@ -73,12 +72,18 @@ export async function POST(request: NextRequest) {
       RETURNING id, caller_id, receiver_id, call_type, status, started_at
     `;
 
+    if (result.length === 0) {
+      console.error('Database INSERT failed to return call ID');
+      return NextResponse.json({ error: 'Failed to create call record' }, { status: 500 });
+    }
+
     // Update the room_id with the generated call ID
-    const finalRoomId = `call_${result[0].id}`;
+    const finalCallId = result[0].id;
+    const finalRoomId = `call_${finalCallId}`;
     await sql`
       UPDATE calls
       SET room_id = ${finalRoomId}
-      WHERE id = ${result[0].id}
+      WHERE id = ${finalCallId}
     `;
 
     // Create notification for receiver
