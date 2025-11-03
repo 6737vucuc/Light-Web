@@ -7,6 +7,7 @@ import {
   VideoConference,
   RoomAudioRenderer,
   ControlBar,
+  useToken,
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { PhoneOff } from 'lucide-react';
@@ -23,9 +24,9 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
   const [roomId, setRoomId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [permissionsGranted, setPermissionsGranted] = useState(false);
 
-  const livekitUrl = process.env.LIVEKIT_URL || 'wss://light-web-4bn0nvjb.livekit.cloud';
+  // Get LiveKit URL from environment variable
+  const livekitUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://light-web-4bn0nvjb.livekit.cloud';
 
   useEffect(() => {
     fetchCallDetailsAndToken();
@@ -42,8 +43,11 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
       const callDetails = await callDetailsResponse.json();
       const roomName = callDetails.call.roomId;
 
+      if (!roomName) {
+        throw new Error('Room ID not found in call details');
+      }
+
       // 2. Fetch token from the LiveKit API route
-      // The `publisher=true` is used here to grant publishing rights to the participant.
       const tokenResponse = await fetch(`/api/livekit/token?room=${roomName}&publisher=true`);
 
       if (!tokenResponse.ok) {
@@ -52,9 +56,16 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
       }
 
       const tokenData = await tokenResponse.json();
+      
+      if (!tokenData.token) {
+        throw new Error('Token not received from server');
+      }
+
       setToken(tokenData.token);
       setRoomId(roomName);
       setLoading(false);
+      
+      console.log('Successfully connected to LiveKit room:', roomName);
       
     } catch (error: any) {
       console.error('Error fetching call details or token:', error);
@@ -71,11 +82,17 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'ended' }),
       });
+      console.log('Call ended successfully');
     } catch (error) {
       console.error('Error ending call:', error);
     }
 
     onEndCall();
+  };
+
+  const handleError = (error: Error) => {
+    console.error('LiveKit connection error:', error);
+    setError(`Connection error: ${error.message}`);
   };
 
   if (loading) {
@@ -85,6 +102,9 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-lg">
             Connecting to call...
+          </p>
+          <p className="text-gray-400 text-sm mt-2">
+            Initializing LiveKit connection
           </p>
         </div>
       </div>
@@ -100,7 +120,7 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
           <p className="text-gray-300 mb-6">{error}</p>
           <button
             onClick={onEndCall}
-            className="px-6 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100"
+            className="px-6 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition"
           >
             Go Back
           </button>
@@ -113,6 +133,7 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900">
         <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-white text-lg">Preparing LiveKit room...</p>
         </div>
       </div>
@@ -128,16 +149,24 @@ export default function VideoCall({ callId, callType, onEndCall }: VideoCallProp
         serverUrl={livekitUrl}
         data-lk-theme="default"
         style={{ height: '100vh' }}
-        onDisconnected={onEndCall}
-        onError={(error) => {
-          console.error('LiveKit error:', error);
-          setError('Connection error: ' + error.message);
-        }}
+        onDisconnected={handleDisconnect}
+        onError={handleError}
         connect={true}
+        connectOptions={{
+          autoSubscribe: true,
+        }}
       >
         <VideoConference />
         <RoomAudioRenderer />
-        <ControlBar />
+        <ControlBar 
+          variation="verbose"
+          controls={{
+            camera: callType === 'video',
+            microphone: true,
+            screenShare: callType === 'video',
+            leave: true,
+          }}
+        />
       </LiveKitRoom>
     </div>
   );

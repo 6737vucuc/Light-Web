@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+import Pusher from 'pusher';
 
 const sql = neon(process.env.DATABASE_URL!);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Initialize Pusher for real-time call updates
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID!,
+  key: process.env.NEXT_PUBLIC_PUSHER_APP_KEY!,
+  secret: process.env.PUSHER_SECRET!,
+  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+  useTLS: true,
+});
 
 // Update call status
 export async function PATCH(
@@ -32,7 +42,7 @@ export async function PATCH(
 
     // Get call info
     const callResult = await sql`
-      SELECT id, caller_id, receiver_id, started_at
+      SELECT id, caller_id, receiver_id, started_at, room_id
       FROM calls
       WHERE id = ${callId}
     `;
@@ -69,6 +79,35 @@ export async function PATCH(
         WHERE id = ${callId}
         RETURNING id, status
       `;
+    }
+
+    // Send real-time notification via Pusher to both participants
+    try {
+      const otherUserId = call.caller_id === decoded.userId ? call.receiver_id : call.caller_id;
+      
+      // Notify the other participant about status change
+      await pusher.trigger(`private-user-${otherUserId}`, 'call-status-changed', {
+        callId: callId,
+        status: status,
+        roomId: call.room_id,
+        updatedBy: decoded.userId,
+        endedAt: updateQuery[0].ended_at || null,
+        duration: updateQuery[0].duration || null,
+      });
+
+      // Also notify the current user
+      await pusher.trigger(`private-user-${decoded.userId}`, 'call-status-changed', {
+        callId: callId,
+        status: status,
+        roomId: call.room_id,
+        updatedBy: decoded.userId,
+        endedAt: updateQuery[0].ended_at || null,
+        duration: updateQuery[0].duration || null,
+      });
+
+      console.log(`Call ${callId} status updated to ${status} and notified both participants`);
+    } catch (pusherError) {
+      console.error('Failed to send Pusher notification for call status update:', pusherError);
     }
 
     return NextResponse.json({

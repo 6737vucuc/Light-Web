@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(messages.createdAt))
       .limit(100);
 
-    // Filter messages based on deletion status and decrypt with military-grade encryption
+    // Filter messages based on deletion status and decrypt from database
     const messagesList = allMessages
       .filter((msg) => {
         // If user is sender, show only if not deleted by sender
@@ -104,8 +104,8 @@ export async function GET(request: NextRequest) {
         return !msg.deletedByReceiver;
       })
       .map((msg) => {
-        // Decrypt message with military-grade encryption if content is the placeholder
-        if (msg.isEncrypted && msg.encryptedContent && msg.content === '[🔒 Encrypted in DB]') {
+        // Decrypt message from database if it's encrypted
+        if (msg.isEncrypted && msg.encryptedContent) {
           try {
             return {
               ...msg,
@@ -121,10 +121,10 @@ export async function GET(request: NextRequest) {
             };
           }
         }
-        // For new messages, content is already plain text, so return as is
+        // Return plain text message
         return {
           ...msg,
-          encryptedContent: undefined, // Always remove encrypted content before sending to client
+          encryptedContent: undefined,
         };
       });
 
@@ -202,8 +202,8 @@ export async function POST(request: NextRequest) {
     // Allow messaging to anyone (Instagram-style)
     // No friendship requirement
 
-// Encrypt the message with MILITARY-GRADE encryption for database storage
-	const encryptedContent = encryptMessageMilitary(sanitizedContent);
+    // Encrypt the message ONLY for database storage
+    const encryptedContent = encryptMessageMilitary(sanitizedContent);
 
     // Get or create conversation
     let conversation = await db
@@ -235,61 +235,61 @@ export async function POST(request: NextRequest) {
       conversation = [newConv];
     }
 
-// Create message
-	const [message] = await db
-	  .insert(messages)
-		  .values({
-		    conversationId: conversation[0].id,
-		    senderId: authResult.user.id,
-		    receiverId,
-		    content: sanitizedContent, // Store plain text for display
-		    encryptedContent, // Store encrypted content for security
-		    isEncrypted: true,
-		  })
-	  .returning();
+    // Create message - store encrypted in DB only
+    const [message] = await db
+      .insert(messages)
+      .values({
+        conversationId: conversation[0].id,
+        senderId: authResult.user.id,
+        receiverId,
+        content: sanitizedContent, // Plain text for backward compatibility
+        encryptedContent, // Encrypted content for security in database
+        isEncrypted: true,
+      })
+      .returning();
 
-// Log successful message sent
-	console.log(`Message sent: User ${authResult.user.id} -> User ${receiverId}`);
+    // Log successful message sent
+    console.log(`Message sent: User ${authResult.user.id} -> User ${receiverId}`);
 
-const response = NextResponse.json({
-	  message: 'Message sent successfully',
-	  data: {
-	    ...message,
-	    encryptedContent: undefined, // Don't send encrypted content back
-	  },
-	});
+    const response = NextResponse.json({
+      message: 'Message sent successfully',
+      data: {
+        ...message,
+        encryptedContent: undefined, // Don't send encrypted content back
+      },
+    });
 
-// Add rate limit headers
-	response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
+    // Add rate limit headers
+    response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
 
-	// Send real-time notification via Pusher
-	const sender = await db.query.users.findFirst({ where: eq(users.id, authResult.user.id) });
-	if (sender) {
-		  // Send message to the sender's channel
-		  const senderChannelId = RealtimeChatService.getPrivateChannelName(authResult.user.id, receiverId);
-		  await RealtimeChatService.sendMessage(senderChannelId, {
-		    id: message.id,
-		    senderId: message.senderId,
-		    senderName: sender.name,
-		    senderAvatar: sender.avatar || undefined,
-		    content: sanitizedContent,
-		    timestamp: message.createdAt || new Date(),
-		    isRead: message.isRead || false,
-		  });
+    // Send real-time notification via Pusher - SEND PLAIN TEXT
+    const sender = await db.query.users.findFirst({ where: eq(users.id, authResult.user.id) });
+    if (sender) {
+      // Send message to the sender's channel (plain text)
+      const senderChannelId = RealtimeChatService.getPrivateChannelName(authResult.user.id, receiverId);
+      await RealtimeChatService.sendMessage(senderChannelId, {
+        id: message.id,
+        senderId: message.senderId,
+        senderName: sender.name,
+        senderAvatar: sender.avatar || undefined,
+        content: sanitizedContent, // PLAIN TEXT - NOT ENCRYPTED
+        timestamp: message.createdAt || new Date(),
+        isRead: message.isRead || false,
+      });
 
-			  // Send message to the receiver's channel
-			  const receiverChannelId = RealtimeChatService.getPrivateChannelName(receiverId, authResult.user.id);
-			  await RealtimeChatService.sendMessage(receiverChannelId, {
-		    id: message.id,
-		    senderId: message.senderId,
-			    senderName: sender.name,
-			    senderAvatar: sender.avatar || undefined,
-			    content: sanitizedContent,
-		    timestamp: message.createdAt || new Date(),
-		    isRead: message.isRead || false,
-		  });
-	}
-    response.headers.set('X-Encryption-Level', 'MILITARY-GRADE-AES-256-GCM');
+      // Send message to the receiver's channel (plain text)
+      const receiverChannelId = RealtimeChatService.getPrivateChannelName(receiverId, authResult.user.id);
+      await RealtimeChatService.sendMessage(receiverChannelId, {
+        id: message.id,
+        senderId: message.senderId,
+        senderName: sender.name,
+        senderAvatar: sender.avatar || undefined,
+        content: sanitizedContent, // PLAIN TEXT - NOT ENCRYPTED
+        timestamp: message.createdAt || new Date(),
+        isRead: message.isRead || false,
+      });
+    }
+    response.headers.set('X-Encryption-Level', 'STORAGE-ONLY-AES-256-GCM');
 
     return response;
   } catch (error) {

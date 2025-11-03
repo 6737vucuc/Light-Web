@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+import Pusher from 'pusher';
 
 const sql = neon(process.env.DATABASE_URL!);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Initialize Pusher for real-time call notifications
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID!,
+  key: process.env.NEXT_PUBLIC_PUSHER_APP_KEY!,
+  secret: process.env.PUSHER_SECRET!,
+  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+  useTLS: true,
+});
 
 // Initiate a call (video or voice)
 export async function POST(request: NextRequest) {
@@ -33,12 +43,24 @@ export async function POST(request: NextRequest) {
 
     // Check if receiver exists
     const receiverResult = await sql`
-      SELECT id FROM users WHERE id = ${receiverId}
+      SELECT id, name, username, avatar FROM users WHERE id = ${receiverId}
     `;
 
     if (receiverResult.length === 0) {
       return NextResponse.json({ error: 'Receiver not found' }, { status: 404 });
     }
+
+    // Get caller info
+    const callerResult = await sql`
+      SELECT id, name, username, avatar FROM users WHERE id = ${decoded.userId}
+    `;
+
+    if (callerResult.length === 0) {
+      return NextResponse.json({ error: 'Caller not found' }, { status: 404 });
+    }
+
+    const caller = callerResult[0];
+    const receiver = receiverResult[0];
 
     // Check if blocked
     const blockCheck = await sql`
@@ -50,8 +72,6 @@ export async function POST(request: NextRequest) {
     if (blockCheck.length > 0) {
       return NextResponse.json({ error: 'Cannot initiate call' }, { status: 403 });
     }
-
-
 
     // Create call record
     const result = await sql`
@@ -108,6 +128,26 @@ export async function POST(request: NextRequest) {
       `;
     } catch (notifError) {
       console.error('Failed to create call notification:', notifError);
+    }
+
+    // Send real-time notification via Pusher to receiver
+    try {
+      await pusher.trigger(`private-user-${receiverId}`, 'incoming-call', {
+        callId: finalCallId,
+        callType: callType,
+        roomId: finalRoomId,
+        caller: {
+          id: caller.id,
+          name: caller.name,
+          username: caller.username,
+          avatar: caller.avatar,
+        },
+        status: 'ringing',
+        startedAt: result[0].started_at,
+      });
+      console.log(`Pusher notification sent to user ${receiverId} for call ${finalCallId}`);
+    } catch (pusherError) {
+      console.error('Failed to send Pusher notification:', pusherError);
     }
 
     return NextResponse.json({
