@@ -60,22 +60,36 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Find the conversation ID
+    const conversation = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(
+        or(
+          and(
+            eq(conversations.participant1Id, authResult.user.id),
+            eq(conversations.participant2Id, parseInt(friendId))
+          ),
+          and(
+            eq(conversations.participant1Id, parseInt(friendId)),
+            eq(conversations.participant2Id, authResult.user.id)
+          )
+        )
+      )
+      .limit(1);
+
+    if (conversation.length === 0) {
+      // No conversation found, return empty list
+      return NextResponse.json({ messages: [] });
+    }
+
+    const conversationId = conversation[0].id;
+
     // Get messages and filter by deletion status
     const allMessages = await db
       .select()
       .from(messages)
-      .where(
-        or(
-          and(
-            eq(messages.senderId, authResult.user.id),
-            eq(messages.receiverId, parseInt(friendId))
-          ),
-          and(
-            eq(messages.senderId, parseInt(friendId)),
-            eq(messages.receiverId, authResult.user.id)
-          )
-        )
-      )
+      .where(eq(messages.conversationId, conversationId))
       .orderBy(desc(messages.createdAt))
       .limit(100);
 
