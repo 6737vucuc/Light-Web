@@ -34,7 +34,8 @@ function MessagesContent() {
     };
 
     checkAuth();
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isLoading) {
     return <SecurityLoading />;

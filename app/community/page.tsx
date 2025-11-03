@@ -48,17 +48,21 @@ export default function CommunityPage() {
     };
 
     checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
     
     // Update lastSeen every 2 minutes to maintain online status
     const interval = setInterval(() => {
-      if (isAuthenticated) {
-        fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
-        fetchUnreadCount();
-      }
+      fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
+      fetchUnreadCount();
     }, 120000); // 2 minutes
 
     return () => clearInterval(interval);
-  }, [router, isAuthenticated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const fetchUnreadCount = async () => {
     try {
