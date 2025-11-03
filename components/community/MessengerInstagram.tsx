@@ -159,7 +159,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
   const fetchMessages = async (userId: number) => {
     try {
-      const response = await fetch(`/api/messages/${userId}`);
+      const response = await fetch(`/api/messages/user/${userId}`);
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages || []);
