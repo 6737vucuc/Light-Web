@@ -103,12 +103,11 @@ export async function DELETE(request: NextRequest) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    // Note: Drizzle ORM doesn't have a direct way to delete with timestamp comparison
-    // We'll use raw SQL for this
-    const result = await db.execute(`
-      DELETE FROM vpn_logs 
-      WHERE created_at < $1
-    `, [cutoffDate]);
+    // Use Drizzle ORM sql template for raw SQL
+    const { sql } = await import('drizzle-orm');
+    const result = await db.execute(
+      sql`DELETE FROM vpn_logs WHERE created_at < ${cutoffDate}`
+    );
 
     return NextResponse.json({
       success: true,
