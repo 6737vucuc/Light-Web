@@ -380,3 +380,24 @@ export const calls = pgTable('calls', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// VPN Detection Logs table
+export const vpnLogs = pgTable('vpn_logs', {
+  id: serial('id').primaryKey(),
+  ip: varchar('ip', { length: 50 }).notNull(),
+  userId: integer('user_id').references(() => users.id),
+  email: varchar('email', { length: 255 }),
+  action: varchar('action', { length: 50 }).notNull(), // 'register', 'login', 'access'
+  isVPN: boolean('is_vpn').default(false),
+  isProxy: boolean('is_proxy').default(false),
+  isTor: boolean('is_tor').default(false),
+  isHosting: boolean('is_hosting').default(false),
+  connectionType: varchar('connection_type', { length: 100 }),
+  country: varchar('country', { length: 100 }),
+  city: varchar('city', { length: 100 }),
+  org: text('org'),
+  service: varchar('service', { length: 100 }),
+  wasBlocked: boolean('was_blocked').default(false),
+  blockReason: text('block_reason'),
+  createdAt: timestamp('created_at').defaultNow(),
+});

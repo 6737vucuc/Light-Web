@@ -13,11 +13,11 @@ import { checkVPNMiddleware, createVPNBlockedResponse } from '@/lib/security/vpn
 
 export async function POST(request: NextRequest) {
   try {
-    // Check for VPN/Proxy/Tor (log only for login)
+    // Check for VPN/Proxy/Tor - BLOCK ALL
     const vpnCheck = await checkVPNMiddleware(request, {
       blockTor: true,
-      blockVPN: false,
-      blockProxy: false,
+      blockVPN: true,
+      blockProxy: true,
       logOnly: false,
     });
     

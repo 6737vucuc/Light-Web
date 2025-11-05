@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectVPN, getClientIP, shouldBlockIP, getConnectionTypeDescription, logVPNDetection } from './vpn-detection';
+import { db } from '@/lib/db';
+import { vpnLogs } from '@/lib/db/schema';
 
 /**
  * Middleware to check for VPN/Proxy on sensitive operations
@@ -32,32 +34,72 @@ export async function checkVPNMiddleware(
     // Log detection
     logVPNDetection(null, result, 'middleware-check');
     
+    // Save to database
+    try {
+      await db.insert(vpnLogs).values({
+        ip: clientIP,
+        action: 'access',
+        isVPN: result.isVPN,
+        isProxy: result.isProxy,
+        isTor: result.isTor,
+        isHosting: result.isHosting,
+        connectionType: getConnectionTypeDescription(result),
+        country: result.country,
+        city: result.city,
+        org: result.org,
+        service: result.service,
+        wasBlocked: false,
+        blockReason: null,
+      });
+    } catch (dbError) {
+      console.error('Failed to log VPN detection to database:', dbError);
+    }
+    
     // If log only mode, always allow
     if (logOnly) {
       return { allowed: true, result };
     }
     
     // Check blocking rules
+    let blocked = false;
+    let blockReason = null;
+    
     if (blockTor && result.isTor) {
-      return {
-        allowed: false,
-        reason: 'Tor connections are not allowed',
-        result,
-      };
+      blocked = true;
+      blockReason = 'Tor connections are not allowed';
+    } else if (blockVPN && result.isVPN) {
+      blocked = true;
+      blockReason = 'VPN connections are not allowed';
+    } else if (blockProxy && result.isProxy) {
+      blocked = true;
+      blockReason = 'Proxy connections are not allowed';
     }
     
-    if (blockVPN && result.isVPN) {
+    // Update database with block status
+    if (blocked) {
+      try {
+        await db.insert(vpnLogs).values({
+          ip: clientIP,
+          action: 'blocked',
+          isVPN: result.isVPN,
+          isProxy: result.isProxy,
+          isTor: result.isTor,
+          isHosting: result.isHosting,
+          connectionType: getConnectionTypeDescription(result),
+          country: result.country,
+          city: result.city,
+          org: result.org,
+          service: result.service,
+          wasBlocked: true,
+          blockReason,
+        });
+      } catch (dbError) {
+        console.error('Failed to log blocked VPN to database:', dbError);
+      }
+      
       return {
         allowed: false,
-        reason: 'VPN connections are not allowed',
-        result,
-      };
-    }
-    
-    if (blockProxy && result.isProxy) {
-      return {
-        allowed: false,
-        reason: 'Proxy connections are not allowed',
+        reason: blockReason,
         result,
       };
     }

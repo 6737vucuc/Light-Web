@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   BookOpen, Heart, Users, MessageCircle, Calendar, Shield,
-  Plus, Edit, Trash2, Check, X, Loader2, Ban, UserX, Upload, Image as ImageIcon, Video
+  Plus, Edit, Trash2, Check, X, Loader2, Ban, UserX, Upload, Image as ImageIcon, Video, AlertTriangle
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -17,7 +17,7 @@ export default function AdminPage() {
     { id: 'testimonies', label: 'Testimonies', icon: Heart },
     { id: 'support', label: 'Support Requests', icon: MessageCircle },
     { id: 'users', label: 'User Management', icon: Users },
-
+    { id: 'vpn', label: 'VPN Detection', icon: AlertTriangle },
   ];
 
   return (
@@ -61,7 +61,7 @@ export default function AdminPage() {
           {activeTab === 'testimonies' && <TestimoniesManager />}
           {activeTab === 'support' && <SupportManager />}
           {activeTab === 'users' && <UsersManager />}
-
+          {activeTab === 'vpn' && <VPNDetectionManager />}
         </div>
       </div>
     </div>
@@ -1150,3 +1150,213 @@ function UsersManager() {
 }
 
 
+
+
+function VPNDetectionManager() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [serviceStats, setServiceStats] = useState<any>({});
+  const [countryStats, setCountryStats] = useState<any>({});
+  const [loading, setLoading] = useState(false);
+  const [showOnlyBlocked, setShowOnlyBlocked] = useState(false);
+
+  useEffect(() => {
+    fetchVPNLogs();
+  }, [showOnlyBlocked]);
+
+  const fetchVPNLogs = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/admin/vpn-logs?onlyBlocked=${showOnlyBlocked}&limit=100`);
+      const data = await response.json();
+      if (data.success) {
+        setLogs(data.logs || []);
+        setStats(data.stats || {});
+        setServiceStats(data.serviceStats || {});
+        setCountryStats(data.countryStats || {});
+      }
+    } catch (error) {
+      console.error('Fetch VPN logs error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getConnectionBadge = (log: any) => {
+    if (log.isTor) return <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded">Tor</span>;
+    if (log.isVPN) return <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded">VPN</span>;
+    if (log.isProxy) return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">Proxy</span>;
+    if (log.isHosting) return <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">Hosting</span>;
+    return <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded">Direct</span>;
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">VPN Detection Logs</h2>
+          <p className="text-sm text-gray-600 mt-1">Monitor and track VPN/Proxy connection attempts</p>
+        </div>
+        <button
+          onClick={fetchVPNLogs}
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* Statistics Cards */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">Total Attempts</div>
+            <div className="text-3xl font-bold mt-1">{stats.total}</div>
+          </div>
+          <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">Blocked</div>
+            <div className="text-3xl font-bold mt-1">{stats.blocked}</div>
+          </div>
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">VPN</div>
+            <div className="text-3xl font-bold mt-1">{stats.vpn}</div>
+          </div>
+          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">Proxy</div>
+            <div className="text-3xl font-bold mt-1">{stats.proxy}</div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">Tor</div>
+            <div className="text-3xl font-bold mt-1">{stats.tor}</div>
+          </div>
+          <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
+            <div className="text-sm opacity-90">Hosting</div>
+            <div className="text-3xl font-bold mt-1">{stats.hosting}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Top VPN Services */}
+      {Object.keys(serviceStats).length > 0 && (
+        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-3">Top VPN Services Detected</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Object.entries(serviceStats)
+              .sort(([, a]: any, [, b]: any) => b - a)
+              .slice(0, 8)
+              .map(([service, count]: any) => (
+                <div key={service} className="bg-white rounded p-3 border border-gray-200">
+                  <div className="text-sm font-medium text-gray-900">{service}</div>
+                  <div className="text-2xl font-bold text-purple-600">{count}</div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Filter */}
+      <div className="mb-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showOnlyBlocked}
+            onChange={(e) => setShowOnlyBlocked(e.target.checked)}
+            className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+          />
+          <span className="text-sm text-gray-700">Show only blocked attempts</span>
+        </label>
+      </div>
+
+      {/* Logs Table */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date/Time
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  IP Address
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  VPN Service
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Location
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Organization
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {logs.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    No VPN detection logs found
+                  </td>
+                </tr>
+              ) : (
+                logs.map((log) => (
+                  <tr key={log.id} className={log.wasBlocked ? 'bg-red-50' : ''}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDate(log.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                      {log.ip}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getConnectionBadge(log)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {log.service || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {log.city && log.country ? `${log.city}, ${log.country}` : log.country || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                      {log.org || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {log.wasBlocked ? (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded flex items-center gap-1 w-fit">
+                          <Ban className="w-3 h-3" />
+                          Blocked
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded flex items-center gap-1 w-fit">
+                          <Check className="w-3 h-3" />
+                          Allowed
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
