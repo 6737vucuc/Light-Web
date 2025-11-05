@@ -9,9 +9,22 @@ import { eq } from 'drizzle-orm';
 import { createToken } from '@/lib/auth/jwt';
 
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
+import { checkVPNMiddleware, createVPNBlockedResponse } from '@/lib/security/vpn-middleware';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check for VPN/Proxy/Tor (log only for login)
+    const vpnCheck = await checkVPNMiddleware(request, {
+      blockTor: true,
+      blockVPN: false,
+      blockProxy: false,
+      logOnly: false,
+    });
+    
+    if (!vpnCheck.allowed) {
+      return createVPNBlockedResponse(vpnCheck.reason || 'Connection blocked');
+    }
+    
     // Apply rate limiting - strict for login attempts
     const clientId = getClientIdentifier(request);
     const rateLimit = checkRateLimit(clientId, RateLimitConfigs.AUTH);
