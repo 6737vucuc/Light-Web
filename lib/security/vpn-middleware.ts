@@ -49,7 +49,7 @@ export async function checkVPNMiddleware(
         org: result.org,
         service: result.service,
         wasBlocked: false,
-        blockReason: null,
+        blockReason: undefined,
       });
     } catch (dbError) {
       console.error('Failed to log VPN detection to database:', dbError);
@@ -62,7 +62,7 @@ export async function checkVPNMiddleware(
     
     // Check blocking rules
     let blocked = false;
-    let blockReason = null;
+    let blockReason: string | undefined = undefined;
     
     if (blockTor && result.isTor) {
       blocked = true;
