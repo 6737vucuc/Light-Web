@@ -18,6 +18,8 @@ interface Message {
   messageType: string;
   isRead: boolean;
   readAt?: string;
+  isDelivered: boolean;
+  deliveredAt?: string;
   reaction?: string;
   createdAt: string;
 }
