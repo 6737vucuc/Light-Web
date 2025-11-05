@@ -363,41 +363,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
       conv.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleStartCall = async (type: 'audio' | 'video') => {
-    if (!selectedConversation) return;
 
-    try {
-      // Map 'audio' to 'voice' for API
-      const apiCallType = type === 'audio' ? 'voice' : 'video';
-      
-      // Create a call
-      const response = await fetch('/api/calls', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          receiverId: selectedConversation.userId,
-          callType: apiCallType,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.call) {
-          // Redirect to call page
-          window.location.href = `/call/${data.call.id}`;
-        } else {
-          alert('Failed to start call. Please try again.');
-        }
-      } else {
-        const errorData = await response.json();
-        console.error('Failed to start call:', errorData);
-        alert(errorData.error || 'Failed to start call. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error starting call:', error);
-      alert('Failed to start call. Please try again.');
-    }
-  };
 
   return (
     <div className={`flex ${fullPage ? 'h-full' : 'h-[calc(100vh-200px)]'} bg-white ${fullPage ? '' : 'border border-gray-200 rounded-lg'} overflow-hidden relative`}>
@@ -517,14 +483,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
               </div>
 
               <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => handleStartCall('audio')}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  title="Audio Call"
-                >
-                  <Phone className="w-5 h-5" />
-                </button>
-                {/* Video Call removed - Voice only */}
+
                 <button 
                   onClick={() => setShowConversationInfo(!showConversationInfo)}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -741,11 +700,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
           {/* Options */}
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 space-y-2">
-              <button className="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3">
-                <Phone className="w-5 h-5" />
-                <span>Audio Call</span>
-              </button>
-              {/* Video Call removed - Voice only */}
+
             </div>
 
             <div className="border-t border-gray-200 p-4 space-y-2">

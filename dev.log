@@ -1,5 +1,5 @@
 
-> light-of-life@0.1.0 dev /home/ubuntu/Light-Web
+> light-of-life@0.1.0 dev
 > next dev
 
    ▲ Next.js 16.0.0 (Turbopack)
@@ -16,7 +16,123 @@ This information is used to shape Next.js' roadmap and prioritize features.
 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
 https://nextjs.org/telemetry
 
-Error: You cannot use different slug names for the same dynamic path ('id' !== 'username').
-    at ignore-listed frames
-[?25h
- ELIFECYCLE  Command failed with exit code 1.
+ ✓ Ready in 940ms
+ GET / 200 in 3.2s (compile: 2.7s, proxy.ts: 184ms, render: 286ms)
+The `fetchConnectionCache` option is deprecated (now always `true`)
+ GET /api/profile 401 in 865ms (compile: 842ms, proxy.ts: 6ms, render: 16ms)
+ GET /auth/login 200 in 592ms (compile: 559ms, proxy.ts: 6ms, render: 26ms)
+ GET /api/profile 401 in 17ms (compile: 6ms, proxy.ts: 5ms, render: 5ms)
+ POST /api/auth/login 200 in 565ms (compile: 283ms, proxy.ts: 8ms, render: 274ms)
+ GET / 200 in 39ms (compile: 5ms, proxy.ts: 5ms, render: 29ms)
+ GET / 200 in 42ms (compile: 3ms, proxy.ts: 5ms, render: 34ms)
+ GET /api/profile 200 in 35ms (compile: 3ms, proxy.ts: 5ms, render: 27ms)
+ GET /community 200 in 586ms (compile: 553ms, proxy.ts: 7ms, render: 26ms)
+ GET /api/profile 200 in 40ms (compile: 8ms, proxy.ts: 8ms, render: 24ms)
+ GET /api/auth/me 200 in 213ms (compile: 177ms, proxy.ts: 9ms, render: 26ms)
+ GET /api/auth/me 200 in 40ms (compile: 6ms, proxy.ts: 4ms, render: 30ms)
+Get unread messages error: Error: Failed query: select "messages"."id", "messages"."conversation_id", "messages"."sender_id", "messages"."receiver_id", "messages"."message_type", "messages"."content", "messages"."encrypted_content", "messages"."is_encrypted", "messages"."media_url", "messages"."post_id", "messages"."reply_to_id", "messages"."is_read", "messages"."read_at", "messages"."is_delivered", "messages"."delivered_at", "messages"."is_deleted", "messages"."deleted_at", "messages"."deleted_by_sender", "messages"."deleted_by_receiver", "messages"."created_at", "messages"."updated_at", "users"."id", "users"."name", "users"."email", "users"."username", "users"."username_last_changed", "users"."password", "users"."avatar", "users"."cover_photo", "users"."bio", "users"."website", "users"."gender", "users"."country", "users"."religion", "users"."birth_date", "users"."first_name", "users"."last_name", "users"."location", "users"."work", "users"."education", "users"."relationship_status", "users"."posts_count", "users"."followers_count", "users"."following_count", "users"."is_private", "users"."hide_followers", "users"."hide_following", "users"."allow_comments", "users"."allow_messages", "users"."privacy_posts", "users"."privacy_friends_list", "users"."privacy_profile", "users"."privacy_photos", "users"."privacy_messages", "users"."privacy_friend_requests", "users"."hide_online_status", "users"."is_admin", "users"."is_banned", "users"."banned_until", "users"."email_verified", "users"."last_seen", "users"."created_at", "users"."updated_at" from "messages" left join "users" on "messages"."sender_id" = "users"."id" where ("messages"."receiver_id" = $1 and "messages"."is_read" = $2 and "messages"."deleted_by_receiver" = $3) order by "messages"."created_at" desc limit $4
+params: 13,false,false,50
+    at async GET (app/api/messages/unread/route.ts:24:28)
+  22 |   try {
+  23 |     // Get all unread messages for the current user
+> 24 |     const unreadMessages = await db
+     |                            ^
+  25 |       .select({
+  26 |         message: messages,
+  27 |         sender: users, {
+  query: 'select "messages"."id", "messages"."conversation_id", "messages"."sender_id", "messages"."receiver_id", "messages"."message_type", "messages"."content", "messages"."encrypted_content", "messages"."is_encrypted", "messages"."media_url", "messages"."post_id", "messages"."reply_to_id", "messages"."is_read", "messages"."read_at", "messages"."is_delivered", "messages"."delivered_at", "messages"."is_deleted", "messages"."deleted_at", "messages"."deleted_by_sender", "messages"."deleted_by_receiver", "messages"."created_at", "messages"."updated_at", "users"."id", "users"."name", "users"."email", "users"."username", "users"."username_last_changed", "users"."password", "users"."avatar", "users"."cover_photo", "users"."bio", "users"."website", "users"."gender", "users"."country", "users"."religion", "users"."birth_date", "users"."first_name", "users"."last_name", "users"."location", "users"."work", "users"."education", "users"."relationship_status", "users"."posts_count", "users"."followers_count", "users"."following_count", "users"."is_private", "users"."hide_followers", "users"."hide_following", "users"."allow_comments", "users"."allow_messages", "users"."privacy_posts", "users"."privacy_friends_list", "users"."privacy_profile", "users"."privacy_photos", "users"."privacy_messages", "users"."privacy_friend_requests", "users"."hide_online_status", "users"."is_admin", "users"."is_banned", "users"."banned_until", "users"."email_verified", "users"."last_seen", "users"."created_at", "users"."updated_at" from "messages" left join "users" on "messages"."sender_id" = "users"."id" where ("messages"."receiver_id" = $1 and "messages"."is_read" = $2 and "messages"."deleted_by_receiver" = $3) order by "messages"."created_at" desc limit $4',
+  params: [Array],
+  [cause]: error: column messages.is_delivered does not exist
+      at async GET (app/api/messages/unread/route.ts:24:28)
+    22 |   try {
+    23 |     // Get all unread messages for the current user
+  > 24 |     const unreadMessages = await db
+       |                            ^
+    25 |       .select({
+    26 |         message: messages,
+    27 |         sender: users, {
+    length: 186,
+    severity: 'ERROR',
+    code: '42703',
+    detail: undefined,
+    hint: 'Perhaps you meant to reference the column "messages.is_deleted".',
+    position: '329',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_relation.c',
+    line: '3723',
+    routine: 'errorMissingColumn'
+  }
+}
+ GET /api/messages/unread 500 in 880ms (compile: 234ms, proxy.ts: 6ms, render: 639ms)
+ GET /api/posts 200 in 894ms (compile: 259ms, proxy.ts: 8ms, render: 626ms)
+ POST /api/users/update-lastseen 200 in 940ms (compile: 268ms, proxy.ts: 5ms, render: 667ms)
+ GET /api/stories 200 in 945ms (compile: 293ms, proxy.ts: 6ms, render: 646ms)
+ GET /api/posts 200 in 47ms (compile: 3ms, proxy.ts: 4ms, render: 41ms)
+ GET /api/stories 200 in 47ms (compile: 3ms, proxy.ts: 3ms, render: 41ms)
+ GET /messages 200 in 716ms (compile: 683ms, proxy.ts: 4ms, render: 28ms)
+ GET /api/profile 200 in 37ms (compile: 5ms, proxy.ts: 5ms, render: 26ms)
+ GET /api/auth/me 200 in 38ms (compile: 10ms, proxy.ts: 6ms, render: 22ms)
+ GET /api/auth/me 200 in 26ms (compile: 2ms, proxy.ts: 4ms, render: 20ms)
+ GET /api/messages/conversations 200 in 201ms (compile: 155ms, proxy.ts: 4ms, render: 42ms)
+ GET /api/messages/conversations 200 in 43ms (compile: 3ms, proxy.ts: 5ms, render: 35ms)
+ GET /default-avatar.png 404 in 515ms (compile: 423ms, render: 91ms)
+ GET /default-avatar.png 404 in 65ms (compile: 7ms, render: 58ms)
+ GET /api/messages/user/12 200 in 1429ms (compile: 930ms, proxy.ts: 5ms, render: 494ms)
+ POST /api/messages/mark-read 404 in 73ms (compile: 6ms, proxy.ts: 4ms, render: 62ms)
+(node:5134) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Call created successfully: ID=8, Room=call_8
+Failed to create call notification: Error [NeonDbError]: column "related_user_id" of relation "notifications" does not exist
+    at async POST (app/api/calls/route.ts:124:7)
+  122 |     // Create notification for receiver
+  123 |     try {
+> 124 |       await sql`
+      |       ^
+  125 |         INSERT INTO notifications (
+  126 |           user_id,
+  127 |           type, {
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '102',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_target.c',
+  line: '1065',
+  routine: 'checkInsertTargets',
+  sourceError: undefined
+}
+Pusher notification sent to user 12 for call 8
+ POST /api/calls 200 in 769ms (compile: 298ms, proxy.ts: 5ms, render: 466ms)
+ GET /call/8 200 in 2.1s (compile: 1897ms, proxy.ts: 4ms, render: 159ms)
+ GET /api/profile 200 in 81ms (compile: 6ms, proxy.ts: 6ms, render: 68ms)
+(node:5523) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ GET /api/calls/8 200 in 907ms (compile: 875ms, proxy.ts: 6ms, render: 25ms)
+ GET /messages 200 in 35ms (compile: 6ms, proxy.ts: 5ms, render: 24ms)
+ GET /api/profile 200 in 92ms (compile: 7ms, proxy.ts: 5ms, render: 81ms)
+ GET /api/auth/me 200 in 101ms (compile: 8ms, proxy.ts: 12ms, render: 81ms)
+ GET /api/auth/me 200 in 32ms (compile: 3ms, proxy.ts: 5ms, render: 24ms)
+ GET /api/messages/conversations 200 in 53ms (compile: 3ms, proxy.ts: 4ms, render: 45ms)
+ GET /api/messages/conversations 200 in 80ms (compile: 3ms, proxy.ts: 4ms, render: 73ms)
+ GET /default-avatar.png 404 in 59ms (compile: 3ms, render: 55ms)
+ ✓ Compiled in 75ms
+ ✓ Compiled in 70ms
+ ✓ Compiled in 64ms
+ ✓ Compiled in 46ms
+ ✓ Compiled in 40ms
+   Reload env: .env.local
