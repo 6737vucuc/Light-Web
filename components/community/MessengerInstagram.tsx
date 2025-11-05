@@ -583,11 +583,11 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                         {isSent && (
                           <>
                             {message.isRead ? (
-                              <CheckCheck className="w-3 h-3 text-blue-500" title="Seen" />
+                              <CheckCheck className="w-3 h-3 text-blue-500" />
                             ) : message.isDelivered ? (
-                              <CheckCheck className="w-3 h-3 text-gray-500" title="Delivered" />
+                              <CheckCheck className="w-3 h-3 text-gray-500" />
                             ) : (
-                              <Check className="w-3 h-3 text-gray-500" title="Sent" />
+                              <Check className="w-3 h-3 text-gray-500" />
                             )}
                           </>
                         )}
