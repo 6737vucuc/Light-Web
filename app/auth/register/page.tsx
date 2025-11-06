@@ -470,7 +470,7 @@ export default function RegisterPage() {
                     autoFocus
                     value={formData.password}
                     onChange={(e) => handlePasswordChange(e.target.value)}
-                    className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 pr-12"
+                    className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 pr-12 text-gray-900"
                     placeholder="Password"
                   />
                   <button
@@ -509,7 +509,7 @@ export default function RegisterPage() {
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 pr-12"
+                    className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 pr-12 text-gray-900"
                     placeholder="Confirm"
                   />
                   <button

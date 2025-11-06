@@ -78,7 +78,7 @@ export default function PrivacySettings({ onClose }: PrivacySettingsProps) {
           <select
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-gray-50"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-gray-50 text-gray-900"
           >
             {options.map((opt: any) => (
               <option key={opt.value} value={opt.value}>
@@ -241,7 +241,7 @@ export default function PrivacySettings({ onClose }: PrivacySettingsProps) {
           <div className="flex items-center justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+              className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium text-gray-900"
             >
               Cancel
             </button>

@@ -281,7 +281,7 @@ export default function StoriesBar({ currentUserId }: StoriesBarProps) {
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
                   placeholder="Add a caption..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 />
 
                 <div className="flex gap-2">

@@ -517,7 +517,7 @@ export default function ProfilePage() {
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                   />
                 </div>
 
@@ -527,7 +527,7 @@ export default function ProfilePage() {
                     value={editBio}
                     onChange={(e) => setEditBio(e.target.value)}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-gray-900"
                   />
                 </div>
 
@@ -538,7 +538,7 @@ export default function ProfilePage() {
                     value={editWebsite}
                     onChange={(e) => setEditWebsite(e.target.value)}
                     placeholder="https://example.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                   />
                 </div>
 
@@ -597,7 +597,7 @@ export default function ProfilePage() {
                       setUsernameError('');
                     }}
                     disabled={!canChangeUsername}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-900"
                   />
                   {usernameError && (
                     <p className="text-sm text-red-600 mt-1">{usernameError}</p>

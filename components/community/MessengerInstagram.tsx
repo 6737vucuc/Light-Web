@@ -641,7 +641,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
             {/* Image Preview */}
             {imagePreview && (
-              <div className="px-4 py-2 border-t border-gray-200">
+              <div className="px-4 py-2 border-t border-gray-200 text-gray-900">
                 <div className="relative inline-block">
                   <Image
                     src={imagePreview}
