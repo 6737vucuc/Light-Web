@@ -566,8 +566,8 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                         <div
                           className={`px-4 py-2 rounded-2xl ${
                             isSent
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-100 text-gray-900'
+                              ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md'
+                              : 'bg-gray-200 text-gray-900'
                           }`}
                         >
                           {message.content}
