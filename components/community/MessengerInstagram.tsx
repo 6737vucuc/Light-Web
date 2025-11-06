@@ -411,7 +411,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search"
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900"
             />
           </div>
         </div>
@@ -684,7 +684,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                     handleTyping();
                   }}
                   placeholder="Message..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 />
 
                 <button
