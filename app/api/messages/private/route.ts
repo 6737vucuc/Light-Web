@@ -250,6 +250,8 @@ export async function POST(request: NextRequest) {
         content: sanitizedContent, // Plain text for backward compatibility
         encryptedContent, // Encrypted content for security in database
         isEncrypted: true,
+        isDelivered: false,
+        isRead: false,
       })
       .returning();
 
