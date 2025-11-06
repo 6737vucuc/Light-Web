@@ -169,7 +169,7 @@ export default function GroupChat({ currentUser }: GroupChatProps) {
       {/* Messages */}
       <div className="h-[500px] overflow-y-auto p-4 space-y-4 bg-gray-50">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+          <div className="flex flex-col items-center justify-center h-full text-gray-900">
             <Trash2 className="w-16 h-16 mb-4 opacity-50" />
             <p className="text-lg font-medium">No messages yet</p>
             <p className="text-sm">Be the first to start the conversation!</p>
@@ -219,7 +219,7 @@ export default function GroupChat({ currentUser }: GroupChatProps) {
                       <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
                     </div>
                     <div className={`mt-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-900">
                         {new Date(message.createdAt).toLocaleTimeString('en-US', {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -254,7 +254,7 @@ export default function GroupChat({ currentUser }: GroupChatProps) {
             <Send className="w-5 h-5" />
           </button>
         </form>
-        <p className="text-xs text-gray-400 mt-2 text-center">
+        <p className="text-xs text-gray-900 mt-2 text-center">
           Messages are automatically deleted every hour
         </p>
       </div>

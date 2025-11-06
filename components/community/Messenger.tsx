@@ -172,7 +172,7 @@ export default function Messenger({ currentUser }: MessengerProps) {
         {/* Search */}
         <div className="p-4 border-b border-gray-200">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-900" />
             <input
               type="text"
               value={searchQuery}
@@ -190,7 +190,7 @@ export default function Messenger({ currentUser }: MessengerProps) {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 p-4">
+            <div className="flex flex-col items-center justify-center h-full text-gray-900 p-4">
               <p className="text-center">No conversations yet</p>
             </div>
           ) : (
@@ -298,7 +298,7 @@ export default function Messenger({ currentUser }: MessengerProps) {
                       }`}
                     >
                       <p className="text-sm break-words">{message.content}</p>
-                      <p className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-400'}`}>
+                      <p className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-900'}`}>
                         {new Date(message.createdAt).toLocaleTimeString('en-US', {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -344,7 +344,7 @@ export default function Messenger({ currentUser }: MessengerProps) {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400">
+          <div className="flex-1 flex items-center justify-center text-gray-900">
             <div className="text-center">
               <Send className="w-16 h-16 mx-auto mb-4 opacity-50" />
               <p className="text-lg">Select a conversation to start messaging</p>

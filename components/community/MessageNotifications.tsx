@@ -151,12 +151,12 @@ export default function MessageNotifications() {
                   onClick={() => setShowDropdown(false)}
                   className="p-1 hover:bg-gray-100 rounded-full"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-900" />
                 </button>
               </div>
 
               {notifications.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
+                <div className="p-8 text-center text-gray-900">
                   <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                   <p>No new messages</p>
                 </div>
@@ -190,7 +190,7 @@ export default function MessageNotifications() {
                           <p className="font-semibold text-gray-900 truncate">
                             {notif.senderName}
                           </p>
-                          <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                          <span className="text-xs text-gray-900 ml-2 flex-shrink-0">
                             {formatTime(notif.lastMessageTime)}
                           </span>
                         </div>

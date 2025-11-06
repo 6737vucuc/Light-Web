@@ -161,7 +161,7 @@ export default function ImageUploader({
               </>
             )}
           </button>
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-gray-900">
             Max size: {maxSize}MB. Supported: JPG, PNG, GIF, WebP
           </p>
         </div>

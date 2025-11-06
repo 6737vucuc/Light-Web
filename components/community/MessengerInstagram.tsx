@@ -405,7 +405,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
           
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-900" />
             <input
               type="text"
               value={searchQuery}
@@ -423,7 +423,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 px-4">
+            <div className="flex flex-col items-center justify-center h-full text-gray-900 px-4">
               <MessageCircle className="w-16 h-16 mb-4" />
               <p className="text-center">No conversations yet</p>
               <p className="text-sm text-center mt-2">Start a conversation from a user's profile</p>
@@ -456,10 +456,10 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                 <div className="flex-1 text-left overflow-hidden">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-semibold text-sm">{conv.username}</span>
-                    <span className="text-xs text-gray-500">{formatTime(conv.lastMessageTime)}</span>
+                    <span className="text-xs text-gray-900">{formatTime(conv.lastMessageTime)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                    <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-semibold text-gray-900' : 'text-gray-900'}`}>
                       {conv.lastMessage || 'Start a conversation'}
                     </p>
                     {conv.unreadCount > 0 && (
@@ -580,16 +580,16 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                       )}
 
                       {/* Message Info */}
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-2 text-xs text-gray-900">
                         <span>{formatTime(message.createdAt)}</span>
                         {isSent && (
                           <>
                             {message.isRead ? (
                               <CheckCheck className="w-3 h-3 text-blue-500" />
                             ) : message.isDelivered ? (
-                              <CheckCheck className="w-3 h-3 text-gray-500" />
+                              <CheckCheck className="w-3 h-3 text-gray-900" />
                             ) : (
-                              <Check className="w-3 h-3 text-gray-500" />
+                              <Check className="w-3 h-3 text-gray-900" />
                             )}
                           </>
                         )}
@@ -602,14 +602,14 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                             onClick={() => setShowEmojiPicker(true)}
                             className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                           >
-                            <Smile className="w-4 h-4 text-gray-500" />
+                            <Smile className="w-4 h-4 text-gray-900" />
                           </button>
                           {isSent && (
                             <button
                               onClick={() => handleDeleteMessage(message.id)}
                               className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                             >
-                              <Trash2 className="w-4 h-4 text-gray-500" />
+                              <Trash2 className="w-4 h-4 text-gray-900" />
                             </button>
                           )}
                         </div>
@@ -690,7 +690,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                 <button
                   type="submit"
                   disabled={!newMessage.trim() && !selectedImage}
-                  className="p-2 text-blue-500 hover:text-blue-600 disabled:text-gray-400 disabled:cursor-not-allowed font-semibold"
+                  className="p-2 text-blue-500 hover:text-blue-600 disabled:text-gray-900 disabled:cursor-not-allowed font-semibold"
                 >
                   Send
                 </button>
@@ -698,7 +698,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
             </form>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-900">
             <div className="w-24 h-24 border-4 border-gray-900 rounded-full flex items-center justify-center mb-4">
               <Send className="w-12 h-12" />
             </div>
@@ -735,7 +735,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
               />
             </div>
             <h4 className="font-semibold text-lg">{selectedConversation.userName}</h4>
-            <p className="text-sm text-gray-500">@{selectedConversation.username}</p>
+            <p className="text-sm text-gray-900">@{selectedConversation.username}</p>
             <button
               onClick={() => window.location.href = `/user-profile/${selectedConversation.userId}`}
               className="mt-3 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition-colors"

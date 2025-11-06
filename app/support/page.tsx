@@ -96,7 +96,7 @@ export default function SupportPage() {
                 }`}
               >
                 <Icon className={`h-8 w-8 mx-auto mb-3 ${
-                  formData.type === type.value ? 'text-purple-600' : 'text-gray-400'
+                  formData.type === type.value ? 'text-purple-600' : 'text-gray-900'
                 }`} />
                 <h3 className="font-semibold text-gray-900 mb-1">{type.label}</h3>
                 <p className="text-sm text-gray-600">{type.description}</p>

@@ -261,7 +261,7 @@ export default function UserProfilePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <Ban className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <Ban className="w-16 h-16 text-gray-900 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">User Not Available</h2>
           <p className="text-gray-600">This profile is not accessible</p>
         </div>
@@ -273,7 +273,7 @@ export default function UserProfilePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 text-lg">User not found</p>
+          <p className="text-gray-900 text-lg">User not found</p>
           <button
             onClick={() => router.push('/community')}
             className="mt-4 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium"
@@ -416,7 +416,7 @@ export default function UserProfilePage() {
           <div className="flex items-center gap-2 mb-2">
             <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
             {user.isPrivate && (
-              <Lock className="w-5 h-5 text-gray-500" />
+              <Lock className="w-5 h-5 text-gray-900" />
             )}
           </div>
           
@@ -542,7 +542,7 @@ export default function UserProfilePage() {
                     {posts.length === 0 ? (
                       <div className="text-center py-12">
                         <Grid className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-500 text-lg">No posts yet</p>
+                        <p className="text-gray-900 text-lg">No posts yet</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-3 gap-1 sm:gap-2">
@@ -644,7 +644,7 @@ export default function UserProfilePage() {
                     {lessonProgress.length === 0 ? (
                       <div className="text-center py-12">
                         <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-500 text-lg">No lessons started yet</p>
+                        <p className="text-gray-900 text-lg">No lessons started yet</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -695,7 +695,7 @@ export default function UserProfilePage() {
                                   </div>
                                 )}
                               </div>
-                              <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                              <ChevronRight className="w-5 h-5 text-gray-900 flex-shrink-0" />
                             </div>
                           </div>
                         ))}
@@ -710,7 +710,7 @@ export default function UserProfilePage() {
                     {taggedPosts.length === 0 ? (
                       <div className="text-center py-12">
                         <UserPlus className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-500 text-lg">No tagged posts</p>
+                        <p className="text-gray-900 text-lg">No tagged posts</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-3 gap-1 sm:gap-2">
@@ -742,7 +742,7 @@ export default function UserProfilePage() {
                     {savedPosts.length === 0 ? (
                       <div className="text-center py-12">
                         <Bookmark className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-500 text-lg">No saved posts</p>
+                        <p className="text-gray-900 text-lg">No saved posts</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-3 gap-1 sm:gap-2">

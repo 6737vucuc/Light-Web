@@ -127,7 +127,7 @@ export default function SocialProfile({ userId, currentUser, onClose }: SocialPr
   if (!profile) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Profile not found</p>
+        <p className="text-gray-900">Profile not found</p>
       </div>
     );
   }
@@ -326,35 +326,35 @@ export default function SocialProfile({ userId, currentUser, onClose }: SocialPr
             
             {profile.work && (
               <div className="flex items-center gap-3 text-gray-700">
-                <Briefcase className="w-5 h-5 text-gray-500" />
+                <Briefcase className="w-5 h-5 text-gray-900" />
                 <span>Works at <strong>{profile.work}</strong></span>
               </div>
             )}
             
             {profile.education && (
               <div className="flex items-center gap-3 text-gray-700">
-                <GraduationCap className="w-5 h-5 text-gray-500" />
+                <GraduationCap className="w-5 h-5 text-gray-900" />
                 <span>Studied at <strong>{profile.education}</strong></span>
               </div>
             )}
             
             {profile.location && (
               <div className="flex items-center gap-3 text-gray-700">
-                <MapPin className="w-5 h-5 text-gray-500" />
+                <MapPin className="w-5 h-5 text-gray-900" />
                 <span>Lives in <strong>{profile.location}</strong></span>
               </div>
             )}
             
             {profile.relationshipStatus && (
               <div className="flex items-center gap-3 text-gray-700">
-                <Heart className="w-5 h-5 text-gray-500" />
+                <Heart className="w-5 h-5 text-gray-900" />
                 <span className="capitalize">{profile.relationshipStatus}</span>
               </div>
             )}
             
             {profile.website && (
               <div className="flex items-center gap-3 text-gray-700">
-                <LinkIcon className="w-5 h-5 text-gray-500" />
+                <LinkIcon className="w-5 h-5 text-gray-900" />
                 <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                   {profile.website}
                 </a>
@@ -363,32 +363,32 @@ export default function SocialProfile({ userId, currentUser, onClose }: SocialPr
             
             {profile.birthDate && (
               <div className="flex items-center gap-3 text-gray-700">
-                <Calendar className="w-5 h-5 text-gray-500" />
+                <Calendar className="w-5 h-5 text-gray-900" />
                 <span>Born on {new Date(profile.birthDate).toLocaleDateString()}</span>
               </div>
             )}
             
             <div className="flex items-center gap-3 text-gray-700">
-              <Calendar className="w-5 h-5 text-gray-500" />
+              <Calendar className="w-5 h-5 text-gray-900" />
               <span>Joined {new Date(profile.createdAt).toLocaleDateString()}</span>
             </div>
           </div>
         )}
 
         {activeTab === 'timeline' && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-900">
             <p>Posts will appear here</p>
           </div>
         )}
 
         {activeTab === 'friends' && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-900">
             <p>Friends list will appear here</p>
           </div>
         )}
 
         {activeTab === 'photos' && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-900">
             <p>Photos will appear here</p>
           </div>
         )}

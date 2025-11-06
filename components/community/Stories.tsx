@@ -582,7 +582,7 @@ export default function Stories({ currentUser }: StoriesProps) {
                     <Plus className="w-8 h-8 text-purple-600" />
                   </div>
                   <p className="text-gray-700 font-medium mb-1">Add Photo or Video</p>
-                  <p className="text-gray-500 text-sm">or drag and drop</p>
+                  <p className="text-gray-900 text-sm">or drag and drop</p>
                 </label>
               )}
             </div>
@@ -620,7 +620,7 @@ export default function Stories({ currentUser }: StoriesProps) {
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-gray-900">{viewer.name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-900">
                       {new Date(viewer.viewedAt).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',

@@ -271,7 +271,7 @@ export default function RegisterPage() {
                   max={new Date().toISOString().split('T')[0]}
                   className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 />
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-gray-900">
                   You must be at least 18 years old
                 </p>
               </div>
@@ -479,9 +479,9 @@ export default function RegisterPage() {
                     className="absolute inset-y-0 right-0 pr-4 flex items-center"
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400" />
+                      <EyeOff className="h-5 w-5 text-gray-900" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400" />
+                      <Eye className="h-5 w-5 text-gray-900" />
                     )}
                   </button>
                 </div>
@@ -498,7 +498,7 @@ export default function RegisterPage() {
                     </div>
                   </div>
                 )}
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-gray-900">
                   Use 8 or more characters with a mix of letters, numbers & symbols
                 </p>
               </div>
@@ -518,9 +518,9 @@ export default function RegisterPage() {
                     className="absolute inset-y-0 right-0 pr-4 flex items-center"
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400" />
+                      <EyeOff className="h-5 w-5 text-gray-900" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400" />
+                      <Eye className="h-5 w-5 text-gray-900" />
                     )}
                   </button>
                 </div>

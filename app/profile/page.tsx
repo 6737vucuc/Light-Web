@@ -324,7 +324,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <p className="text-gray-500">User not found</p>
+        <p className="text-gray-900">User not found</p>
       </div>
     );
   }
@@ -423,7 +423,7 @@ export default function ProfilePage() {
           <div className="flex items-center gap-2 mb-2">
             <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
             {user.isPrivate && (
-              <Lock className="w-5 h-5 text-gray-500" />
+              <Lock className="w-5 h-5 text-gray-900" />
             )}
           </div>
           
@@ -504,7 +504,7 @@ export default function ProfilePage() {
                 <h3 className="text-xl font-bold text-gray-900">Edit Profile</h3>
                 <button
                   onClick={() => setIsEditingProfile(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-900 hover:text-gray-700"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -572,7 +572,7 @@ export default function ProfilePage() {
                     setIsEditingUsername(false);
                     setUsernameError('');
                   }}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-900 hover:text-gray-700"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -602,7 +602,7 @@ export default function ProfilePage() {
                   {usernameError && (
                     <p className="text-sm text-red-600 mt-1">{usernameError}</p>
                   )}
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-900 mt-1">
                     Username can only contain letters, numbers, and underscores
                   </p>
                 </div>
@@ -687,7 +687,7 @@ export default function ProfilePage() {
                 {posts.length === 0 ? (
                   <div className="text-center py-12">
                     <Grid className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg">No posts yet</p>
+                    <p className="text-gray-900 text-lg">No posts yet</p>
                     <button
                       onClick={() => router.push('/community')}
                       className="mt-4 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium"
@@ -795,7 +795,7 @@ export default function ProfilePage() {
                 {lessonProgress.length === 0 ? (
                   <div className="text-center py-12">
                     <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg">No lessons started yet</p>
+                    <p className="text-gray-900 text-lg">No lessons started yet</p>
                     <button
                       onClick={() => router.push('/lessons')}
                       className="mt-4 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium"
@@ -852,7 +852,7 @@ export default function ProfilePage() {
                               </div>
                             )}
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                          <ChevronRight className="w-5 h-5 text-gray-900 flex-shrink-0" />
                         </div>
                       </div>
                     ))}
@@ -867,7 +867,7 @@ export default function ProfilePage() {
                 {taggedPosts.length === 0 ? (
                   <div className="text-center py-12">
                     <UserPlus className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg">No tagged posts</p>
+                    <p className="text-gray-900 text-lg">No tagged posts</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-1 sm:gap-2">
@@ -899,7 +899,7 @@ export default function ProfilePage() {
                 {savedPosts.length === 0 ? (
                   <div className="text-center py-12">
                     <Bookmark className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg">No saved posts</p>
+                    <p className="text-gray-900 text-lg">No saved posts</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-1 sm:gap-2">

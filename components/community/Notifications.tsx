@@ -145,7 +145,7 @@ export default function Notifications({ currentUser, onClose }: NotificationsPro
       case 'call':
         return <Phone className="w-5 h-5 text-green-500" />;
       default:
-        return <Bell className="w-5 h-5 text-gray-500" />;
+        return <Bell className="w-5 h-5 text-gray-900" />;
     }
   };
 
@@ -199,7 +199,7 @@ export default function Notifications({ currentUser, onClose }: NotificationsPro
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
         ) : notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-12 text-gray-900">
             <Bell className="w-16 h-16 mb-4 opacity-50" />
             <p className="text-lg font-medium">No notifications yet</p>
             <p className="text-sm">When you get notifications, they'll show up here</p>
@@ -244,7 +244,7 @@ export default function Notifications({ currentUser, onClose }: NotificationsPro
                     {' '}
                     <span className="text-gray-600">{notification.content}</span>
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">{getTimeAgo(notification.createdAt)}</p>
+                  <p className="text-xs text-gray-900 mt-1">{getTimeAgo(notification.createdAt)}</p>
                 </div>
 
                 {/* Unread Indicator */}

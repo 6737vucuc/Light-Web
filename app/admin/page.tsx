@@ -42,7 +42,7 @@ export default function AdminPage() {
                     className={`flex items-center px-6 py-4 border-b-2 font-medium text-sm transition-colors ${
                       activeTab === tab.id
                         ? 'border-purple-600 text-purple-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        : 'border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
                     <Icon className="h-5 w-5 mr-2" />
@@ -566,7 +566,7 @@ function VersesManager() {
                 <div className="flex-1">
                   <p className="text-lg italic">&quot;{verse.verse}&quot;</p>
                   <p className="text-sm text-gray-600 mt-2">- {verse.reference}</p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-900 mt-1">
                     Display Date: {new Date(verse.displayDate).toLocaleDateString()}
                   </p>
                   {verse.imageUrl && (
@@ -686,7 +686,7 @@ function StatisticsManager() {
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-gray-700">{country}</span>
-                    <span className="text-sm text-gray-500">{count} users</span>
+                    <span className="text-sm text-gray-900">{count} users</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
@@ -762,7 +762,7 @@ function TestimoniesManager() {
       </div>
 
       {testimonies.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-900">
           No testimonies yet
         </div>
       ) : (
@@ -773,7 +773,7 @@ function TestimoniesManager() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="font-semibold text-gray-900">{testimony.userName}</span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-900">
                       {new Date(testimony.createdAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -904,7 +904,7 @@ function SupportManager() {
       </div>
 
       {filteredRequests.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-900">
           No {filter !== 'all' ? filter : ''} support requests
         </div>
       ) : (
@@ -915,9 +915,9 @@ function SupportManager() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold text-gray-900">{request.userName}</span>
-                    <span className="text-sm text-gray-500">{request.userEmail}</span>
+                    <span className="text-sm text-gray-900">{request.userEmail}</span>
                   </div>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-900">
                     {new Date(request.createdAt).toLocaleString()}
                   </span>
                 </div>
@@ -1067,7 +1067,7 @@ function UsersManager() {
       </div>
 
       {filteredUsers.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-900">
           No users found
         </div>
       ) : (
@@ -1075,12 +1075,12 @@ function UsersManager() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">User</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Joined</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -1089,7 +1089,7 @@ function UsersManager() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900">{user.name}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {user.email}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -1110,7 +1110,7 @@ function UsersManager() {
                       {user.isBanned ? 'Banned' : 'Active'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -1286,25 +1286,25 @@ function VPNDetectionManager() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                   Date/Time
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                   IP Address
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                   VPN Service
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                   Location
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                   Organization
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                   Status
                 </th>
               </tr>
@@ -1312,7 +1312,7 @@ function VPNDetectionManager() {
             <tbody className="bg-white divide-y divide-gray-200">
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-900">
                     No VPN detection logs found
                   </td>
                 </tr>

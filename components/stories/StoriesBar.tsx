@@ -235,7 +235,7 @@ export default function StoriesBar({ currentUserId }: StoriesBarProps) {
                   setSelectedFile(null);
                   setCaption('');
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-900 hover:text-gray-700"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -246,7 +246,7 @@ export default function StoriesBar({ currentUserId }: StoriesBarProps) {
                 onClick={() => fileInputRef.current?.click()}
                 className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-purple-500 transition-colors"
               >
-                <Plus className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                <Plus className="w-12 h-12 text-gray-900 mx-auto mb-2" />
                 <p className="text-gray-600">Click to select image or video</p>
                 <input
                   ref={fileInputRef}

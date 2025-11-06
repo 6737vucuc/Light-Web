@@ -160,7 +160,7 @@ export default function Groups() {
       {activeTab === 'discover' && (
         <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-900" />
             <input
               type="text"
               value={searchQuery}
@@ -197,9 +197,9 @@ export default function Groups() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-bold text-lg text-gray-900">{group.name}</h3>
                 {group.privacy === 'private' ? (
-                  <Lock className="w-4 h-4 text-gray-500" />
+                  <Lock className="w-4 h-4 text-gray-900" />
                 ) : (
-                  <Globe className="w-4 h-4 text-gray-500" />
+                  <Globe className="w-4 h-4 text-gray-900" />
                 )}
               </div>
 
@@ -209,7 +209,7 @@ export default function Groups() {
                 </p>
               )}
 
-              <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+              <div className="flex items-center justify-between text-sm text-gray-900 mb-3">
                 <span className="flex items-center">
                   <Users className="w-4 h-4 mr-1" />
                   {group.membersCount} members

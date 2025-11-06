@@ -190,7 +190,7 @@ export default function CommunityPage() {
           >
             <div className="p-4 border-b border-gray-200">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-900" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -260,7 +260,7 @@ export default function CommunityPage() {
                           </div>
                           <div className="flex-1 text-left">
                             <p className="font-semibold text-sm">{user.username}</p>
-                            <p className="text-gray-500 text-sm">{user.name}</p>
+                            <p className="text-gray-900 text-sm">{user.name}</p>
                           </div>
                         </button>
                       ))}
@@ -268,13 +268,13 @@ export default function CommunityPage() {
                   )}
                   
                   {searchResults.users?.length === 0 && searchResults.posts?.length === 0 && (
-                    <div className="text-center py-12 text-gray-500">
+                    <div className="text-center py-12 text-gray-900">
                       <p>No results found</p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-gray-900">
                   <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
                   <p>Search for people and posts</p>
                 </div>
@@ -309,7 +309,7 @@ export default function CommunityPage() {
               }}
               className="flex flex-col items-center justify-center flex-1 hover:scale-110 transition-transform"
             >
-              <Home className={`w-7 h-7 ${activeTab === 'home' ? 'text-gray-900' : 'text-gray-400'}`} />
+              <Home className={`w-7 h-7 ${activeTab === 'home' ? 'text-gray-900' : 'text-gray-900'}`} />
             </button>
 
             {/* Search */}
@@ -320,7 +320,7 @@ export default function CommunityPage() {
               }}
               className="flex flex-col items-center justify-center flex-1 hover:scale-110 transition-transform"
             >
-              <Search className={`w-7 h-7 ${activeTab === 'search' ? 'text-gray-900' : 'text-gray-400'}`} />
+              <Search className={`w-7 h-7 ${activeTab === 'search' ? 'text-gray-900' : 'text-gray-900'}`} />
             </button>
 
             {/* Create Post */}
@@ -331,7 +331,7 @@ export default function CommunityPage() {
               }}
               className="flex flex-col items-center justify-center flex-1 hover:scale-110 transition-transform"
             >
-              <PlusSquare className={`w-7 h-7 ${activeTab === 'create' ? 'text-gray-900' : 'text-gray-400'}`} />
+              <PlusSquare className={`w-7 h-7 ${activeTab === 'create' ? 'text-gray-900' : 'text-gray-900'}`} />
             </button>
 
             {/* Profile */}
@@ -353,7 +353,7 @@ export default function CommunityPage() {
                   />
                 </div>
               ) : (
-                <User className={`w-7 h-7 ${activeTab === 'profile' ? 'text-gray-900' : 'text-gray-400'}`} />
+                <User className={`w-7 h-7 ${activeTab === 'profile' ? 'text-gray-900' : 'text-gray-900'}`} />
               )}
             </button>
           </div>

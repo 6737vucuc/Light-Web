@@ -203,8 +203,8 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
     <div className="space-y-4 pb-20 xl:pb-4">
       {posts.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-          <p className="text-gray-500 text-lg">No posts yet</p>
-          <p className="text-gray-400 text-sm mt-2">Follow people to see their posts here</p>
+          <p className="text-gray-900 text-lg">No posts yet</p>
+          <p className="text-gray-900 text-sm mt-2">Follow people to see their posts here</p>
         </div>
       ) : (
         posts.map((post) => (
@@ -231,7 +231,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
                   >
                     {post.userName}
                   </button>
-                  <p className="text-xs text-gray-500">{formatTime(post.createdAt)}</p>
+                  <p className="text-xs text-gray-900">{formatTime(post.createdAt)}</p>
                 </div>
               </div>
               <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -312,7 +312,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
               {post.commentsCount > 0 && !showComments[post.id] && (
                 <button
                   onClick={() => toggleComments(post.id)}
-                  className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+                  className="text-sm text-gray-900 hover:text-gray-700 mb-2"
                 >
                   View all {post.commentsCount} comments
                 </button>
@@ -322,7 +322,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
               {showComments[post.id] && (
                 <div className="space-y-2 mb-3">
                   {loadingComments[post.id] ? (
-                    <p className="text-sm text-gray-500">Loading comments...</p>
+                    <p className="text-sm text-gray-900">Loading comments...</p>
                   ) : (
                     comments[post.id]?.map((comment) => (
                       <div key={comment.id} className="text-sm">
@@ -342,7 +342,7 @@ export default function PublicFeed({ currentUser }: PublicFeedProps) {
               {/* Add Comment */}
               <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
                 <button className="hover:opacity-60 transition-opacity">
-                  <Smile className="w-6 h-6 text-gray-400" />
+                  <Smile className="w-6 h-6 text-gray-900" />
                 </button>
                 <input
                   type="text"

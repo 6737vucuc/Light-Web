@@ -60,9 +60,9 @@ export default function LessonsPage() {
 
         {lessons.length === 0 ? (
           <div className="text-center py-12">
-            <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+            <BookOpen className="mx-auto h-12 w-12 text-gray-900" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No lessons yet</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-900">
               Check back soon for new biblical teachings.
             </p>
           </div>
@@ -91,7 +91,7 @@ export default function LessonsPage() {
                   <p className="text-gray-600 mb-4 line-clamp-3">
                     {lesson.content}
                   </p>
-                  <div className="flex items-center text-sm text-gray-500">
+                  <div className="flex items-center text-sm text-gray-900">
                     <Calendar className="h-4 w-4 mr-1" />
                     {new Date(lesson.createdAt).toLocaleDateString()}
                   </div>
@@ -125,7 +125,7 @@ export default function LessonsPage() {
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">
                   {selectedLesson.title}
                 </h2>
-                <div className="flex items-center text-sm text-gray-500 mb-6">
+                <div className="flex items-center text-sm text-gray-900 mb-6">
                   <Calendar className="h-4 w-4 mr-1" />
                   {new Date(selectedLesson.createdAt).toLocaleDateString()}
                 </div>
