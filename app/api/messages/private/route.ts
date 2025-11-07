@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
       });
 
     // Mark messages as delivered and read
-    await db
+    const updatedMessages = await db
       .update(messages)
       .set({ 
         isDelivered: true,
@@ -143,7 +143,19 @@ export async function GET(request: NextRequest) {
           eq(messages.senderId, parseInt(friendId)),
           eq(messages.isRead, false)
         )
-      );
+      )
+      .returning({ id: messages.id });
+
+    // Send read receipt via Pusher
+    if (updatedMessages.length > 0) {
+      const senderChannelId = RealtimeChatService.getPrivateChannelName(parseInt(friendId), authResult.user.id);
+      for (const msg of updatedMessages) {
+        await RealtimeChatService.sendReadReceipt(senderChannelId, {
+          messageId: msg.id,
+          readAt: new Date(),
+        });
+      }
+    }
 
     return NextResponse.json({ messages: messagesList.reverse() });
   } catch (error) {
@@ -247,7 +259,7 @@ export async function POST(request: NextRequest) {
         conversationId: conversation[0].id,
         senderId: authResult.user.id,
         receiverId,
-        content: sanitizedContent, // Plain text for backward compatibility
+        content: null, // No plain text - encrypted only
         encryptedContent, // Encrypted content for security in database
         isEncrypted: true,
         isDelivered: false,

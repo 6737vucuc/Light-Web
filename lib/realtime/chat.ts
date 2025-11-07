@@ -126,6 +126,18 @@ export class RealtimeChatService {
     }
   }
 
+  // Send read receipt
+  static async sendReadReceipt(
+    channelId: string,
+    data: { messageId: number; readAt: Date }
+  ): Promise<void> {
+    try {
+      await pusherServer.trigger(channelId, ChatEvent.MESSAGE_READ, data);
+    } catch (error) {
+      console.error('Send read receipt error:', error);
+    }
+  }
+
   // Get channel name for private chat
   static getPrivateChannelName(user1Id: number, user2Id: number): string {
     const [id1, id2] = [user1Id, user2Id].sort((a, b) => a - b);

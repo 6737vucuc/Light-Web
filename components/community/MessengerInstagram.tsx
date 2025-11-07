@@ -109,11 +109,12 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         }
       });
 
-      channel.bind('message-read', (data: { messageIds: number[] }) => {
+      channel.bind('message-read', (data: { messageId?: number; messageIds?: number[]; readAt: Date }) => {
         setMessages((prev) =>
-          prev.map((msg) =>
-            data.messageIds.includes(msg.id) ? { ...msg, isRead: true, readAt: new Date().toISOString() } : msg
-          )
+          prev.map((msg) => {
+            const isThisMessage = data.messageId ? msg.id === data.messageId : data.messageIds?.includes(msg.id);
+            return isThisMessage ? { ...msg, isRead: true, readAt: new Date(data.readAt).toISOString() } : msg;
+          })
         );
       });
     }
