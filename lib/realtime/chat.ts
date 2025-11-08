@@ -35,6 +35,8 @@ export interface ChatMessage {
   senderName: string;
   senderAvatar?: string;
   content: string;
+  mediaUrl?: string;
+  messageType?: string;
   encrypted?: boolean;
   timestamp: Date;
   isRead: boolean;
