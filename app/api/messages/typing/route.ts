@@ -1,20 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-const sql = neon(process.env.DATABASE_URL!);
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/middleware';
+import { RealtimeChatService } from '@/lib/realtime/chat';
+import { db } from '@/lib/db';
+import { users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 // Update typing status
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if ('error' in authResult) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  }
+
   try {
-    const token = request.cookies.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
     const { receiverId, isTyping } = await request.json();
 
     if (!receiverId) {
@@ -24,23 +25,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store typing status in a temporary table or cache
-    // For now, we'll use a simple table approach
-    if (isTyping) {
-      // Upsert typing status
-      await sql`
-        INSERT INTO typing_status (user_id, receiver_id, updated_at)
-        VALUES (${decoded.userId}, ${receiverId}, NOW())
-        ON CONFLICT (user_id, receiver_id)
-        DO UPDATE SET updated_at = NOW()
-      `;
-    } else {
-      // Remove typing status
-      await sql`
-        DELETE FROM typing_status
-        WHERE user_id = ${decoded.userId} AND receiver_id = ${receiverId}
-      `;
+    // Get current user info
+    const currentUser = await db.query.users.findFirst({
+      where: eq(users.id, authResult.user.id)
+    });
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    // Send typing indicator via Pusher to receiver's channel
+    const receiverChannelId = RealtimeChatService.getPrivateChannelName(
+      receiverId,
+      authResult.user.id
+    );
+
+    await RealtimeChatService.sendTypingIndicator(receiverChannelId, {
+      userId: authResult.user.id,
+      userName: currentUser.name,
+      isTyping,
+    });
 
     return NextResponse.json({
       success: true,
@@ -50,45 +54,6 @@ export async function POST(request: NextRequest) {
     console.error('Error updating typing status:', error);
     return NextResponse.json(
       { error: 'Failed to update typing status' },
-      { status: 500 }
-    );
-  }
-}
-
-// Get typing status
-export async function GET(request: NextRequest) {
-  try {
-    const token = request.cookies.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-    }
-
-    // Get typing status (only if updated within last 5 seconds)
-    const result = await sql`
-      SELECT user_id, updated_at
-      FROM typing_status
-      WHERE user_id = ${parseInt(userId)} 
-        AND receiver_id = ${decoded.userId}
-        AND updated_at > NOW() - INTERVAL '5 seconds'
-    `;
-
-    return NextResponse.json({
-      success: true,
-      isTyping: result.length > 0,
-    });
-  } catch (error) {
-    console.error('Error fetching typing status:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch typing status' },
       { status: 500 }
     );
   }

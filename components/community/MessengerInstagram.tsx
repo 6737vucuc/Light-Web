@@ -117,6 +117,27 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
           })
         );
       });
+
+      channel.bind('message-delivered', (data: { messageId: number; deliveredAt: Date }) => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === data.messageId
+              ? { ...msg, isDelivered: true, deliveredAt: new Date(data.deliveredAt).toISOString() }
+              : msg
+          )
+        );
+      });
+
+      channel.bind('profile-updated', (data: { avatar?: string; name?: string }) => {
+        if (selectedConversation) {
+          setSelectedConversation((prev) => prev ? {
+            ...prev,
+            userAvatar: data.avatar || prev.userAvatar,
+            userName: data.name || prev.userName,
+          } : null);
+        }
+        fetchConversations();
+      });
     }
   };
 
@@ -169,6 +190,18 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         const data = await response.json();
         console.log('Messages data:', data);
         setMessages(data.messages || []);
+        
+        // Mark all undelivered messages as delivered first
+        const undeliveredMessages = data.messages
+          .filter((msg: Message) => !msg.isDelivered && msg.receiverId === currentUser?.id);
+        
+        for (const msg of undeliveredMessages) {
+          await fetch('/api/messages/delivered', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messageId: msg.id }),
+          });
+        }
         
         // Mark all messages as read
         const unreadMessageIds = data.messages

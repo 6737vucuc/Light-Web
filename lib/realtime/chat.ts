@@ -25,6 +25,8 @@ export enum ChatEvent {
   TYPING = 'typing',
   ONLINE_STATUS = 'online-status',
   MESSAGE_READ = 'message-read',
+  MESSAGE_DELIVERED = 'message-delivered',
+  PROFILE_UPDATED = 'profile-updated',
 }
 
 export interface ChatMessage {
@@ -138,6 +140,34 @@ export class RealtimeChatService {
     }
   }
 
+  // Send delivery receipt
+  static async sendDeliveryReceipt(
+    channelId: string,
+    data: { messageId: number; deliveredAt: Date }
+  ): Promise<void> {
+    try {
+      await pusherServer.trigger(channelId, ChatEvent.MESSAGE_DELIVERED, data);
+    } catch (error) {
+      console.error('Send delivery receipt error:', error);
+    }
+  }
+
+  // Send profile update notification
+  static async sendProfileUpdate(
+    userId: number,
+    data: { avatar?: string; name?: string; updatedAt: Date }
+  ): Promise<void> {
+    try {
+      await pusherServer.trigger(
+        `user-${userId}`,
+        ChatEvent.PROFILE_UPDATED,
+        data
+      );
+    } catch (error) {
+      console.error('Send profile update error:', error);
+    }
+  }
+
   // Get channel name for private chat
   static getPrivateChannelName(user1Id: number, user2Id: number): string {
     const [id1, id2] = [user1Id, user2Id].sort((a, b) => a - b);
@@ -175,6 +205,10 @@ export const useRealtimeChat = (channelId: string) => {
     channel.bind(ChatEvent.MESSAGE_READ, callback);
   };
 
+  const onMessageDelivered = (callback: (data: { messageId: number; deliveredAt: Date }) => void) => {
+    channel.bind(ChatEvent.MESSAGE_DELIVERED, callback);
+  };
+
   const cleanup = () => {
     channel.unbind_all();
     pusher.unsubscribe(channelId);
@@ -186,6 +220,7 @@ export const useRealtimeChat = (channelId: string) => {
     onTyping,
     onOnlineStatus,
     onMessageRead,
+    onMessageDelivered,
     cleanup,
   };
 };

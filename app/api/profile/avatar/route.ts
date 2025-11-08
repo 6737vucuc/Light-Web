@@ -7,6 +7,7 @@ import { users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { uploadAvatar, deleteFromCloudinary, extractPublicId } from '@/lib/cloudinary';
 import { eq } from 'drizzle-orm';
+import { RealtimeChatService } from '@/lib/realtime/chat';
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
@@ -74,10 +75,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user avatar in database
-    await db
+    const [updatedUser] = await db
       .update(users)
-      .set({ avatar: uploadResult.url })
-      .where(eq(users.id, authResult.user.id));
+      .set({ avatar: uploadResult.url, updatedAt: new Date() })
+      .where(eq(users.id, authResult.user.id))
+      .returning();
+
+    // Send real-time update via Pusher to all users
+    await RealtimeChatService.sendProfileUpdate(authResult.user.id, {
+      avatar: uploadResult.url,
+      updatedAt: new Date(),
+    });
 
     return NextResponse.json({
       message: 'Avatar uploaded successfully',

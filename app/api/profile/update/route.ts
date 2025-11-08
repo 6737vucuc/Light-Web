@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq } from 'drizzle-orm';
+import { RealtimeChatService } from '@/lib/realtime/chat';
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Update user profile
-    await db
+    const [updatedUser] = await db
       .update(users)
       .set({
         firstName: firstName || null,
@@ -50,7 +51,19 @@ export async function POST(request: NextRequest) {
         country: country || null,
         updatedAt: new Date(),
       })
-      .where(eq(users.id, authResult.user.id));
+      .where(eq(users.id, authResult.user.id))
+      .returning();
+
+    // Send real-time update if name changed
+    if (firstName || lastName) {
+      const fullName = `${firstName || ''} ${lastName || ''}`.trim();
+      if (fullName) {
+        await RealtimeChatService.sendProfileUpdate(authResult.user.id, {
+          name: fullName,
+          updatedAt: new Date(),
+        });
+      }
+    }
 
     return NextResponse.json({ 
       success: true,
