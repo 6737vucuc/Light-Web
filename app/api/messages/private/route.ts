@@ -189,18 +189,26 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { receiverId, content } = body;
+    const { receiverId, content, mediaUrl, messageType } = body;
 
     // Input validation
-    if (!receiverId || !content) {
+    if (!receiverId) {
       return NextResponse.json(
-        { error: 'Receiver ID and content are required' },
+        { error: 'Receiver ID is required' },
         { status: 400 }
       );
     }
 
-    // Content length validation
-    if (content.length > 10000) {
+    // Content or media is required
+    if (!content && !mediaUrl) {
+      return NextResponse.json(
+        { error: 'Message content or media is required' },
+        { status: 400 }
+      );
+    }
+
+    // Content length validation (if content exists)
+    if (content && content.length > 10000) {
       return NextResponse.json(
         { error: 'Message is too long (max 10,000 characters)' },
         { status: 400 }
@@ -208,19 +216,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize content
-    const sanitizedContent = content.trim();
-    if (sanitizedContent.length === 0) {
-      return NextResponse.json(
-        { error: 'Message cannot be empty' },
-        { status: 400 }
-      );
-    }
+    const sanitizedContent = content ? content.trim() : '';
 
     // Allow messaging to anyone (Instagram-style)
     // No friendship requirement
 
-    // Encrypt the message ONLY for database storage
-    const encryptedContent = encryptMessageMilitary(sanitizedContent);
+    // Encrypt the message ONLY for database storage (if content exists)
+    const encryptedContent = sanitizedContent ? encryptMessageMilitary(sanitizedContent) : null;
 
     // Get or create conversation
     let conversation = await db
@@ -262,6 +264,8 @@ export async function POST(request: NextRequest) {
         content: null, // No plain text - encrypted only
         encryptedContent, // Encrypted content for security in database
         isEncrypted: true,
+        mediaUrl: mediaUrl || null,
+        messageType: messageType || 'text',
         isDelivered: false,
         isRead: false,
       })
@@ -291,9 +295,12 @@ export async function POST(request: NextRequest) {
         senderId: message.senderId,
         senderName: sender.name,
         senderAvatar: sender.avatar || undefined,
-        content: sanitizedContent, // PLAIN TEXT - NOT ENCRYPTED
+        content: sanitizedContent || '', // PLAIN TEXT - NOT ENCRYPTED
+        mediaUrl: mediaUrl || undefined,
+        messageType: messageType || 'text',
         timestamp: message.createdAt || new Date(),
         isRead: message.isRead || false,
+        isDelivered: false,
       });
 
       // Send message to the receiver's channel (plain text)
@@ -303,7 +310,9 @@ export async function POST(request: NextRequest) {
         senderId: message.senderId,
         senderName: sender.name,
         senderAvatar: sender.avatar || undefined,
-        content: sanitizedContent, // PLAIN TEXT - NOT ENCRYPTED
+        content: sanitizedContent || '', // PLAIN TEXT - NOT ENCRYPTED
+        mediaUrl: mediaUrl || undefined,
+        messageType: messageType || 'text',
         timestamp: message.createdAt || new Date(),
         isRead: message.isRead || false,
         isDelivered: false, // Will be updated when receiver opens chat
