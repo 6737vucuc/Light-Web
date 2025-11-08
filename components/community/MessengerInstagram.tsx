@@ -285,17 +285,15 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
       if (response.ok) {
         const data = await response.json();
-        // Decrypt and add the new message
-        const newMsg = data.data || data.message;
-        if (newMsg) {
-          setMessages((prev) => [...prev, {
-            ...newMsg,
-            content: newMessage, // Use the original message content
-          }]);
-        }
+        // Clear input immediately for better UX
         setNewMessage('');
         setSelectedImage(null);
         setImagePreview(null);
+        
+        // Refresh messages to get the new message from server
+        if (selectedConversation) {
+          await fetchMessages(selectedConversation.userId);
+        }
         fetchConversations();
       } else {
         const errorData = await response.json();
