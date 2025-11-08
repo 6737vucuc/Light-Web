@@ -235,7 +235,24 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!newMessage.trim() && !selectedImage) || !selectedConversation) return;
+    
+    // Validation
+    if (!selectedConversation) {
+      console.error('No conversation selected');
+      alert('Please select a conversation first');
+      return;
+    }
+    
+    if (!newMessage.trim() && !selectedImage) {
+      console.error('No message content or media');
+      return;
+    }
+    
+    console.log('[SEND MESSAGE] Starting...', {
+      receiverId: selectedConversation.userId,
+      hasContent: !!newMessage.trim(),
+      hasImage: !!selectedImage
+    });
 
     try {
       let mediaUrl = null;
@@ -272,16 +289,22 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         ? '📷 Image' 
         : '';
 
+      const requestBody = {
+        receiverId: selectedConversation.userId,
+        content: newMessage.trim() || defaultContent,
+        mediaUrl,
+        messageType,
+      };
+      
+      console.log('[SEND MESSAGE] Sending request:', requestBody);
+      
       const response = await fetch('/api/messages/private', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          receiverId: selectedConversation.userId,
-          content: newMessage.trim() || defaultContent,
-          mediaUrl,
-          messageType,
-        }),
+        body: JSON.stringify(requestBody),
       });
+      
+      console.log('[SEND MESSAGE] Response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
@@ -296,12 +319,19 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         }
         fetchConversations();
       } else {
-        const errorData = await response.json();
-        console.error('Failed to send message:', errorData);
-        alert(errorData.error || 'Failed to send message');
+        let errorMessage = 'Failed to send message';
+        try {
+          const errorData = await response.json();
+          console.error('[SEND MESSAGE] Error response:', errorData);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (e) {
+          console.error('[SEND MESSAGE] Could not parse error response');
+        }
+        alert(errorMessage);
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
+    } catch (error: any) {
+      console.error('[SEND MESSAGE] Exception:', error);
+      alert(`Failed to send message: ${error.message || 'Network error'}`);
     }
   };
 

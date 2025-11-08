@@ -286,178 +286,156 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Cover Photo */}
-      <div className="relative h-64 bg-gradient-to-r from-purple-400 to-blue-400">
-        {user.coverPhoto ? (
-          <Image
-            src={getAvatarUrl(user.coverPhoto)}
-            alt="Cover"
-            fill
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-r from-purple-500 via-blue-500 to-indigo-500"></div>
-        )}
-      </div>
+    <div className="min-h-screen bg-white">
+      {/* Profile Header - Instagram Style */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-start gap-8 mb-8">
+          {/* Avatar */}
+          <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+            {user.avatar ? (
+              <Image
+                src={getAvatarUrl(user.avatar)}
+                alt={user.name}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-600 font-bold text-4xl">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
 
-      {/* Profile Header */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative -mt-20 mb-6">
-          <div className="flex items-end justify-between">
-            {/* Avatar */}
-            <div className="relative w-40 h-40 rounded-full border-4 border-white shadow-xl overflow-hidden bg-gradient-to-br from-purple-100 to-blue-100">
-              {user.avatar ? (
-                <Image
-                  src={getAvatarUrl(user.avatar)}
-                  alt={user.name}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-purple-600 font-bold text-5xl">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
+          {/* Profile Info */}
+          <div className="flex-1 min-w-0">
+            {/* Username and Buttons */}
+            <div className="flex items-center gap-4 mb-5">
+              <h1 className="text-xl font-normal text-gray-900">{user.username}</h1>
+              
+              {!isOwnProfile && (
+                <>
+                  {isFollowing ? (
+                    <button
+                      onClick={handleUnfollow}
+                      className="px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
+                    >
+                      Following
+                    </button>
+                  ) : followRequestPending ? (
+                    <button
+                      disabled
+                      className="px-6 py-1.5 bg-gray-200 rounded-lg text-sm font-semibold cursor-not-allowed"
+                    >
+                      Requested
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleFollow}
+                      className="px-6 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-semibold"
+                    >
+                      Follow
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => router.push(`/messages?userId=${userId}`)}
+                    className="px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
+                  >
+                    Message
+                  </button>
+
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowMoreMenu(!showMoreMenu)}
+                      className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <MoreHorizontal className="w-5 h-5" />
+                    </button>
+
+                    {showMoreMenu && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-10">
+                        <button
+                          onClick={handleShare}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm"
+                        >
+                          <Share2 className="w-4 h-4" />
+                          Share Profile
+                        </button>
+                        <button
+                          onClick={handleBlock}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-red-600 text-sm"
+                        >
+                          <Ban className="w-4 h-4" />
+                          Block User
+                        </button>
+                        <button
+                          onClick={handleReport}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-red-600 text-sm"
+                        >
+                          <Flag className="w-4 h-4" />
+                          Report
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {isOwnProfile && (
+                <button
+                  onClick={() => router.push('/profile')}
+                  className="px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
+                >
+                  Edit Profile
+                </button>
               )}
             </div>
 
-            {/* Action Buttons */}
-            {!isOwnProfile && (
-              <div className="flex items-center gap-2 mb-4">
-                {isFollowing ? (
-                  <button
-                    onClick={handleUnfollow}
-                    className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors flex items-center gap-2 font-medium"
-                  >
-                    <UserCheck className="w-4 h-4" />
-                    Following
-                  </button>
-                ) : followRequestPending ? (
-                  <button
-                    disabled
-                    className="px-6 py-2 bg-gray-200 rounded-lg flex items-center gap-2 font-medium cursor-not-allowed"
-                  >
-                    <Clock className="w-4 h-4" />
-                    Requested
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleFollow}
-                    className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-200 flex items-center gap-2 font-medium"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    Follow
-                  </button>
-                )}
-
-                <button
-                  onClick={() => router.push(`/messages?userId=${userId}`)}
-                  className="px-6 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2 font-medium"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Message
-                </button>
-
-                <div className="relative">
-                  <button
-                    onClick={() => setShowMoreMenu(!showMoreMenu)}
-                    className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  >
-                    <MoreHorizontal className="w-5 h-5" />
-                  </button>
-
-                  {showMoreMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-10">
-                      <button
-                        onClick={handleShare}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
-                      >
-                        <Share2 className="w-4 h-4" />
-                        Share Profile
-                      </button>
-                      <button
-                        onClick={handleBlock}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-red-600"
-                      >
-                        <Ban className="w-4 h-4" />
-                        Block User
-                      </button>
-                      <button
-                        onClick={handleReport}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-red-600"
-                      >
-                        <Flag className="w-4 h-4" />
-                        Report
-                      </button>
-                    </div>
-                  )}
-                </div>
+            {/* Stats - Instagram Style */}
+            <div className="flex items-center gap-8 mb-5 text-base">
+              <div>
+                <span className="font-semibold text-gray-900">{user.postsCount}</span>
+                <span className="text-gray-900 ml-1">posts</span>
               </div>
-            )}
-
-            {isOwnProfile && (
-              <div className="flex items-center gap-2 mb-4">
-                <button
-                  onClick={() => router.push('/profile')}
-                  className="px-6 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2 font-medium"
-                >
-                  <Settings className="w-4 h-4" />
-                  Edit Profile
+              {!user.hideFollowers && (
+                <button className="hover:opacity-70 transition-opacity">
+                  <span className="font-semibold text-gray-900">{user.followersCount}</span>
+                  <span className="text-gray-900 ml-1">followers</span>
                 </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Profile Info */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
-            {user.isPrivate && (
-              <Lock className="w-5 h-5 text-gray-900" />
-            )}
-          </div>
-          
-          <p className="text-gray-600 mb-4">@{user.username}</p>
-
-          {user.bio && (
-            <p className="text-gray-700 mb-4 whitespace-pre-wrap">{user.bio}</p>
-          )}
-
-          {user.website && (
-            <a
-              href={user.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-purple-600 hover:text-purple-700 flex items-center gap-1 mb-4"
-            >
-              <Globe className="w-4 h-4" />
-              {user.website}
-            </a>
-          )}
-
-          {/* Stats */}
-          <div className="flex items-center gap-6 text-sm">
-            <div>
-              <strong className="text-gray-900">{user.postsCount}</strong>
-              <span className="text-gray-600 ml-1">posts</span>
+              )}
+              {!user.hideFollowing && (
+                <button className="hover:opacity-70 transition-opacity">
+                  <span className="font-semibold text-gray-900">{user.followingCount}</span>
+                  <span className="text-gray-900 ml-1">following</span>
+                </button>
+              )}
             </div>
-            {!user.hideFollowers && (
-              <button className="hover:text-purple-600 transition-colors">
-                <strong className="text-gray-900">{user.followersCount}</strong>
-                <span className="text-gray-600 ml-1">followers</span>
-              </button>
-            )}
-            {!user.hideFollowing && (
-              <button className="hover:text-purple-600 transition-colors">
-                <strong className="text-gray-900">{user.followingCount}</strong>
-                <span className="text-gray-600 ml-1">following</span>
-              </button>
-            )}
+
+            {/* Name and Bio */}
+            <div>
+              <div className="font-semibold text-gray-900 mb-1">{user.name}</div>
+              {user.bio && (
+                <div className="text-gray-900 whitespace-pre-wrap text-sm mb-2">{user.bio}</div>
+              )}
+              {user.website && (
+                <a
+                  href={user.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-900 hover:underline text-sm font-semibold"
+                >
+                  {user.website}
+                </a>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Border Separator */}
+        <div className="border-t border-gray-200 mb-0"></div>
+
+
 
         {/* Private Account Message */}
         {!canViewProfile && user.isPrivate && (

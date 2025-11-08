@@ -169,14 +169,19 @@ export async function GET(request: NextRequest) {
 
 // Send a private message
 export async function POST(request: NextRequest) {
+  console.log('[MESSAGE API] POST request received');
+  
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
+    console.log('[MESSAGE API] Auth failed:', authResult.error);
     return NextResponse.json(
       { error: authResult.error },
       { status: authResult.status }
     );
   }
+
+  console.log('[MESSAGE API] Auth successful, user ID:', authResult.user.id);
 
   try {
     // Apply rate limiting for message sending
@@ -184,12 +189,14 @@ export async function POST(request: NextRequest) {
     const rateLimit = checkRateLimit(clientId, RateLimitConfigs.API);
     
     if (!rateLimit.allowed) {
-      console.warn(`Rate limit exceeded for message sending from: ${clientId}`);
+      console.warn(`[MESSAGE API] Rate limit exceeded for: ${clientId}`);
       return createRateLimitResponse(rateLimit.resetTime);
     }
 
     const body = await request.json();
     const { receiverId, content, mediaUrl, messageType } = body;
+    
+    console.log('[MESSAGE API] Request body:', { receiverId, contentLength: content?.length, hasMedia: !!mediaUrl, messageType });
 
     // Input validation
     if (!receiverId) {
