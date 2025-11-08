@@ -290,7 +290,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         : '';
 
       const requestBody = {
-        receiverId: selectedConversation.userId,
+        receiverId: Number(selectedConversation.userId),
         content: newMessage.trim() || defaultContent,
         mediaUrl,
         messageType,

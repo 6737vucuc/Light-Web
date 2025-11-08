@@ -194,14 +194,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { receiverId, content, mediaUrl, messageType } = body;
+    let { receiverId, content, mediaUrl, messageType } = body;
     
-    console.log('[MESSAGE API] Request body:', { receiverId, contentLength: content?.length, hasMedia: !!mediaUrl, messageType });
+    // Convert receiverId to number if it's a string
+    receiverId = typeof receiverId === 'string' ? parseInt(receiverId) : receiverId;
+    
+    console.log('[MESSAGE API] Request body:', { receiverId, receiverIdType: typeof receiverId, contentLength: content?.length, hasMedia: !!mediaUrl, messageType });
 
     // Input validation
-    if (!receiverId) {
+    if (!receiverId || isNaN(receiverId)) {
+      console.log('[MESSAGE API] Invalid receiverId:', receiverId);
       return NextResponse.json(
-        { error: 'Receiver ID is required' },
+        { error: 'Valid Receiver ID is required' },
         { status: 400 }
       );
     }
