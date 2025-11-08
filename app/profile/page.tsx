@@ -185,27 +185,31 @@ export default function ProfilePage() {
     if (!file) return;
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('avatar', file);
 
     try {
-      const uploadResponse = await fetch('/api/upload', {
+      const response = await fetch('/api/profile/avatar', {
         method: 'POST',
         body: formData,
       });
 
-      if (uploadResponse.ok) {
-        const { url } = await uploadResponse.json();
-        
-        await fetch('/api/profile/avatar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ avatar: url }),
-        });
-
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Avatar uploaded successfully:', data);
+        // Update user state immediately
+        if (user) {
+          setUser({ ...user, avatar: data.avatarUrl });
+        }
+        // Refresh data
         fetchData();
+      } else {
+        const error = await response.json();
+        console.error('Avatar upload failed:', error);
+        alert(error.error || 'Failed to upload avatar');
       }
     } catch (error) {
       console.error('Error uploading avatar:', error);
+      alert('Failed to upload avatar');
     }
   };
 

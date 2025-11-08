@@ -39,6 +39,8 @@ export async function GET(
         message_type,
         is_read,
         read_at,
+        is_delivered,
+        delivered_at,
         created_at
       FROM messages
       WHERE (sender_id = ${decoded.userId} AND receiver_id = ${otherUserId})
@@ -69,6 +71,8 @@ export async function GET(
         messageType: msg.message_type,
         isRead: msg.is_read,
         readAt: msg.read_at,
+        isDelivered: msg.is_delivered || false,
+        deliveredAt: msg.delivered_at,
         createdAt: msg.created_at,
       };
     });
