@@ -312,10 +312,16 @@ export async function POST(request: NextRequest) {
     response.headers.set('X-Encryption-Level', 'STORAGE-ONLY-AES-256-GCM');
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Send message error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     return NextResponse.json(
-      { error: 'Failed to send message' },
+      { 
+        error: 'Failed to send message',
+        details: error.message || 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
