@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
-  Settings, Grid, Bookmark, UserPlus, UserMinus, UserCheck, MessageCircle,
-  MoreHorizontal, Lock, Globe, ChevronDown, Heart, MessageSquare, BookOpen,
-  CheckCircle, Clock, TrendingUp, Play, ChevronRight, Ban, Flag, Share2
+  Settings, Grid, Bookmark, UserPlus, MessageCircle, MoreHorizontal, 
+  Lock, Heart, MessageSquare, BookOpen, ChevronLeft, Menu, Plus,
+  CheckCircle, Clock, TrendingUp, Play, Home, Search, PlusSquare
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -15,7 +15,6 @@ interface User {
   username: string;
   email: string;
   avatar?: string;
-  coverPhoto?: string;
   bio?: string;
   website?: string;
   postsCount: number;
@@ -33,6 +32,7 @@ interface Post {
   videoUrl?: string;
   likesCount: number;
   commentsCount: number;
+  mediaType?: string;
   createdAt: string;
 }
 
@@ -53,6 +53,13 @@ interface LessonProgress {
   lesson: Lesson;
 }
 
+interface Highlight {
+  id: number;
+  title: string;
+  coverImage: string;
+  storiesCount: number;
+}
+
 export default function UserProfilePage() {
   const router = useRouter();
   const params = useParams();
@@ -64,13 +71,13 @@ export default function UserProfilePage() {
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
   const [taggedPosts, setTaggedPosts] = useState<Post[]>([]);
   const [lessonProgress, setLessonProgress] = useState<LessonProgress[]>([]);
-  const [activeTab, setActiveTab] = useState<'posts' | 'lessons' | 'tagged' | 'saved'>('posts');
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [activeTab, setActiveTab] = useState<'posts' | 'lessons' | 'tagged'>('posts');
   const [isLoading, setIsLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followRequestPending, setFollowRequestPending] = useState(false);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [canViewProfile, setCanViewProfile] = useState(true);
-  const [isBlocked, setIsBlocked] = useState(false);
 
   const [lessonStats, setLessonStats] = useState({
     totalLessons: 0,
@@ -103,16 +110,8 @@ export default function UserProfilePage() {
       if (userResponse.ok) {
         const userData = await userResponse.json();
         setUser(userData.user);
-        
-        // Check if blocked
-        if (userData.isBlocked) {
-          setIsBlocked(true);
-          setCanViewProfile(false);
-          setIsLoading(false);
-          return;
-        }
 
-        // Check if can view profile (if private and not following)
+        // Check if can view profile
         if (userData.user.isPrivate && !userData.isFollowing && userData.user.id !== currentUserId) {
           setCanViewProfile(false);
         } else {
@@ -139,22 +138,13 @@ export default function UserProfilePage() {
           setTaggedPosts(taggedData.posts || []);
         }
 
-        // Get lesson progress (only for own profile or if following)
+        // Get lesson progress
         if (isOwnProfile || isFollowing) {
           const progressResponse = await fetch(`/api/lessons/progress/user/${userId}`);
           if (progressResponse.ok) {
             const progressData = await progressResponse.json();
             setLessonProgress(progressData.progress || []);
             calculateLessonStats(progressData.progress || []);
-          }
-        }
-
-        // Get saved posts (only for own profile)
-        if (isOwnProfile) {
-          const savedResponse = await fetch(`/api/posts/saved`);
-          if (savedResponse.ok) {
-            const savedData = await savedResponse.json();
-            setSavedPosts(savedData.posts || []);
           }
         }
       }
@@ -181,10 +171,7 @@ export default function UserProfilePage() {
 
   const handleFollow = async () => {
     try {
-      const response = await fetch(`/api/follow/${userId}`, {
-        method: 'POST',
-      });
-
+      const response = await fetch(`/api/follow/${userId}`, { method: 'POST' });
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'pending') {
@@ -201,45 +188,14 @@ export default function UserProfilePage() {
 
   const handleUnfollow = async () => {
     try {
-      const response = await fetch(`/api/follow/${userId}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(`/api/follow/${userId}`, { method: 'DELETE' });
       if (response.ok) {
         setIsFollowing(false);
-        setFollowRequestPending(false);
         fetchData();
       }
     } catch (error) {
       console.error('Error unfollowing user:', error);
     }
-  };
-
-  const handleBlock = async () => {
-    if (!confirm('Are you sure you want to block this user?')) return;
-
-    try {
-      const response = await fetch(`/api/privacy/block/${userId}`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        router.push('/community');
-      }
-    } catch (error) {
-      console.error('Error blocking user:', error);
-    }
-  };
-
-  const handleReport = () => {
-    // Implement report functionality
-    alert('Report functionality will be implemented');
-  };
-
-  const handleShare = () => {
-    const profileUrl = `${window.location.origin}/user-profile/${userId}`;
-    navigator.clipboard.writeText(profileUrl);
-    alert('Profile link copied to clipboard!');
   };
 
   const getAvatarUrl = (avatar?: string) => {
@@ -249,34 +205,29 @@ export default function UserProfilePage() {
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  const getMediaUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('data:')) return url;
+    if (url.startsWith('http')) return url;
+    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${url}`;
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600"></div>
-      </div>
-    );
-  }
-
-  if (isBlocked) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <Ban className="w-16 h-16 text-gray-900 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">User Not Available</h2>
-          <p className="text-gray-600">This profile is not accessible</p>
-        </div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-900 text-lg">User not found</p>
+          <p className="text-gray-900 text-lg mb-4">User not found</p>
           <button
             onClick={() => router.push('/community')}
-            className="mt-4 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium"
+            className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold"
           >
             Back to Community
           </button>
@@ -286,8 +237,8 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Top Header with Back Button */}
+    <div className="min-h-screen bg-white pb-16 md:pb-0">
+      {/* Top Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="w-full px-4">
           <div className="flex items-center justify-between h-14">
@@ -295,21 +246,62 @@ export default function UserProfilePage() {
               onClick={() => router.push('/community')}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft className="w-6 h-6" />
             </button>
-            <h1 className="text-lg font-semibold">{user.username}</h1>
-            <div className="w-10"></div>
+            
+            <div className="flex items-center gap-1">
+              <h1 className="text-base font-semibold">{user.username}</h1>
+              {user.isPrivate && <Lock className="w-3 h-3 text-gray-600" />}
+            </div>
+
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+
+            {showMenu && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowMenu(false)}
+                />
+                <div className="absolute right-4 top-12 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 w-48">
+                  {isOwnProfile ? (
+                    <button
+                      onClick={() => router.push('/settings')}
+                      className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Settings
+                    </button>
+                  ) : (
+                    <>
+                      <button className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm">
+                        Share Profile
+                      </button>
+                      <button className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 text-sm">
+                        Block User
+                      </button>
+                      <button className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 text-sm">
+                        Report
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Profile Header - Instagram Style */}
-      <div className="w-full px-4 py-6">
-        <div className="flex items-start gap-4 md:gap-8 mb-6">
+      {/* Profile Info */}
+      <div className="w-full px-4 py-4">
+        {/* Avatar and Stats */}
+        <div className="flex items-center gap-6 mb-4">
           {/* Avatar */}
-          <div className="relative w-20 h-20 md:w-32 md:h-32 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+          <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0">
             {user.avatar ? (
               <Image
                 src={getAvatarUrl(user.avatar)}
@@ -319,457 +311,432 @@ export default function UserProfilePage() {
                 unoptimized
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-600 font-bold text-4xl">
-                {user.name.charAt(0).toUpperCase()}
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-2xl">
+                {user.name?.charAt(0).toUpperCase()}
               </div>
             )}
           </div>
 
-          {/* Profile Info */}
-          <div className="flex-1 min-w-0">
-            {/* Username and Buttons */}
-            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4">
-              <h1 className="text-lg md:text-xl font-normal text-gray-900">{user.username}</h1>
-              
-              {!isOwnProfile && (
-                <>
-                  <div className="flex items-center gap-2">
-                    {isFollowing ? (
-                      <button
-                        onClick={handleUnfollow}
-                        className="px-4 md:px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold flex-1 md:flex-none"
-                      >
-                        Following
-                      </button>
-                    ) : followRequestPending ? (
-                      <button
-                        disabled
-                        className="px-4 md:px-6 py-1.5 bg-gray-200 rounded-lg text-sm font-semibold cursor-not-allowed flex-1 md:flex-none"
-                      >
-                        Requested
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleFollow}
-                        className="px-4 md:px-6 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-semibold flex-1 md:flex-none"
-                      >
-                        Follow
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => router.push(`/messages?userId=${userId}`)}
-                      className="px-4 md:px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold flex-1 md:flex-none"
-                    >
-                      Message
-                    </button>
-                  </div>
-
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowMoreMenu(!showMoreMenu)}
-                      className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <MoreHorizontal className="w-5 h-5" />
-                    </button>
-
-                    {showMoreMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-10">
-                        <button
-                          onClick={handleShare}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm"
-                        >
-                          <Share2 className="w-4 h-4" />
-                          Share Profile
-                        </button>
-                        <button
-                          onClick={handleBlock}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-red-600 text-sm"
-                        >
-                          <Ban className="w-4 h-4" />
-                          Block User
-                        </button>
-                        <button
-                          onClick={handleReport}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-red-600 text-sm"
-                        >
-                          <Flag className="w-4 h-4" />
-                          Report
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {isOwnProfile && (
-                <button
-                  onClick={() => router.push('/profile')}
-                  className="px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
-                >
-                  Edit Profile
-                </button>
-              )}
-            </div>
-
-            {/* Stats - Instagram Style */}
-            <div className="flex items-center gap-4 md:gap-8 mb-4 text-sm md:text-base">
-              <div>
-                <span className="font-semibold text-gray-900">{user.postsCount}</span>
-                <span className="text-gray-900 ml-1">posts</span>
-              </div>
-              {!user.hideFollowers && (
-                <button className="hover:opacity-70 transition-opacity">
-                  <span className="font-semibold text-gray-900">{user.followersCount}</span>
-                  <span className="text-gray-900 ml-1">followers</span>
-                </button>
-              )}
-              {!user.hideFollowing && (
-                <button className="hover:opacity-70 transition-opacity">
-                  <span className="font-semibold text-gray-900">{user.followingCount}</span>
-                  <span className="text-gray-900 ml-1">following</span>
-                </button>
-              )}
-            </div>
-
-            {/* Name and Bio */}
+          {/* Stats */}
+          <div className="flex-1 flex justify-around text-center">
             <div>
-              <div className="font-semibold text-gray-900 mb-1">{user.name}</div>
-              {user.bio && (
-                <div className="text-gray-900 whitespace-pre-wrap text-sm mb-2">{user.bio}</div>
-              )}
-              {user.website && (
-                <a
-                  href={user.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-900 hover:underline text-sm font-semibold"
-                >
-                  {user.website}
-                </a>
-              )}
+              <div className="font-semibold text-sm md:text-base">{user.postsCount}</div>
+              <div className="text-xs md:text-sm text-gray-600">posts</div>
             </div>
-          </div>
-        </div>
-
-        {/* Border Separator */}
-        <div className="border-t border-gray-200 mb-0"></div>
-
-
-
-        {/* Private Account Message */}
-        {!canViewProfile && user.isPrivate && (
-          <div className="bg-white rounded-xl shadow-md p-12 mb-6 text-center">
-            <Lock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">This Account is Private</h3>
-            <p className="text-gray-600 mb-4">Follow this account to see their posts and lessons</p>
-            {!isFollowing && !followRequestPending && (
-              <button
-                onClick={handleFollow}
-                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium"
-              >
-                Follow
+            {!user.hideFollowers && (
+              <button className="hover:opacity-70 transition-opacity">
+                <div className="font-semibold text-sm md:text-base">{user.followersCount}</div>
+                <div className="text-xs md:text-sm text-gray-600">followers</div>
+              </button>
+            )}
+            {!user.hideFollowing && (
+              <button className="hover:opacity-70 transition-opacity">
+                <div className="font-semibold text-sm md:text-base">{user.followingCount}</div>
+                <div className="text-xs md:text-sm text-gray-600">following</div>
               </button>
             )}
           </div>
-        )}
+        </div>
 
-        {/* Tabs - Only show if can view profile */}
-        {canViewProfile && (
-          <>
-            <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
-              <div className="flex border-b border-gray-200">
+        {/* Name and Bio */}
+        <div className="mb-4">
+          <div className="font-semibold text-sm mb-1">{user.name}</div>
+          {user.bio && (
+            <div className="text-sm text-gray-800 whitespace-pre-wrap mb-2">{user.bio}</div>
+          )}
+          {user.website && (
+            <a
+              href={user.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-blue-900 hover:underline font-semibold"
+            >
+              {user.website}
+            </a>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 mb-4">
+          {isOwnProfile ? (
+            <>
+              <button
+                onClick={() => router.push('/settings')}
+                className="flex-1 px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
+              >
+                Edit Profile
+              </button>
+              <button
+                className="flex-1 px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
+              >
+                Share Profile
+              </button>
+            </>
+          ) : (
+            <>
+              {isFollowing ? (
                 <button
-                  onClick={() => setActiveTab('posts')}
-                  className={`flex-1 px-6 py-4 font-medium transition-colors flex items-center justify-center gap-2 ${
-                    activeTab === 'posts'
-                      ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
+                  onClick={handleUnfollow}
+                  className="flex-1 px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
                 >
-                  <Grid className="w-5 h-5" />
-                  Posts
+                  Following
                 </button>
-
-                {(isOwnProfile || isFollowing) && (
-                  <button
-                    onClick={() => setActiveTab('lessons')}
-                    className={`flex-1 px-6 py-4 font-medium transition-colors flex items-center justify-center gap-2 ${
-                      activeTab === 'lessons'
-                        ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <BookOpen className="w-5 h-5" />
-                    Lessons
-                  </button>
-                )}
-
+              ) : followRequestPending ? (
                 <button
-                  onClick={() => setActiveTab('tagged')}
-                  className={`flex-1 px-6 py-4 font-medium transition-colors flex items-center justify-center gap-2 ${
-                    activeTab === 'tagged'
-                      ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
+                  disabled
+                  className="flex-1 px-4 py-1.5 bg-gray-200 rounded-lg text-sm font-semibold cursor-not-allowed"
                 >
-                  <UserPlus className="w-5 h-5" />
-                  Tagged
+                  Requested
                 </button>
+              ) : (
+                <button
+                  onClick={handleFollow}
+                  className="flex-1 px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-semibold"
+                >
+                  Follow
+                </button>
+              )}
+              <button
+                onClick={() => router.push(`/messages?userId=${userId}`)}
+                className="flex-1 px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
+              >
+                Message
+              </button>
+            </>
+          )}
+        </div>
 
-                {isOwnProfile && (
-                  <button
-                    onClick={() => setActiveTab('saved')}
-                    className={`flex-1 px-6 py-4 font-medium transition-colors flex items-center justify-center gap-2 ${
-                      activeTab === 'saved'
-                        ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Bookmark className="w-5 h-5" />
-                    Saved
-                  </button>
-                )}
+        {/* Highlights */}
+        <div className="flex gap-4 overflow-x-auto pb-4 mb-2 scrollbar-hide">
+          {isOwnProfile && (
+            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+              <div className="w-16 h-16 rounded-full border-2 border-gray-300 flex items-center justify-center bg-white cursor-pointer hover:bg-gray-50 transition-colors">
+                <Plus className="w-6 h-6 text-gray-600" />
               </div>
+              <span className="text-xs text-gray-600">New</span>
+            </div>
+          )}
+          {highlights.map((highlight) => (
+            <div key={highlight.id} className="flex flex-col items-center gap-1 flex-shrink-0">
+              <div className="w-16 h-16 rounded-full border-2 border-gray-300 overflow-hidden cursor-pointer">
+                <Image
+                  src={getMediaUrl(highlight.coverImage)}
+                  alt={highlight.title}
+                  width={64}
+                  height={64}
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+              <span className="text-xs text-gray-800 truncate w-16 text-center">{highlight.title}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-              {/* Tab Content */}
-              <div className="p-6">
-                {/* Posts Tab */}
-                {activeTab === 'posts' && (
-                  <div>
-                    {posts.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Grid className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-900 text-lg">No posts yet</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-1 sm:gap-2">
-                        {posts.map((post) => (
-                          <div
-                            key={post.id}
-                            className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer group"
-                            onClick={() => router.push(`/community?post=${post.id}`)}
-                          >
-                            {post.imageUrl && (
-                              <Image
-                                src={post.imageUrl}
-                                alt="Post"
-                                fill
-                                className="object-cover group-hover:scale-105 transition-transform duration-200"
-                                unoptimized
-                              />
-                            )}
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-4 text-white">
-                                <span className="flex items-center gap-1">
-                                  <Heart className="w-5 h-5" />
-                                  {post.likesCount}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <MessageSquare className="w-5 h-5" />
-                                  {post.commentsCount}
-                                </span>
+      {/* Private Account Message */}
+      {!canViewProfile && user.isPrivate && (
+        <div className="text-center py-12 px-4">
+          <Lock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-gray-900 mb-2">This Account is Private</h3>
+          <p className="text-gray-600 text-sm mb-4">Follow this account to see their posts</p>
+        </div>
+      )}
+
+      {/* Tabs */}
+      {canViewProfile && (
+        <>
+          <div className="border-t border-gray-200">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('posts')}
+                className={`flex-1 py-3 flex items-center justify-center gap-2 border-t-2 transition-colors ${
+                  activeTab === 'posts'
+                    ? 'border-gray-900'
+                    : 'border-transparent text-gray-400'
+                }`}
+              >
+                <Grid className="w-6 h-6" strokeWidth={activeTab === 'posts' ? 2 : 1.5} />
+              </button>
+
+              {(isOwnProfile || isFollowing) && (
+                <button
+                  onClick={() => setActiveTab('lessons')}
+                  className={`flex-1 py-3 flex items-center justify-center gap-2 border-t-2 transition-colors ${
+                    activeTab === 'lessons'
+                      ? 'border-gray-900'
+                      : 'border-transparent text-gray-400'
+                  }`}
+                >
+                  <BookOpen className="w-6 h-6" strokeWidth={activeTab === 'lessons' ? 2 : 1.5} />
+                </button>
+              )}
+
+              <button
+                onClick={() => setActiveTab('tagged')}
+                className={`flex-1 py-3 flex items-center justify-center gap-2 border-t-2 transition-colors ${
+                  activeTab === 'tagged'
+                    ? 'border-gray-900'
+                    : 'border-transparent text-gray-400'
+                }`}
+              >
+                <UserPlus className="w-6 h-6" strokeWidth={activeTab === 'tagged' ? 2 : 1.5} />
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div className="w-full">
+            {/* Posts Grid */}
+            {activeTab === 'posts' && (
+              <div className="grid grid-cols-3 gap-0.5">
+                {posts.length === 0 ? (
+                  <div className="col-span-3 text-center py-12">
+                    <Grid className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-600 text-sm">No posts yet</p>
+                  </div>
+                ) : (
+                  posts.map((post) => (
+                    <div
+                      key={post.id}
+                      className="relative aspect-square bg-gray-100 cursor-pointer group"
+                      onClick={() => router.push(`/posts/${post.id}`)}
+                    >
+                      {post.imageUrl || post.videoUrl ? (
+                        <>
+                          <Image
+                            src={getMediaUrl(post.imageUrl || post.videoUrl)}
+                            alt="Post"
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                          {post.mediaType === 'video' && (
+                            <div className="absolute top-2 right-2">
+                              <Play className="w-5 h-5 text-white drop-shadow-lg" fill="white" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <div className="flex items-center gap-4 text-white">
+                              <div className="flex items-center gap-1">
+                                <Heart className="w-6 h-6" fill="white" />
+                                <span className="font-semibold">{post.likesCount}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <MessageSquare className="w-6 h-6" fill="white" />
+                                <span className="font-semibold">{post.commentsCount}</span>
                               </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Lessons Tab */}
-                {activeTab === 'lessons' && (isOwnProfile || isFollowing) && (
-                  <div>
-                    {/* Lesson Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-blue-600 text-sm font-medium">Total</p>
-                            <p className="text-2xl font-bold text-blue-900">{lessonStats.totalLessons}</p>
-                          </div>
-                          <BookOpen className="w-8 h-8 text-blue-600" />
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <Grid className="w-8 h-8 text-gray-400" />
                         </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-green-600 text-sm font-medium">Completed</p>
-                            <p className="text-2xl font-bold text-green-900">{lessonStats.completedLessons}</p>
-                          </div>
-                          <CheckCircle className="w-8 h-8 text-green-600" />
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-orange-600 text-sm font-medium">In Progress</p>
-                            <p className="text-2xl font-bold text-orange-900">{lessonStats.inProgressLessons}</p>
-                          </div>
-                          <Clock className="w-8 h-8 text-orange-600" />
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-purple-600 text-sm font-medium">Completion</p>
-                            <p className="text-2xl font-bold text-purple-900">{lessonStats.completionRate}%</p>
-                          </div>
-                          <TrendingUp className="w-8 h-8 text-purple-600" />
-                        </div>
-                      </div>
+                      )}
                     </div>
+                  ))
+                )}
+              </div>
+            )}
 
-                    {/* Progress Bar */}
-                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 mb-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold text-gray-900">Overall Progress</h3>
-                        <span className="text-xl font-bold text-purple-600">{lessonStats.completionRate}%</span>
+            {/* Lessons Tab */}
+            {activeTab === 'lessons' && (
+              <div className="p-4">
+                {lessonProgress.length === 0 ? (
+                  <div className="text-center py-12">
+                    <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-600 text-sm">No lessons yet</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Lesson Stats */}
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+                      <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-purple-600 mb-1">
+                          {lessonStats.totalLessons}
+                        </div>
+                        <div className="text-xs text-gray-600">Total</div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-purple-600 to-blue-500 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${lessonStats.completionRate}%` }}
-                        ></div>
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-green-600 mb-1">
+                          {lessonStats.completedLessons}
+                        </div>
+                        <div className="text-xs text-gray-600">Completed</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-orange-600 mb-1">
+                          {lessonStats.completionRate}%
+                        </div>
+                        <div className="text-xs text-gray-600">Progress</div>
                       </div>
                     </div>
 
                     {/* Lessons List */}
-                    {lessonProgress.length === 0 ? (
-                      <div className="text-center py-12">
-                        <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-900 text-lg">No lessons started yet</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {lessonProgress.map((progress) => (
-                          <div
-                            key={progress.lessonId}
-                            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                            onClick={() => router.push(`/lessons/${progress.lessonId}`)}
-                          >
-                            <div className="flex items-center gap-4">
-                              {progress.lesson.imageUrl && (
-                                <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                                  <Image
-                                    src={progress.lesson.imageUrl}
-                                    alt={progress.lesson.title}
-                                    fill
-                                    className="object-cover"
-                                    unoptimized
-                                  />
-                                </div>
-                              )}
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-gray-900 mb-1">
-                                  {progress.lesson.title}
-                                </h4>
-                                <div className="flex items-center gap-3 text-sm text-gray-600">
-                                  {progress.completed ? (
-                                    <span className="flex items-center text-green-600 font-medium">
-                                      <CheckCircle className="w-4 h-4 mr-1" />
-                                      Completed
-                                    </span>
-                                  ) : (
-                                    <span className="flex items-center text-orange-600 font-medium">
-                                      <Play className="w-4 h-4 mr-1" />
-                                      {progress.progress}%
-                                    </span>
-                                  )}
-                                  <span>
-                                    {new Date(progress.lastWatchedAt).toLocaleDateString()}
+                    <div className="space-y-3">
+                      {lessonProgress.map((progress) => (
+                        <div
+                          key={progress.lessonId}
+                          onClick={() => router.push(`/lessons/${progress.lessonId}`)}
+                          className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center gap-3">
+                            {progress.lesson.imageUrl && (
+                              <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                                <Image
+                                  src={getMediaUrl(progress.lesson.imageUrl)}
+                                  alt={progress.lesson.title}
+                                  fill
+                                  className="object-cover"
+                                  unoptimized
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-sm mb-1 truncate">
+                                {progress.lesson.title}
+                              </h3>
+                              <div className="flex items-center gap-2 mb-2">
+                                {progress.completed ? (
+                                  <span className="flex items-center gap-1 text-xs text-green-600">
+                                    <CheckCircle className="w-3 h-3" />
+                                    Completed
                                   </span>
-                                </div>
-                                {!progress.completed && (
-                                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                                    <div
-                                      className="bg-gradient-to-r from-purple-600 to-blue-500 h-full rounded-full transition-all duration-300"
-                                      style={{ width: `${progress.progress}%` }}
-                                    ></div>
-                                  </div>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-xs text-orange-600">
+                                    <Clock className="w-3 h-3" />
+                                    In Progress
+                                  </span>
                                 )}
                               </div>
-                              <ChevronRight className="w-5 h-5 text-gray-900 flex-shrink-0" />
+                              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                <div
+                                  className={`h-1.5 rounded-full ${
+                                    progress.completed ? 'bg-green-500' : 'bg-orange-500'
+                                  }`}
+                                  style={{ width: `${progress.progress}%` }}
+                                />
+                              </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Tagged Tab */}
-                {activeTab === 'tagged' && (
-                  <div>
-                    {taggedPosts.length === 0 ? (
-                      <div className="text-center py-12">
-                        <UserPlus className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-900 text-lg">No tagged posts</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-1 sm:gap-2">
-                        {taggedPosts.map((post) => (
-                          <div
-                            key={post.id}
-                            className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer group"
-                            onClick={() => router.push(`/community?post=${post.id}`)}
-                          >
-                            {post.imageUrl && (
-                              <Image
-                                src={post.imageUrl}
-                                alt="Post"
-                                fill
-                                className="object-cover group-hover:scale-105 transition-transform duration-200"
-                                unoptimized
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Saved Tab */}
-                {activeTab === 'saved' && isOwnProfile && (
-                  <div>
-                    {savedPosts.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Bookmark className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-900 text-lg">No saved posts</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-1 sm:gap-2">
-                        {savedPosts.map((post) => (
-                          <div
-                            key={post.id}
-                            className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer group"
-                            onClick={() => router.push(`/community?post=${post.id}`)}
-                          >
-                            {post.imageUrl && (
-                              <Image
-                                src={post.imageUrl}
-                                alt="Post"
-                                fill
-                                className="object-cover group-hover:scale-105 transition-transform duration-200"
-                                unoptimized
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
+            )}
+
+            {/* Tagged Posts Grid */}
+            {activeTab === 'tagged' && (
+              <div className="grid grid-cols-3 gap-0.5">
+                {taggedPosts.length === 0 ? (
+                  <div className="col-span-3 text-center py-12">
+                    <UserPlus className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-600 text-sm">No tagged posts</p>
+                  </div>
+                ) : (
+                  taggedPosts.map((post) => (
+                    <div
+                      key={post.id}
+                      className="relative aspect-square bg-gray-100 cursor-pointer group"
+                      onClick={() => router.push(`/posts/${post.id}`)}
+                    >
+                      {post.imageUrl || post.videoUrl ? (
+                        <>
+                          <Image
+                            src={getMediaUrl(post.imageUrl || post.videoUrl)}
+                            alt="Tagged post"
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <div className="flex items-center gap-4 text-white">
+                              <div className="flex items-center gap-1">
+                                <Heart className="w-6 h-6" fill="white" />
+                                <span className="font-semibold">{post.likesCount}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <MessageSquare className="w-6 h-6" fill="white" />
+                                <span className="font-semibold">{post.commentsCount}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <UserPlus className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Bottom Navigation - Mobile Only */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+        <div className="flex items-center justify-around h-14">
+          <button
+            onClick={() => router.push('/community')}
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+          >
+            <Home className="w-7 h-7 text-gray-800" />
+          </button>
+
+          <button
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+          >
+            <Search className="w-7 h-7 text-gray-800" />
+          </button>
+
+          <button
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+          >
+            <PlusSquare className="w-7 h-7 text-gray-800" />
+          </button>
+
+          <button
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+          >
+            <Heart className="w-7 h-7 text-gray-800" />
+          </button>
+
+          <button
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+          >
+            <div className="relative w-7 h-7 rounded-full overflow-hidden bg-gray-200 border-2 border-gray-800">
+              {currentUser?.avatar ? (
+                <Image
+                  src={getAvatarUrl(currentUser.avatar)}
+                  alt={currentUser.name}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
+                  {currentUser?.name?.charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
-          </>
-        )}
-      </div>
+          </button>
+        </div>
+      </nav>
+
+      <style jsx global>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 }
