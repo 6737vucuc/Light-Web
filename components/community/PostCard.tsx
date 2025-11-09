@@ -81,7 +81,7 @@ export default function PostCard({ post, currentUser, onLike, onComment }: PostC
 
       if (response.ok) {
         const data = await response.json();
-        setComments([data.comment, ...comments]);
+        setComments([...comments, data.comment]);
         setCommentText('');
         onComment(post.id);
       }
@@ -97,9 +97,7 @@ export default function PostCard({ post, currentUser, onLike, onComment }: PostC
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          postId: post.id,
-        }),
+        body: JSON.stringify({ postId: post.id }),
       });
 
       if (response.ok) {
@@ -111,11 +109,11 @@ export default function PostCard({ post, currentUser, onLike, onComment }: PostC
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 mb-4">
+    <div className="bg-white border-b border-gray-200 mb-0">
       {/* Post Header */}
       <div className="flex items-center justify-between p-3">
         <div className="flex items-center gap-3">
-          <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+          <div className="relative w-9 h-9 rounded-full overflow-hidden bg-gray-200">
             {post.user?.avatar ? (
               <Image
                 src={getAvatarUrl(post.user.avatar)}
@@ -125,45 +123,47 @@ export default function PostCard({ post, currentUser, onLike, onComment }: PostC
                 unoptimized
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-sm">
                 {post.user?.name?.charAt(0).toUpperCase()}
               </div>
             )}
           </div>
-          <div>
-            <p className="font-semibold text-sm">{post.user?.username || post.user?.name}</p>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">{post.user?.username || post.user?.name}</p>
             {post.location && (
-              <p className="text-xs text-gray-500 flex items-center gap-1">
+              <div className="flex items-center gap-1 text-xs text-gray-500">
                 <MapPin className="w-3 h-3" />
-                {post.location}
-              </p>
+                <span className="truncate">{post.location}</span>
+              </div>
             )}
           </div>
         </div>
-        <button className="text-gray-600 hover:text-gray-800">
-          <MoreHorizontal className="w-5 h-5" />
+        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+          <MoreHorizontal className="w-5 h-5 text-gray-700" />
         </button>
       </div>
 
       {/* Post Media */}
-      {post.imageUrl && (
-        <div className="relative w-full aspect-square bg-gray-100">
+      {post.mediaType === 'image' && post.imageUrl && (
+        <div className="relative w-full aspect-square bg-black">
           <Image
             src={getMediaUrl(post.imageUrl)}
             alt="Post image"
             fill
-            className="object-cover"
+            className="object-contain"
             unoptimized
           />
         </div>
       )}
 
-      {post.videoUrl && (
-        <video
-          src={getMediaUrl(post.videoUrl)}
-          controls
-          className="w-full max-h-[600px] bg-black"
-        />
+      {post.mediaType === 'video' && post.videoUrl && (
+        <div className="relative w-full aspect-square bg-black">
+          <video
+            src={getMediaUrl(post.videoUrl)}
+            controls
+            className="w-full h-full object-contain"
+          />
+        </div>
       )}
 
       {/* Post Actions */}
@@ -175,17 +175,18 @@ export default function PostCard({ post, currentUser, onLike, onComment }: PostC
               className="hover:opacity-70 transition-opacity"
             >
               <Heart
-                className={`w-6 h-6 ${post.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-800'}`}
+                className={`w-7 h-7 ${post.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-800'}`}
+                strokeWidth={1.5}
               />
             </button>
             <button
               onClick={loadComments}
               className="hover:opacity-70 transition-opacity"
             >
-              <MessageCircle className="w-6 h-6 text-gray-800" />
+              <MessageCircle className="w-7 h-7 text-gray-800" strokeWidth={1.5} />
             </button>
             <button className="hover:opacity-70 transition-opacity">
-              <Send className="w-6 h-6 text-gray-800" />
+              <Send className="w-7 h-7 text-gray-800" strokeWidth={1.5} />
             </button>
           </div>
           <button
@@ -194,20 +195,21 @@ export default function PostCard({ post, currentUser, onLike, onComment }: PostC
           >
             <Bookmark
               className={`w-6 h-6 ${isSaved ? 'fill-gray-800 text-gray-800' : 'text-gray-800'}`}
+              strokeWidth={1.5}
             />
           </button>
         </div>
 
         {/* Likes Count */}
         {post.likesCount > 0 && (
-          <p className="font-semibold text-sm mb-2">
+          <p className="font-semibold text-sm mb-1">
             {post.likesCount} {post.likesCount === 1 ? 'like' : 'likes'}
           </p>
         )}
 
         {/* Post Content */}
         {post.content && (
-          <p className="text-sm mb-2">
+          <p className="text-sm mb-1">
             <span className="font-semibold mr-2">{post.user?.username || post.user?.name}</span>
             {post.content}
           </p>
@@ -217,7 +219,7 @@ export default function PostCard({ post, currentUser, onLike, onComment }: PostC
         {post.commentsCount > 0 && (
           <button
             onClick={loadComments}
-            className="text-sm text-gray-500 hover:text-gray-700 mb-2"
+            className="text-sm text-gray-500 hover:text-gray-700 mb-1"
           >
             View all {post.commentsCount} comments
           </button>
@@ -231,63 +233,65 @@ export default function PostCard({ post, currentUser, onLike, onComment }: PostC
 
       {/* Comments Section */}
       {showComments && (
-        <div className="border-t border-gray-200 px-3 py-2 max-h-64 overflow-y-auto">
+        <div className="border-t border-gray-200 px-3 py-2">
           {isLoadingComments ? (
             <div className="text-center py-4">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-800 mx-auto"></div>
             </div>
           ) : (
-            comments.map((comment) => (
-              <div key={comment.id} className="flex gap-2 mb-3">
-                <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                  {comment.user?.avatar ? (
-                    <Image
-                      src={getAvatarUrl(comment.user.avatar)}
-                      alt={comment.user.name}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
-                      {comment.user?.name?.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+            <>
+              {comments.map((comment) => (
+                <div key={comment.id} className="flex gap-2 mb-2">
+                  <div className="relative w-7 h-7 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                    {comment.user?.avatar ? (
+                      <Image
+                        src={getAvatarUrl(comment.user.avatar)}
+                        alt={comment.user.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
+                        {comment.user?.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">
+                      <span className="font-semibold mr-2">{comment.user?.username}</span>
+                      {comment.content}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {formatTimeAgo(comment.createdAt)}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm">
-                    <span className="font-semibold mr-2">{comment.user?.username || comment.user?.name}</span>
-                    {comment.content}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {formatTimeAgo(comment.createdAt)}
-                  </p>
-                </div>
-              </div>
-            ))
+              ))}
+            </>
           )}
+
+          {/* Add Comment */}
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
+            <input
+              type="text"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleComment()}
+              placeholder="Add a comment..."
+              className="flex-1 text-sm border-none focus:outline-none bg-transparent min-w-0"
+            />
+            {commentText.trim() && (
+              <button
+                onClick={handleComment}
+                className="text-blue-500 font-semibold text-sm hover:text-blue-700"
+              >
+                Post
+              </button>
+            )}
+          </div>
         </div>
       )}
-
-      {/* Add Comment */}
-      <div className="border-t border-gray-200 p-3 flex items-center gap-3">
-        <input
-          type="text"
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleComment()}
-          placeholder="Add a comment..."
-          className="flex-1 text-sm border-none focus:outline-none"
-        />
-        {commentText.trim() && (
-          <button
-            onClick={handleComment}
-            className="text-sm font-semibold text-blue-500 hover:text-blue-700"
-          >
-            Post
-          </button>
-        )}
-      </div>
     </div>
   );
 }

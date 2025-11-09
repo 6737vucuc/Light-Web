@@ -93,7 +93,7 @@ export default function CreatePost({ currentUser, onPostCreated }: CreatePostPro
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+    <div className="bg-white border-b border-gray-200 p-4">
       <div className="flex gap-3">
         <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
           {currentUser?.avatar ? (
@@ -111,12 +111,12 @@ export default function CreatePost({ currentUser, onPostCreated }: CreatePostPro
           )}
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={`What's on your mind, ${currentUser?.name?.split(' ')[0]}?`}
-            className="w-full resize-none border-none focus:outline-none text-sm"
+            className="w-full resize-none border-none focus:outline-none text-sm bg-transparent"
             rows={3}
           />
 
@@ -160,20 +160,20 @@ export default function CreatePost({ currentUser, onPostCreated }: CreatePostPro
 
           {showLocationInput && (
             <div className="mt-3 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-gray-500" />
+              <MapPin className="w-4 h-4 text-gray-500 flex-shrink-0" />
               <input
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Add location"
-                className="flex-1 text-sm border-none focus:outline-none"
+                className="flex-1 text-sm border-none focus:outline-none bg-transparent min-w-0"
               />
               <button
                 onClick={() => {
                   setShowLocationInput(false);
                   setLocation('');
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 flex-shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -181,7 +181,7 @@ export default function CreatePost({ currentUser, onPostCreated }: CreatePostPro
           )}
 
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 flex-wrap">
               <input
                 ref={imageInputRef}
                 type="file"
@@ -193,10 +193,10 @@ export default function CreatePost({ currentUser, onPostCreated }: CreatePostPro
               <button
                 onClick={() => imageInputRef.current?.click()}
                 disabled={!!selectedVideo}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
               >
                 <ImageIcon className="w-5 h-5 text-green-500" />
-                <span className="text-sm text-gray-700">Photo</span>
+                <span className="text-xs md:text-sm text-gray-700">Photo</span>
               </button>
 
               <input
@@ -209,25 +209,25 @@ export default function CreatePost({ currentUser, onPostCreated }: CreatePostPro
               <button
                 onClick={() => videoInputRef.current?.click()}
                 disabled={selectedImages.length > 0}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
               >
                 <Video className="w-5 h-5 text-red-500" />
-                <span className="text-sm text-gray-700">Video</span>
+                <span className="text-xs md:text-sm text-gray-700">Video</span>
               </button>
 
               <button
                 onClick={() => setShowLocationInput(!showLocationInput)}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <MapPin className="w-5 h-5 text-blue-500" />
-                <span className="text-sm text-gray-700">Location</span>
+                <span className="text-xs md:text-sm text-gray-700">Location</span>
               </button>
             </div>
 
             <button
               onClick={handlePost}
               disabled={isPosting || (!content.trim() && selectedImages.length === 0 && !selectedVideo)}
-              className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 text-sm flex-shrink-0"
             >
               {isPosting ? 'Posting...' : 'Post'}
             </button>

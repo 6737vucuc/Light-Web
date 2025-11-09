@@ -90,11 +90,11 @@ export default function Feed({ currentUser }: FeedProps) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl mx-auto px-0">
       <CreatePost currentUser={currentUser} onPostCreated={handlePostCreated} />
 
       {posts.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-12 px-4">
           <p className="text-gray-500">No posts yet. Be the first to post!</p>
         </div>
       ) : (
@@ -110,7 +110,7 @@ export default function Feed({ currentUser }: FeedProps) {
           ))}
 
           {hasMore && (
-            <div className="text-center py-4">
+            <div className="text-center py-4 px-4">
               <button
                 onClick={() => loadPosts(page + 1)}
                 className="px-6 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold transition-colors"
