@@ -3,10 +3,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ChevronLeft, ChevronRight, User, Lock, Bell, Eye, Shield,
-  Ban, Globe, Moon, Info, LogOut, Camera, Check, X
+  ChevronLeft, ChevronRight, User, Lock, Bell, Eye,
+  Ban, Info, LogOut, Check, UserX
 } from 'lucide-react';
 import Image from 'next/image';
+
+interface BlockedUser {
+  id: number;
+  username: string;
+  name: string;
+  avatar?: string;
+}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -18,7 +25,6 @@ export default function SettingsPage() {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
-  const [website, setWebsite] = useState('');
   const [avatar, setAvatar] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,11 +40,13 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Notifications States
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [likesNotif, setLikesNotif] = useState(true);
   const [commentsNotif, setCommentsNotif] = useState(true);
   const [followsNotif, setFollowsNotif] = useState(true);
   const [messagesNotif, setMessagesNotif] = useState(true);
+
+  // Blocked Users
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
 
   useEffect(() => {
     fetchUserData();
@@ -53,7 +61,6 @@ export default function SettingsPage() {
         setName(data.user.name || '');
         setUsername(data.user.username || '');
         setBio(data.user.bio || '');
-        setWebsite(data.user.website || '');
         setAvatar(data.user.avatar || '');
         setIsPrivate(data.user.isPrivate || false);
         setHideFollowers(data.user.hideFollowers || false);
@@ -65,6 +72,31 @@ export default function SettingsPage() {
       console.error('Error fetching user data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchBlockedUsers = async () => {
+    try {
+      const response = await fetch('/api/block/list');
+      if (response.ok) {
+        const data = await response.json();
+        setBlockedUsers(data.blockedUsers || []);
+      }
+    } catch (error) {
+      console.error('Error fetching blocked users:', error);
+    }
+  };
+
+  const handleUnblock = async (userId: number) => {
+    if (!confirm('Are you sure you want to unblock this user?')) return;
+    
+    try {
+      const response = await fetch(`/api/block/${userId}`, { method: 'DELETE' });
+      if (response.ok) {
+        setBlockedUsers(blockedUsers.filter(u => u.id !== userId));
+      }
+    } catch (error) {
+      console.error('Error unblocking user:', error);
     }
   };
 
@@ -92,7 +124,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/users/update-profile-info', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, username, bio, website, avatar }),
+        body: JSON.stringify({ name, username, bio, avatar }),
       });
 
       if (response.ok) {
@@ -275,7 +307,10 @@ export default function SettingsPage() {
             </button>
 
             <button
-              onClick={() => setActiveSection('blocked')}
+              onClick={() => {
+                setActiveSection('blocked');
+                fetchBlockedUsers();
+              }}
               className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-3">
@@ -297,33 +332,6 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <Bell className="w-5 h-5 text-gray-700" />
                 <span className="text-sm">Push Notifications</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
-
-          {/* Preferences Section */}
-          <div className="py-2">
-            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Preferences</div>
-            
-            <button
-              onClick={() => setActiveSection('language')}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Globe className="w-5 h-5 text-gray-700" />
-                <span className="text-sm">Language</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
-
-            <button
-              onClick={() => setActiveSection('theme')}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Moon className="w-5 h-5 text-gray-700" />
-                <span className="text-sm">Theme</span>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
@@ -455,17 +463,6 @@ export default function SettingsPage() {
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 placeholder="Tell us about yourself"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-              <input
-                type="url"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://example.com"
               />
             </div>
           </div>
@@ -632,27 +629,203 @@ export default function SettingsPage() {
     );
   }
 
-  // Other sections (placeholder)
-  return (
-    <div className="min-h-screen bg-white">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="w-full px-4">
-          <div className="flex items-center justify-between h-14">
-            <button
-              onClick={() => setActiveSection(null)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <h1 className="text-base font-semibold capitalize">{activeSection?.replace('-', ' ')}</h1>
-            <div className="w-10"></div>
+  // Blocked Accounts Section
+  if (activeSection === 'blocked') {
+    return (
+      <div className="min-h-screen bg-white">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+          <div className="w-full px-4">
+            <div className="flex items-center justify-between h-14">
+              <button
+                onClick={() => setActiveSection(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <h1 className="text-base font-semibold">Blocked Accounts</h1>
+              <div className="w-10"></div>
+            </div>
+          </div>
+        </header>
+
+        <div className="divide-y divide-gray-200">
+          {blockedUsers.length === 0 ? (
+            <div className="text-center py-12 px-4">
+              <UserX className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Blocked Accounts</h3>
+              <p className="text-sm text-gray-600">
+                When you block someone, they won't be able to find your profile or see your posts
+              </p>
+            </div>
+          ) : (
+            blockedUsers.map((user) => (
+              <div key={user.id} className="px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-200">
+                    {user.avatar ? (
+                      <Image
+                        src={getAvatarUrl(user.avatar)}
+                        alt={user.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold">
+                        {user.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm">{user.name}</div>
+                    <div className="text-xs text-gray-600">@{user.username}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleUnblock(user.id)}
+                  className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  Unblock
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Notifications Section
+  if (activeSection === 'notifications') {
+    return (
+      <div className="min-h-screen bg-white">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+          <div className="w-full px-4">
+            <div className="flex items-center justify-between h-14">
+              <button
+                onClick={() => setActiveSection(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <h1 className="text-base font-semibold">Push Notifications</h1>
+              <div className="w-10"></div>
+            </div>
+          </div>
+        </header>
+
+        <div className="p-4 space-y-4">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="font-semibold text-sm mb-1">Likes</div>
+                <div className="text-xs text-gray-600">Get notified when someone likes your post</div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-3">
+                <input
+                  type="checkbox"
+                  checked={likesNotif}
+                  onChange={(e) => setLikesNotif(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="font-semibold text-sm mb-1">Comments</div>
+                <div className="text-xs text-gray-600">Get notified when someone comments on your post</div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-3">
+                <input
+                  type="checkbox"
+                  checked={commentsNotif}
+                  onChange={(e) => setCommentsNotif(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="font-semibold text-sm mb-1">New Followers</div>
+                <div className="text-xs text-gray-600">Get notified when someone follows you</div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-3">
+                <input
+                  type="checkbox"
+                  checked={followsNotif}
+                  onChange={(e) => setFollowsNotif(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="font-semibold text-sm mb-1">Messages</div>
+                <div className="text-xs text-gray-600">Get notified when you receive a new message</div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-3">
+                <input
+                  type="checkbox"
+                  checked={messagesNotif}
+                  onChange={(e) => setMessagesNotif(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
           </div>
         </div>
-      </header>
-
-      <div className="p-4 text-center text-gray-600">
-        <p>This section is coming soon...</p>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // About Section
+  if (activeSection === 'about') {
+    return (
+      <div className="min-h-screen bg-white">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+          <div className="w-full px-4">
+            <div className="flex items-center justify-between h-14">
+              <button
+                onClick={() => setActiveSection(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <h1 className="text-base font-semibold">About</h1>
+              <div className="w-10"></div>
+            </div>
+          </div>
+        </header>
+
+        <div className="p-6 text-center">
+          <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+            <span className="text-4xl">✨</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Light of Life</h2>
+          <p className="text-sm text-gray-600 mb-6">Version 1.0.0</p>
+          
+          <div className="text-left space-y-4 text-sm text-gray-700">
+            <p className="text-center text-gray-500 italic">
+              Content will be added here...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

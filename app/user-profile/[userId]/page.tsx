@@ -324,13 +324,19 @@ export default function UserProfilePage() {
               <div className="text-xs md:text-sm text-gray-600">posts</div>
             </div>
             {!user.hideFollowers && (
-              <button className="hover:opacity-70 transition-opacity">
+              <button 
+                onClick={() => router.push(`/followers/${userId}`)}
+                className="hover:opacity-70 transition-opacity"
+              >
                 <div className="font-semibold text-sm md:text-base">{user.followersCount}</div>
                 <div className="text-xs md:text-sm text-gray-600">followers</div>
               </button>
             )}
             {!user.hideFollowing && (
-              <button className="hover:opacity-70 transition-opacity">
+              <button 
+                onClick={() => router.push(`/following/${userId}`)}
+                className="hover:opacity-70 transition-opacity"
+              >
                 <div className="font-semibold text-sm md:text-base">{user.followingCount}</div>
                 <div className="text-xs md:text-sm text-gray-600">following</div>
               </button>
