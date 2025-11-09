@@ -296,38 +296,43 @@ export async function POST(request: NextRequest) {
     // Add rate limit headers
     response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
 
-    // Send real-time notification via Pusher - SEND PLAIN TEXT
-    const sender = await db.query.users.findFirst({ where: eq(users.id, authResult.user.id) });
-    if (sender) {
-      // Send message to the sender's channel (plain text)
-      const senderChannelId = RealtimeChatService.getPrivateChannelName(authResult.user.id, receiverId);
-      await RealtimeChatService.sendMessage(senderChannelId, {
-        id: message.id,
-        senderId: message.senderId,
-        senderName: sender.name,
-        senderAvatar: sender.avatar || undefined,
-        content: sanitizedContent || '', // PLAIN TEXT - NOT ENCRYPTED
-        mediaUrl: mediaUrl || undefined,
-        messageType: messageType || 'text',
-        timestamp: message.createdAt || new Date(),
-        isRead: message.isRead || false,
-        isDelivered: false,
-      });
+    // Send real-time no    // Get sender info for Pusher event
+    try {
+      const sender = await db.query.users.findFirst({ where: eq(users.id, authResult.user.id) });
+      if (sender) {
+        // Send message to the sender's channel (plain text)
+        const senderChannelId = RealtimeChatService.getPrivateChannelName(authResult.user.id, receiverId);
+        await RealtimeChatService.sendMessage(senderChannelId, {
+          id: message.id,
+          senderId: message.senderId,
+          senderName: sender.name,
+          senderAvatar: sender.avatar || undefined,
+          content: sanitizedContent || '', // PLAIN TEXT - NOT ENCRYPTED
+          mediaUrl: mediaUrl || undefined,
+          messageType: messageType || 'text',
+          timestamp: message.createdAt || new Date(),
+          isRead: message.isRead || false,
+          isDelivered: false,
+        });
 
-      // Send message to the receiver's channel (plain text)
-      const receiverChannelId = RealtimeChatService.getPrivateChannelName(receiverId, authResult.user.id);
-      await RealtimeChatService.sendMessage(receiverChannelId, {
-        id: message.id,
-        senderId: message.senderId,
-        senderName: sender.name,
-        senderAvatar: sender.avatar || undefined,
-        content: sanitizedContent || '', // PLAIN TEXT - NOT ENCRYPTED
-        mediaUrl: mediaUrl || undefined,
-        messageType: messageType || 'text',
-        timestamp: message.createdAt || new Date(),
-        isRead: message.isRead || false,
-        isDelivered: false, // Will be updated when receiver opens chat
-      });
+        // Send message to the receiver's channel (plain text)
+        const receiverChannelId = RealtimeChatService.getPrivateChannelName(receiverId, authResult.user.id);
+        await RealtimeChatService.sendMessage(receiverChannelId, {
+          id: message.id,
+          senderId: message.senderId,
+          senderName: sender.name,
+          senderAvatar: sender.avatar || undefined,
+          content: sanitizedContent || '', // PLAIN TEXT - NOT ENCRYPTED
+          mediaUrl: mediaUrl || undefined,
+          messageType: messageType || 'text',
+          timestamp: message.createdAt || new Date(),
+          isRead: message.isRead || false,
+          isDelivered: false, // Will be updated when receiver opens chat
+        });
+      }
+    } catch (pusherError) {
+      console.error('[MESSAGE API] Pusher error (non-fatal):', pusherError);
+      // Continue - message was saved to database
     }
     response.headers.set('X-Encryption-Level', 'STORAGE-ONLY-AES-256-GCM');
 
