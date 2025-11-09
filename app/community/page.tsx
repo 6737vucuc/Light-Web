@@ -128,7 +128,7 @@ export default function CommunityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white pb-16 md:pb-0">
       {/* Top Header - Instagram Style */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4">
@@ -143,56 +143,18 @@ export default function CommunityPage() {
               </h1>
             </div>
 
-            {/* Right Icons - Instagram Order */}
+            {/* Right Icons - Only Messenger on Mobile */}
             <div className="flex items-center gap-4 md:gap-6">
+              {/* Desktop Icons */}
               <button
-                onClick={() => router.push('/community')}
-                className="hover:scale-110 transition-transform"
-                title="Home"
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="hidden md:block hover:scale-110 transition-transform relative"
+                title="Notifications"
               >
-                <Home className="w-6 h-6 md:w-7 md:h-7 text-gray-800" />
+                <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
               </button>
 
-              <button
-                onClick={() => setShowSearch(!showSearch)}
-                className="hover:scale-110 transition-transform"
-                title="Search"
-              >
-                <Search className="w-6 h-6 md:w-7 md:h-7 text-gray-800" />
-              </button>
-
-              <button 
-                className="hover:scale-110 transition-transform"
-                title="Create"
-              >
-                <PlusSquare className="w-6 h-6 md:w-7 md:h-7 text-gray-800" />
-              </button>
-
-              <div className="relative">
-                <button
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="hover:scale-110 transition-transform"
-                  title="Notifications"
-                >
-                  <Heart className={`w-6 h-6 md:w-7 md:h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
-                </button>
-                
-                {showNotifications && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowNotifications(false)}
-                    />
-                    <div className="absolute right-0 mt-2 z-50">
-                      <Notifications 
-                        currentUser={currentUser} 
-                        onClose={() => setShowNotifications(false)}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-
+              {/* Messenger - Always Visible */}
               <button
                 onClick={() => router.push('/messages')}
                 className="relative hover:scale-110 transition-transform"
@@ -206,25 +168,21 @@ export default function CommunityPage() {
                 )}
               </button>
 
-              <button
-                onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
-                className="relative w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden bg-gray-200 hover:scale-110 transition-transform border-2 border-transparent hover:border-gray-300"
-                title="Profile"
-              >
-                {currentUser?.avatar ? (
-                  <Image
-                    src={getAvatarUrl(currentUser.avatar)}
-                    alt={currentUser.name}
-                    fill
-                    className="object-cover"
-                    unoptimized
+              {/* Notifications Dropdown */}
+              {showNotifications && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowNotifications(false)}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
-                    {currentUser?.name?.charAt(0).toUpperCase()}
+                  <div className="absolute right-0 mt-2 z-50 top-12">
+                    <Notifications 
+                      currentUser={currentUser} 
+                      onClose={() => setShowNotifications(false)}
+                    />
                   </div>
-                )}
-              </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -324,6 +282,59 @@ export default function CommunityPage() {
       <main className="pb-6 bg-gray-50">
         <Feed currentUser={currentUser} />
       </main>
+
+      {/* Bottom Navigation Bar - Mobile Only */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+        <div className="flex items-center justify-around h-14">
+          <button
+            onClick={() => router.push('/community')}
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+          >
+            <Home className="w-7 h-7 text-gray-800" />
+          </button>
+
+          <button
+            onClick={() => setShowSearch(true)}
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+          >
+            <Search className="w-7 h-7 text-gray-800" />
+          </button>
+
+          <button
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+          >
+            <PlusSquare className="w-7 h-7 text-gray-800" />
+          </button>
+
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full relative"
+          >
+            <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
+          </button>
+
+          <button
+            onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+          >
+            <div className="relative w-7 h-7 rounded-full overflow-hidden bg-gray-200 border-2 border-gray-300">
+              {currentUser?.avatar ? (
+                <Image
+                  src={getAvatarUrl(currentUser.avatar)}
+                  alt={currentUser.name}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
+                  {currentUser?.name?.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+          </button>
+        </div>
+      </nav>
 
       {/* Messenger Modal */}
       {showMessenger && selectedRecipient && (
