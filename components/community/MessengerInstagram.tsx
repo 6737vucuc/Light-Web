@@ -161,9 +161,14 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
   const openConversationByUserId = async (userId: number) => {
     try {
+      console.log('[OPEN CONVERSATION] Fetching user:', userId);
       const response = await fetch(`/api/users/${userId}`);
+      console.log('[OPEN CONVERSATION] Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('[OPEN CONVERSATION] User data:', data);
+        
         const conversation: Conversation = {
           userId: data.user.id,
           userName: data.user.name,
@@ -174,10 +179,15 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
           unreadCount: 0,
           isOnline: false,
         };
+        
+        console.log('[OPEN CONVERSATION] Setting conversation:', conversation);
         setSelectedConversation(conversation);
+      } else {
+        const errorText = await response.text();
+        console.error('[OPEN CONVERSATION] Failed:', response.status, errorText);
       }
     } catch (error) {
-      console.error('Error opening conversation:', error);
+      console.error('[OPEN CONVERSATION] Exception:', error);
     }
   };
 
