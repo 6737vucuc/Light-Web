@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Search, PlusSquare, Heart, User, MessageCircle } from 'lucide-react';
+import { Home, Search, PlusSquare, Heart, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
 import Feed from '@/components/community/Feed';
 import Stories from '@/components/community/Stories';
@@ -22,7 +22,6 @@ export default function CommunityPage() {
   const [searchResults, setSearchResults] = useState<any>({ users: [], posts: [] });
   const [isSearching, setIsSearching] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [activeTab, setActiveTab] = useState('home');
 
   useEffect(() => {
     let mounted = true;
@@ -129,62 +128,53 @@ export default function CommunityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      {/* Top Header */}
+    <div className="min-h-screen bg-gray-50">
+      {/* Top Header - Instagram Style */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div 
               onClick={() => router.push('/community')}
               className="cursor-pointer"
             >
-              <h1 className="text-xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                 Light of Life
               </h1>
             </div>
 
-            {/* Search Bar */}
-            <div className="hidden md:block flex-1 max-w-xs mx-8">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  onFocus={() => setShowSearch(true)}
-                  placeholder="Search..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-            </div>
-
-            {/* Right Icons */}
-            <div className="flex items-center gap-5">
+            {/* Right Icons - Instagram Order */}
+            <div className="flex items-center gap-6">
               <button
                 onClick={() => router.push('/community')}
                 className="hover:scale-110 transition-transform"
+                title="Home"
               >
-                <Home className={`w-6 h-6 ${activeTab === 'home' ? 'text-gray-900' : 'text-gray-400'}`} />
+                <Home className="w-7 h-7 text-gray-800" />
               </button>
 
               <button
                 onClick={() => setShowSearch(!showSearch)}
-                className="md:hidden hover:scale-110 transition-transform"
+                className="hover:scale-110 transition-transform"
+                title="Search"
               >
-                <Search className="w-6 h-6 text-gray-800" />
+                <Search className="w-7 h-7 text-gray-800" />
               </button>
 
-              <button className="hover:scale-110 transition-transform">
-                <PlusSquare className="w-6 h-6 text-gray-800" />
+              <button 
+                className="hover:scale-110 transition-transform"
+                title="Create"
+              >
+                <PlusSquare className="w-7 h-7 text-gray-800" />
               </button>
 
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="hover:scale-110 transition-transform"
+                  title="Notifications"
                 >
-                  <Heart className={`w-6 h-6 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
+                  <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
                 </button>
                 
                 {showNotifications && (
@@ -206,8 +196,9 @@ export default function CommunityPage() {
               <button
                 onClick={() => router.push('/messages')}
                 className="relative hover:scale-110 transition-transform"
+                title="Messages"
               >
-                <MessageCircle className="w-6 h-6 text-gray-800" />
+                <MessageCircle className="w-7 h-7 text-gray-800" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -217,7 +208,8 @@ export default function CommunityPage() {
 
               <button
                 onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
-                className="relative w-7 h-7 rounded-full overflow-hidden bg-gray-200 hover:scale-110 transition-transform"
+                className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 hover:scale-110 transition-transform border-2 border-transparent hover:border-gray-300"
+                title="Profile"
               >
                 {currentUser?.avatar ? (
                   <Image
@@ -241,25 +233,25 @@ export default function CommunityPage() {
       {/* Search Modal */}
       {showSearch && (
         <div 
-          className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-16"
+          className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-20"
           onClick={() => {
             setShowSearch(false);
             setSearchQuery('');
           }}
         >
           <div 
-            className="bg-white rounded-lg w-full max-w-2xl mx-4 shadow-2xl max-h-[80vh] overflow-hidden"
+            className="bg-white rounded-xl w-full max-w-xl mx-4 shadow-2xl max-h-[70vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-200">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-900" />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
                   placeholder="Search..."
-                  className="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   autoFocus
                 />
               </div>
@@ -273,7 +265,7 @@ export default function CommunityPage() {
               ) : searchQuery.trim() ? (
                 <div>
                   {searchResults.users && searchResults.users.length > 0 && (
-                    <div className="p-4">
+                    <div className="p-2">
                       {searchResults.users.map((user: any) => (
                         <button
                           key={user.id}
@@ -301,7 +293,7 @@ export default function CommunityPage() {
                           </div>
                           <div className="flex-1 text-left">
                             <p className="font-semibold text-sm">{user.username}</p>
-                            <p className="text-gray-900 text-sm">{user.name}</p>
+                            <p className="text-gray-500 text-sm">{user.name}</p>
                           </div>
                         </button>
                       ))}
@@ -309,13 +301,13 @@ export default function CommunityPage() {
                   )}
                   
                   {searchResults.users?.length === 0 && searchResults.posts?.length === 0 && (
-                    <div className="text-center py-12 text-gray-900">
+                    <div className="text-center py-12 text-gray-500">
                       <p>No results found</p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-900">
+                <div className="text-center py-12 text-gray-500">
                   <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
                   <p>Search for people and posts</p>
                 </div>
@@ -329,7 +321,7 @@ export default function CommunityPage() {
       <Stories currentUser={currentUser} />
 
       {/* Main Content */}
-      <main className="py-6">
+      <main className="pb-6">
         <Feed currentUser={currentUser} />
       </main>
 
