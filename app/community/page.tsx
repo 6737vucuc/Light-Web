@@ -128,29 +128,29 @@ export default function CommunityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Top Header - Instagram Style */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-14">
             {/* Logo */}
             <div 
               onClick={() => router.push('/community')}
-              className="cursor-pointer"
+              className="cursor-pointer flex-shrink-0"
             >
-              <h1 className="text-2xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <h1 className="text-xl md:text-2xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent whitespace-nowrap">
                 Light of Life
               </h1>
             </div>
 
             {/* Right Icons - Instagram Order */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 md:gap-6">
               <button
                 onClick={() => router.push('/community')}
                 className="hover:scale-110 transition-transform"
                 title="Home"
               >
-                <Home className="w-7 h-7 text-gray-800" />
+                <Home className="w-6 h-6 md:w-7 md:h-7 text-gray-800" />
               </button>
 
               <button
@@ -158,14 +158,14 @@ export default function CommunityPage() {
                 className="hover:scale-110 transition-transform"
                 title="Search"
               >
-                <Search className="w-7 h-7 text-gray-800" />
+                <Search className="w-6 h-6 md:w-7 md:h-7 text-gray-800" />
               </button>
 
               <button 
                 className="hover:scale-110 transition-transform"
                 title="Create"
               >
-                <PlusSquare className="w-7 h-7 text-gray-800" />
+                <PlusSquare className="w-6 h-6 md:w-7 md:h-7 text-gray-800" />
               </button>
 
               <div className="relative">
@@ -174,7 +174,7 @@ export default function CommunityPage() {
                   className="hover:scale-110 transition-transform"
                   title="Notifications"
                 >
-                  <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
+                  <Heart className={`w-6 h-6 md:w-7 md:h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
                 </button>
                 
                 {showNotifications && (
@@ -198,9 +198,9 @@ export default function CommunityPage() {
                 className="relative hover:scale-110 transition-transform"
                 title="Messages"
               >
-                <MessageCircle className="w-7 h-7 text-gray-800" />
+                <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-gray-800" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center text-[10px] md:text-xs">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -208,7 +208,7 @@ export default function CommunityPage() {
 
               <button
                 onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
-                className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 hover:scale-110 transition-transform border-2 border-transparent hover:border-gray-300"
+                className="relative w-7 h-7 md:w-8 md:h-8 rounded-full overflow-hidden bg-gray-200 hover:scale-110 transition-transform border-2 border-transparent hover:border-gray-300"
                 title="Profile"
               >
                 {currentUser?.avatar ? (
@@ -233,7 +233,7 @@ export default function CommunityPage() {
       {/* Search Modal */}
       {showSearch && (
         <div 
-          className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-20"
+          className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-16 md:pt-20"
           onClick={() => {
             setShowSearch(false);
             setSearchQuery('');
@@ -243,15 +243,15 @@ export default function CommunityPage() {
             className="bg-white rounded-xl w-full max-w-xl mx-4 shadow-2xl max-h-[70vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-gray-200">
+            <div className="p-3 md:p-4 border-b border-gray-200">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
                   placeholder="Search..."
-                  className="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-10 md:pl-12 pr-4 py-2 md:py-3 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                   autoFocus
                 />
               </div>
@@ -276,7 +276,7 @@ export default function CommunityPage() {
                           }}
                           className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
                         >
-                          <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                          <div className="relative w-11 h-11 md:w-12 md:h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                             {user.avatar ? (
                               <Image
                                 src={getAvatarUrl(user.avatar)}
@@ -321,7 +321,7 @@ export default function CommunityPage() {
       <Stories currentUser={currentUser} />
 
       {/* Main Content */}
-      <main className="pb-6">
+      <main className="pb-6 bg-gray-50">
         <Feed currentUser={currentUser} />
       </main>
 
