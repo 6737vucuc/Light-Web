@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Search, PlusSquare, Heart, User } from 'lucide-react';
+import { Home, Search, PlusSquare, Heart, User, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
-import PublicFeed from '@/components/community/PublicFeed';
-import SecurityLoading from '@/components/SecurityLoading';
+import Feed from '@/components/community/Feed';
+import Stories from '@/components/community/Stories';
 import Notifications from '@/components/community/Notifications';
-import StoriesBar from '@/components/stories/StoriesBar';
+import Messenger from '@/components/community/Messenger';
 
 export default function CommunityPage() {
   const router = useRouter();
@@ -15,6 +15,8 @@ export default function CommunityPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showMessenger, setShowMessenger] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState<any>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any>({ users: [], posts: [] });
@@ -25,7 +27,6 @@ export default function CommunityPage() {
   useEffect(() => {
     let mounted = true;
     
-    // Check authentication
     const checkAuth = async () => {
       try {
         const response = await fetch('/api/auth/me');
@@ -38,14 +39,10 @@ export default function CommunityPage() {
             setIsAuthenticated(true);
             setIsLoading(false);
             
-            // Update lastSeen to show online status
             fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
-            
-            // Get unread messages count
             fetchUnreadCount();
           }
         } else {
-          // Not authenticated, redirect to login
           if (mounted) {
             router.push('/auth/login?redirect=/community');
           }
@@ -63,27 +60,24 @@ export default function CommunityPage() {
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     
     let mounted = true;
     
-    // Update lastSeen every 2 minutes to maintain online status
     const interval = setInterval(() => {
       if (mounted) {
         fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
         fetchUnreadCount();
       }
-    }, 120000); // 2 minutes
+    }, 120000);
 
     return () => {
       mounted = false;
       clearInterval(interval);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const fetchUnreadCount = async () => {
@@ -105,14 +99,39 @@ export default function CommunityPage() {
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  const handleSearch = async (value: string) => {
+    setSearchQuery(value);
+    
+    if (value.trim().length > 0) {
+      setIsSearching(true);
+      try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(value)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSearchResults(data);
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+      } finally {
+        setIsSearching(false);
+      }
+    } else {
+      setSearchResults({ users: [], posts: [] });
+    }
+  };
+
   if (isLoading) {
-    return <SecurityLoading />;
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-white pb-16">
-      {/* Instagram-style Top Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div className="min-h-screen bg-gray-50 pb-16">
+      {/* Top Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
@@ -125,26 +144,55 @@ export default function CommunityPage() {
               </h1>
             </div>
 
-            {/* Right Icons - Heart and Messages only */}
+            {/* Search Bar */}
+            <div className="hidden md:block flex-1 max-w-xs mx-8">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  onFocus={() => setShowSearch(true)}
+                  placeholder="Search..."
+                  className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+
+            {/* Right Icons */}
             <div className="flex items-center gap-5">
-              {/* Notifications Icon */}
+              <button
+                onClick={() => router.push('/community')}
+                className="hover:scale-110 transition-transform"
+              >
+                <Home className={`w-6 h-6 ${activeTab === 'home' ? 'text-gray-900' : 'text-gray-400'}`} />
+              </button>
+
+              <button
+                onClick={() => setShowSearch(!showSearch)}
+                className="md:hidden hover:scale-110 transition-transform"
+              >
+                <Search className="w-6 h-6 text-gray-800" />
+              </button>
+
+              <button className="hover:scale-110 transition-transform">
+                <PlusSquare className="w-6 h-6 text-gray-800" />
+              </button>
+
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="hover:scale-110 transition-transform"
-                  title="Notifications"
                 >
-                  <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
+                  <Heart className={`w-6 h-6 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
                 </button>
                 
                 {showNotifications && (
                   <>
-                    {/* Backdrop */}
                     <div 
                       className="fixed inset-0 z-40"
                       onClick={() => setShowNotifications(false)}
                     />
-                    {/* Notifications Panel */}
                     <div className="absolute right-0 mt-2 z-50">
                       <Notifications 
                         currentUser={currentUser} 
@@ -155,19 +203,34 @@ export default function CommunityPage() {
                 )}
               </div>
 
-              {/* Messages Icon with Badge */}
               <button
                 onClick={() => router.push('/messages')}
                 className="relative hover:scale-110 transition-transform"
-                title="Messages"
               >
-                <svg className="w-7 h-7 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+                <MessageCircle className="w-6 h-6 text-gray-800" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
+                className="relative w-7 h-7 rounded-full overflow-hidden bg-gray-200 hover:scale-110 transition-transform"
+              >
+                {currentUser?.avatar ? (
+                  <Image
+                    src={getAvatarUrl(currentUser.avatar)}
+                    alt={currentUser.name}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
+                    {currentUser?.name?.charAt(0).toUpperCase()}
+                  </div>
                 )}
               </button>
             </div>
@@ -194,27 +257,7 @@ export default function CommunityPage() {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={async (e) => {
-                    const value = e.target.value;
-                    setSearchQuery(value);
-                    
-                    if (value.trim().length > 0) {
-                      setIsSearching(true);
-                      try {
-                        const response = await fetch(`/api/search?q=${encodeURIComponent(value)}`);
-                        if (response.ok) {
-                          const data = await response.json();
-                          setSearchResults(data);
-                        }
-                      } catch (error) {
-                        console.error('Search error:', error);
-                      } finally {
-                        setIsSearching(false);
-                      }
-                    } else {
-                      setSearchResults({ users: [], posts: [] });
-                    }
-                  }}
+                  onChange={(e) => handleSearch(e.target.value)}
                   placeholder="Search..."
                   className="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
                   autoFocus
@@ -222,7 +265,6 @@ export default function CommunityPage() {
               </div>
             </div>
             
-            {/* Search Results */}
             <div className="overflow-y-auto max-h-96">
               {isSearching ? (
                 <div className="text-center py-12">
@@ -230,7 +272,6 @@ export default function CommunityPage() {
                 </div>
               ) : searchQuery.trim() ? (
                 <div>
-                  {/* Users Results */}
                   {searchResults.users && searchResults.users.length > 0 && (
                     <div className="p-4">
                       {searchResults.users.map((user: any) => (
@@ -284,81 +325,25 @@ export default function CommunityPage() {
         </div>
       )}
 
-      {/* Main Content */}
-      <main className="max-w-5xl mx-auto">
-        {/* Stories Bar */}
-        <div className="border-b border-gray-200 bg-white">
-          <StoriesBar currentUserId={currentUser?.id} />
-        </div>
+      {/* Stories */}
+      <Stories currentUser={currentUser} />
 
-        {/* Feed */}
-        <div className="py-4">
-          <PublicFeed currentUser={currentUser} />
-        </div>
+      {/* Main Content */}
+      <main className="py-6">
+        <Feed currentUser={currentUser} />
       </main>
 
-      {/* Instagram-style Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="flex items-center justify-around h-14">
-            {/* Home */}
-            <button
-              onClick={() => {
-                setActiveTab('home');
-                router.push('/community');
-              }}
-              className="flex flex-col items-center justify-center flex-1 hover:scale-110 transition-transform"
-            >
-              <Home className={`w-7 h-7 ${activeTab === 'home' ? 'text-gray-900' : 'text-gray-900'}`} />
-            </button>
-
-            {/* Search */}
-            <button
-              onClick={() => {
-                setActiveTab('search');
-                setShowSearch(true);
-              }}
-              className="flex flex-col items-center justify-center flex-1 hover:scale-110 transition-transform"
-            >
-              <Search className={`w-7 h-7 ${activeTab === 'search' ? 'text-gray-900' : 'text-gray-900'}`} />
-            </button>
-
-            {/* Create Post */}
-            <button
-              onClick={() => {
-                setActiveTab('create');
-                router.push('/create-post');
-              }}
-              className="flex flex-col items-center justify-center flex-1 hover:scale-110 transition-transform"
-            >
-              <PlusSquare className={`w-7 h-7 ${activeTab === 'create' ? 'text-gray-900' : 'text-gray-900'}`} />
-            </button>
-
-            {/* Profile */}
-            <button
-              onClick={() => {
-                setActiveTab('profile');
-                router.push('/profile');
-              }}
-              className="flex flex-col items-center justify-center flex-1 hover:scale-110 transition-transform"
-            >
-              {currentUser?.avatar ? (
-                <div className={`relative w-7 h-7 rounded-full overflow-hidden ${activeTab === 'profile' ? 'ring-2 ring-gray-900' : 'ring-1 ring-gray-300'}`}>
-                  <Image
-                    src={getAvatarUrl(currentUser.avatar)}
-                    alt={currentUser.name}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                </div>
-              ) : (
-                <User className={`w-7 h-7 ${activeTab === 'profile' ? 'text-gray-900' : 'text-gray-900'}`} />
-              )}
-            </button>
-          </div>
-        </div>
-      </nav>
+      {/* Messenger Modal */}
+      {showMessenger && selectedRecipient && (
+        <Messenger
+          currentUser={currentUser}
+          recipient={selectedRecipient}
+          onClose={() => {
+            setShowMessenger(false);
+            setSelectedRecipient(null);
+          }}
+        />
+      )}
     </div>
   );
 }
