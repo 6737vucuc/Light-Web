@@ -810,17 +810,193 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        <div className="p-6 text-center">
-          <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-            <span className="text-4xl">✨</span>
+        <div className="p-6 max-w-3xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <span className="text-4xl">✨</span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Light of Life</h2>
+            <p className="text-sm text-gray-600">Version 1.0.0</p>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Light of Life</h2>
-          <p className="text-sm text-gray-600 mb-6">Version 1.0.0</p>
-          
-          <div className="text-left space-y-4 text-sm text-gray-700">
-            <p className="text-center text-gray-500 italic">
-              Content will be added here...
-            </p>
+
+          {/* Content */}
+          <div className="space-y-8 text-sm text-gray-700">
+            {/* Title */}
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                In Him Was Life, and That Life Was the Light of All Mankind
+              </h3>
+              <p className="text-sm italic text-gray-600">
+                "The light shines in the darkness, and the darkness has not overcome it." — John 1:5
+              </p>
+            </div>
+
+            {/* Our Foundation */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">Our Foundation</h4>
+              <p className="leading-relaxed">
+                Light of Life is a sacred digital sanctuary where the Body of Christ gathers, united by one eternal truth: <strong>Jesus Christ is the Light of the World</strong>, and in His light, we find life abundant.
+              </p>
+              <p className="leading-relaxed mt-2">
+                We are called to be bearers of His light—to shine in the darkness, to proclaim His love, and to walk together as one family under the cross.
+              </p>
+            </div>
+
+            {/* The Transforming Power */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">The Transforming Power of Christ</h4>
+              <p className="leading-relaxed mb-3">
+                Throughout the ages, the Gospel has transformed hearts and nations. Today, we witness the same divine power:
+              </p>
+              <ul className="space-y-2 ml-4">
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span><strong>Captives set free</strong> — Chains of sin and addiction broken by His grace</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span><strong>The brokenhearted healed</strong> — Wounds of the past restored by His love</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span><strong>The fearful made bold</strong> — Courage flowing from faith in the Risen Lord</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span><strong>The lost finding home</strong> — Souls discovering their purpose in Christ</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span><strong>The lonely embraced</strong> — Finding family in the communion of saints</span>
+                </li>
+              </ul>
+              <p className="leading-relaxed mt-3">
+                This is not our work, but <strong>His</strong>—the work of the Holy Spirit moving among His people.
+              </p>
+            </div>
+
+            {/* What We Hold Sacred */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">What We Hold Sacred</h4>
+              <div className="space-y-2">
+                <p>✝️ <strong>Christ the Redeemer</strong> — Our salvation, our hope, our eternal light</p>
+                <p>📖 <strong>The Holy Scriptures</strong> — The living Word that guides and sanctifies</p>
+                <p>🙏 <strong>The Power of Prayer</strong> — Our lifeline to the Father's throne</p>
+                <p>❤️ <strong>Agape Love</strong> — The selfless love that reflects Christ's sacrifice</p>
+                <p>🕊️ <strong>The Holy Spirit</strong> — Our Comforter, Teacher, and Guide</p>
+                <p>⛪ <strong>The Church Universal</strong> — One Body, many members, united in faith</p>
+              </div>
+            </div>
+
+            {/* Our Sacred Mission */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">Our Sacred Mission</h4>
+              <p className="leading-relaxed mb-3">
+                To create a <strong>global communion of believers</strong> where:
+              </p>
+              <ul className="space-y-2 ml-4">
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span>The Gospel is proclaimed with boldness and grace</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span>Disciples are made and nurtured in the faith</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span>The weary find rest in Christ's presence</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span>The broken experience healing through prayer</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span>The lost encounter the Savior's love</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-600 mt-1">•</span>
+                  <span>Every testimony magnifies the name of Jesus</span>
+                </li>
+              </ul>
+              <p className="leading-relaxed mt-3">
+                We exist to <strong>extend the Kingdom of God</strong> in the digital age, making disciples of all nations, teaching them to observe all that Christ commanded.
+              </p>
+            </div>
+
+            {/* A Community of Faith */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">A Community of Faith</h4>
+              <p className="leading-relaxed mb-3">Here, you will discover:</p>
+              <div className="space-y-2">
+                <p>🌟 <strong>Fellowship in Truth</strong> — Walk alongside believers who share your devotion to Christ</p>
+                <p>📖 <strong>Spiritual Formation</strong> — Grow through daily Scripture, teachings, and reflections</p>
+                <p>🙏 <strong>Intercessory Prayer</strong> — Join in lifting one another before the throne of grace</p>
+                <p>💬 <strong>Edification & Encouragement</strong> — Build each other up in love and truth</p>
+                <p>✝️ <strong>Witness & Testimony</strong> — Share how Christ has moved in your life</p>
+                <p>❤️ <strong>Christlike Love</strong> — Experience the authentic love of the Body of Christ</p>
+              </div>
+            </div>
+
+            {/* The Great Commission */}
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">The Great Commission</h4>
+              <p className="italic text-gray-700 leading-relaxed mb-3">
+                "Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit, teaching them to observe all that I have commanded you. And behold, I am with you always, to the end of the age." — Matthew 28:19-20
+              </p>
+              <p className="leading-relaxed">
+                Light of Life is our response to this divine calling—a digital mission field where the Gospel reaches hearts across borders, languages, and cultures.
+              </p>
+            </div>
+
+            {/* An Invitation */}
+            <div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">An Invitation to Walk in the Light</h4>
+              <p className="leading-relaxed mb-3">
+                If you have found your way here, know that <strong>the Lord has led you</strong>.
+              </p>
+              <p className="leading-relaxed mb-3">
+                Perhaps your heart is searching for deeper faith. Perhaps you long for authentic Christian fellowship. Perhaps you simply desire to serve the Kingdom in new ways.
+              </p>
+              <p className="leading-relaxed mb-3">
+                <strong>Whatever your journey, hear this truth:</strong><br />
+                You are seen by God. You are loved beyond measure. And you are called to shine His light.
+              </p>
+              <p className="italic text-gray-600 leading-relaxed">
+                "You are the light of the world. A city set on a hill cannot be hidden... Let your light shine before others, that they may see your good deeds and glorify your Father in heaven." — Matthew 5:14, 16
+              </p>
+            </div>
+
+            {/* Join Us */}
+            <div className="text-center bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg">
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">Join Us in This Sacred Work</h4>
+              <p className="leading-relaxed mb-3">Together, we are:</p>
+              <div className="space-y-1">
+                <p>✨ <strong>Light piercing darkness</strong></p>
+                <p>💪 <strong>Strength in weakness, through Christ</strong></p>
+                <p>🕊️ <strong>Peace in the midst of storms</strong></p>
+                <p>❤️ <strong>Love that never fails</strong></p>
+              </div>
+              <p className="font-semibold text-purple-700 mt-4 text-lg">
+                We are the Body of Christ. We are Light of Life.
+              </p>
+            </div>
+
+            {/* Blessing */}
+            <div className="border-t border-gray-200 pt-6 text-center">
+              <h4 className="text-lg font-semibold text-gray-900 mb-3">A Blessing</h4>
+              <p className="italic text-gray-700 leading-relaxed">
+                "The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you; the Lord turn his face toward you and give you peace." — Numbers 6:24-26
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center text-xs text-gray-500 pt-6 border-t border-gray-200">
+              <p className="mb-1">© 2025 Light of Life. All rights reserved.</p>
+              <p className="text-purple-600 font-semibold">Built in faith, for His glory ✝️❤️</p>
+            </div>
           </div>
         </div>
       </div>
