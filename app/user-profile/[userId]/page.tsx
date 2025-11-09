@@ -287,11 +287,29 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Top Header with Back Button */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="w-full px-4">
+          <div className="flex items-center justify-between h-14">
+            <button
+              onClick={() => router.push('/community')}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h1 className="text-lg font-semibold">{user.username}</h1>
+            <div className="w-10"></div>
+          </div>
+        </div>
+      </header>
+
       {/* Profile Header - Instagram Style */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-start gap-8 mb-8">
+      <div className="w-full px-4 py-6">
+        <div className="flex items-start gap-4 md:gap-8 mb-6">
           {/* Avatar */}
-          <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+          <div className="relative w-20 h-20 md:w-32 md:h-32 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
             {user.avatar ? (
               <Image
                 src={getAvatarUrl(user.avatar)}
@@ -310,40 +328,42 @@ export default function UserProfilePage() {
           {/* Profile Info */}
           <div className="flex-1 min-w-0">
             {/* Username and Buttons */}
-            <div className="flex items-center gap-4 mb-5">
-              <h1 className="text-xl font-normal text-gray-900">{user.username}</h1>
+            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4">
+              <h1 className="text-lg md:text-xl font-normal text-gray-900">{user.username}</h1>
               
               {!isOwnProfile && (
                 <>
-                  {isFollowing ? (
-                    <button
-                      onClick={handleUnfollow}
-                      className="px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
-                    >
-                      Following
-                    </button>
-                  ) : followRequestPending ? (
-                    <button
-                      disabled
-                      className="px-6 py-1.5 bg-gray-200 rounded-lg text-sm font-semibold cursor-not-allowed"
-                    >
-                      Requested
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleFollow}
-                      className="px-6 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-semibold"
-                    >
-                      Follow
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isFollowing ? (
+                      <button
+                        onClick={handleUnfollow}
+                        className="px-4 md:px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold flex-1 md:flex-none"
+                      >
+                        Following
+                      </button>
+                    ) : followRequestPending ? (
+                      <button
+                        disabled
+                        className="px-4 md:px-6 py-1.5 bg-gray-200 rounded-lg text-sm font-semibold cursor-not-allowed flex-1 md:flex-none"
+                      >
+                        Requested
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleFollow}
+                        className="px-4 md:px-6 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-semibold flex-1 md:flex-none"
+                      >
+                        Follow
+                      </button>
+                    )}
 
-                  <button
-                    onClick={() => router.push(`/messages?userId=${userId}`)}
-                    className="px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
-                  >
-                    Message
-                  </button>
+                    <button
+                      onClick={() => router.push(`/messages?userId=${userId}`)}
+                      className="px-4 md:px-6 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold flex-1 md:flex-none"
+                    >
+                      Message
+                    </button>
+                  </div>
 
                   <div className="relative">
                     <button
@@ -393,7 +413,7 @@ export default function UserProfilePage() {
             </div>
 
             {/* Stats - Instagram Style */}
-            <div className="flex items-center gap-8 mb-5 text-base">
+            <div className="flex items-center gap-4 md:gap-8 mb-4 text-sm md:text-base">
               <div>
                 <span className="font-semibold text-gray-900">{user.postsCount}</span>
                 <span className="text-gray-900 ml-1">posts</span>
