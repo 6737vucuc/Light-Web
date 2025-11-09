@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Messenger from '@/components/community/Messenger';
+import MessengerInstagram from '@/components/community/MessengerInstagram';
 import SecurityLoading from '@/components/SecurityLoading';
 import { ArrowLeft } from 'lucide-react';
 
