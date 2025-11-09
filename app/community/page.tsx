@@ -131,30 +131,47 @@ export default function CommunityPage() {
     <div className="min-h-screen bg-white pb-16 md:pb-0">
       {/* Top Header - Instagram Style */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4">
+        <div className="w-full px-4">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
             <div 
               onClick={() => router.push('/community')}
-              className="cursor-pointer flex-shrink-0"
+              className="cursor-pointer"
             >
-              <h1 className="text-xl md:text-2xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent whitespace-nowrap">
+              <h1 className="text-xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                 Light of Life
               </h1>
             </div>
 
-            {/* Right Icons - Only Messenger on Mobile */}
-            <div className="flex items-center gap-4 md:gap-6">
-              {/* Desktop Icons */}
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="hidden md:block hover:scale-110 transition-transform relative"
-                title="Notifications"
-              >
-                <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
-              </button>
+            {/* Right Icons */}
+            <div className="flex items-center gap-5">
+              {/* Desktop Notifications */}
+              <div className="hidden md:block relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="hover:scale-110 transition-transform"
+                  title="Notifications"
+                >
+                  <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
+                </button>
+                
+                {showNotifications && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowNotifications(false)}
+                    />
+                    <div className="absolute right-0 mt-2 z-50">
+                      <Notifications 
+                        currentUser={currentUser} 
+                        onClose={() => setShowNotifications(false)}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
 
-              {/* Messenger - Always Visible */}
+              {/* Messenger */}
               <button
                 onClick={() => router.push('/messages')}
                 className="relative hover:scale-110 transition-transform"
@@ -162,27 +179,11 @@ export default function CommunityPage() {
               >
                 <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-gray-800" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center text-[10px] md:text-xs">
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center text-[10px]">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
-
-              {/* Notifications Dropdown */}
-              {showNotifications && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowNotifications(false)}
-                  />
-                  <div className="absolute right-0 mt-2 z-50 top-12">
-                    <Notifications 
-                      currentUser={currentUser} 
-                      onClose={() => setShowNotifications(false)}
-                    />
-                  </div>
-                </>
-              )}
             </div>
           </div>
         </div>
@@ -191,7 +192,7 @@ export default function CommunityPage() {
       {/* Search Modal */}
       {showSearch && (
         <div 
-          className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-16 md:pt-20"
+          className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-16"
           onClick={() => {
             setShowSearch(false);
             setSearchQuery('');
@@ -201,15 +202,15 @@ export default function CommunityPage() {
             className="bg-white rounded-xl w-full max-w-xl mx-4 shadow-2xl max-h-[70vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-3 md:p-4 border-b border-gray-200">
+            <div className="p-3 border-b border-gray-200">
               <div className="relative">
-                <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
                   placeholder="Search..."
-                  className="w-full pl-10 md:pl-12 pr-4 py-2 md:py-3 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                   autoFocus
                 />
               </div>
@@ -234,7 +235,7 @@ export default function CommunityPage() {
                           }}
                           className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
                         >
-                          <div className="relative w-11 h-11 md:w-12 md:h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                          <div className="relative w-11 h-11 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                             {user.avatar ? (
                               <Image
                                 src={getAvatarUrl(user.avatar)}
@@ -279,45 +280,45 @@ export default function CommunityPage() {
       <Stories currentUser={currentUser} />
 
       {/* Main Content */}
-      <main className="pb-6 bg-gray-50">
+      <main className="bg-gray-50">
         <Feed currentUser={currentUser} />
       </main>
 
       {/* Bottom Navigation Bar - Mobile Only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-area-inset-bottom">
         <div className="flex items-center justify-around h-14">
           <button
             onClick={() => router.push('/community')}
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
           >
-            <Home className="w-7 h-7 text-gray-800" />
+            <Home className="w-7 h-7 text-gray-800" strokeWidth={2} />
           </button>
 
           <button
             onClick={() => setShowSearch(true)}
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
           >
-            <Search className="w-7 h-7 text-gray-800" />
+            <Search className="w-7 h-7 text-gray-800" strokeWidth={2} />
           </button>
 
           <button
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
           >
-            <PlusSquare className="w-7 h-7 text-gray-800" />
+            <PlusSquare className="w-7 h-7 text-gray-800" strokeWidth={2} />
           </button>
 
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full relative"
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full relative"
           >
-            <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
+            <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} strokeWidth={2} />
           </button>
 
           <button
             onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 transition-colors h-full"
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
           >
-            <div className="relative w-7 h-7 rounded-full overflow-hidden bg-gray-200 border-2 border-gray-300">
+            <div className="relative w-7 h-7 rounded-full overflow-hidden bg-gray-200 border-2 border-gray-800">
               {currentUser?.avatar ? (
                 <Image
                   src={getAvatarUrl(currentUser.avatar)}
