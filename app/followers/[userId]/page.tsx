@@ -13,7 +13,6 @@ interface Follower {
   avatar?: string;
   isFollowing: boolean;
   isFollowingYou: boolean;
-  isOnline?: boolean;
   lastSeen?: string;
 }
 
