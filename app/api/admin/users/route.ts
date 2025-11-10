@@ -210,7 +210,7 @@ export async function DELETE(request: NextRequest) {
       await db.delete(lessonProgress).where(eq(lessonProgress.userId, userIdNum));
       
       // Delete group chat messages
-      await db.delete(groupChatMessages).where(eq(groupChatMessages.senderId, userIdNum));
+      await db.delete(groupChatMessages).where(eq(groupChatMessages.userId, userIdNum));
       
       // Delete group chat members
       await db.delete(groupChatMembers).where(eq(groupChatMembers.userId, userIdNum));
