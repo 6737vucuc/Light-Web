@@ -347,7 +347,7 @@ function VersesManager() {
     verse: '',
     reference: '',
     imageUrl: '',
-    displayDate: new Date().toISOString().split('T')[0],
+    scheduledDate: new Date().toISOString().split('T')[0],
   });
 
   useEffect(() => {
@@ -415,7 +415,7 @@ function VersesManager() {
           verse: '', 
           reference: '', 
           imageUrl: '', 
-          displayDate: new Date().toISOString().split('T')[0] 
+          scheduledDate: new Date().toISOString().split('T')[0] 
         });
         fetchVerses();
       }
@@ -491,8 +491,8 @@ function VersesManager() {
               </label>
               <input
                 type="date"
-                value={formData.displayDate}
-                onChange={(e) => setFormData({ ...formData, displayDate: e.target.value })}
+                value={formData.scheduledDate}
+                onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               />
@@ -542,7 +542,7 @@ function VersesManager() {
                     verse: '', 
                     reference: '', 
                     imageUrl: '', 
-                    displayDate: new Date().toISOString().split('T')[0] 
+                    scheduledDate: new Date().toISOString().split('T')[0] 
                   });
                 }}
                 className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
@@ -567,7 +567,7 @@ function VersesManager() {
                   <p className="text-lg italic">&quot;{verse.verse}&quot;</p>
                   <p className="text-sm text-gray-600 mt-2">- {verse.reference}</p>
                   <p className="text-xs text-gray-900 mt-1">
-                    Display Date: {new Date(verse.displayDate).toLocaleDateString()}
+                    Display Date: {new Date(verse.scheduledDate).toLocaleDateString()}
                   </p>
                   {verse.imageUrl && (
                     <img src={verse.imageUrl} alt={verse.reference} className="mt-2 h-24 rounded" />
@@ -578,7 +578,7 @@ function VersesManager() {
                     onClick={() => {
                       setFormData({
                         ...verse,
-                        displayDate: new Date(verse.displayDate).toISOString().split('T')[0]
+                        scheduledDate: new Date(verse.scheduledDate).toISOString().split('T')[0]
                       });
                       setShowForm(true);
                     }}
