@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Image as ImageIcon, Smile, Phone, Video, Info, Search, Edit, MoreHorizontal } from 'lucide-react';
+import { Send, Image as ImageIcon, Smile, Phone, Video, Info, Search, Edit, MoreHorizontal, Check, CheckCheck } from 'lucide-react';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
 
@@ -331,9 +331,18 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                           >
                             <p className="text-sm">{message.content}</p>
                           </div>
-                          <p className={`text-xs text-gray-400 mt-1 ${isMine ? 'text-right' : 'text-left'}`}>
-                            {formatTime(message.createdAt)}
-                          </p>
+                          <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                            <p className="text-xs text-gray-400">
+                              {formatTime(message.createdAt)}
+                            </p>
+                            {isMine && (
+                              message.isRead ? (
+                                <CheckCheck className="w-4 h-4 text-blue-500" />
+                              ) : (
+                                <CheckCheck className="w-4 h-4 text-gray-400" />
+                              )
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
