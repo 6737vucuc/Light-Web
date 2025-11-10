@@ -7,7 +7,8 @@ import {
   users, posts, comments, follows, notifications, messages, blockedUsers,
   likes, commentLikes, stories, storyViews, savedPosts, postTags,
   messageReactions, typingIndicators, reports, groupChatMembers, groupChatMessages,
-  lessonProgress, friendships, userPrivacySettings, calls, vpnLogs
+  lessonProgress, friendships, userPrivacySettings, calls, vpnLogs,
+  conversations, supportRequests, testimonies, encryptionKeys
 } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, desc } from 'drizzle-orm';
@@ -192,6 +193,15 @@ export async function DELETE(request: NextRequest) {
 
     // Delete all related data in correct order to avoid foreign key constraints
     try {
+      // Delete encryption keys
+      await db.delete(encryptionKeys).where(eq(encryptionKeys.userId, userIdNum));
+      
+      // Delete testimonies
+      await db.delete(testimonies).where(eq(testimonies.userId, userIdNum));
+      
+      // Delete support requests
+      await db.delete(supportRequests).where(eq(supportRequests.userId, userIdNum));
+      
       // Delete VPN logs
       await db.delete(vpnLogs).where(eq(vpnLogs.userId, userIdNum));
       
@@ -246,6 +256,10 @@ export async function DELETE(request: NextRequest) {
       // Delete blocked users records
       await db.delete(blockedUsers).where(eq(blockedUsers.userId, userIdNum));
       await db.delete(blockedUsers).where(eq(blockedUsers.blockedUserId, userIdNum));
+      
+      // Delete conversations
+      await db.delete(conversations).where(eq(conversations.participant1Id, userIdNum));
+      await db.delete(conversations).where(eq(conversations.participant2Id, userIdNum));
       
       // Delete messages
       await db.delete(messages).where(eq(messages.senderId, userIdNum));
