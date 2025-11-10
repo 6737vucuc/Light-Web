@@ -7,9 +7,9 @@ import {
   users, posts, comments, follows, notifications, messages, blockedUsers,
   likes, commentLikes, stories, storyViews, savedPosts, postTags,
   messageReactions, typingIndicators, reports, groupChatMembers, groupChatMessages,
-  lessonProgress, friendships, userPrivacySettings, calls, vpnLogs,
+  lessonProgress, friendships, userPrivacySettings, vpnLogs,
   conversations, supportRequests, testimonies, encryptionKeys,
-  groupChats, lessons, dailyVerses
+  groupChats, lessons, dailyVerses, shares, reactions, groupMessages, verificationCodes
 } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, desc, or } from 'drizzle-orm';
@@ -207,6 +207,9 @@ export async function DELETE(request: NextRequest) {
       // Delete comment likes (depends on comments)
       await db.delete(commentLikes).where(eq(commentLikes.userId, userIdNum));
       
+      // Delete reactions (depends on posts/comments)
+      await db.delete(reactions).where(eq(reactions.userId, userIdNum));
+      
       // Delete likes (depends on posts)
       await db.delete(likes).where(eq(likes.userId, userIdNum));
       
@@ -215,6 +218,9 @@ export async function DELETE(request: NextRequest) {
       
       // Delete saved posts (depends on posts)
       await db.delete(savedPosts).where(eq(savedPosts.userId, userIdNum));
+      
+      // Delete shares (depends on posts)
+      await db.delete(shares).where(eq(shares.userId, userIdNum));
       
       // Level 3: Delete middle-level dependencies
       // Delete comments (depends on posts)
@@ -230,6 +236,9 @@ export async function DELETE(request: NextRequest) {
       
       // Delete group chat messages (depends on group chats)
       await db.delete(groupChatMessages).where(eq(groupChatMessages.userId, userIdNum));
+      
+      // Delete group messages (depends on group chats)
+      await db.delete(groupMessages).where(eq(groupMessages.userId, userIdNum));
       
       // Delete group chat members (depends on group chats)
       await db.delete(groupChatMembers).where(eq(groupChatMembers.userId, userIdNum));
@@ -291,7 +300,7 @@ export async function DELETE(request: NextRequest) {
         )
       );
       
-      // Delete reports
+      // Delete reports (made by user or against user)
       await db.delete(reports).where(
         or(
           eq(reports.reporterId, userIdNum),
@@ -299,13 +308,7 @@ export async function DELETE(request: NextRequest) {
         )
       );
       
-      // Delete calls
-      await db.delete(calls).where(
-        or(
-          eq(calls.callerId, userIdNum),
-          eq(calls.receiverId, userIdNum)
-        )
-      );
+      // Note: 'calls' table doesn't exist in current schema, skipping
       
       // Delete lesson progress
       await db.delete(lessonProgress).where(eq(lessonProgress.userId, userIdNum));

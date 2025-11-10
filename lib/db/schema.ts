@@ -401,3 +401,40 @@ export const vpnLogs = pgTable('vpn_logs', {
   blockReason: text('block_reason'),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+// Shares table
+export const shares = pgTable('shares', {
+  id: serial('id').primaryKey(),
+  postId: integer('post_id').references(() => posts.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Reactions table
+export const reactions = pgTable('reactions', {
+  id: serial('id').primaryKey(),
+  postId: integer('post_id').references(() => posts.id),
+  commentId: integer('comment_id').references(() => comments.id),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  type: varchar('type', { length: 20 }).notNull(), // 'like', 'love', 'haha', 'wow', 'sad', 'angry'
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Group Messages table (different from group_chat_messages)
+export const groupMessages = pgTable('group_messages', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => groupChats.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  content: text('content').notNull(),
+  imageUrl: text('image_url'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Verification Codes table
+export const verificationCodes = pgTable('verification_codes', {
+  id: serial('id').primaryKey(),
+  email: varchar('email', { length: 255 }).notNull(),
+  code: varchar('code', { length: 10 }).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
