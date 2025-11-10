@@ -9,7 +9,7 @@ import {
   messageReactions, typingIndicators, reports, groupChatMembers, groupChatMessages,
   lessonProgress, friendships, userPrivacySettings, vpnLogs,
   conversations, supportRequests, testimonies, encryptionKeys,
-  groupChats, lessons, dailyVerses, shares, reactions, groupMessages, verificationCodes
+  groupChats, lessons, dailyVerses, shares, reactions, groupMessages
 } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, desc, or } from 'drizzle-orm';

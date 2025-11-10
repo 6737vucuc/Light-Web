@@ -429,12 +429,3 @@ export const groupMessages = pgTable('group_messages', {
   imageUrl: text('image_url'),
   createdAt: timestamp('created_at').defaultNow(),
 });
-
-// Verification Codes table
-export const verificationCodes = pgTable('verification_codes', {
-  id: serial('id').primaryKey(),
-  email: varchar('email', { length: 255 }).notNull(),
-  code: varchar('code', { length: 10 }).notNull(),
-  expiresAt: timestamp('expires_at').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-});
