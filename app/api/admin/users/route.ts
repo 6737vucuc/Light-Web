@@ -12,7 +12,7 @@ import {
   groupChats, lessons, dailyVerses
 } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, or } from 'drizzle-orm';
 
 // Get all users
 export async function GET(request: NextRequest) {
@@ -207,15 +207,23 @@ export async function DELETE(request: NextRequest) {
       await db.delete(vpnLogs).where(eq(vpnLogs.userId, userIdNum));
       
       // Delete calls
-      await db.delete(calls).where(eq(calls.callerId, userIdNum));
-      await db.delete(calls).where(eq(calls.receiverId, userIdNum));
+      await db.delete(calls).where(
+        or(
+          eq(calls.callerId, userIdNum),
+          eq(calls.receiverId, userIdNum)
+        )
+      );
       
       // Delete user privacy settings
       await db.delete(userPrivacySettings).where(eq(userPrivacySettings.userId, userIdNum));
       
       // Delete friendships
-      await db.delete(friendships).where(eq(friendships.userId, userIdNum));
-      await db.delete(friendships).where(eq(friendships.friendId, userIdNum));
+      await db.delete(friendships).where(
+        or(
+          eq(friendships.userId, userIdNum),
+          eq(friendships.friendId, userIdNum)
+        )
+      );
       
       // Delete daily verses created by user
       await db.delete(dailyVerses).where(eq(dailyVerses.createdBy, userIdNum));
@@ -236,8 +244,12 @@ export async function DELETE(request: NextRequest) {
       await db.delete(groupChats).where(eq(groupChats.createdBy, userIdNum));
       
       // Delete reports (made by user and against user)
-      await db.delete(reports).where(eq(reports.reporterId, userIdNum));
-      await db.delete(reports).where(eq(reports.reportedUserId, userIdNum));
+      await db.delete(reports).where(
+        or(
+          eq(reports.reporterId, userIdNum),
+          eq(reports.reportedUserId, userIdNum)
+        )
+      );
       
       // Delete typing indicators
       await db.delete(typingIndicators).where(eq(typingIndicators.userId, userIdNum));
@@ -264,24 +276,44 @@ export async function DELETE(request: NextRequest) {
       await db.delete(likes).where(eq(likes.userId, userIdNum));
       
       // Delete blocked users records
-      await db.delete(blockedUsers).where(eq(blockedUsers.userId, userIdNum));
-      await db.delete(blockedUsers).where(eq(blockedUsers.blockedUserId, userIdNum));
+      await db.delete(blockedUsers).where(
+        or(
+          eq(blockedUsers.userId, userIdNum),
+          eq(blockedUsers.blockedUserId, userIdNum)
+        )
+      );
       
       // Delete conversations
-      await db.delete(conversations).where(eq(conversations.participant1Id, userIdNum));
-      await db.delete(conversations).where(eq(conversations.participant2Id, userIdNum));
+      await db.delete(conversations).where(
+        or(
+          eq(conversations.participant1Id, userIdNum),
+          eq(conversations.participant2Id, userIdNum)
+        )
+      );
       
       // Delete messages
-      await db.delete(messages).where(eq(messages.senderId, userIdNum));
-      await db.delete(messages).where(eq(messages.receiverId, userIdNum));
+      await db.delete(messages).where(
+        or(
+          eq(messages.senderId, userIdNum),
+          eq(messages.receiverId, userIdNum)
+        )
+      );
       
       // Delete notifications
-      await db.delete(notifications).where(eq(notifications.userId, userIdNum));
-      await db.delete(notifications).where(eq(notifications.fromUserId, userIdNum));
+      await db.delete(notifications).where(
+        or(
+          eq(notifications.userId, userIdNum),
+          eq(notifications.fromUserId, userIdNum)
+        )
+      );
       
       // Delete follows
-      await db.delete(follows).where(eq(follows.followerId, userIdNum));
-      await db.delete(follows).where(eq(follows.followingId, userIdNum));
+      await db.delete(follows).where(
+        or(
+          eq(follows.followerId, userIdNum),
+          eq(follows.followingId, userIdNum)
+        )
+      );
       
       // Delete comments
       await db.delete(comments).where(eq(comments.userId, userIdNum));
@@ -296,9 +328,15 @@ export async function DELETE(request: NextRequest) {
         success: true,
         message: 'User and all related data deleted successfully',
       });
-    } catch (deleteError) {
+    } catch (deleteError: any) {
       console.error('Error during cascading delete:', deleteError);
-      throw deleteError;
+      console.error('Error message:', deleteError?.message);
+      console.error('Error detail:', deleteError?.detail);
+      return NextResponse.json({
+        error: 'Failed to delete user',
+        details: deleteError?.message || 'Unknown error',
+        hint: deleteError?.detail || 'Check server logs'
+      }, { status: 500 });
     }
   } catch (error) {
     console.error('Delete user error:', error);
