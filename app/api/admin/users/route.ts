@@ -8,7 +8,8 @@ import {
   likes, commentLikes, stories, storyViews, savedPosts, postTags,
   messageReactions, typingIndicators, reports, groupChatMembers, groupChatMessages,
   lessonProgress, friendships, userPrivacySettings, calls, vpnLogs,
-  conversations, supportRequests, testimonies, encryptionKeys
+  conversations, supportRequests, testimonies, encryptionKeys,
+  groupChats, lessons, dailyVerses
 } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, desc } from 'drizzle-orm';
@@ -216,14 +217,23 @@ export async function DELETE(request: NextRequest) {
       await db.delete(friendships).where(eq(friendships.userId, userIdNum));
       await db.delete(friendships).where(eq(friendships.friendId, userIdNum));
       
+      // Delete daily verses created by user
+      await db.delete(dailyVerses).where(eq(dailyVerses.createdBy, userIdNum));
+      
       // Delete lesson progress
       await db.delete(lessonProgress).where(eq(lessonProgress.userId, userIdNum));
+      
+      // Delete lessons created by user
+      await db.delete(lessons).where(eq(lessons.createdBy, userIdNum));
       
       // Delete group chat messages
       await db.delete(groupChatMessages).where(eq(groupChatMessages.userId, userIdNum));
       
       // Delete group chat members
       await db.delete(groupChatMembers).where(eq(groupChatMembers.userId, userIdNum));
+      
+      // Delete group chats created by user
+      await db.delete(groupChats).where(eq(groupChats.createdBy, userIdNum));
       
       // Delete reports (made by user and against user)
       await db.delete(reports).where(eq(reports.reporterId, userIdNum));
