@@ -23,28 +23,78 @@ export async function GET(request: NextRequest) {
         s.id,
         s.media_url,
         s.media_type,
+        s.caption,
         s.created_at,
         s.expires_at,
         u.id as user_id,
         u.name as user_name,
-        u.avatar as user_avatar
+        u.avatar as user_avatar,
+        COALESCE(
+          (SELECT COUNT(*) FROM story_views sv WHERE sv.story_id = s.id),
+          0
+        ) as views_count,
+        EXISTS(
+          SELECT 1 FROM story_views sv 
+          WHERE sv.story_id = s.id AND sv.viewer_id = ${user.id}
+        ) as has_viewed
       FROM stories s
       JOIN users u ON s.user_id = u.id
       WHERE s.expires_at > NOW()
       ORDER BY s.created_at DESC
     `;
 
+    // Group stories by user
+    const storyGroups: any[] = [];
+    const userMap = new Map();
+
+    result.forEach((row: any) => {
+      if (!userMap.has(row.user_id)) {
+        userMap.set(row.user_id, {
+          userId: row.user_id,
+          userName: row.user_name,
+          userAvatar: row.user_avatar,
+          stories: [],
+          hasViewed: true
+        });
+        storyGroups.push(userMap.get(row.user_id));
+      }
+
+      const group = userMap.get(row.user_id);
+      group.stories.push({
+        id: row.id,
+        userId: row.user_id,
+        userName: row.user_name,
+        userAvatar: row.user_avatar,
+        mediaUrl: row.media_url,
+        mediaType: row.media_type,
+        caption: row.caption,
+        viewsCount: parseInt(row.views_count),
+        createdAt: row.created_at,
+        expiresAt: row.expires_at,
+        hasViewed: row.has_viewed
+      });
+
+      // If any story in the group is not viewed, mark group as not viewed
+      if (!row.has_viewed) {
+        group.hasViewed = false;
+      }
+    });
+
     return NextResponse.json({
       success: true,
+      storyGroups,
       stories: result.map((row: any) => ({
         id: row.id,
         mediaUrl: row.media_url,
         mediaType: row.media_type,
+        caption: row.caption,
         createdAt: row.created_at,
         expiresAt: row.expires_at,
         userId: row.user_id,
         userName: row.user_name,
-        userAvatar: row.user_avatar
+        userAvatar: row.user_avatar,
+        viewsCount: parseInt(row.views_count),
+        hasViewed: row.has_viewed
       }))
     });
   } catch (error) {
