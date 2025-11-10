@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ChevronLeft, Search, X } from 'lucide-react';
 import Image from 'next/image';
+import Pusher from 'pusher-js';
 
 interface Following {
   id: number;
@@ -11,6 +12,8 @@ interface Following {
   name: string;
   avatar?: string;
   isFollowingYou: boolean;
+  isOnline?: boolean;
+  lastSeen?: string;
 }
 
 export default function FollowingPage() {
@@ -24,9 +27,17 @@ export default function FollowingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState('');
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const pusherRef = useRef<Pusher | null>(null);
 
   useEffect(() => {
     fetchFollowing();
+    setupPusher();
+    
+    return () => {
+      if (pusherRef.current) {
+        pusherRef.current.disconnect();
+      }
+    };
   }, [userId]);
 
   useEffect(() => {
@@ -41,6 +52,34 @@ export default function FollowingPage() {
       setFilteredFollowing(following);
     }
   }, [searchQuery, following]);
+
+  const setupPusher = () => {
+    if (typeof window === 'undefined') return;
+    
+    pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
+    });
+
+    const channel = pusherRef.current.subscribe(`user-${userId}`);
+    
+    channel.bind('following-added', (data: any) => {
+      fetchFollowing();
+    });
+    
+    channel.bind('following-removed', (data: any) => {
+      setFollowing((prev) => prev.filter((f) => f.id !== data.followingId));
+    });
+    
+    channel.bind('user-status', (data: { userId: number; isOnline: boolean; lastSeen?: string }) => {
+      setFollowing((prev) =>
+        prev.map((f) =>
+          f.id === data.userId
+            ? { ...f, isOnline: data.isOnline, lastSeen: data.lastSeen }
+            : f
+        )
+      );
+    });
+  };
 
   const fetchFollowing = async () => {
     try {

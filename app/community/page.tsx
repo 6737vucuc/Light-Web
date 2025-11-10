@@ -146,29 +146,14 @@ export default function CommunityPage() {
             {/* Right Icons */}
             <div className="flex items-center gap-5">
               {/* Desktop Notifications */}
-              <div className="hidden md:block relative">
+              <div className="hidden md:block">
                 <button
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  onClick={() => router.push('/notifications')}
                   className="hover:scale-110 transition-transform"
                   title="Notifications"
                 >
-                  <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} />
+                  <Heart className="w-7 h-7 text-gray-800" />
                 </button>
-                
-                {showNotifications && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowNotifications(false)}
-                    />
-                    <div className="absolute right-0 mt-2 z-50">
-                      <Notifications 
-                        currentUser={currentUser} 
-                        onClose={() => setShowNotifications(false)}
-                      />
-                    </div>
-                  </>
-                )}
               </div>
 
               {/* Messenger */}
@@ -308,10 +293,10 @@ export default function CommunityPage() {
           </button>
 
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full relative"
+            onClick={() => router.push('/notifications')}
+            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
           >
-            <Heart className={`w-7 h-7 ${showNotifications ? 'text-red-500 fill-red-500' : 'text-gray-800'}`} strokeWidth={2} />
+            <Heart className="w-7 h-7 text-gray-800" strokeWidth={2} />
           </button>
 
           <button

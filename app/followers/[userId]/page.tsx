@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ChevronLeft, Search, X } from 'lucide-react';
 import Image from 'next/image';
+import Pusher from 'pusher-js';
 
 interface Follower {
   id: number;
@@ -12,6 +13,8 @@ interface Follower {
   avatar?: string;
   isFollowing: boolean;
   isFollowingYou: boolean;
+  isOnline?: boolean;
+  lastSeen?: string;
 }
 
 export default function FollowersPage() {
@@ -24,9 +27,17 @@ export default function FollowersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState('');
+  const pusherRef = useRef<Pusher | null>(null);
 
   useEffect(() => {
     fetchFollowers();
+    setupPusher();
+    
+    return () => {
+      if (pusherRef.current) {
+        pusherRef.current.disconnect();
+      }
+    };
   }, [userId]);
 
   useEffect(() => {
@@ -41,6 +52,34 @@ export default function FollowersPage() {
       setFilteredFollowers(followers);
     }
   }, [searchQuery, followers]);
+
+  const setupPusher = () => {
+    if (typeof window === 'undefined') return;
+    
+    pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
+    });
+
+    const channel = pusherRef.current.subscribe(`user-${userId}`);
+    
+    channel.bind('follower-added', (data: any) => {
+      fetchFollowers();
+    });
+    
+    channel.bind('follower-removed', (data: any) => {
+      setFollowers((prev) => prev.filter((f) => f.id !== data.followerId));
+    });
+    
+    channel.bind('user-status', (data: { userId: number; isOnline: boolean; lastSeen?: string }) => {
+      setFollowers((prev) =>
+        prev.map((f) =>
+          f.id === data.userId
+            ? { ...f, isOnline: data.isOnline, lastSeen: data.lastSeen }
+            : f
+        )
+      );
+    });
+  };
 
   const fetchFollowers = async () => {
     try {
