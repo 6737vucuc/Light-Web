@@ -29,7 +29,6 @@ export async function GET(
         username: users.username,
         name: users.name,
         avatar: users.avatar,
-        isOnline: users.isOnline,
         lastSeen: users.lastSeen,
       })
       .from(follows)
