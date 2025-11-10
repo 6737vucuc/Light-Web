@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const { user } = authResult;
+
   try {
     // Get stories that haven't expired yet
     const result = await sql`
