@@ -192,96 +192,54 @@ export async function DELETE(request: NextRequest) {
 
     const userIdNum = parseInt(userId);
 
-    // Delete all related data in correct order to avoid foreign key constraints
+    // Delete all related data in correct order (deepest dependencies first)
     try {
-      // Delete encryption keys
-      await db.delete(encryptionKeys).where(eq(encryptionKeys.userId, userIdNum));
-      
-      // Delete testimonies
-      await db.delete(testimonies).where(eq(testimonies.userId, userIdNum));
-      
-      // Delete support requests
-      await db.delete(supportRequests).where(eq(supportRequests.userId, userIdNum));
-      
-      // Delete VPN logs
-      await db.delete(vpnLogs).where(eq(vpnLogs.userId, userIdNum));
-      
-      // Delete calls
-      await db.delete(calls).where(
-        or(
-          eq(calls.callerId, userIdNum),
-          eq(calls.receiverId, userIdNum)
-        )
-      );
-      
-      // Delete user privacy settings
-      await db.delete(userPrivacySettings).where(eq(userPrivacySettings.userId, userIdNum));
-      
-      // Delete friendships
-      await db.delete(friendships).where(
-        or(
-          eq(friendships.userId, userIdNum),
-          eq(friendships.friendId, userIdNum)
-        )
-      );
-      
-      // Delete daily verses created by user
-      await db.delete(dailyVerses).where(eq(dailyVerses.createdBy, userIdNum));
-      
-      // Delete lesson progress
-      await db.delete(lessonProgress).where(eq(lessonProgress.userId, userIdNum));
-      
-      // Delete lessons created by user
-      await db.delete(lessons).where(eq(lessons.createdBy, userIdNum));
-      
-      // Delete group chat messages
-      await db.delete(groupChatMessages).where(eq(groupChatMessages.userId, userIdNum));
-      
-      // Delete group chat members
-      await db.delete(groupChatMembers).where(eq(groupChatMembers.userId, userIdNum));
-      
-      // Delete group chats created by user
-      await db.delete(groupChats).where(eq(groupChats.createdBy, userIdNum));
-      
-      // Delete reports (made by user and against user)
-      await db.delete(reports).where(
-        or(
-          eq(reports.reporterId, userIdNum),
-          eq(reports.reportedUserId, userIdNum)
-        )
-      );
-      
-      // Delete typing indicators
-      await db.delete(typingIndicators).where(eq(typingIndicators.userId, userIdNum));
-      
-      // Delete message reactions
+      // Level 4: Delete deepest dependencies first
+      // Delete message reactions (depends on messages)
       await db.delete(messageReactions).where(eq(messageReactions.userId, userIdNum));
       
-      // Delete story views
+      // Delete typing indicators (depends on conversations)
+      await db.delete(typingIndicators).where(eq(typingIndicators.userId, userIdNum));
+      
+      // Delete story views (depends on stories)
       await db.delete(storyViews).where(eq(storyViews.userId, userIdNum));
+      
+      // Delete comment likes (depends on comments)
+      await db.delete(commentLikes).where(eq(commentLikes.userId, userIdNum));
+      
+      // Delete likes (depends on posts)
+      await db.delete(likes).where(eq(likes.userId, userIdNum));
+      
+      // Delete post tags (depends on posts)
+      await db.delete(postTags).where(eq(postTags.userId, userIdNum));
+      
+      // Delete saved posts (depends on posts)
+      await db.delete(savedPosts).where(eq(savedPosts.userId, userIdNum));
+      
+      // Level 3: Delete middle-level dependencies
+      // Delete comments (depends on posts)
+      await db.delete(comments).where(eq(comments.userId, userIdNum));
+      
+      // Delete messages (depends on conversations)
+      await db.delete(messages).where(
+        or(
+          eq(messages.senderId, userIdNum),
+          eq(messages.receiverId, userIdNum)
+        )
+      );
+      
+      // Delete group chat messages (depends on group chats)
+      await db.delete(groupChatMessages).where(eq(groupChatMessages.userId, userIdNum));
+      
+      // Delete group chat members (depends on group chats)
+      await db.delete(groupChatMembers).where(eq(groupChatMembers.userId, userIdNum));
+      
+      // Level 2: Delete main content
+      // Delete posts
+      await db.delete(posts).where(eq(posts.userId, userIdNum));
       
       // Delete stories
       await db.delete(stories).where(eq(stories.userId, userIdNum));
-      
-      // Delete post tags
-      await db.delete(postTags).where(eq(postTags.userId, userIdNum));
-      
-      // Delete saved posts
-      await db.delete(savedPosts).where(eq(savedPosts.userId, userIdNum));
-      
-      // Delete comment likes
-      await db.delete(commentLikes).where(eq(commentLikes.userId, userIdNum));
-      
-      // Delete likes
-      await db.delete(likes).where(eq(likes.userId, userIdNum));
-      
-      // Delete blocked users records
-      await db.delete(blockedUsers).where(
-        or(
-          eq(blockedUsers.userId, userIdNum),
-          eq(blockedUsers.blockedUserId, userIdNum)
-        )
-      );
       
       // Delete conversations
       await db.delete(conversations).where(
@@ -291,14 +249,16 @@ export async function DELETE(request: NextRequest) {
         )
       );
       
-      // Delete messages
-      await db.delete(messages).where(
-        or(
-          eq(messages.senderId, userIdNum),
-          eq(messages.receiverId, userIdNum)
-        )
-      );
+      // Delete group chats created by user
+      await db.delete(groupChats).where(eq(groupChats.createdBy, userIdNum));
       
+      // Delete lessons created by user
+      await db.delete(lessons).where(eq(lessons.createdBy, userIdNum));
+      
+      // Delete daily verses created by user
+      await db.delete(dailyVerses).where(eq(dailyVerses.createdBy, userIdNum));
+      
+      // Level 1: Delete user-related data
       // Delete notifications
       await db.delete(notifications).where(
         or(
@@ -315,11 +275,47 @@ export async function DELETE(request: NextRequest) {
         )
       );
       
-      // Delete comments
-      await db.delete(comments).where(eq(comments.userId, userIdNum));
+      // Delete blocked users
+      await db.delete(blockedUsers).where(
+        or(
+          eq(blockedUsers.userId, userIdNum),
+          eq(blockedUsers.blockedUserId, userIdNum)
+        )
+      );
       
-      // Delete posts
-      await db.delete(posts).where(eq(posts.userId, userIdNum));
+      // Delete friendships
+      await db.delete(friendships).where(
+        or(
+          eq(friendships.userId, userIdNum),
+          eq(friendships.friendId, userIdNum)
+        )
+      );
+      
+      // Delete reports
+      await db.delete(reports).where(
+        or(
+          eq(reports.reporterId, userIdNum),
+          eq(reports.reportedUserId, userIdNum)
+        )
+      );
+      
+      // Delete calls
+      await db.delete(calls).where(
+        or(
+          eq(calls.callerId, userIdNum),
+          eq(calls.receiverId, userIdNum)
+        )
+      );
+      
+      // Delete lesson progress
+      await db.delete(lessonProgress).where(eq(lessonProgress.userId, userIdNum));
+      
+      // Delete user-specific data
+      await db.delete(userPrivacySettings).where(eq(userPrivacySettings.userId, userIdNum));
+      await db.delete(encryptionKeys).where(eq(encryptionKeys.userId, userIdNum));
+      await db.delete(vpnLogs).where(eq(vpnLogs.userId, userIdNum));
+      await db.delete(supportRequests).where(eq(supportRequests.userId, userIdNum));
+      await db.delete(testimonies).where(eq(testimonies.userId, userIdNum));
       
       // Finally delete the user
       await db.delete(users).where(eq(users.id, userIdNum));
