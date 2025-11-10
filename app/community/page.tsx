@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Home, Search, PlusSquare, Heart, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
 import Feed from '@/components/community/Feed';
-import Stories from '@/components/community/Stories';
+import StoriesBar from '@/components/stories/StoriesBar';
 import Notifications from '@/components/community/Notifications';
 import Messenger from '@/components/community/Messenger';
 import DailyVerse from '@/components/verses/DailyVerse';
@@ -265,7 +265,7 @@ export default function CommunityPage() {
       )}
 
       {/* Stories */}
-      <Stories currentUser={currentUser} />
+      <StoriesBar currentUserId={currentUser?.id} />
 
       {/* Main Content */}
       <main className="bg-gray-50">
