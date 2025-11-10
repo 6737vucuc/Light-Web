@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Heart, MessageCircle, UserPlus, Loader2 } from 'lucide-react';
+import { ChevronLeft, Heart, MessageCircle, UserPlus, Loader2, Send } from 'lucide-react';
 import Image from 'next/image';
 
 interface Notification {
@@ -15,6 +15,7 @@ interface Notification {
   postId?: number;
   isRead: boolean;
   createdAt: Date;
+  isFollowing?: boolean;
 }
 
 export default function NotificationsPage() {
@@ -22,6 +23,7 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [followingUsers, setFollowingUsers] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     fetchNotifications();
@@ -34,6 +36,15 @@ export default function NotificationsPage() {
       if (response.ok) {
         const data = await response.json();
         setNotifications(data.notifications || []);
+        
+        // Initialize following status
+        const following = new Set<number>();
+        data.notifications?.forEach((n: Notification) => {
+          if (n.isFollowing) {
+            following.add(n.userId);
+          }
+        });
+        setFollowingUsers(following);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -69,6 +80,42 @@ export default function NotificationsPage() {
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleFollowBack = async (userId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    try {
+      const response = await fetch(`/api/follow/${userId}`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        setFollowingUsers(prev => new Set(prev).add(userId));
+      }
+    } catch (error) {
+      console.error('Error following user:', error);
+    }
+  };
+
+  const handleMessage = async (userId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    try {
+      // Create or get conversation
+      const response = await fetch('/api/messages/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otherUserId: userId }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        router.push(`/messages?conversation=${data.conversationId}`);
+      }
+    } catch (error) {
+      console.error('Error creating conversation:', error);
     }
   };
 
@@ -245,6 +292,27 @@ export default function NotificationsPage() {
                 <div className="text-xs text-gray-500 mt-1">
                   {getTimeAgo(notification.createdAt)}
                 </div>
+                
+                {/* Action Buttons for Follow Notifications */}
+                {(notification.type === 'new_follower' || notification.type === 'follow_request') && (
+                  <div className="flex gap-2 mt-2">
+                    {!followingUsers.has(notification.userId) && (
+                      <button
+                        onClick={(e) => handleFollowBack(notification.userId, e)}
+                        className="px-4 py-1.5 bg-purple-600 text-white text-sm font-semibold rounded-full hover:bg-purple-700 transition-colors"
+                      >
+                        Follow Back
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => handleMessage(notification.userId, e)}
+                      className="px-4 py-1.5 bg-gray-200 text-gray-900 text-sm font-semibold rounded-full hover:bg-gray-300 transition-colors flex items-center gap-1"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      Message
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Unread Indicator */}
