@@ -8,6 +8,7 @@ import {
   Clock, TrendingUp, Award, Play, ChevronRight, Edit2, X, Check
 } from 'lucide-react';
 import Image from 'next/image';
+import DailyVerse from '@/components/verses/DailyVerse';
 
 interface User {
   id: number;
@@ -335,6 +336,8 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Daily Verse Modal */}
+      <DailyVerse />
       {/* Cover Photo */}
       <div className="relative h-64 bg-gradient-to-r from-purple-400 to-blue-400">
         {user.coverPhoto ? (

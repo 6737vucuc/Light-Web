@@ -3,7 +3,12 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { users } from '@/lib/db/schema';
+import { 
+  users, posts, comments, follows, notifications, messages, blockedUsers,
+  likes, commentLikes, stories, storyViews, savedPosts, postTags,
+  messageReactions, typingIndicators, reports, groupChatMembers, groupChatMessages,
+  lessonProgress, friendships, userPrivacySettings, calls, vpnLogs
+} from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, desc } from 'drizzle-orm';
 
@@ -183,13 +188,94 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await db
-      .delete(users)
-      .where(eq(users.id, parseInt(userId)));
+    const userIdNum = parseInt(userId);
 
-    return NextResponse.json({
-      message: 'User deleted successfully',
-    });
+    // Delete all related data in correct order to avoid foreign key constraints
+    try {
+      // Delete VPN logs
+      await db.delete(vpnLogs).where(eq(vpnLogs.userId, userIdNum));
+      
+      // Delete calls
+      await db.delete(calls).where(eq(calls.callerId, userIdNum));
+      await db.delete(calls).where(eq(calls.receiverId, userIdNum));
+      
+      // Delete user privacy settings
+      await db.delete(userPrivacySettings).where(eq(userPrivacySettings.userId, userIdNum));
+      
+      // Delete friendships
+      await db.delete(friendships).where(eq(friendships.userId, userIdNum));
+      await db.delete(friendships).where(eq(friendships.friendId, userIdNum));
+      
+      // Delete lesson progress
+      await db.delete(lessonProgress).where(eq(lessonProgress.userId, userIdNum));
+      
+      // Delete group chat messages
+      await db.delete(groupChatMessages).where(eq(groupChatMessages.senderId, userIdNum));
+      
+      // Delete group chat members
+      await db.delete(groupChatMembers).where(eq(groupChatMembers.userId, userIdNum));
+      
+      // Delete reports (made by user and against user)
+      await db.delete(reports).where(eq(reports.reporterId, userIdNum));
+      await db.delete(reports).where(eq(reports.reportedUserId, userIdNum));
+      
+      // Delete typing indicators
+      await db.delete(typingIndicators).where(eq(typingIndicators.userId, userIdNum));
+      
+      // Delete message reactions
+      await db.delete(messageReactions).where(eq(messageReactions.userId, userIdNum));
+      
+      // Delete story views
+      await db.delete(storyViews).where(eq(storyViews.userId, userIdNum));
+      
+      // Delete stories
+      await db.delete(stories).where(eq(stories.userId, userIdNum));
+      
+      // Delete post tags
+      await db.delete(postTags).where(eq(postTags.userId, userIdNum));
+      
+      // Delete saved posts
+      await db.delete(savedPosts).where(eq(savedPosts.userId, userIdNum));
+      
+      // Delete comment likes
+      await db.delete(commentLikes).where(eq(commentLikes.userId, userIdNum));
+      
+      // Delete likes
+      await db.delete(likes).where(eq(likes.userId, userIdNum));
+      
+      // Delete blocked users records
+      await db.delete(blockedUsers).where(eq(blockedUsers.userId, userIdNum));
+      await db.delete(blockedUsers).where(eq(blockedUsers.blockedUserId, userIdNum));
+      
+      // Delete messages
+      await db.delete(messages).where(eq(messages.senderId, userIdNum));
+      await db.delete(messages).where(eq(messages.receiverId, userIdNum));
+      
+      // Delete notifications
+      await db.delete(notifications).where(eq(notifications.userId, userIdNum));
+      await db.delete(notifications).where(eq(notifications.fromUserId, userIdNum));
+      
+      // Delete follows
+      await db.delete(follows).where(eq(follows.followerId, userIdNum));
+      await db.delete(follows).where(eq(follows.followingId, userIdNum));
+      
+      // Delete comments
+      await db.delete(comments).where(eq(comments.userId, userIdNum));
+      
+      // Delete posts
+      await db.delete(posts).where(eq(posts.userId, userIdNum));
+      
+      // Finally delete the user
+      await db.delete(users).where(eq(users.id, userIdNum));
+
+      return NextResponse.json({
+        success: true,
+        message: 'User and all related data deleted successfully',
+      });
+    } catch (deleteError) {
+      console.error('Error during cascading delete:', deleteError);
+      throw deleteError;
+    }
   } catch (error) {
     console.error('Delete user error:', error);
     return NextResponse.json(

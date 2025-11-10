@@ -8,6 +8,7 @@ import Feed from '@/components/community/Feed';
 import Stories from '@/components/community/Stories';
 import Notifications from '@/components/community/Notifications';
 import Messenger from '@/components/community/Messenger';
+import DailyVerse from '@/components/verses/DailyVerse';
 
 export default function CommunityPage() {
   const router = useRouter();
@@ -129,6 +130,8 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-screen bg-white pb-16 md:pb-0">
+      {/* Daily Verse Modal */}
+      <DailyVerse />
       {/* Top Header - Instagram Style */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="w-full px-4">

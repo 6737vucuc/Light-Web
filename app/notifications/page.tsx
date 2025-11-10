@@ -1,48 +1,88 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Heart, MessageCircle, UserPlus } from 'lucide-react';
+import { ChevronLeft, Heart, MessageCircle, UserPlus, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+
+interface Notification {
+  id: number;
+  type: string;
+  userId: number;
+  userName: string;
+  userAvatar?: string;
+  content: string;
+  postId?: number;
+  isRead: boolean;
+  createdAt: Date;
+}
 
 export default function NotificationsPage() {
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data - will be replaced with real API data later
-  const mockNotifications = [
-    {
-      id: 1,
-      type: 'like',
-      username: 'john_doe',
-      text: 'liked your post',
-      time: '5m',
-      isRead: false,
-      avatar: null,
-    },
-    {
-      id: 2,
-      type: 'comment',
-      username: 'jane_smith',
-      text: 'commented: Great post!',
-      time: '1h',
-      isRead: false,
-      avatar: null,
-    },
-    {
-      id: 3,
-      type: 'follow',
-      username: 'mike_wilson',
-      text: 'started following you',
-      time: '3h',
-      isRead: true,
-      avatar: null,
-    },
-  ];
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const fetchNotifications = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/notifications');
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch('/api/notifications/read-all', {
+        method: 'POST',
+      });
+      if (response.ok) {
+        setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  const markAsRead = async (notificationId: number) => {
+    try {
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        setNotifications(
+          notifications.map((n) =>
+            n.id === notificationId ? { ...n, isRead: true } : n
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    markAsRead(notification.id);
+    
+    // Navigate based on notification type
+    if (notification.type === 'like' || notification.type === 'comment') {
+      if (notification.postId) {
+        router.push(`/community?post=${notification.postId}`);
+      }
+    } else if (notification.type === 'new_follower' || notification.type === 'follow_request') {
+      router.push(`/user-profile/${notification.userId}`);
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -51,11 +91,33 @@ export default function NotificationsPage() {
         return <Heart className="w-6 h-6 text-red-500 fill-red-500" />;
       case 'comment':
         return <MessageCircle className="w-6 h-6 text-blue-500" />;
-      case 'follow':
+      case 'new_follower':
+      case 'follow_request':
         return <UserPlus className="w-6 h-6 text-purple-500" />;
       default:
-        return null;
+        return <Heart className="w-6 h-6 text-gray-500" />;
     }
+  };
+
+  const getAvatarUrl = (avatar?: string) => {
+    if (!avatar) return '/default-avatar.png';
+    if (avatar.startsWith('data:')) return avatar;
+    if (avatar.startsWith('http')) return avatar;
+    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
+  };
+
+  const getTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diff = now.getTime() - new Date(date).getTime();
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days}d`;
+    if (hours > 0) return `${hours}h`;
+    if (minutes > 0) return `${minutes}m`;
+    return 'now';
   };
 
   const filteredNotifications =
@@ -64,6 +126,14 @@ export default function NotificationsPage() {
       : notifications;
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white pb-20">
@@ -138,14 +208,28 @@ export default function NotificationsPage() {
           filteredNotifications.map((notification) => (
             <div
               key={notification.id}
-              className={`px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors relative ${
+              onClick={() => handleNotificationClick(notification)}
+              className={`px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors relative cursor-pointer ${
                 !notification.isRead ? 'bg-blue-50' : ''
               }`}
             >
               {/* Avatar with Icon */}
               <div className="relative flex-shrink-0">
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold text-lg">
-                  {notification.username.charAt(0).toUpperCase()}
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200">
+                  {notification.userAvatar ? (
+                    <Image
+                      src={getAvatarUrl(notification.userAvatar)}
+                      alt={notification.userName}
+                      width={48}
+                      height={48}
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-lg">
+                      {notification.userName?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                 </div>
                 <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
                   {getNotificationIcon(notification.type)}
@@ -155,11 +239,11 @@ export default function NotificationsPage() {
               {/* Content */}
               <div className="flex-1">
                 <div className="text-sm">
-                  <span className="font-semibold">{notification.username}</span>{' '}
-                  <span className="text-gray-700">{notification.text}</span>
+                  <span className="font-semibold">{notification.userName}</span>{' '}
+                  <span className="text-gray-700">{notification.content}</span>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  {notification.time}
+                  {getTimeAgo(notification.createdAt)}
                 </div>
               </div>
 

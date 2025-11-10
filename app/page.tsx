@@ -1,10 +1,16 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, BookOpen, Users, Shield } from 'lucide-react';
+import DailyVerse from '@/components/verses/DailyVerse';
 
 export default function Home() {
   return (
     <div className="min-h-screen">
+      {/* Daily Verse Modal */}
+      <DailyVerse />
+      
       {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-purple-600 to-blue-500 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -84,4 +90,3 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
     </div>
   );
 }
-
