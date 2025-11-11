@@ -40,15 +40,50 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
   }, []);
 
   useEffect(() => {
-    if (initialUserId && conversations.length > 0) {
-      const conv = conversations.find(c => 
-        c.participant1Id === initialUserId || c.participant2Id === initialUserId
-      );
-      if (conv) {
-        selectConversation(conv);
+    if (initialUserId) {
+      handleInitialUser();
+    }
+  }, [initialUserId]);
+
+  const handleInitialUser = async () => {
+    if (!initialUserId) return;
+
+    // Check if conversation exists
+    const conv = conversations.find(c => 
+      c.participant1Id === initialUserId || c.participant2Id === initialUserId
+    );
+
+    if (conv) {
+      // Conversation exists, select it
+      selectConversation(conv);
+    } else {
+      // Create new conversation
+      try {
+        const response = await fetch('/api/messages/create-conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ otherUserId: initialUserId }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Reload conversations to include the new one
+          await loadConversations();
+          // Select the new conversation
+          const newConv = {
+            id: data.conversation.id,
+            participant1Id: data.conversation.participant1Id,
+            participant2Id: data.conversation.participant2Id,
+            user: data.conversation.otherUser,
+          };
+          setSelectedConversation(newConv);
+          setMessages([]);
+        }
+      } catch (error) {
+        console.error('Error creating conversation:', error);
       }
     }
-  }, [initialUserId, conversations]);
+  };
 
   useEffect(() => {
     if (selectedConversation && pusherRef.current) {
