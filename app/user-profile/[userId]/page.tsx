@@ -88,6 +88,30 @@ export default function UserProfilePage() {
 
   const isOwnProfile = currentUser?.id === parseInt(userId);
 
+  const handleMessageClick = async () => {
+    try {
+      // Check if conversation exists
+      const response = await fetch(`/api/messages/conversations?type=all`);
+      if (response.ok) {
+        const data = await response.json();
+        const existingConv = data.conversations?.find(
+          (conv: any) => conv.user.id === parseInt(userId)
+        );
+
+        if (existingConv) {
+          // Navigate to existing conversation
+          router.push(`/messages?conversationId=${existingConv.conversationId}`);
+        } else {
+          // Create new conversation by navigating with userId
+          router.push(`/messages?userId=${userId}&new=true`);
+        }
+      }
+    } catch (error) {
+      console.error('Error opening conversation:', error);
+      router.push(`/messages?userId=${userId}`);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [userId]);
@@ -403,9 +427,10 @@ export default function UserProfilePage() {
                 </button>
               )}
               <button
-                onClick={() => router.push(`/messages?userId=${userId}`)}
-                className="flex-1 px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold"
+                onClick={handleMessageClick}
+                className="flex-1 px-4 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors text-sm font-semibold flex items-center justify-center gap-2"
               >
+                <MessageCircle className="w-4 h-4" />
                 Message
               </button>
             </>
