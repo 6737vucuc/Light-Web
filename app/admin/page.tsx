@@ -1023,6 +1023,34 @@ function UsersManager() {
     }
   };
 
+  const toggleAdminStatus = async (userId: number, currentStatus: boolean) => {
+    const action = currentStatus ? 'remove admin from' : 'make admin';
+    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+
+    try {
+      const response = await fetch('/api/admin/make-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId, 
+          isAdmin: !currentStatus 
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(data.message);
+        fetchUsers();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to update admin status');
+      }
+    } catch (error) {
+      console.error('Toggle admin error:', error);
+      toast.error('Failed to update admin status');
+    }
+  };
+
   const deleteUser = async (userId: number) => {
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
 
@@ -1122,6 +1150,17 @@ function UsersManager() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => toggleAdminStatus(user.id, user.isAdmin)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          user.isAdmin
+                            ? 'text-orange-600 hover:bg-orange-50'
+                            : 'text-purple-600 hover:bg-purple-50'
+                        }`}
+                        title={user.isAdmin ? 'Remove Admin' : 'Make Admin'}
+                      >
+                        <Shield className="h-4 w-4" />
+                      </button>
                       {!user.isAdmin && (
                         <>
                           <button
