@@ -7,6 +7,7 @@ import {
   Ban, Info, LogOut, Check, UserX
 } from 'lucide-react';
 import Image from 'next/image';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 interface BlockedUser {
   id: number;
@@ -16,6 +17,7 @@ interface BlockedUser {
 }
 
 export default function SettingsPage() {
+  const toast = useToast();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -128,15 +130,15 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        alert('Profile updated successfully!');
+        toast.success('Profile updated successfully!');
         setActiveSection(null);
         fetchUserData();
       } else {
-        alert('Failed to update profile');
+        toast.error('Failed to update profile');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Error updating profile');
+      toast.error('Error updating profile');
     } finally {
       setIsSaving(false);
     }
@@ -152,15 +154,15 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        alert('Privacy settings updated!');
+        toast.success('Privacy settings updated!');
         setActiveSection(null);
         fetchUserData();
       } else {
-        alert('Failed to update privacy settings');
+        toast.error('Failed to update privacy settings');
       }
     } catch (error) {
       console.error('Error updating privacy:', error);
-      alert('Error updating privacy settings');
+      toast.error('Error updating privacy settings');
     } finally {
       setIsSaving(false);
     }
@@ -168,7 +170,7 @@ export default function SettingsPage() {
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      alert('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -181,18 +183,18 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        alert('Password changed successfully!');
+        toast.success('Password changed successfully!');
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
         setActiveSection(null);
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to change password');
+        toast.error(data.error || 'Failed to change password');
       }
     } catch (error) {
       console.error('Error changing password:', error);
-      alert('Error changing password');
+      toast.error('Error changing password');
     } finally {
       setIsSaving(false);
     }

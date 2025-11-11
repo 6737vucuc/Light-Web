@@ -5,8 +5,10 @@ import {
   BookOpen, Heart, Users, MessageCircle, Calendar, Shield,
   Plus, Edit, Trash2, Check, X, Loader2, Ban, UserX, Upload, Image as ImageIcon, Video, AlertTriangle
 } from 'lucide-react';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 export default function AdminPage() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('lessons');
   const [loading, setLoading] = useState(false);
 
@@ -69,6 +71,7 @@ export default function AdminPage() {
 }
 
 function LessonsManager() {
+  const toast = useToast();
   const [lessons, setLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -121,11 +124,11 @@ function LessonsManager() {
         }
       } else {
         const error = await response.json();
-        alert(error.error || 'Upload failed');
+        toast.error(error.error || 'Upload failed');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload failed');
+      toast.error('Upload failed');
     } finally {
       setUploading(false);
     }
@@ -338,6 +341,7 @@ function LessonsManager() {
 
 // VersesManager with file upload
 function VersesManager() {
+  const toast = useToast();
   const [verses, setVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -386,11 +390,11 @@ function VersesManager() {
         setFormData(prev => ({ ...prev, imageUrl: data.url }));
       } else {
         const error = await response.json();
-        alert(error.error || 'Upload failed');
+        toast.error(error.error || 'Upload failed');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload failed');
+      toast.error('Upload failed');
     } finally {
       setUploading(false);
     }
@@ -706,6 +710,7 @@ function StatisticsManager() {
 
 // Testimonies Manager
 function TestimoniesManager() {
+  const toast = useToast();
   const [testimonies, setTestimonies] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -735,14 +740,14 @@ function TestimoniesManager() {
       });
 
       if (response.ok) {
-        alert('Testimony deleted successfully');
+        toast.success('Testimony deleted successfully');
         fetchTestimonies();
       } else {
-        alert('Failed to delete testimony');
+        toast.error('Failed to delete testimony');
       }
     } catch (error) {
       console.error('Delete testimony error:', error);
-      alert('Failed to delete testimony');
+      toast.error('Failed to delete testimony');
     }
   };
 
@@ -797,6 +802,7 @@ function TestimoniesManager() {
 
 // Support Requests Manager
 function SupportManager() {
+  const toast = useToast();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('all');
@@ -827,14 +833,14 @@ function SupportManager() {
       });
 
       if (response.ok) {
-        alert('Status updated successfully');
+        toast.success('Status updated successfully');
         fetchRequests();
       } else {
-        alert('Failed to update status');
+        toast.error('Failed to update status');
       }
     } catch (error) {
       console.error('Update status error:', error);
-      alert('Failed to update status');
+      toast.error('Failed to update status');
     }
   };
 
@@ -847,14 +853,14 @@ function SupportManager() {
       });
 
       if (response.ok) {
-        alert('Request deleted successfully');
+        toast.success('Request deleted successfully');
         fetchRequests();
       } else {
-        alert('Failed to delete request');
+        toast.error('Failed to delete request');
       }
     } catch (error) {
       console.error('Delete request error:', error);
-      alert('Failed to delete request');
+      toast.error('Failed to delete request');
     }
   };
 
@@ -966,6 +972,7 @@ function SupportManager() {
 
 // Users Manager
 function UsersManager() {
+  const toast = useToast();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1005,14 +1012,14 @@ function UsersManager() {
       });
 
       if (response.ok) {
-        alert(`User ${action}ned successfully`);
+        toast.success(`User ${action}ned successfully`);
         fetchUsers();
       } else {
-        alert(`Failed to ${action} user`);
+        toast.error(`Failed to ${action} user`);
       }
     } catch (error) {
       console.error(`${action} user error:`, error);
-      alert(`Failed to ${action} user`);
+      toast.error(`Failed to ${action} user`);
     }
   };
 
@@ -1025,14 +1032,14 @@ function UsersManager() {
       });
 
       if (response.ok) {
-        alert('User deleted successfully');
+        toast.success('User deleted successfully');
         fetchUsers();
       } else {
-        alert('Failed to delete user');
+        toast.error('Failed to delete user');
       }
     } catch (error) {
       console.error('Delete user error:', error);
-      alert('Failed to delete user');
+      toast.error('Failed to delete user');
     }
   };
 

@@ -112,15 +112,30 @@ export const follows = pgTable('follows', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Stories table - Instagram-style
+// Stories table - Instagram-style with full features
 export const stories = pgTable('stories', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  mediaUrl: text('media_url').notNull(),
-  mediaType: varchar('media_type', { length: 20 }).notNull(), // 'image' or 'video'
+  mediaUrl: text('media_url'),
+  mediaType: varchar('media_type', { length: 20 }).notNull(), // 'image', 'video', 'text'
   caption: text('caption'),
   viewsCount: integer('views_count').default(0),
   expiresAt: timestamp('expires_at').notNull(), // 24 hours from creation
+  // Instagram features
+  isCloseFriends: boolean('is_close_friends').default(false),
+  backgroundColor: varchar('background_color', { length: 20 }),
+  textContent: text('text_content'), // For text-only stories
+  fontStyle: varchar('font_style', { length: 50 }),
+  musicUrl: text('music_url'),
+  musicTitle: varchar('music_title', { length: 255 }),
+  location: varchar('location', { length: 255 }),
+  mentions: text('mentions'), // JSON array of mentioned user IDs
+  hashtags: text('hashtags'), // JSON array of hashtags
+  stickers: text('stickers'), // JSON array of sticker data
+  pollData: text('poll_data'), // JSON for poll data
+  questionData: text('question_data'), // JSON for question sticker data
+  linkUrl: text('link_url'),
+  linkTitle: varchar('link_title', { length: 255 }),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -128,8 +143,53 @@ export const stories = pgTable('stories', {
 export const storyViews = pgTable('story_views', {
   id: serial('id').primaryKey(),
   storyId: integer('story_id').references(() => stories.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
+  viewerId: integer('viewer_id').references(() => users.id).notNull(),
   viewedAt: timestamp('viewed_at').defaultNow(),
+});
+
+// Story reactions table - Instagram-style reactions
+export const storyReactions = pgTable('story_reactions', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  reactionType: varchar('reaction_type', { length: 50 }).default('like').notNull(), // 'like', 'love', 'laugh', 'wow', 'sad', 'angry'
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Story replies table - DM replies to stories
+export const storyReplies = pgTable('story_replies', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  content: text('content').notNull(),
+  encryptedContent: text('encrypted_content'),
+  isEncrypted: boolean('is_encrypted').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Close friends list table
+export const closeFriends = pgTable('close_friends', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  friendId: integer('friend_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Story highlights table
+export const storyHighlights = pgTable('story_highlights', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  coverImage: text('cover_image'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Story highlight items table
+export const storyHighlightItems = pgTable('story_highlight_items', {
+  id: serial('id').primaryKey(),
+  highlightId: integer('highlight_id').references(() => storyHighlights.id).notNull(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  addedAt: timestamp('added_at').defaultNow(),
 });
 
 // Conversations table - Instagram-style DMs

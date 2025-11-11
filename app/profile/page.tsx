@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import DailyVerse from '@/components/verses/DailyVerse';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 interface User {
   id: number;
@@ -53,6 +54,7 @@ interface LessonProgress {
 }
 
 export default function ProfilePage() {
+  const toast = useToast();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -206,11 +208,11 @@ export default function ProfilePage() {
       } else {
         const error = await response.json();
         console.error('Avatar upload failed:', error);
-        alert(error.error || 'Failed to upload avatar');
+        toast.error(error.error || 'Failed to upload avatar');
       }
     } catch (error) {
       console.error('Error uploading avatar:', error);
-      alert('Failed to upload avatar');
+      toast.error('Failed to upload avatar');
     }
   };
 

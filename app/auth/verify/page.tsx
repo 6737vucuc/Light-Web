@@ -4,8 +4,10 @@ import { useState, useEffect, Suspense, useId } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 function VerifyContent() {
+  const toast = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email') || '';
@@ -147,7 +149,7 @@ function VerifyContent() {
                 className="font-medium text-purple-600 hover:text-purple-500"
                 onClick={() => {
                   // Resend code logic here
-                  alert('Resend functionality coming soon!');
+                  toast.info('Resend functionality coming soon!');
                 }}
               >
                 Resend

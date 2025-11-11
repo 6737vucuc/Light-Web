@@ -202,7 +202,7 @@ export async function DELETE(request: NextRequest) {
       await db.delete(typingIndicators).where(eq(typingIndicators.userId, userIdNum));
       
       // Delete story views (depends on stories)
-      await db.delete(storyViews).where(eq(storyViews.userId, userIdNum));
+      await db.delete(storyViews).where(eq(storyViews.viewerId, userIdNum));
       
       // Delete comment likes (depends on comments)
       await db.delete(commentLikes).where(eq(commentLikes.userId, userIdNum));

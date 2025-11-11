@@ -3,6 +3,8 @@ import { Cairo } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { ToastProvider } from "@/lib/contexts/ToastContext";
+import { ToastContainer } from "@/components/ui/ToastContainer";
 
 const cairo = Cairo({ 
   subsets: ["latin"],
@@ -22,13 +24,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={cairo.className}>
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          <main className="flex-1 bg-gray-50">
-            {children}
-          </main>
-          <Footer />
-        </div>
+        <ToastProvider>
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-1 bg-gray-50">
+              {children}
+            </main>
+            <Footer />
+          </div>
+          <ToastContainer />
+        </ToastProvider>
       </body>
     </html>
   );

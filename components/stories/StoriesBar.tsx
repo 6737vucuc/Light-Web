@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, X } from 'lucide-react';
 import Image from 'next/image';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 interface Story {
   id: number;
@@ -31,6 +32,7 @@ interface StoriesBarProps {
 }
 
 export default function StoriesBar({ currentUserId }: StoriesBarProps) {
+  const toast = useToast();
   const [storyGroups, setStoryGroups] = useState<StoryGroup[]>([]);
   const [showStoryViewer, setShowStoryViewer] = useState(false);
   const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
@@ -107,7 +109,7 @@ export default function StoriesBar({ currentUserId }: StoriesBarProps) {
       }
     } catch (error) {
       console.error('Error adding story:', error);
-      alert('Failed to add story');
+      toast.error('Failed to add story');
     } finally {
       setUploading(false);
     }
