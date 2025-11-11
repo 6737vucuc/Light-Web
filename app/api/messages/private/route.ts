@@ -232,24 +232,9 @@ export async function POST(request: NextRequest) {
     // Allow messaging to anyone (Instagram-style)
     // No friendship requirement
 
-    // Encrypt the message ONLY for database storage (if content exists)
-    // Use base64url encoding to avoid WAF issues
-    let encryptedContent = null;
-    if (sanitizedContent) {
-      try {
-        const encrypted = encryptMessageMilitary(sanitizedContent);
-        // Convert to base64url (URL-safe base64)
-        encryptedContent = Buffer.from(encrypted, 'base64')
-          .toString('base64')
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=/g, '');
-      } catch (error) {
-        console.error('Encryption error:', error);
-        // Fallback: store plain text if encryption fails
-        encryptedContent = Buffer.from(sanitizedContent).toString('base64');
-      }
-    }
+    // The message arrives as plain text from client
+    // We encrypt it ONLY when storing in database
+    // This avoids WAF blocking the API request
 
     // Get or create conversation
     let conversation = await db
@@ -288,9 +273,9 @@ export async function POST(request: NextRequest) {
         conversationId: conversation[0].id,
         senderId: authResult.user.id,
         receiverId,
-        content: sanitizedContent || null, // Store plain text for now to avoid WAF
-        encryptedContent: null, // Temporarily disable encryption to fix WAF
-        isEncrypted: false, // Temporarily disable
+        content: null, // Don't store plain text
+        encryptedContent: sanitizedContent ? encryptMessageMilitary(sanitizedContent) : null, // Encrypt in DB
+        isEncrypted: true, // Encryption enabled
         mediaUrl: mediaUrl || null,
         messageType: messageType || 'text',
         isDelivered: false,
