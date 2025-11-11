@@ -1,6 +1,22 @@
 {
   "buildCommand": "npm run build",
   "framework": "nextjs",
+  "functions": {
+    "app/api/messages/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/messages/(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        }
+      ]
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/cleanup-messages",
