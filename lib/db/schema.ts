@@ -192,25 +192,12 @@ export const storyHighlightItems = pgTable('story_highlight_items', {
   addedAt: timestamp('added_at').defaultNow(),
 });
 
-// Conversations table - Instagram-style DMs
-export const conversations = pgTable('conversations', {
-  id: serial('id').primaryKey(),
-  participant1Id: integer('participant1_id').references(() => users.id).notNull(),
-  participant2Id: integer('participant2_id').references(() => users.id).notNull(),
-  lastMessageId: integer('last_message_id'),
-  lastMessageAt: timestamp('last_message_at').defaultNow(),
-  isPinned1: boolean('is_pinned_1').default(false), // Pinned for participant 1
-  isPinned2: boolean('is_pinned_2').default(false), // Pinned for participant 2
-  isMuted1: boolean('is_muted_1').default(false),
-  isMuted2: boolean('is_muted_2').default(false),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
+// Conversations table removed - using messages table only
 
 // Messages table - Instagram-style DMs
 export const messages = pgTable('messages', {
   id: serial('id').primaryKey(),
-  conversationId: integer('conversation_id').references(() => conversations.id),
+  conversationId: integer('conversation_id'), // Nullable, not used anymore
   senderId: integer('sender_id').references(() => users.id).notNull(),
   receiverId: integer('receiver_id').references(() => users.id).notNull(),
   messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video', 'voice', 'post'
@@ -244,7 +231,7 @@ export const messageReactions = pgTable('message_reactions', {
 // Typing indicators table
 export const typingIndicators = pgTable('typing_indicators', {
   id: serial('id').primaryKey(),
-  conversationId: integer('conversation_id').references(() => conversations.id).notNull(),
+  conversationId: integer('conversation_id'), // Nullable, not used anymore
   userId: integer('user_id').references(() => users.id).notNull(),
   isTyping: boolean('is_typing').default(true),
   updatedAt: timestamp('updated_at').defaultNow(),
