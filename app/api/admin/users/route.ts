@@ -8,7 +8,7 @@ import {
   likes, commentLikes, stories, storyViews, savedPosts, postTags,
   messageReactions, typingIndicators, reports, groupChatMembers, groupChatMessages,
   lessonProgress, friendships, userPrivacySettings, vpnLogs,
-  conversations, supportRequests, testimonies, encryptionKeys,
+  supportRequests, testimonies, encryptionKeys,
   groupChats, lessons, dailyVerses, shares, reactions, groupMessages
 } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
@@ -250,13 +250,7 @@ export async function DELETE(request: NextRequest) {
       // Delete stories
       await db.delete(stories).where(eq(stories.userId, userIdNum));
       
-      // Delete conversations
-      await db.delete(conversations).where(
-        or(
-          eq(conversations.participant1Id, userIdNum),
-          eq(conversations.participant2Id, userIdNum)
-        )
-      );
+      // Conversations table removed - no longer needed
       
       // Delete group chats created by user
       await db.delete(groupChats).where(eq(groupChats.createdBy, userIdNum));
