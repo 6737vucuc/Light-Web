@@ -239,6 +239,23 @@ export async function POST(request: NextRequest) {
     // Simplified: No conversations table needed
     // Just store messages directly
 
+    // Encrypt content if exists
+    let encryptedContent = null;
+    let isEncrypted = false;
+    
+    if (sanitizedContent) {
+      try {
+        encryptedContent = encryptMessageMilitary(sanitizedContent);
+        isEncrypted = true;
+        console.log('[MESSAGE API] Content encrypted successfully');
+      } catch (encryptError) {
+        console.error('[MESSAGE API] Encryption failed, storing plain text:', encryptError);
+        // Fallback: store as plain text if encryption fails
+        encryptedContent = null;
+        isEncrypted = false;
+      }
+    }
+
     // Create message - store encrypted in DB only
     const [message] = await db
       .insert(messages)
@@ -246,9 +263,9 @@ export async function POST(request: NextRequest) {
         conversationId: null, // Not using conversations table
         senderId: authResult.user.id,
         receiverId,
-        content: null, // Don't store plain text
-        encryptedContent: sanitizedContent ? encryptMessageMilitary(sanitizedContent) : null, // Encrypt in DB
-        isEncrypted: true, // Encryption enabled
+        content: isEncrypted ? null : sanitizedContent, // Store plain text only if encryption failed
+        encryptedContent: encryptedContent,
+        isEncrypted: isEncrypted,
         mediaUrl: mediaUrl || null,
         messageType: messageType || 'text',
         isDelivered: false,
