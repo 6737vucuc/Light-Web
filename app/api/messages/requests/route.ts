@@ -3,11 +3,11 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { conversations, messages, users, follows } from '@/lib/db/schema';
+import { messages, users, follows } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
-import { eq, and, or, desc, notInArray, inArray } from 'drizzle-orm';
+import { eq, and, or, desc, sql } from 'drizzle-orm';
 
-// GET /api/messages/requests - Get message requests (Instagram-style)
+// GET /api/messages/requests - Get message requests (non-mutual followers)
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
   
@@ -34,74 +34,30 @@ export async function GET(request: NextRequest) {
 
     const followingIds = following.map(f => f.followingId);
 
-    // Get all conversations where user is participant
-    const allConversations = await db
+    // Get message requests (messages from users not mutually followed)
+    const requests = await db
       .select({
-        id: conversations.id,
-        participant1Id: conversations.participant1Id,
-        participant2Id: conversations.participant2Id,
-        lastMessageAt: conversations.lastMessageAt,
+        id: messages.id,
+        senderId: messages.senderId,
+        content: messages.content,
+        createdAt: messages.createdAt,
+        senderName: users.name,
+        senderUsername: users.username,
+        senderAvatar: users.avatar,
       })
-      .from(conversations)
+      .from(messages)
+      .innerJoin(users, eq(messages.senderId, users.id))
       .where(
-        or(
-          eq(conversations.participant1Id, user.id),
-          eq(conversations.participant2Id, user.id)
+        and(
+          eq(messages.receiverId, user.id),
+          sql`${messages.senderId} NOT IN (${sql.join(followingIds.length > 0 ? followingIds : [0], sql`, `)})`
         )
       )
-      .orderBy(desc(conversations.lastMessageAt));
-
-    // Separate into primary (following) and requests (not following)
-    const messageRequests = [];
-
-    for (const conv of allConversations) {
-      const otherUserId = conv.participant1Id === user.id 
-        ? conv.participant2Id 
-        : conv.participant1Id;
-
-      // Check if user follows the other person
-      const isFollowing = followingIds.includes(otherUserId);
-
-      // If not following, it's a message request
-      if (!isFollowing) {
-        // Get last message
-        const [lastMessage] = await db
-          .select()
-          .from(messages)
-          .where(eq(messages.conversationId, conv.id))
-          .orderBy(desc(messages.createdAt))
-          .limit(1);
-
-        // Get other user info
-        const [otherUser] = await db
-          .select({
-            id: users.id,
-            name: users.name,
-            username: users.username,
-            avatar: users.avatar,
-          })
-          .from(users)
-          .where(eq(users.id, otherUserId))
-          .limit(1);
-
-        if (otherUser && lastMessage) {
-          messageRequests.push({
-            conversationId: conv.id,
-            user: otherUser,
-            lastMessage: {
-              content: lastMessage.content || '[Media]',
-              createdAt: lastMessage.createdAt,
-              senderId: lastMessage.senderId,
-            },
-            lastMessageAt: conv.lastMessageAt,
-          });
-        }
-      }
-    }
+      .orderBy(desc(messages.createdAt));
 
     return NextResponse.json({
       success: true,
-      requests: messageRequests,
+      requests: requests,
     });
   } catch (error) {
     console.error('Error fetching message requests:', error);
@@ -112,7 +68,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/messages/requests - Accept a message request
+// POST /api/messages/requests - Accept a message request (no-op, just for compatibility)
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
   
@@ -123,58 +79,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { user } = authResult;
-
-  try {
-    const { conversationId } = await request.json();
-
-    if (!conversationId) {
-      return NextResponse.json(
-        { success: false, error: 'Conversation ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Verify conversation exists and user is participant
-    const [conversation] = await db
-      .select()
-      .from(conversations)
-      .where(
-        and(
-          eq(conversations.id, conversationId),
-          or(
-            eq(conversations.participant1Id, user.id),
-            eq(conversations.participant2Id, user.id)
-          )
-        )
-      )
-      .limit(1);
-
-    if (!conversation) {
-      return NextResponse.json(
-        { success: false, error: 'Conversation not found' },
-        { status: 404 }
-      );
-    }
-
-    // In Instagram-style, accepting a message request is implicit
-    // The conversation already exists, so we just mark it as "accepted"
-    // by the user viewing it. No database change needed.
-
-    return NextResponse.json({
-      success: true,
-      message: 'Message request accepted',
-    });
-  } catch (error) {
-    console.error('Error accepting message request:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to accept message request' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    success: true,
+    message: 'Message request accepted',
+  });
 }
 
-// DELETE /api/messages/requests - Delete a message request
+// DELETE /api/messages/requests - Delete messages from a user
 export async function DELETE(request: NextRequest) {
   const authResult = await requireAuth(request);
   
@@ -189,55 +100,33 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const conversationId = searchParams.get('conversationId');
+    const userId = searchParams.get('userId');
 
-    if (!conversationId) {
+    if (!userId) {
       return NextResponse.json(
-        { success: false, error: 'Conversation ID is required' },
+        { success: false, error: 'User ID is required' },
         { status: 400 }
       );
     }
 
-    // Verify conversation exists and user is participant
-    const [conversation] = await db
-      .select()
-      .from(conversations)
-      .where(
-        and(
-          eq(conversations.id, parseInt(conversationId)),
-          or(
-            eq(conversations.participant1Id, user.id),
-            eq(conversations.participant2Id, user.id)
-          )
-        )
-      )
-      .limit(1);
-
-    if (!conversation) {
-      return NextResponse.json(
-        { success: false, error: 'Conversation not found' },
-        { status: 404 }
-      );
-    }
-
-    // Delete all messages in conversation
+    // Delete all messages from this user
     await db
       .delete(messages)
-      .where(eq(messages.conversationId, parseInt(conversationId)));
-
-    // Delete conversation
-    await db
-      .delete(conversations)
-      .where(eq(conversations.id, parseInt(conversationId)));
+      .where(
+        and(
+          eq(messages.senderId, parseInt(userId)),
+          eq(messages.receiverId, user.id)
+        )
+      );
 
     return NextResponse.json({
       success: true,
-      message: 'Message request deleted',
+      message: 'Messages deleted',
     });
   } catch (error) {
-    console.error('Error deleting message request:', error);
+    console.error('Error deleting messages:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to delete message request' },
+      { success: false, error: 'Failed to delete messages' },
       { status: 500 }
     );
   }
