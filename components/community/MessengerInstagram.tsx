@@ -27,9 +27,16 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [longPressedMessage, setLongPressedMessage] = useState<any>(null);
+  const [showMessageMenu, setShowMessageMenu] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [messageReactions, setMessageReactions] = useState<any>({});
+  const [isTyping, setIsTyping] = useState(false);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -101,6 +108,17 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
       channel.bind('new-message', (data: any) => {
         setMessages((prev) => [...prev, data.message]);
         scrollToBottom();
+      });
+
+      // Listen for typing indicator
+      channel.bind('typing', (data: any) => {
+        if (data.userId !== currentUser.id) {
+          setIsTyping(data.isTyping);
+          // Auto-hide typing indicator after 3 seconds
+          if (data.isTyping) {
+            setTimeout(() => setIsTyping(false), 3000);
+          }
+        }
       });
 
       return () => {
@@ -311,6 +329,93 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
            user?.username?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
+  // Handle typing indicator
+  const handleTyping = async () => {
+    if (!selectedConversation) return;
+    
+    try {
+      await fetch('/api/messages/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiverId: selectedConversation.user.id,
+          isTyping: true,
+        }),
+      });
+    } catch (error) {
+      console.error('Error sending typing indicator:', error);
+    }
+  };
+
+  // Handle long press on message
+  const handleLongPressStart = (message: any) => {
+    longPressTimer.current = setTimeout(() => {
+      setLongPressedMessage(message);
+      setShowMessageMenu(true);
+    }, 500); // 500ms for long press
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  // Delete message
+  const handleDeleteMessage = async (deleteFor: 'me' | 'everyone') => {
+    if (!longPressedMessage) return;
+
+    try {
+      const response = await fetch('/api/messages/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId: longPressedMessage.id,
+          deleteFor,
+        }),
+      });
+
+      if (response.ok) {
+        // Remove message from UI
+        setMessages((prev) => prev.filter(m => m.id !== longPressedMessage.id));
+        setShowMessageMenu(false);
+        setLongPressedMessage(null);
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+    }
+  };
+
+  // Add reaction
+  const handleAddReaction = async (reaction: string) => {
+    if (!longPressedMessage) return;
+
+    try {
+      const response = await fetch('/api/messages/react', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId: longPressedMessage.id,
+          reaction,
+        }),
+      });
+
+      if (response.ok) {
+        // Update reactions in UI
+        setMessageReactions((prev: any) => ({
+          ...prev,
+          [longPressedMessage.id]: reaction,
+        }));
+        setShowReactionPicker(false);
+        setShowMessageMenu(false);
+        setLongPressedMessage(null);
+      }
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+    }
+  };
+
   return (
     <div className={`flex ${fullPage ? 'h-full' : 'h-[600px]'} bg-white`}>
       {/* Conversations List */}
@@ -512,7 +617,10 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
               </div>
 
               <div className="flex items-center gap-2">
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <button 
+                  onClick={() => setShowInfoPanel(!showInfoPanel)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
                   <Info className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
@@ -571,9 +679,14 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                             )}
                           </div>
                         )}
-                        <div>
+                        <div className="relative">
                           <div
-                            className={`rounded-2xl ${
+                            onTouchStart={() => handleLongPressStart(message)}
+                            onTouchEnd={handleLongPressEnd}
+                            onMouseDown={() => handleLongPressStart(message)}
+                            onMouseUp={handleLongPressEnd}
+                            onMouseLeave={handleLongPressEnd}
+                            className={`rounded-2xl cursor-pointer ${
                               message.mediaUrl ? '' : 'px-4 py-2'
                             } ${
                               isMine
@@ -596,6 +709,12 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                               <p className="text-sm break-words">{message.content}</p>
                             )}
                           </div>
+                          {/* Reaction */}
+                          {messageReactions[message.id] && (
+                            <div className="absolute -bottom-2 -right-2 bg-white border-2 border-gray-200 rounded-full px-2 py-1 text-sm">
+                              {messageReactions[message.id]}
+                            </div>
+                          )}
                           <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
                             <p className="text-xs text-gray-400">
                               {formatTime(message.createdAt)}
@@ -613,6 +732,17 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                     </div>
                   );
                 })
+              )}
+              {/* Typing Indicator */}
+              {isTyping && (
+                <div className="flex items-center gap-2 text-gray-500 text-sm">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  </div>
+                  <span>{selectedConversation.user?.name} is typing...</span>
+                </div>
               )}
               <div ref={messagesEndRef} />
             </div>
@@ -660,7 +790,10 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                 <input
                   type="text"
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    handleTyping();
+                  }}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -701,6 +834,143 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
           </div>
         )}
       </div>
+
+      {/* Message Menu Modal */}
+      {showMessageMenu && longPressedMessage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => {
+            setShowMessageMenu(false);
+            setShowReactionPicker(false);
+            setLongPressedMessage(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl p-4 m-4 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {showReactionPicker ? (
+              <div>
+                <h3 className="text-lg font-semibold mb-4 text-center">React to message</h3>
+                <div className="flex justify-around text-3xl mb-4">
+                  {['❤️', '😂', '😮', '😢', '😡', '👍'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleAddReaction(emoji)}
+                      className="hover:scale-125 transition-transform"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowReactionPicker(false)}
+                  className="w-full py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  onClick={() => setShowReactionPicker(true)}
+                  className="w-full py-3 text-left px-4 hover:bg-gray-100 rounded-lg flex items-center gap-3"
+                >
+                  <span className="text-xl">😊</span>
+                  <span>React</span>
+                </button>
+                {longPressedMessage.senderId === currentUser.id && (
+                  <button
+                    onClick={() => handleDeleteMessage('everyone')}
+                    className="w-full py-3 text-left px-4 hover:bg-gray-100 rounded-lg text-red-600"
+                  >
+                    Delete for everyone
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDeleteMessage('me')}
+                  className="w-full py-3 text-left px-4 hover:bg-gray-100 rounded-lg text-red-600"
+                >
+                  Delete for me
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMessageMenu(false);
+                    setLongPressedMessage(null);
+                  }}
+                  className="w-full py-3 text-left px-4 hover:bg-gray-100 rounded-lg text-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Info Panel */}
+      {showInfoPanel && selectedConversation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 md:items-center">
+          <div 
+            className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full md:max-w-md md:m-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Details</h2>
+              <button
+                onClick={() => setShowInfoPanel(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex flex-col items-center mb-6">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-200 mb-4">
+                {selectedConversation.user?.avatar ? (
+                  <Image
+                    src={getAvatarUrl(selectedConversation.user.avatar)}
+                    alt={selectedConversation.user.name}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-3xl">
+                    {selectedConversation.user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <h3 className="text-xl font-semibold">{selectedConversation.user?.name}</h3>
+              <p className="text-gray-500">@{selectedConversation.user?.username}</p>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  router.push(`/user-profile/${selectedConversation.user.id}`);
+                  setShowInfoPanel(false);
+                }}
+                className="w-full py-3 text-left px-4 hover:bg-gray-100 rounded-lg"
+              >
+                View Profile
+              </button>
+              <button
+                onClick={() => setShowInfoPanel(false)}
+                className="w-full py-3 text-left px-4 hover:bg-gray-100 rounded-lg text-red-600"
+              >
+                Block User
+              </button>
+              <button
+                onClick={() => setShowInfoPanel(false)}
+                className="w-full py-3 text-left px-4 hover:bg-gray-100 rounded-lg text-red-600"
+              >
+                Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
