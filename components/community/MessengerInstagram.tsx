@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Image as ImageIcon, Smile, Phone, Video, Info, Search, Edit, MoreHorizontal, Check, CheckCheck } from 'lucide-react';
+import { Send, Image as ImageIcon, Smile, Phone, Video, Info, Search, Edit, MoreHorizontal, Check, CheckCheck, ArrowLeft, Users } from 'lucide-react';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
+import { useRouter } from 'next/navigation';
 
 interface MessengerInstagramProps {
   currentUser: any;
@@ -12,18 +13,23 @@ interface MessengerInstagramProps {
 }
 
 export default function MessengerInstagram({ currentUser, initialUserId, fullPage = false }: MessengerInstagramProps) {
+  const router = useRouter();
   const [conversations, setConversations] = useState<any[]>([]);
+  const [mutualFollowers, setMutualFollowers] = useState<any[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'primary' | 'requests'>('primary');
+  const [showMutualFollowers, setShowMutualFollowers] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
 
   useEffect(() => {
     loadConversations();
+    loadMutualFollowers();
     
     // Initialize Pusher
     if (typeof window !== 'undefined') {
@@ -50,7 +56,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
     // Check if conversation exists
     const conv = conversations.find(c => 
-      c.participant1Id === initialUserId || c.participant2Id === initialUserId
+      c.user?.id === initialUserId
     );
 
     if (conv) {
@@ -69,15 +75,11 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
           const data = await response.json();
           // Reload conversations to include the new one
           await loadConversations();
-          // Select the new conversation
-          const newConv = {
-            id: data.conversation.id,
-            participant1Id: data.conversation.participant1Id,
-            participant2Id: data.conversation.participant2Id,
-            user: data.conversation.otherUser,
-          };
-          setSelectedConversation(newConv);
-          setMessages([]);
+          // Find and select the new conversation
+          const newConv = conversations.find(c => c.user?.id === initialUserId);
+          if (newConv) {
+            selectConversation(newConv);
+          }
         }
       } catch (error) {
         console.error('Error creating conversation:', error);
@@ -87,7 +89,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
   useEffect(() => {
     if (selectedConversation && pusherRef.current) {
-      const channel = pusherRef.current.subscribe(`conversation-${selectedConversation.id}`);
+      const channel = pusherRef.current.subscribe(`conversation-${selectedConversation.conversationId}`);
       
       channel.bind('new-message', (data: any) => {
         setMessages((prev) => [...prev, data.message]);
@@ -111,7 +113,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
   const loadConversations = async () => {
     try {
-      const response = await fetch('/api/messages/conversations');
+      const response = await fetch(`/api/messages/conversations?type=${activeTab}`);
       if (response.ok) {
         const data = await response.json();
         setConversations(data.conversations || []);
@@ -123,16 +125,29 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
     }
   };
 
+  const loadMutualFollowers = async () => {
+    try {
+      const response = await fetch('/api/follow/mutual-followers');
+      if (response.ok) {
+        const data = await response.json();
+        setMutualFollowers(data.mutualFollowers || []);
+      }
+    } catch (error) {
+      console.error('Error loading mutual followers:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadConversations();
+  }, [activeTab]);
+
   const selectConversation = async (conversation: any) => {
     setSelectedConversation(conversation);
     setIsLoading(true);
+    setShowMutualFollowers(false);
     
     try {
-      const otherUserId = conversation.participant1Id === currentUser.id 
-        ? conversation.participant2Id 
-        : conversation.participant1Id;
-      
-      const response = await fetch(`/api/messages/conversation/${otherUserId}`);
+      const response = await fetch(`/api/messages/conversation/${conversation.user.id}`);
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages || []);
@@ -144,12 +159,44 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
     }
   };
 
+  const startConversationWithUser = async (user: any) => {
+    // Check if conversation already exists
+    const existingConv = conversations.find(c => c.user?.id === user.id);
+    
+    if (existingConv) {
+      selectConversation(existingConv);
+      return;
+    }
+
+    // Create new conversation
+    try {
+      const response = await fetch('/api/messages/create-conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otherUserId: user.id }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        await loadConversations();
+        
+        // Create conversation object and select it
+        const newConv = {
+          conversationId: data.conversation.id,
+          user: user,
+          lastMessage: '',
+          unreadCount: 0,
+          isMutual: true,
+        };
+        selectConversation(newConv);
+      }
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+    }
+  };
+
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
-
-    const otherUserId = selectedConversation.participant1Id === currentUser.id 
-      ? selectedConversation.participant2Id 
-      : selectedConversation.participant1Id;
 
     setIsSending(true);
     try {
@@ -159,7 +206,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          receiverId: otherUserId,
+          receiverId: selectedConversation.user.id,
           content: newMessage.trim(),
           messageType: 'text',
         }),
@@ -191,33 +238,36 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
     });
   };
 
-  const getOtherUser = (conversation: any) => {
-    return conversation.participant1Id === currentUser.id 
-      ? conversation.participant2 
-      : conversation.participant1;
-  };
-
   const filteredConversations = conversations.filter(conv => {
-    const otherUser = getOtherUser(conv);
-    return otherUser?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           otherUser?.username?.toLowerCase().includes(searchQuery.toLowerCase());
+    const user = conv.user;
+    return user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           user?.username?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const filteredMutualFollowers = mutualFollowers.filter(user => {
+    return user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           user?.username?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
     <div className={`flex ${fullPage ? 'h-full' : 'h-[600px]'} bg-white`}>
       {/* Conversations List */}
-      <div className="w-full md:w-96 border-r border-gray-200 flex flex-col">
+      <div className={`${selectedConversation && !fullPage ? 'hidden md:flex' : 'flex'} w-full md:w-96 border-r border-gray-200 flex-col`}>
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xl font-semibold">{currentUser?.username || 'Messages'}</h2>
-            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <Edit className="w-5 h-5 text-gray-600" />
+            <button 
+              onClick={() => setShowMutualFollowers(!showMutualFollowers)}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              title="Show mutual followers"
+            >
+              <Users className="w-5 h-5 text-gray-600" />
             </button>
           </div>
           
           {/* Search */}
-          <div className="relative">
+          <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
@@ -227,86 +277,179 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
               className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
+
+          {/* Tabs */}
+          {!showMutualFollowers && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('primary')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'primary'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Primary
+              </button>
+              <button
+                onClick={() => setActiveTab('requests')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'requests'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Requests
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Conversations */}
+        {/* Conversations or Mutual Followers */}
         <div className="flex-1 overflow-y-auto">
-          {isLoading && conversations.length === 0 ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800"></div>
-            </div>
-          ) : filteredConversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
-              <p className="text-center">No conversations yet</p>
-            </div>
+          {showMutualFollowers ? (
+            // Mutual Followers List
+            <>
+              <div className="p-3 bg-gray-50 border-b border-gray-200">
+                <p className="text-sm text-gray-600 font-medium">Mutual Followers - Start a conversation</p>
+              </div>
+              {filteredMutualFollowers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
+                  <Users className="w-12 h-12 mb-2 opacity-30" />
+                  <p className="text-center">No mutual followers yet</p>
+                </div>
+              ) : (
+                filteredMutualFollowers.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => startConversationWithUser(user)}
+                    className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="relative w-14 h-14 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                      {user.avatar ? (
+                        <Image
+                          src={getAvatarUrl(user.avatar)}
+                          alt={user.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-lg">
+                          {user.name?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="font-semibold text-sm truncate">{user.name}</p>
+                      <p className="text-xs text-gray-500 truncate">@{user.username}</p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </>
           ) : (
-            filteredConversations.map((conversation) => {
-              const otherUser = getOtherUser(conversation);
-              return (
-                <button
-                  key={conversation.id}
-                  onClick={() => selectConversation(conversation)}
-                  className={`w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors ${
-                    selectedConversation?.id === conversation.id ? 'bg-gray-100' : ''
-                  }`}
-                >
-                  <div className="relative w-14 h-14 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                    {otherUser?.avatar ? (
-                      <Image
-                        src={getAvatarUrl(otherUser.avatar)}
-                        alt={otherUser.name}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-lg">
-                        {otherUser?.name?.charAt(0).toUpperCase()}
+            // Conversations List
+            <>
+              {isLoading && conversations.length === 0 ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800"></div>
+                </div>
+              ) : filteredConversations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
+                  <p className="text-center">
+                    {activeTab === 'primary' 
+                      ? 'No conversations yet. Click the users icon to start chatting with mutual followers!' 
+                      : 'No message requests'}
+                  </p>
+                </div>
+              ) : (
+                filteredConversations.map((conversation) => (
+                  <button
+                    key={conversation.conversationId}
+                    onClick={() => selectConversation(conversation)}
+                    className={`w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors ${
+                      selectedConversation?.conversationId === conversation.conversationId ? 'bg-gray-100' : ''
+                    }`}
+                  >
+                    <div className="relative w-14 h-14 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                      {conversation.user?.avatar ? (
+                        <Image
+                          src={getAvatarUrl(conversation.user.avatar)}
+                          alt={conversation.user.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-lg">
+                          {conversation.user?.name?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-semibold text-sm truncate">{conversation.user?.name}</p>
+                        {conversation.unreadCount > 0 && (
+                          <span className="bg-purple-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                            {conversation.unreadCount}
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-1 text-left min-w-0">
-                    <p className="font-semibold text-sm truncate">{otherUser?.name}</p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {conversation.lastMessage || 'Start a conversation'}
-                    </p>
-                  </div>
-                </button>
-              );
-            })
+                      <p className="text-xs text-gray-500 truncate">
+                        {conversation.lastMessage || 'Start a conversation'}
+                      </p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </>
           )}
         </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${!selectedConversation && !fullPage ? 'hidden md:flex' : 'flex'} flex-1 flex-col`}>
         {selectedConversation ? (
           <>
             {/* Chat Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-                  {getOtherUser(selectedConversation)?.avatar ? (
-                    <Image
-                      src={getAvatarUrl(getOtherUser(selectedConversation).avatar)}
-                      alt={getOtherUser(selectedConversation).name}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold">
-                      {getOtherUser(selectedConversation)?.name?.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="font-semibold">{getOtherUser(selectedConversation)?.name}</p>
-                  <p className="text-xs text-gray-500">Active now</p>
-                </div>
+                {fullPage && (
+                  <button
+                    onClick={() => setSelectedConversation(null)}
+                    className="md:hidden p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                )}
+                <button
+                  onClick={() => router.push(`/user-profile/${selectedConversation.user.id}`)}
+                  className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 -ml-2 transition-colors"
+                >
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                    {selectedConversation.user?.avatar ? (
+                      <Image
+                        src={getAvatarUrl(selectedConversation.user.avatar)}
+                        alt={selectedConversation.user.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold">
+                        {selectedConversation.user?.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">{selectedConversation.user?.name}</p>
+                    <p className="text-xs text-gray-500">@{selectedConversation.user?.username}</p>
+                  </div>
+                </button>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                   <Phone className="w-5 h-5 text-blue-500" />
                 </button>
@@ -327,7 +470,23 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                  <p className="text-lg font-semibold mb-2">No messages yet</p>
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-200 mb-4">
+                    {selectedConversation.user?.avatar ? (
+                      <Image
+                        src={getAvatarUrl(selectedConversation.user.avatar)}
+                        alt={selectedConversation.user.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-3xl">
+                        {selectedConversation.user?.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-lg font-semibold mb-2">{selectedConversation.user?.name}</p>
+                  <p className="text-sm text-gray-400 mb-4">@{selectedConversation.user?.username}</p>
                   <p className="text-sm">Send a message to start the conversation</p>
                 </div>
               ) : (
@@ -341,17 +500,17 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                       <div className={`flex gap-2 max-w-[70%] ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
                         {!isMine && (
                           <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                            {getOtherUser(selectedConversation)?.avatar ? (
+                            {selectedConversation.user?.avatar ? (
                               <Image
-                                src={getAvatarUrl(getOtherUser(selectedConversation).avatar)}
-                                alt={getOtherUser(selectedConversation).name}
+                                src={getAvatarUrl(selectedConversation.user.avatar)}
+                                alt={selectedConversation.user.name}
                                 fill
                                 className="object-cover"
                                 unoptimized
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
-                                {getOtherUser(selectedConversation)?.name?.charAt(0).toUpperCase()}
+                                {selectedConversation.user?.name?.charAt(0).toUpperCase()}
                               </div>
                             )}
                           </div>
@@ -364,7 +523,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                                 : 'bg-gray-100 text-gray-900'
                             }`}
                           >
-                            <p className="text-sm">{message.content}</p>
+                            <p className="text-sm break-words">{message.content}</p>
                           </div>
                           <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
                             <p className="text-xs text-gray-400">
@@ -400,27 +559,39 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !isSending && sendMessage()}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
                   placeholder="Message..."
-                  className="flex-1 px-4 py-2 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  disabled={isSending}
                 />
                 <button
                   onClick={sendMessage}
                   disabled={!newMessage.trim() || isSending}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                  className={`p-2 rounded-full transition-colors ${
+                    newMessage.trim() && !isSending
+                      ? 'text-blue-500 hover:bg-gray-100'
+                      : 'text-gray-400 cursor-not-allowed'
+                  }`}
                 >
-                  <Send className="w-5 h-5 text-blue-500" />
+                  <Send className="w-5 h-5" />
                 </button>
               </div>
             </div>
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="w-24 h-24 rounded-full border-4 border-gray-300 flex items-center justify-center mb-4">
-              <Send className="w-12 h-12 text-gray-400" />
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center mb-4">
+              <Send className="w-12 h-12 text-white" />
             </div>
             <p className="text-xl font-semibold mb-2">Your Messages</p>
-            <p className="text-sm">Send private messages to a friend</p>
+            <p className="text-sm text-center max-w-xs">
+              Send private messages to your mutual followers
+            </p>
           </div>
         )}
       </div>

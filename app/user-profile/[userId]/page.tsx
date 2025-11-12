@@ -88,28 +88,10 @@ export default function UserProfilePage() {
 
   const isOwnProfile = currentUser?.id === parseInt(userId);
 
-  const handleMessageClick = async () => {
-    try {
-      // Check if conversation exists
-      const response = await fetch(`/api/messages/conversations?type=all`);
-      if (response.ok) {
-        const data = await response.json();
-        const existingConv = data.conversations?.find(
-          (conv: any) => conv.user.id === parseInt(userId)
-        );
-
-        if (existingConv) {
-          // Navigate to existing conversation
-          router.push(`/messages?conversationId=${existingConv.conversationId}`);
-        } else {
-          // Create new conversation by navigating with userId
-          router.push(`/messages?userId=${userId}&new=true`);
-        }
-      }
-    } catch (error) {
-      console.error('Error opening conversation:', error);
-      router.push(`/messages?userId=${userId}`);
-    }
+  const handleMessageClick = () => {
+    // Simply navigate to messages page with userId parameter
+    // The MessengerInstagram component will handle creating the conversation if needed
+    router.push(`/messages?userId=${userId}`);
   };
 
   useEffect(() => {
