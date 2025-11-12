@@ -24,8 +24,12 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'primary' | 'requests'>('primary');
   const [showMutualFollowers, setShowMutualFollowers] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadConversations();
@@ -195,11 +199,45 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
     }
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if ((!newMessage.trim() && !selectedImage) || !selectedConversation) return;
 
     setIsSending(true);
     try {
+      let mediaUrl = null;
+      let messageType = 'text';
+
+      // Upload image if selected
+      if (selectedImage) {
+        setIsUploadingImage(true);
+        const formData = new FormData();
+        formData.append('file', selectedImage);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          mediaUrl = uploadData.url;
+          messageType = 'image';
+        }
+        setIsUploadingImage(false);
+      }
+
       const response = await fetch('/api/messages', {
         method: 'POST',
         headers: {
@@ -207,18 +245,22 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         },
         body: JSON.stringify({
           receiverId: selectedConversation.user.id,
-          content: newMessage.trim(),
-          messageType: 'text',
+          content: newMessage.trim() || (mediaUrl ? 'Sent an image' : ''),
+          messageType: messageType,
+          mediaUrl: mediaUrl,
         }),
       });
 
       if (response.ok) {
         setNewMessage('');
+        setSelectedImage(null);
+        setImagePreview(null);
       }
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
       setIsSending(false);
+      setIsUploadingImage(false);
     }
   };
 
@@ -451,12 +493,6 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
               <div className="flex items-center gap-2">
                 <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <Phone className="w-5 h-5 text-blue-500" />
-                </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <Video className="w-5 h-5 text-blue-500" />
-                </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                   <Info className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
@@ -517,13 +553,28 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                         )}
                         <div>
                           <div
-                            className={`px-4 py-2 rounded-2xl ${
+                            className={`rounded-2xl ${
+                              message.mediaUrl ? '' : 'px-4 py-2'
+                            } ${
                               isMine
                                 ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                                 : 'bg-gray-100 text-gray-900'
                             }`}
                           >
-                            <p className="text-sm break-words">{message.content}</p>
+                            {message.mediaUrl && message.messageType === 'image' ? (
+                              <div className="rounded-2xl overflow-hidden">
+                                <img 
+                                  src={message.mediaUrl} 
+                                  alt="Sent image" 
+                                  className="max-w-xs max-h-64 object-cover"
+                                />
+                                {message.content && message.content !== 'Sent an image' && (
+                                  <p className="text-sm break-words px-4 py-2">{message.content}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-sm break-words">{message.content}</p>
+                            )}
                           </div>
                           <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
                             <p className="text-xs text-gray-400">
@@ -548,8 +599,39 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
             {/* Input */}
             <div className="p-4 border-t border-gray-200">
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="mb-3 relative inline-block">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="max-h-32 rounded-lg"
+                  />
+                  <button
+                    onClick={() => {
+                      setSelectedImage(null);
+                      setImagePreview(null);
+                    }}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              
               <div className="flex items-center gap-3">
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingImage || isSending}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                >
                   <ImageIcon className="w-5 h-5 text-blue-500" />
                 </button>
                 <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -567,18 +649,22 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
                   }}
                   placeholder="Message..."
                   className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  disabled={isSending}
+                  disabled={isSending || isUploadingImage}
                 />
                 <button
                   onClick={sendMessage}
-                  disabled={!newMessage.trim() || isSending}
+                  disabled={(!newMessage.trim() && !selectedImage) || isSending || isUploadingImage}
                   className={`p-2 rounded-full transition-colors ${
-                    newMessage.trim() && !isSending
-                      ? 'text-blue-500 hover:bg-gray-100'
+                    (newMessage.trim() || selectedImage) && !isSending && !isUploadingImage
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg'
                       : 'text-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  <Send className="w-5 h-5" />
+                  {isUploadingImage ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
