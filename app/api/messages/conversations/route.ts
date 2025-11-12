@@ -1,14 +1,15 @@
-export const runtime = 'nodejs';
+// Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { conversations, messages, users, follows } from '@/lib/db/schema';
+import { messages, users, follows } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
-import { eq, and, or, desc, sql as drizzleSql } from 'drizzle-orm';
+import { eq, and, or, desc, sql as drizzleSql, ne } from 'drizzle-orm';
 import { decryptMessageMilitary } from '@/lib/security/military-encryption';
 
 // GET /api/messages/conversations - Get conversations (Instagram-style with Primary/Requests)
+// Simplified: Works directly with messages table, no conversations table needed
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
   
@@ -54,158 +55,120 @@ export async function GET(request: NextRequest) {
     // Mutual follows (both follow each other)
     const mutualFollows = followingIds.filter(id => followerIds.includes(id));
 
-    // Get all conversations
-    const allConversations = await db
+    // Get unique users from messages (sent or received)
+    const allMessages = await db
       .select({
-        id: conversations.id,
-        participant1Id: conversations.participant1Id,
-        participant2Id: conversations.participant2Id,
-        lastMessageAt: conversations.lastMessageAt,
-        isPinned1: conversations.isPinned1,
-        isPinned2: conversations.isPinned2,
-        isMuted1: conversations.isMuted1,
-        isMuted2: conversations.isMuted2,
+        id: messages.id,
+        senderId: messages.senderId,
+        receiverId: messages.receiverId,
+        content: messages.content,
+        encryptedContent: messages.encryptedContent,
+        isEncrypted: messages.isEncrypted,
+        messageType: messages.messageType,
+        mediaUrl: messages.mediaUrl,
+        isRead: messages.isRead,
+        isDeleted: messages.isDeleted,
+        deletedBySender: messages.deletedBySender,
+        deletedByReceiver: messages.deletedByReceiver,
+        createdAt: messages.createdAt,
       })
-      .from(conversations)
+      .from(messages)
       .where(
-        or(
-          eq(conversations.participant1Id, user.id),
-          eq(conversations.participant2Id, user.id)
+        and(
+          or(
+            eq(messages.senderId, user.id),
+            eq(messages.receiverId, user.id)
+          ),
+          eq(messages.isDeleted, false)
         )
       )
-      .orderBy(desc(conversations.lastMessageAt));
+      .orderBy(desc(messages.createdAt));
 
+    // Group messages by conversation partner
+    const conversationsMap = new Map();
+
+    for (const msg of allMessages) {
+      const isSender = msg.senderId === user.id;
+      const partnerId = isSender ? msg.receiverId : msg.senderId;
+
+      // Skip if deleted by current user
+      if (isSender && msg.deletedBySender) continue;
+      if (!isSender && msg.deletedByReceiver) continue;
+
+      if (!conversationsMap.has(partnerId)) {
+        conversationsMap.set(partnerId, {
+          userId: partnerId,
+          lastMessage: msg,
+          unreadCount: 0,
+          messages: [],
+        });
+      }
+
+      const conv = conversationsMap.get(partnerId);
+      conv.messages.push(msg);
+
+      // Count unread messages (received by current user and not read)
+      if (msg.receiverId === user.id && !msg.isRead) {
+        conv.unreadCount++;
+      }
+    }
+
+    // Get user details for each conversation
     const conversationList = [];
 
-    for (const conv of allConversations) {
-      const otherUserId = conv.participant1Id === user.id 
-        ? conv.participant2Id 
-        : conv.participant1Id;
+    for (const [partnerId, convData] of conversationsMap.entries()) {
+      const partnerUser = await db.query.users.findFirst({
+        where: eq(users.id, partnerId),
+      });
 
-      // Check if it's a mutual follow
-      const isMutual = mutualFollows.includes(otherUserId);
+      if (!partnerUser) continue;
 
-      // Filter based on type
+      const isMutual = mutualFollows.includes(partnerId);
+
+      // Filter by type
       if (type === 'primary' && !isMutual) continue;
       if (type === 'requests' && isMutual) continue;
 
-      // Get last message
-      const [lastMessage] = await db
-        .select()
-        .from(messages)
-        .where(
-          and(
-            eq(messages.conversationId, conv.id),
-            // Don't show deleted messages
-            or(
-              and(
-                eq(messages.senderId, user.id),
-                eq(messages.deletedBySender, false)
-              ),
-              and(
-                eq(messages.receiverId, user.id),
-                eq(messages.deletedByReceiver, false)
-              )
-            )
-          )
-        )
-        .orderBy(desc(messages.createdAt))
-        .limit(1);
-
-      // Get other user info
-      const [otherUser] = await db
-        .select({
-          id: users.id,
-          name: users.name,
-          username: users.username,
-          avatar: users.avatar,
-          lastSeen: users.lastSeen,
-        })
-        .from(users)
-        .where(eq(users.id, otherUserId))
-        .limit(1);
-
-      if (!otherUser) continue;
-
-      // Get unread count
-      const unreadResult = await db
-        .select({ count: drizzleSql<number>`count(*)::int` })
-        .from(messages)
-        .where(
-          and(
-            eq(messages.conversationId, conv.id),
-            eq(messages.receiverId, user.id),
-            eq(messages.isRead, false),
-            eq(messages.deletedByReceiver, false)
-          )
-        );
-
-      const unreadCount = unreadResult[0]?.count || 0;
-
-      let lastMessageContent = '';
-      let lastMessageTime = conv.lastMessageAt;
-
-      if (lastMessage) {
-        // Decrypt if encrypted
-        if (lastMessage.isEncrypted && lastMessage.encryptedContent) {
-          try {
-            lastMessageContent = decryptMessageMilitary(lastMessage.encryptedContent);
-          } catch {
-            lastMessageContent = '[Encrypted message]';
-          }
-        } else {
-          lastMessageContent = lastMessage.content || '';
+      // Decrypt last message if encrypted
+      let lastMessageContent = convData.lastMessage.content;
+      if (convData.lastMessage.isEncrypted && convData.lastMessage.encryptedContent) {
+        try {
+          lastMessageContent = decryptMessageMilitary(convData.lastMessage.encryptedContent);
+        } catch (error) {
+          lastMessageContent = '[Encrypted]';
         }
-
-        // Truncate long messages
-        if (lastMessageContent.length > 50) {
-          lastMessageContent = lastMessageContent.substring(0, 50) + '...';
-        }
-
-        // Add media indicator
-        if (lastMessage.mediaUrl) {
-          lastMessageContent = lastMessage.messageType === 'image' 
-            ? '📷 Photo' 
-            : lastMessage.messageType === 'video'
-            ? '🎥 Video'
-            : lastMessageContent;
-        }
-
-        lastMessageTime = lastMessage.createdAt;
       }
 
-      const isPinned = conv.participant1Id === user.id ? conv.isPinned1 : conv.isPinned2;
-      const isMuted = conv.participant1Id === user.id ? conv.isMuted1 : conv.isMuted2;
-
       conversationList.push({
-        conversationId: conv.id,
-        user: otherUser,
-        lastMessage: lastMessageContent || 'No messages yet',
-        lastMessageTime,
-        unreadCount,
-        isPinned,
-        isMuted,
-        isMutual,
+        conversationId: `${Math.min(user.id, partnerId)}-${Math.max(user.id, partnerId)}`, // Virtual conversation ID
+        user: {
+          id: partnerUser.id,
+          name: partnerUser.name,
+          username: partnerUser.username,
+          avatar: partnerUser.avatar,
+        },
+        lastMessage: lastMessageContent || (convData.lastMessage.mediaUrl ? 'Sent a photo' : ''),
+        lastMessageAt: convData.lastMessage.createdAt,
+        unreadCount: convData.unreadCount,
+        isMutual: isMutual,
       });
     }
 
-    // Sort: Pinned first, then by last message time
+    // Sort by last message time
     conversationList.sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
-      const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
-      const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+      const timeA = new Date(a.lastMessageAt).getTime();
+      const timeB = new Date(b.lastMessageAt).getTime();
       return timeB - timeA;
     });
 
     return NextResponse.json({
-      success: true,
       conversations: conversationList,
+      type: type,
     });
   } catch (error) {
-    console.error('Error fetching conversations:', error);
+    console.error('Get conversations error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch conversations' },
+      { error: 'Failed to get conversations' },
       { status: 500 }
     );
   }

@@ -236,41 +236,14 @@ export async function POST(request: NextRequest) {
     // We encrypt it ONLY when storing in database
     // This avoids WAF blocking the API request
 
-    // Get or create conversation
-    let conversation = await db
-      .select()
-      .from(conversations)
-      .where(
-        or(
-          and(
-            eq(conversations.participant1Id, authResult.user.id),
-            eq(conversations.participant2Id, receiverId)
-          ),
-          and(
-            eq(conversations.participant1Id, receiverId),
-            eq(conversations.participant2Id, authResult.user.id)
-          )
-        )
-      )
-      .limit(1);
-
-    if (conversation.length === 0) {
-      // Create new conversation
-      const [newConv] = await db
-        .insert(conversations)
-        .values({
-          participant1Id: authResult.user.id,
-          participant2Id: receiverId,
-        })
-        .returning();
-      conversation = [newConv];
-    }
+    // Simplified: No conversations table needed
+    // Just store messages directly
 
     // Create message - store encrypted in DB only
     const [message] = await db
       .insert(messages)
       .values({
-        conversationId: conversation[0].id,
+        conversationId: null, // Not using conversations table
         senderId: authResult.user.id,
         receiverId,
         content: null, // Don't store plain text

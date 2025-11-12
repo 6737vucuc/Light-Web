@@ -210,7 +210,7 @@ export const conversations = pgTable('conversations', {
 // Messages table - Instagram-style DMs
 export const messages = pgTable('messages', {
   id: serial('id').primaryKey(),
-  conversationId: integer('conversation_id').references(() => conversations.id).notNull(),
+  conversationId: integer('conversation_id').references(() => conversations.id),
   senderId: integer('sender_id').references(() => users.id).notNull(),
   receiverId: integer('receiver_id').references(() => users.id).notNull(),
   messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video', 'voice', 'post'
