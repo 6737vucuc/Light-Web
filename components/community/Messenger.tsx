@@ -38,8 +38,11 @@ export default function Messenger({ currentUser, recipient, onClose }: Messenger
   }, [recipient.id]);
 
   useEffect(() => {
-    if (conversationId && pusherRef.current) {
-      const channel = pusherRef.current.subscribe(`conversation-${conversationId}`);
+    if (recipient && pusherRef.current && currentUser) {
+      // Use the same channel format as the API: private-chat-{id1}-{id2}
+      const [id1, id2] = [currentUser.id, recipient.id].sort((a, b) => a - b);
+      const channelName = `private-chat-${id1}-${id2}`;
+      const channel = pusherRef.current.subscribe(channelName);
       
       channel.bind('new-message', (data: any) => {
         setMessages((prev) => [...prev, data.message]);
@@ -51,7 +54,7 @@ export default function Messenger({ currentUser, recipient, onClose }: Messenger
         channel.unsubscribe();
       };
     }
-  }, [conversationId]);
+  }, [recipient, currentUser]);
 
   useEffect(() => {
     scrollToBottom();
@@ -94,7 +97,23 @@ export default function Messenger({ currentUser, recipient, onClose }: Messenger
       });
 
       if (response.ok) {
+        const data = await response.json();
+        // Add message immediately to UI
+        if (data.data) {
+          const newMsg = {
+            id: data.data.id,
+            senderId: currentUser.id,
+            receiverId: recipient.id,
+            content: newMessage.trim(),
+            messageType: 'text',
+            createdAt: new Date().toISOString(),
+            isRead: false,
+            isDelivered: false,
+          };
+          setMessages((prev) => [...prev, newMsg]);
+        }
         setNewMessage('');
+        scrollToBottom();
       }
     } catch (error) {
       console.error('Error sending message:', error);

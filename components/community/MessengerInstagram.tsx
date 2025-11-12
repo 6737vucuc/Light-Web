@@ -92,8 +92,11 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
   };
 
   useEffect(() => {
-    if (selectedConversation && pusherRef.current) {
-      const channel = pusherRef.current.subscribe(`conversation-${selectedConversation.conversationId}`);
+    if (selectedConversation && pusherRef.current && currentUser) {
+      // Use the same channel format as the API: private-chat-{id1}-{id2}
+      const [id1, id2] = [currentUser.id, selectedConversation.user.id].sort((a, b) => a - b);
+      const channelName = `private-chat-${id1}-${id2}`;
+      const channel = pusherRef.current.subscribe(channelName);
       
       channel.bind('new-message', (data: any) => {
         setMessages((prev) => [...prev, data.message]);
@@ -105,7 +108,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
         channel.unsubscribe();
       };
     }
-  }, [selectedConversation]);
+  }, [selectedConversation, currentUser]);
 
   useEffect(() => {
     scrollToBottom();
@@ -252,9 +255,26 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
       });
 
       if (response.ok) {
+        const data = await response.json();
+        // Add message immediately to UI
+        if (data.data) {
+          const newMsg = {
+            id: data.data.id,
+            senderId: currentUser.id,
+            receiverId: selectedConversation.user.id,
+            content: newMessage.trim() || (mediaUrl ? 'Sent an image' : ''),
+            mediaUrl: mediaUrl,
+            messageType: messageType,
+            createdAt: new Date().toISOString(),
+            isRead: false,
+            isDelivered: false,
+          };
+          setMessages((prev) => [...prev, newMsg]);
+        }
         setNewMessage('');
         setSelectedImage(null);
         setImagePreview(null);
+        scrollToBottom();
       }
     } catch (error) {
       console.error('Error sending message:', error);

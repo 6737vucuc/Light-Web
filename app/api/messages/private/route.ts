@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
         conversationId: null, // Not using conversations table
         senderId: authResult.user.id,
         receiverId,
-        content: isEncrypted ? null : sanitizedContent, // Store plain text only if encryption failed
+        content: isEncrypted ? '' : sanitizedContent, // Store empty string if encrypted, plain text if encryption failed
         encryptedContent: encryptedContent,
         isEncrypted: isEncrypted,
         mediaUrl: mediaUrl || null,
