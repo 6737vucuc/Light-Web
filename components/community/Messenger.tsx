@@ -81,7 +81,7 @@ export default function Messenger({ currentUser, recipient, onClose }: Messenger
 
     setIsSending(true);
     try {
-      const response = await fetch('/api/messages', {
+      const response = await fetch('/api/messages/private', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
