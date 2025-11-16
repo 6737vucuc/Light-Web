@@ -39,6 +39,7 @@ export const users = pgTable('users', {
   isAdmin: boolean('is_admin').default(false),
   isBanned: boolean('is_banned').default(false),
   bannedUntil: timestamp('banned_until'),
+  bannedReason: text('banned_reason'),
   emailVerified: boolean('email_verified').default(false),
   lastSeen: timestamp('last_seen').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
@@ -93,4 +94,87 @@ export const groupMessages = pgTable('group_messages', {
   deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ========================================
+// REPORTS SYSTEM
+// ========================================
+
+// Reports table for inappropriate messages
+export const reports = pgTable('reports', {
+  id: serial('id').primaryKey(),
+  reporterId: integer('reporter_id').references(() => users.id).notNull(),
+  reportedUserId: integer('reported_user_id').references(() => users.id).notNull(),
+  messageId: integer('message_id').references(() => groupMessages.id),
+  groupId: integer('group_id').references(() => communityGroups.id),
+  reason: text('reason').notNull(),
+  status: varchar('status', { length: 20 }).default('pending'), // pending, reviewed, resolved
+  adminNotes: text('admin_notes'),
+  reviewedBy: integer('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ========================================
+// SUPPORT SYSTEM
+// ========================================
+
+// Support tickets table
+export const supportTickets = pgTable('support_tickets', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  subject: varchar('subject', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  category: varchar('category', { length: 50 }).notNull(), // technical, account, content, other
+  status: varchar('status', { length: 20 }).default('open'), // open, in_progress, resolved, closed
+  priority: varchar('priority', { length: 20 }).default('normal'), // low, normal, high, urgent
+  assignedTo: integer('assigned_to').references(() => users.id),
+  adminResponse: text('admin_response'),
+  respondedAt: timestamp('responded_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Support ticket replies
+export const supportReplies = pgTable('support_replies', {
+  id: serial('id').primaryKey(),
+  ticketId: integer('ticket_id').references(() => supportTickets.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  message: text('message').notNull(),
+  isAdmin: boolean('is_admin').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ========================================
+// DAILY VERSES SYSTEM
+// ========================================
+
+// Daily verses table
+export const dailyVerses = pgTable('daily_verses', {
+  id: serial('id').primaryKey(),
+  verseText: text('verse_text').notNull(),
+  verseReference: varchar('verse_reference', { length: 255 }).notNull(), // e.g., "القرآن الكريم - سورة البقرة: 255"
+  language: varchar('language', { length: 10 }).default('ar'),
+  religion: varchar('religion', { length: 50 }).notNull(), // islam, christianity, etc.
+  displayDate: date('display_date').notNull(),
+  isActive: boolean('is_active').default(true),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ========================================
+// LESSON PROGRESS TRACKING
+// ========================================
+
+// Lesson progress table
+export const lessonProgress = pgTable('lesson_progress', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  lessonId: varchar('lesson_id', { length: 100 }).notNull(), // lesson identifier
+  lessonTitle: varchar('lesson_title', { length: 255 }).notNull(),
+  completed: boolean('completed').default(false),
+  progress: integer('progress').default(0), // percentage 0-100
+  lastAccessedAt: timestamp('last_accessed_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
 });

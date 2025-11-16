@@ -4,16 +4,13 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
-import { users, verificationCodes } from '@/lib/db/schema';
-import { sendVerificationCode, generateVerificationCode } from '@/lib/utils/email';
+import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
+import { createToken } from '@/lib/auth/jwt';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check for VPN/Proxy/Tor - BLOCK ALL
-    
-    
     // Apply strict rate limiting for registration
     const clientId = getClientIdentifier(request);
     const rateLimit = checkRateLimit(clientId, RateLimitConfigs.REGISTER);
@@ -71,7 +68,6 @@ export async function POST(request: NextRequest) {
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
     if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
       return NextResponse.json(
@@ -95,80 +91,60 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      // Use generic message to prevent user enumeration
       return NextResponse.json(
         { error: 'Email already registered' },
         { status: 400 }
       );
     }
 
-    // Generate verification code
-    const code = generateVerificationCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    // Hash password with 10 rounds (faster while still secure)
+    // Hash password with 10 rounds
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Save verification code and user in parallel for speed
-    try {
-      await Promise.all([
-        db.insert(verificationCodes).values({
-          email: normalizedEmail,
-          code,
-          expiresAt,
-        }),
-        db.insert(users).values({
-          name: name.trim(),
-          username: normalizedEmail.split('@')[0] + Math.floor(Math.random() * 10000),
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          birthDate: birthDate || null,
-          email: normalizedEmail,
-          password: hashedPassword,
-          religion: religion || null,
-          gender: gender || null,
-          country: country || null,
-          emailVerified: false,
-          isAdmin: false,
-          isBanned: false,
-        })
-      ]);
-    } catch (dbError: any) {
-      console.error('Database error during registration:', dbError);
-      throw new Error('Database connection error. Please try again later.');
-    }
+    // Create user with immediate email verification (emailVerified: true)
+    const [newUser] = await db.insert(users).values({
+      name: name.trim(),
+      username: normalizedEmail.split('@')[0] + Math.floor(Math.random() * 10000),
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      birthDate: birthDate || null,
+      email: normalizedEmail,
+      password: hashedPassword,
+      religion: religion || null,
+      gender: gender || null,
+      country: country || null,
+      emailVerified: true, // تفعيل التحقق الفوري
+      isAdmin: false,
+      isBanned: false,
+    }).returning();
 
-    // Send verification email (synchronous to ensure delivery)
-    try {
-      await sendVerificationCode(normalizedEmail, code, firstName || name);
-      console.log(`Verification email sent successfully to: ${normalizedEmail}`);
-    } catch (emailError: any) {
-      console.error('Email sending error:', emailError);
-      console.error('Email error details:', {
-        message: emailError?.message,
-        code: emailError?.code,
-        statusCode: emailError?.statusCode,
-        name: emailError?.name,
-      });
-      
-      // Return error to user if email fails
-      return NextResponse.json(
-        { 
-          error: 'Failed to send verification email. Please check your email address and try again.',
-          details: process.env.NODE_ENV === 'development' ? emailError?.message : undefined
-        },
-        { status: 500 }
-      );
-    }
+    // Create JWT token for immediate login
+    const token = await createToken({
+      userId: newUser.id,
+      email: newUser.email,
+      isAdmin: newUser.isAdmin,
+    });
 
-
-
-    // Log successful registration (without sensitive data)
-    console.log(`New user registered: ${normalizedEmail} from IP: ${clientId}`);
+    // Log successful registration
+    console.log(`New user registered and auto-verified: ${normalizedEmail} from IP: ${clientId}`);
 
     const response = NextResponse.json({
-      message: 'Verification code sent to your email',
-      email: normalizedEmail,
+      message: 'Registration successful',
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        avatar: newUser.avatar,
+        isAdmin: newUser.isAdmin,
+      },
+    });
+
+    // Set secure cookie with strict settings
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
     });
 
     // Add rate limit headers
@@ -178,16 +154,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error: any) {
     console.error('Registration error:', error);
-    console.error('Error details:', {
-      message: error?.message,
-      stack: error?.stack,
-      code: error?.code,
-      name: error?.name,
-      cause: error?.cause,
-    });
-    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     
-    // Provide more specific error messages
     let errorMessage = 'An error occurred during registration';
     
     if (error?.message?.includes('duplicate key')) {
