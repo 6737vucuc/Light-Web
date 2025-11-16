@@ -8,21 +8,11 @@ import { users, verificationCodes } from '@/lib/db/schema';
 import { sendVerificationCode, generateVerificationCode } from '@/lib/utils/email';
 import { eq } from 'drizzle-orm';
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
-import { checkVPNMiddleware, createVPNBlockedResponse } from '@/lib/security/vpn-middleware';
 
 export async function POST(request: NextRequest) {
   try {
     // Check for VPN/Proxy/Tor - BLOCK ALL
-    const vpnCheck = await checkVPNMiddleware(request, {
-      blockTor: true,
-      blockVPN: true,
-      blockProxy: true,
-      logOnly: false,
-    });
     
-    if (!vpnCheck.allowed) {
-      return createVPNBlockedResponse(vpnCheck.reason || 'Connection blocked');
-    }
     
     // Apply strict rate limiting for registration
     const clientId = getClientIdentifier(request);

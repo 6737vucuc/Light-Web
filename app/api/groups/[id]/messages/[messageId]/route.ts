@@ -18,7 +18,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; messageId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id, messageId: msgId } = await params;
     const token = request.cookies.get('token')?.value;
     
     if (!token) {
@@ -27,7 +27,7 @@ export async function DELETE(
 
     const decoded = verify(token, process.env.JWT_SECRET!) as any;
     const groupId = parseInt(id);
-    const messageId = parseInt(messageId);
+    const messageId = parseInt(msgId);
 
     // Get message details
     const [message] = await sql`
