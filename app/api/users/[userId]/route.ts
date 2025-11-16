@@ -10,6 +10,7 @@ export async function GET(
 ) {
   try {
     const { userId } = await params;
+    const { userId } = await params;
     const targetUserId = parseInt(userId);
 
     if (isNaN(targetUserId)) {

@@ -15,9 +15,10 @@ const pusher = new Pusher({
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; messageId: string } }
+  { params }: { params: Promise<{ id: string; messageId: string }> }
 ) {
   try {
+    const { id } = await params;
     const token = request.cookies.get('token')?.value;
     
     if (!token) {
@@ -25,8 +26,8 @@ export async function DELETE(
     }
 
     const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const groupId = parseInt(params.id);
-    const messageId = parseInt(params.messageId);
+    const groupId = parseInt(id);
+    const messageId = parseInt(messageId);
 
     // Get message details
     const [message] = await sql`

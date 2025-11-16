@@ -15,9 +15,10 @@ const pusher = new Pusher({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const token = request.cookies.get('token')?.value;
     
     if (!token) {
@@ -25,7 +26,7 @@ export async function GET(
     }
 
     const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const groupId = parseInt(params.id);
+    const groupId = parseInt(id);
 
     // Check if user is a member
     const [member] = await sql`
@@ -59,9 +60,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const token = request.cookies.get('token')?.value;
     
     if (!token) {
@@ -69,7 +71,7 @@ export async function POST(
     }
 
     const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const groupId = parseInt(params.id);
+    const groupId = parseInt(id);
 
     // Check if user is a member
     const [member] = await sql`

@@ -6,7 +6,7 @@ const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = request.cookies.get('token')?.value;
@@ -16,7 +16,8 @@ export async function POST(
     }
 
     const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const groupId = parseInt(params.id);
+    const { id } = await params;
+    const groupId = parseInt(id);
 
     // Check if already a member
     const [existingMember] = await sql`

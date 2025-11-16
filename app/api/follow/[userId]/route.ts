@@ -10,6 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params;
     const token = request.cookies.get('token')?.value;
     if (!token) {
       return NextResponse.json(
@@ -151,6 +152,7 @@ export async function DELETE(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params;
     const token = request.cookies.get('token')?.value;
     if (!token) {
       return NextResponse.json(
