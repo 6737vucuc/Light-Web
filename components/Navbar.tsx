@@ -20,7 +20,7 @@ export default function Navbar() {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/profile');
+      const response = await fetch('/api/auth/me');
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
