@@ -253,3 +253,75 @@ export const twoFactorAuth = pgTable('two_factor_auth', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// Blocked Users table
+export const blockedUsers = pgTable('blocked_users', {
+  id: serial('id').primaryKey(),
+  blockerId: integer('blocker_id').references(() => users.id).notNull(),
+  blockedId: integer('blocked_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Daily Verses table
+export const dailyVerses = pgTable('daily_verses', {
+  id: serial('id').primaryKey(),
+  verseId: integer('verse_id').references(() => verses.id).notNull(),
+  date: date('date').notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Encryption Keys table
+export const encryptionKeys = pgTable('encryption_keys', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull().unique(),
+  publicKey: text('public_key').notNull(),
+  privateKeyEncrypted: text('private_key_encrypted').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Lesson Progress table
+export const lessonProgress = pgTable('lesson_progress', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  lessonId: integer('lesson_id').references(() => lessons.id).notNull(),
+  status: varchar('status', { length: 20 }).default('not_started'),
+  progressPercentage: integer('progress_percentage').default(0),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// User Privacy Settings table
+export const userPrivacySettings = pgTable('user_privacy_settings', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull().unique(),
+  profileVisibility: varchar('profile_visibility', { length: 20 }).default('public'),
+  showEmail: boolean('show_email').default(false),
+  showBirthDate: boolean('show_birth_date').default(false),
+  allowMessages: varchar('allow_messages', { length: 20 }).default('everyone'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Typing Indicators table
+export const typingIndicators = pgTable('typing_indicators', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  conversationId: integer('conversation_id').references(() => conversations.id).notNull(),
+  isTyping: boolean('is_typing').default(false),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Support Requests table
+export const supportRequests = pgTable('support_requests', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  subject: varchar('subject', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  status: varchar('status', { length: 20 }).default('open'),
+  priority: varchar('priority', { length: 20 }).default('normal'),
+  adminResponse: text('admin_response'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
