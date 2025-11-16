@@ -329,6 +329,9 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
            user?.username?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
+  // Show mutual followers when searching
+  const shouldShowMutualFollowersInSearch = searchQuery.trim().length > 0 && !showMutualFollowers;
+
   // Handle typing indicator
   const handleTyping = async () => {
     if (!selectedConversation) return;
@@ -474,7 +477,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
 
         {/* Conversations or Mutual Followers */}
         <div className="flex-1 overflow-y-auto">
-          {showMutualFollowers ? (
+          {(showMutualFollowers || shouldShowMutualFollowersInSearch) ? (
             // Mutual Followers List
             <>
               <div className="p-3 bg-gray-50 border-b border-gray-200">
@@ -483,7 +486,7 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
               {filteredMutualFollowers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
                   <Users className="w-12 h-12 mb-2 opacity-30" />
-                  <p className="text-center">No mutual followers yet</p>
+                  <p className="text-center">{searchQuery.trim() ? 'No followers found' : 'No mutual followers yet'}</p>
                 </div>
               ) : (
                 filteredMutualFollowers.map((user) => (
@@ -525,9 +528,11 @@ export default function MessengerInstagram({ currentUser, initialUserId, fullPag
               ) : filteredConversations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
                   <p className="text-center">
-                    {activeTab === 'primary' 
-                      ? 'No conversations yet. Click the users icon to start chatting with mutual followers!' 
-                      : 'No message requests'}
+                    {searchQuery.trim() 
+                      ? 'No conversations found. Search results will show your followers below.' 
+                      : (activeTab === 'primary' 
+                        ? 'No conversations yet. Click the users icon to start chatting with mutual followers!' 
+                        : 'No message requests')}
                   </p>
                 </div>
               ) : (
