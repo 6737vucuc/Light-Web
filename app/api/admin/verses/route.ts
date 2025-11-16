@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { dailyVerses, users } from '@/lib/db/schema';
+import {  users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, desc, gte } from 'drizzle-orm';
 

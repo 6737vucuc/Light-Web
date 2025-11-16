@@ -28,9 +28,9 @@ export async function DELETE(
     const groupId = parseInt(params.id);
     const messageId = parseInt(params.messageId);
 
-    // Check if message belongs to user
+    // Get message details
     const [message] = await sql`
-      SELECT user_id FROM group_messages 
+      SELECT user_id, created_at FROM group_messages 
       WHERE id = ${messageId} AND group_id = ${groupId}
     `;
 
@@ -38,11 +38,25 @@ export async function DELETE(
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
 
+    // Check if message belongs to user
     if (message.user_id !== decoded.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Delete message
+    // Check if message is within 1 hour (3600000 milliseconds)
+    const messageTime = new Date(message.created_at).getTime();
+    const currentTime = new Date().getTime();
+    const timeDifference = currentTime - messageTime;
+    const oneHourInMs = 60 * 60 * 1000;
+
+    if (timeDifference > oneHourInMs) {
+      return NextResponse.json({ 
+        error: 'لا يمكن حذف الرسالة بعد مرور ساعة',
+        canDelete: false 
+      }, { status: 400 });
+    }
+
+    // Delete message (from both sides)
     await sql`
       DELETE FROM group_messages 
       WHERE id = ${messageId}
@@ -55,12 +69,16 @@ export async function DELETE(
       WHERE id = ${groupId}
     `;
 
-    // Broadcast deletion to Pusher
+    // Broadcast deletion to Pusher (for all users)
     await pusher.trigger(`group-${groupId}`, 'delete-message', {
       messageId: messageId,
+      deletedBy: decoded.userId,
     });
 
-    return NextResponse.json({ message: 'Message deleted successfully' });
+    return NextResponse.json({ 
+      message: 'تم حذف الرسالة من الطرفين',
+      deletedFromBothSides: true 
+    });
   } catch (error) {
     console.error('Error deleting message:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

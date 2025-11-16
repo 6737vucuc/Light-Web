@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { users, posts } from '@/lib/db/schema';
+import { users } from '@/lib/db/schema';
 import { sql, or, ilike } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
-    const type = searchParams.get('type') || 'all'; // all, users, posts
+    const type = searchParams.get('type') || 'all'; // all, users
 
     if (!query || query.trim().length === 0) {
       return NextResponse.json({

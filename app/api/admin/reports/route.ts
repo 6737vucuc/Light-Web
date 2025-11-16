@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { reports, users, posts } from '@/lib/db/schema';
+import { reports, users } from '@/lib/db/schema';
 import { requireAdmin } from '@/lib/auth/middleware';
 import { eq, desc } from 'drizzle-orm';
 

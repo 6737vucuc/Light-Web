@@ -8,7 +8,7 @@ import {
   messageReactions, typingIndicators, reports,
   lessonProgress, userPrivacySettings, vpnLogs,
   supportRequests, testimonies, encryptionKeys,
-  lessons, dailyVerses, communityGroups, groupMembers, groupMessages
+  lessons,  communityGroups, groupMembers, groupMessages
 } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, desc, or } from 'drizzle-orm';

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { messages, users, friendships } from '@/lib/db/schema';
+import { messages, users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, or, and, desc } from 'drizzle-orm';
 import { RealtimeChatService } from '@/lib/realtime/chat';
