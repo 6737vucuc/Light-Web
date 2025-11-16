@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // Get ticket details with replies
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
@@ -18,7 +18,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const ticketId = parseInt(params.id);
+    const { id } = await params;
+    const ticketId = parseInt(id);
 
     const ticket = await db.query.supportTickets.findFirst({
       where: eq(supportTickets.id, ticketId),
@@ -72,7 +73,7 @@ export async function GET(
 // Update ticket status (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
@@ -80,7 +81,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const ticketId = parseInt(params.id);
+    const { id } = await params;
+    const ticketId = parseInt(id);
     const body = await request.json();
     const { status, priority, adminResponse, assignedTo } = body;
 
