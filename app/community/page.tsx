@@ -2,93 +2,54 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Search, PlusSquare, Heart, MessageCircle } from 'lucide-react';
+import { Users, MessageCircle, Home, User } from 'lucide-react';
 import Image from 'next/image';
-import Feed from '@/components/community/Feed';
-import StoriesBar from '@/components/stories/StoriesBar';
-import Notifications from '@/components/community/Notifications';
-import Messenger from '@/components/community/Messenger';
-import DailyVerse from '@/components/verses/DailyVerse';
+import GroupChat from '@/components/community/GroupChat';
 
 export default function CommunityPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showMessenger, setShowMessenger] = useState(false);
-  const [selectedRecipient, setSelectedRecipient] = useState<any>(null);
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any>({ users: [], posts: [] });
-  const [isSearching, setIsSearching] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<any>(null);
 
   useEffect(() => {
-    let mounted = true;
-    
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/auth/me');
-        if (!mounted) return;
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (mounted) {
-            setCurrentUser(data.user);
-            setIsAuthenticated(true);
-            setIsLoading(false);
-            
-            fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
-            fetchUnreadCount();
-          }
-        } else {
-          if (mounted) {
-            router.push('/auth/login?redirect=/community');
-          }
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        if (mounted) {
-          router.push('/auth/login?redirect=/community');
-        }
-      }
-    };
-
     checkAuth();
-    
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
+  }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    
-    let mounted = true;
-    
-    const interval = setInterval(() => {
-      if (mounted) {
-        fetch('/api/users/update-lastseen', { method: 'POST' }).catch(console.error);
-        fetchUnreadCount();
-      }
-    }, 120000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
+    if (isAuthenticated) {
+      loadGroups();
+    }
   }, [isAuthenticated]);
 
-  const fetchUnreadCount = async () => {
+  const checkAuth = async () => {
     try {
-      const response = await fetch('/api/messages/unread');
+      const response = await fetch('/api/auth/me');
       if (response.ok) {
         const data = await response.json();
-        setUnreadCount(data.count || 0);
+        setCurrentUser(data.user);
+        setIsAuthenticated(true);
+        setIsLoading(false);
+      } else {
+        router.push('/auth/login?redirect=/community');
       }
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      console.error('Auth check error:', error);
+      router.push('/auth/login?redirect=/community');
+    }
+  };
+
+  const loadGroups = async () => {
+    try {
+      const response = await fetch('/api/groups');
+      if (response.ok) {
+        const data = await response.json();
+        setGroups(data.groups);
+      }
+    } catch (error) {
+      console.error('Error loading groups:', error);
     }
   };
 
@@ -99,214 +60,38 @@ export default function CommunityPage() {
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
-  const handleSearch = async (value: string) => {
-    setSearchQuery(value);
-    
-    if (value.trim().length > 0) {
-      setIsSearching(true);
-      try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(value)}`);
-        if (response.ok) {
-          const data = await response.json();
-          setSearchResults(data);
-        }
-      } catch (error) {
-        console.error('Search error:', error);
-      } finally {
-        setIsSearching(false);
-      }
-    } else {
-      setSearchResults({ users: [], posts: [] });
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white pb-16 md:pb-0">
-      {/* Daily Verse Modal */}
-      <DailyVerse />
-      {/* Top Header - Instagram Style */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="w-full px-4">
-          <div className="flex items-center justify-between h-14">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 pb-16 md:pb-0">
+      {/* Top Header */}
+      <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div 
-              onClick={() => router.push('/community')}
-              className="cursor-pointer"
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  المجتمع
+                </h1>
+                <p className="text-xs text-gray-500">دردشة جماعية</p>
+              </div>
+            </div>
+
+            {/* User Avatar */}
+            <button
+              onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
+              className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 border-2 border-purple-600 hover:scale-105 transition-transform"
             >
-              <h1 className="text-xl font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                Light of Life
-              </h1>
-            </div>
-
-            {/* Right Icons */}
-            <div className="flex items-center gap-5">
-              {/* Desktop Notifications */}
-              <div className="hidden md:block">
-                <button
-                  onClick={() => router.push('/notifications')}
-                  className="hover:scale-110 transition-transform"
-                  title="Notifications"
-                >
-                  <Heart className="w-7 h-7 text-gray-800" />
-                </button>
-              </div>
-
-              {/* Messenger */}
-              <button
-                onClick={() => router.push('/messages')}
-                className="relative hover:scale-110 transition-transform"
-                title="Messages"
-              >
-                <MessageCircle className="w-6 h-6 md:w-7 md:h-7 text-gray-800" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center text-[10px]">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Search Modal */}
-      {showSearch && (
-        <div 
-          className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-16"
-          onClick={() => {
-            setShowSearch(false);
-            setSearchQuery('');
-          }}
-        >
-          <div 
-            className="bg-white rounded-xl w-full max-w-xl mx-4 shadow-2xl max-h-[70vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-3 border-b border-gray-200">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  autoFocus
-                />
-              </div>
-            </div>
-            
-            <div className="overflow-y-auto max-h-96">
-              {isSearching ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mx-auto"></div>
-                </div>
-              ) : searchQuery.trim() ? (
-                <div>
-                  {searchResults.users && searchResults.users.length > 0 && (
-                    <div className="p-2">
-                      {searchResults.users.map((user: any) => (
-                        <button
-                          key={user.id}
-                          onClick={() => {
-                            router.push(`/user-profile/${user.id}`);
-                            setShowSearch(false);
-                            setSearchQuery('');
-                          }}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
-                        >
-                          <div className="relative w-11 h-11 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                            {user.avatar ? (
-                              <Image
-                                src={getAvatarUrl(user.avatar)}
-                                alt={user.name}
-                                fill
-                                className="object-cover"
-                                unoptimized
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold">
-                                {user.name?.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 text-left">
-                            <p className="font-semibold text-sm">{user.username}</p>
-                            <p className="text-gray-500 text-sm">{user.name}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {searchResults.users?.length === 0 && searchResults.posts?.length === 0 && (
-                    <div className="text-center py-12 text-gray-500">
-                      <p>No results found</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p>Search for people and posts</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stories */}
-      <StoriesBar currentUserId={currentUser?.id} />
-
-      {/* Main Content */}
-      <main className="bg-gray-50">
-        <Feed currentUser={currentUser} />
-      </main>
-
-      {/* Bottom Navigation Bar - Mobile Only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-area-inset-bottom">
-        <div className="flex items-center justify-around h-14">
-          <button
-            onClick={() => router.push('/community')}
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
-          >
-            <Home className="w-7 h-7 text-gray-800" strokeWidth={2} />
-          </button>
-
-          <button
-            onClick={() => setShowSearch(true)}
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
-          >
-            <Search className="w-7 h-7 text-gray-800" strokeWidth={2} />
-          </button>
-
-          <button
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
-          >
-            <PlusSquare className="w-7 h-7 text-gray-800" strokeWidth={2} />
-          </button>
-
-          <button
-            onClick={() => router.push('/notifications')}
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
-          >
-            <Heart className="w-7 h-7 text-gray-800" strokeWidth={2} />
-          </button>
-
-          <button
-            onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
-            className="flex-1 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors h-full"
-          >
-            <div className="relative w-7 h-7 rounded-full overflow-hidden bg-gray-200 border-2 border-gray-800">
               {currentUser?.avatar ? (
                 <Image
                   src={getAvatarUrl(currentUser.avatar)}
@@ -316,26 +101,136 @@ export default function CommunityPage() {
                   unoptimized
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-sm font-bold">
                   {currentUser?.name?.charAt(0).toUpperCase()}
                 </div>
               )}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {selectedGroup ? (
+          /* Group Chat View */
+          <GroupChat
+            group={selectedGroup}
+            currentUser={currentUser}
+            onBack={() => setSelectedGroup(null)}
+          />
+        ) : (
+          /* Groups List */
+          <div>
+            {/* Welcome Banner */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 mb-6 text-white shadow-lg">
+              <h2 className="text-2xl font-bold mb-2">مرحباً {currentUser?.name}! 👋</h2>
+              <p className="text-purple-100">
+                انضم إلى المجموعات وشارك في المحادثات مع المجتمع
+              </p>
+              <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-lg p-3 text-sm">
+                <p className="flex items-center gap-2">
+                  <span className="text-yellow-300">⚠️</span>
+                  يتم حذف جميع الرسائل تلقائياً كل 24 ساعة للحفاظ على الخصوصية
+                </p>
+              </div>
             </div>
+
+            {/* Groups Grid */}
+            {groups.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-12 h-12 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">لا توجد مجموعات متاحة</h3>
+                <p className="text-gray-500">سيتم إضافة المجموعات قريباً من قبل الإدارة</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {groups.map((group) => (
+                  <button
+                    key={group.id}
+                    onClick={() => setSelectedGroup(group)}
+                    className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group"
+                  >
+                    {/* Group Header with Color */}
+                    <div
+                      className="h-32 flex items-center justify-center relative overflow-hidden"
+                      style={{
+                        background: `linear-gradient(135deg, ${group.color} 0%, ${group.color}dd 100%)`,
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all"></div>
+                      <Users className="w-16 h-16 text-white relative z-10 group-hover:scale-110 transition-transform" />
+                    </div>
+
+                    {/* Group Info */}
+                    <div className="p-5">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2 text-right">
+                        {group.name}
+                      </h3>
+                      {group.description && (
+                        <p className="text-gray-600 text-sm mb-4 text-right line-clamp-2">
+                          {group.description}
+                        </p>
+                      )}
+
+                      {/* Stats */}
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-1 text-gray-500">
+                          <Users className="w-4 h-4" />
+                          <span>{group.members_count || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-gray-500">
+                          <MessageCircle className="w-4 h-4" />
+                          <span>{group.messages_count || 0}</span>
+                        </div>
+                      </div>
+
+                      {/* Join Button */}
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-center gap-2 text-purple-600 font-medium group-hover:text-pink-600 transition-colors">
+                          <MessageCircle className="w-5 h-5" />
+                          <span>فتح المحادثة</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Bottom Navigation - Mobile */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-200 z-40 shadow-lg">
+        <div className="flex items-center justify-around h-16">
+          <button
+            onClick={() => router.push('/community')}
+            className="flex flex-col items-center justify-center flex-1 h-full"
+          >
+            <Home className="w-6 h-6 text-purple-600" strokeWidth={2} />
+            <span className="text-xs text-purple-600 font-medium mt-1">المجتمع</span>
+          </button>
+
+          <button
+            onClick={() => router.push('/messages')}
+            className="flex flex-col items-center justify-center flex-1 h-full"
+          >
+            <MessageCircle className="w-6 h-6 text-gray-600" strokeWidth={2} />
+            <span className="text-xs text-gray-600 mt-1">الرسائل</span>
+          </button>
+
+          <button
+            onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
+            className="flex flex-col items-center justify-center flex-1 h-full"
+          >
+            <User className="w-6 h-6 text-gray-600" strokeWidth={2} />
+            <span className="text-xs text-gray-600 mt-1">الملف الشخصي</span>
           </button>
         </div>
       </nav>
-
-      {/* Messenger Modal */}
-      {showMessenger && selectedRecipient && (
-        <Messenger
-          currentUser={currentUser}
-          recipient={selectedRecipient}
-          onClose={() => {
-            setShowMessenger(false);
-            setSelectedRecipient(null);
-          }}
-        />
-      )}
     </div>
   );
 }

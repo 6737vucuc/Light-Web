@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, boolean, integer, serial, varchar, jsonb, date } from 'drizzle-orm/pg-core';
 
-// Users table - Instagram-style
+// Users table - keeping existing structure
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
@@ -22,17 +22,13 @@ export const users = pgTable('users', {
   work: varchar('work', { length: 255 }),
   education: varchar('education', { length: 255 }),
   relationshipStatus: varchar('relationship_status', { length: 50 }),
-  // Instagram-style stats
-  postsCount: integer('posts_count').default(0),
-  followersCount: integer('followers_count').default(0),
-  followingCount: integer('following_count').default(0),
   // Privacy settings
   isPrivate: boolean('is_private').default(false),
   hideFollowers: boolean('hide_followers').default(false),
   hideFollowing: boolean('hide_following').default(false),
-  allowComments: varchar('allow_comments', { length: 20 }).default('everyone'), // 'everyone', 'followers', 'nobody'
+  allowComments: varchar('allow_comments', { length: 20 }).default('everyone'),
   allowMessages: varchar('allow_messages', { length: 20 }).default('everyone'),
-  privacyPosts: varchar('privacy_posts', { length: 20 }).default('everyone'), // 'everyone', 'friends', 'only_me'
+  privacyPosts: varchar('privacy_posts', { length: 20 }).default('everyone'),
   privacyFriendsList: varchar('privacy_friends_list', { length: 20 }).default('everyone'),
   privacyProfile: varchar('privacy_profile', { length: 20 }).default('everyone'),
   privacyPhotos: varchar('privacy_photos', { length: 20 }).default('everyone'),
@@ -58,204 +54,167 @@ export const verificationCodes = pgTable('verification_codes', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Posts table - Instagram-style
-export const posts = pgTable('posts', {
+// ========================================
+// COMMUNITY GROUPS - New Group Chat System
+// ========================================
+
+// Community Groups table
+export const communityGroups = pgTable('community_groups', {
   id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  avatar: text('avatar'),
+  coverImage: text('cover_image'),
+  color: varchar('color', { length: 20 }).default('#8B5CF6'), // Purple default
+  icon: varchar('icon', { length: 50 }).default('users'), // Lucide icon name
+  membersCount: integer('members_count').default(0),
+  messagesCount: integer('messages_count').default(0),
+  isActive: boolean('is_active').default(true),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Group Members table
+export const groupMembers = pgTable('group_members', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => communityGroups.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  role: varchar('role', { length: 20 }).default('member'), // 'admin', 'moderator', 'member'
+  joinedAt: timestamp('joined_at').defaultNow(),
+  lastReadAt: timestamp('last_read_at').defaultNow(),
+});
+
+// Group Messages table
+export const groupMessages = pgTable('group_messages', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => communityGroups.id).notNull(),
   userId: integer('user_id').references(() => users.id).notNull(),
   content: text('content'),
-  imageUrl: text('image_url'),
-  videoUrl: text('video_url'),
-  mediaType: varchar('media_type', { length: 20 }).default('text'), // 'text', 'image', 'video', 'carousel'
-  likesCount: integer('likes_count').default(0),
-  commentsCount: integer('comments_count').default(0),
-  sharesCount: integer('shares_count').default(0),
-  privacy: varchar('privacy', { length: 20 }).default('public'), // 'public', 'followers', 'private'
-  location: varchar('location', { length: 255 }),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// Likes table
-export const likes = pgTable('likes', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  postId: integer('post_id').references(() => posts.id).notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Comments table
-export const comments = pgTable('comments', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  postId: integer('post_id').references(() => posts.id).notNull(),
-  content: text('content').notNull(),
-  likesCount: integer('likes_count').default(0),
-  repliesCount: integer('replies_count').default(0),
-  parentCommentId: integer('parent_comment_id'), // For nested replies
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Comment likes table
-export const commentLikes = pgTable('comment_likes', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  commentId: integer('comment_id').references(() => comments.id).notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Follows table - Instagram-style following system
-export const follows = pgTable('follows', {
-  id: serial('id').primaryKey(),
-  followerId: integer('follower_id').references(() => users.id).notNull(), // User who follows
-  followingId: integer('following_id').references(() => users.id).notNull(), // User being followed
-  status: varchar('status', { length: 20 }).default('accepted'), // 'pending' or 'accepted' (for private accounts)
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Stories table - Instagram-style with full features
-export const stories = pgTable('stories', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
+  messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video', 'audio', 'file'
   mediaUrl: text('media_url'),
-  mediaType: varchar('media_type', { length: 20 }).notNull(), // 'image', 'video', 'text'
-  caption: text('caption'),
-  viewsCount: integer('views_count').default(0),
-  expiresAt: timestamp('expires_at').notNull(), // 24 hours from creation
-  // Instagram features
-  isCloseFriends: boolean('is_close_friends').default(false),
-  backgroundColor: varchar('background_color', { length: 20 }),
-  textContent: text('text_content'), // For text-only stories
-  fontStyle: varchar('font_style', { length: 50 }),
-  musicUrl: text('music_url'),
-  musicTitle: varchar('music_title', { length: 255 }),
-  location: varchar('location', { length: 255 }),
-  mentions: text('mentions'), // JSON array of mentioned user IDs
-  hashtags: text('hashtags'), // JSON array of hashtags
-  stickers: text('stickers'), // JSON array of sticker data
-  pollData: text('poll_data'), // JSON for poll data
-  questionData: text('question_data'), // JSON for question sticker data
-  linkUrl: text('link_url'),
-  linkTitle: varchar('link_title', { length: 255 }),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Story views table
-export const storyViews = pgTable('story_views', {
-  id: serial('id').primaryKey(),
-  storyId: integer('story_id').references(() => stories.id).notNull(),
-  viewerId: integer('viewer_id').references(() => users.id).notNull(),
-  viewedAt: timestamp('viewed_at').defaultNow(),
-});
-
-// Story reactions table - Instagram-style reactions
-export const storyReactions = pgTable('story_reactions', {
-  id: serial('id').primaryKey(),
-  storyId: integer('story_id').references(() => stories.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  reactionType: varchar('reaction_type', { length: 50 }).default('like').notNull(), // 'like', 'love', 'laugh', 'wow', 'sad', 'angry'
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Story replies table - DM replies to stories
-export const storyReplies = pgTable('story_replies', {
-  id: serial('id').primaryKey(),
-  storyId: integer('story_id').references(() => stories.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  content: text('content').notNull(),
-  encryptedContent: text('encrypted_content'),
-  isEncrypted: boolean('is_encrypted').default(false),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Close friends list table
-export const closeFriends = pgTable('close_friends', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  friendId: integer('friend_id').references(() => users.id).notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Story highlights table
-export const storyHighlights = pgTable('story_highlights', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  title: varchar('title', { length: 255 }).notNull(),
-  coverImage: text('cover_image'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Story highlight items table
-export const storyHighlightItems = pgTable('story_highlight_items', {
-  id: serial('id').primaryKey(),
-  highlightId: integer('highlight_id').references(() => storyHighlights.id).notNull(),
-  storyId: integer('story_id').references(() => stories.id).notNull(),
-  addedAt: timestamp('added_at').defaultNow(),
-});
-
-// Conversations table removed - using messages table only
-
-// Messages table - Instagram-style DMs
-export const messages = pgTable('messages', {
-  id: serial('id').primaryKey(),
-  conversationId: integer('conversation_id'), // Nullable, not used anymore
-  senderId: integer('sender_id').references(() => users.id).notNull(),
-  receiverId: integer('receiver_id').references(() => users.id).notNull(),
-  messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video', 'voice', 'post'
-  content: text('content'), // Text content
-  encryptedContent: text('encrypted_content'), // Encrypted content for E2E encryption
-  isEncrypted: boolean('is_encrypted').default(false), // Whether message is encrypted
-  mediaUrl: text('media_url'), // Image/video/voice URL
-  postId: integer('post_id').references(() => posts.id), // Shared post
-  replyToId: integer('reply_to_id'), // Reply to message ID
-  isRead: boolean('is_read').default(false),
-  readAt: timestamp('read_at'),
-  isDelivered: boolean('is_delivered').default(false),
-  deliveredAt: timestamp('delivered_at'),
+  replyToId: integer('reply_to_id'), // For replying to messages
+  isEdited: boolean('is_edited').default(false),
   isDeleted: boolean('is_deleted').default(false),
-  deletedAt: timestamp('deleted_at'),
-  deletedBySender: boolean('deleted_by_sender').default(false),
-  deletedByReceiver: boolean('deleted_by_receiver').default(false),
+  reactionsCount: integer('reactions_count').default(0),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// Message reactions table - Instagram-style reactions
+// Message Reactions table
 export const messageReactions = pgTable('message_reactions', {
   id: serial('id').primaryKey(),
-  messageId: integer('message_id').references(() => messages.id).notNull(),
+  messageId: integer('message_id').references(() => groupMessages.id).notNull(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  reaction: varchar('reaction', { length: 10 }).notNull(), // '❤️', '😂', '😮', '😢', '😡', '👍'
+  reaction: varchar('reaction', { length: 10 }).notNull(), // emoji
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Typing indicators table
-export const typingIndicators = pgTable('typing_indicators', {
+// ========================================
+// PRIVATE MESSAGING - Keeping existing
+// ========================================
+
+// Conversations table
+export const conversations = pgTable('conversations', {
   id: serial('id').primaryKey(),
-  conversationId: integer('conversation_id'), // Nullable, not used anymore
-  userId: integer('user_id').references(() => users.id).notNull(),
-  isTyping: boolean('is_typing').default(true),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  user1Id: integer('user1_id').references(() => users.id).notNull(),
+  user2Id: integer('user2_id').references(() => users.id).notNull(),
+  lastMessageAt: timestamp('last_message_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Notifications table
+// Private Messages table
+export const messages = pgTable('messages', {
+  id: serial('id').primaryKey(),
+  conversationId: integer('conversation_id').references(() => conversations.id),
+  senderId: integer('sender_id').references(() => users.id).notNull(),
+  receiverId: integer('receiver_id').references(() => users.id).notNull(),
+  content: text('content'),
+  messageType: varchar('message_type', { length: 20 }).default('text'),
+  mediaUrl: text('media_url'),
+  isRead: boolean('is_read').default(false),
+  isDelivered: boolean('is_delivered').default(false),
+  readAt: timestamp('read_at'),
+  deliveredAt: timestamp('delivered_at'),
+  isDeleted: boolean('is_deleted').default(false),
+  deletedFor: varchar('deleted_for', { length: 20 }),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ========================================
+// FOLLOWS - Keeping existing
+// ========================================
+
+export const follows = pgTable('follows', {
+  id: serial('id').primaryKey(),
+  followerId: integer('follower_id').references(() => users.id).notNull(),
+  followingId: integer('following_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ========================================
+// NOTIFICATIONS - Keeping existing
+// ========================================
+
 export const notifications = pgTable('notifications', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // 'like', 'comment', 'follow', 'mention', 'message'
-  fromUserId: integer('from_user_id').references(() => users.id).notNull(),
-  postId: integer('post_id').references(() => posts.id),
-  commentId: integer('comment_id').references(() => comments.id),
+  type: varchar('type', { length: 50 }).notNull(),
   content: text('content').notNull(),
+  relatedUserId: integer('related_user_id').references(() => users.id),
+  relatedItemId: integer('related_item_id'),
   isRead: boolean('is_read').default(false),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Blocked users table
-export const blockedUsers = pgTable('blocked_users', {
+// ========================================
+// ADMIN & SUPPORT - Keeping existing
+// ========================================
+
+// Admin Lessons table
+export const lessons = pgTable('lessons', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  content: text('content').notNull(),
+  category: varchar('category', { length: 100 }),
+  order: integer('order').default(0),
+  isPublished: boolean('is_published').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Daily Verses table
+export const verses = pgTable('verses', {
+  id: serial('id').primaryKey(),
+  content: text('content').notNull(),
+  reference: varchar('reference', { length: 255 }).notNull(),
+  category: varchar('category', { length: 100 }),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Support Tickets table
+export const supportTickets = pgTable('support_tickets', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  blockedUserId: integer('blocked_user_id').references(() => users.id).notNull(),
+  subject: varchar('subject', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  status: varchar('status', { length: 20 }).default('open'),
+  priority: varchar('priority', { length: 20 }).default('normal'),
+  adminResponse: text('admin_response'),
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Testimonies table
+export const testimonies = pgTable('testimonies', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  content: text('content').notNull(),
+  isApproved: boolean('is_approved').default(false),
+  isPublished: boolean('is_published').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // Reports table
@@ -263,216 +222,34 @@ export const reports = pgTable('reports', {
   id: serial('id').primaryKey(),
   reporterId: integer('reporter_id').references(() => users.id).notNull(),
   reportedUserId: integer('reported_user_id').references(() => users.id),
-  reportedPostId: integer('reported_post_id').references(() => posts.id),
-  reportedCommentId: integer('reported_comment_id').references(() => comments.id),
+  reportedItemId: integer('reported_item_id'),
+  reportedItemType: varchar('reported_item_type', { length: 50 }),
   reason: varchar('reason', { length: 255 }).notNull(),
   description: text('description'),
-  status: varchar('status', { length: 50 }).default('pending'), // 'pending', 'reviewed', 'resolved'
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Saved posts table - Instagram-style saved posts
-export const savedPosts = pgTable('saved_posts', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  postId: integer('post_id').references(() => posts.id).notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Post tags table - Instagram-style tagging
-export const postTags = pgTable('post_tags', {
-  id: serial('id').primaryKey(),
-  postId: integer('post_id').references(() => posts.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(), // Tagged user
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Group chats table - للدردشة الجماعية
-export const groupChats = pgTable('group_chats', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  avatar: text('avatar'),
-  coverPhoto: text('cover_photo'),
-  privacy: varchar('privacy', { length: 20 }).default('public'), // 'public', 'private'
-  membersCount: integer('members_count').default(0),
-  createdBy: integer('created_by').references(() => users.id).notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// Group chat members table
-export const groupChatMembers = pgTable('group_chat_members', {
-  id: serial('id').primaryKey(),
-  groupId: integer('group_id').references(() => groupChats.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  role: varchar('role', { length: 20 }).default('member'), // 'admin', 'member'
-  joinedAt: timestamp('joined_at').defaultNow(),
-});
-
-// Group chat messages table
-export const groupChatMessages = pgTable('group_chat_messages', {
-  id: serial('id').primaryKey(),
-  groupId: integer('group_id').references(() => groupChats.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  content: text('content'),
-  encryptedContent: text('encrypted_content'),
-  mediaUrl: text('media_url'),
-  messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video'
-  isDeleted: boolean('is_deleted').default(false),
-  deletedAt: timestamp('deleted_at'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-
-// Lessons table
-export const lessons = pgTable('lessons', {
-  id: serial('id').primaryKey(),
-  title: varchar('title', { length: 255 }).notNull(),
-  content: text('content').notNull(),
-  imageUrl: text('image_url'),
-  createdBy: integer('created_by').references(() => users.id),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// Lesson progress table
-export const lessonProgress = pgTable('lesson_progress', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  lessonId: integer('lesson_id').references(() => lessons.id).notNull(),
-  completed: boolean('completed').default(false),
-  progress: integer('progress').default(0),
-  lastWatchedAt: timestamp('last_watched_at').defaultNow(),
-  completedAt: timestamp('completed_at'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Daily verses table
-export const dailyVerses = pgTable('daily_verses', {
-  id: serial('id').primaryKey(),
-  verse: text('verse').notNull(),
-  reference: varchar('reference', { length: 255 }).notNull(),
-  imageUrl: text('image_url'),
-  scheduledDate: timestamp('scheduled_date').notNull(),
-  createdBy: integer('created_by').references(() => users.id),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Support requests table
-export const supportRequests = pgTable('support_requests', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id),
-  type: varchar('type', { length: 50 }).notNull(),
-  subject: varchar('subject', { length: 255 }),
-  message: text('message').notNull(),
-  status: varchar('status', { length: 50 }).default('pending'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Testimonies table
-export const testimonies = pgTable('testimonies', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id),
-  content: text('content').notNull(),
-  status: varchar('status', { length: 50 }).default('pending'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Encryption keys table
-export const encryptionKeys = pgTable('encryption_keys', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull().unique(),
-  publicKey: text('public_key').notNull(),
-  privateKey: text('private_key').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// Friendships table
-export const friendships = pgTable('friendships', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  friendId: integer('friend_id').references(() => users.id).notNull(),
   status: varchar('status', { length: 20 }).default('pending'),
+  adminNotes: text('admin_notes'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// User privacy settings table
-export const userPrivacySettings = pgTable('user_privacy_settings', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull().unique(),
-  isPrivate: boolean('is_private').default(false),
-  hideFollowers: boolean('hide_followers').default(false),
-  hideFollowing: boolean('hide_following').default(false),
-  allowTagging: varchar('allow_tagging', { length: 20 }).default('everyone'),
-  allowComments: varchar('allow_comments', { length: 20 }).default('everyone'),
-  allowMessages: varchar('allow_messages', { length: 20 }).default('everyone'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// Calls table - Video/Audio calls with LiveKit
-export const calls = pgTable('calls', {
-  id: serial('id').primaryKey(),
-  callerId: integer('caller_id').references(() => users.id).notNull(),
-  receiverId: integer('receiver_id').references(() => users.id).notNull(),
-  callType: varchar('call_type', { length: 20 }).notNull(), // 'video' or 'audio'
-  roomId: varchar('room_id', { length: 255 }).unique(),
-  status: varchar('status', { length: 20 }).default('ringing'), // 'ringing', 'ongoing', 'ended', 'declined', 'missed'
-  startedAt: timestamp('started_at').defaultNow(),
-  endedAt: timestamp('ended_at'),
-  duration: integer('duration'), // Duration in seconds
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// VPN Detection Logs table
+// VPN Logs table
 export const vpnLogs = pgTable('vpn_logs', {
   id: serial('id').primaryKey(),
-  ip: varchar('ip', { length: 50 }).notNull(),
   userId: integer('user_id').references(() => users.id),
-  email: varchar('email', { length: 255 }),
-  action: varchar('action', { length: 50 }).notNull(), // 'register', 'login', 'access'
-  isVPN: boolean('is_vpn').default(false),
-  isProxy: boolean('is_proxy').default(false),
-  isTor: boolean('is_tor').default(false),
-  isHosting: boolean('is_hosting').default(false),
-  connectionType: varchar('connection_type', { length: 100 }),
-  country: varchar('country', { length: 100 }),
-  city: varchar('city', { length: 100 }),
-  org: text('org'),
-  service: varchar('service', { length: 100 }),
-  wasBlocked: boolean('was_blocked').default(false),
-  blockReason: text('block_reason'),
+  ipAddress: varchar('ip_address', { length: 45 }).notNull(),
+  isVpn: boolean('is_vpn').default(false),
+  vpnDetails: jsonb('vpn_details'),
+  action: varchar('action', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Shares table
-export const shares = pgTable('shares', {
+// Two-Factor Authentication table
+export const twoFactorAuth = pgTable('two_factor_auth', {
   id: serial('id').primaryKey(),
-  postId: integer('post_id').references(() => posts.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull().unique(),
+  secret: text('secret').notNull(),
+  enabled: boolean('enabled').default(false),
+  backupCodes: jsonb('backup_codes'),
   createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Reactions table
-export const reactions = pgTable('reactions', {
-  id: serial('id').primaryKey(),
-  postId: integer('post_id').references(() => posts.id),
-  commentId: integer('comment_id').references(() => comments.id),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  type: varchar('type', { length: 20 }).notNull(), // 'like', 'love', 'haha', 'wow', 'sad', 'angry'
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// Group Messages table (different from group_chat_messages)
-export const groupMessages = pgTable('group_messages', {
-  id: serial('id').primaryKey(),
-  groupId: integer('group_id').references(() => groupChats.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  content: text('content').notNull(),
-  imageUrl: text('image_url'),
-  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });

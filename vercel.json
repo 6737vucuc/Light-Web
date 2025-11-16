@@ -4,6 +4,9 @@
   "functions": {
     "app/api/messages/**/*.ts": {
       "maxDuration": 30
+    },
+    "app/api/groups/**/*.ts": {
+      "maxDuration": 30
     }
   },
   "headers": [
@@ -20,6 +23,10 @@
   "crons": [
     {
       "path": "/api/cron/cleanup-messages",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-group-messages",
       "schedule": "0 0 * * *"
     }
   ]

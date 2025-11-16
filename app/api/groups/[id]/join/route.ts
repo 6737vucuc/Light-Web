@@ -1,71 +1,49 @@
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { groupChats, groupChatMembers } from '@/lib/db/schema';
-import { requireAuth } from '@/lib/auth/middleware';
-import { eq, and, sql } from 'drizzle-orm';
+import { neon } from '@neondatabase/serverless';
+import { verify } from 'jsonwebtoken';
+
+const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id: paramId } = await params;
-  const authResult = await requireAuth(request);
-  
-  if ('error' in authResult) {
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
-
   try {
-    const groupId = parseInt(paramId);
-
-    // Check if already a member
-    const [existingMember] = await db
-      .select()
-      .from(groupChatMembers)
-      .where(
-        and(
-          eq(groupChatMembers.groupId, groupId),
-          eq(groupChatMembers.userId, authResult.user.id)
-        )
-      );
-
-    if (existingMember) {
-      return NextResponse.json(
-        { error: 'Already a member of this group' },
-        { status: 400 }
-      );
+    const token = request.cookies.get('token')?.value;
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Add user as member
-    await db.insert(groupChatMembers).values({
-      groupId,
-      userId: authResult.user.id,
-      role: 'member',
-    });
+    const decoded = verify(token, process.env.JWT_SECRET!) as any;
+    const groupId = parseInt(params.id);
 
-    // Increment members count
-    await db
-      .update(groupChats)
-      .set({
-        membersCount: sql`${groupChats.membersCount} + 1`,
-      })
-      .where(eq(groupChats.id, groupId));
+    // Check if already a member
+    const [existingMember] = await sql`
+      SELECT id FROM group_members 
+      WHERE group_id = ${groupId} AND user_id = ${decoded.userId}
+    `;
 
-    return NextResponse.json({ 
-      success: true,
-      message: 'Successfully joined the group' 
-    });
+    if (existingMember) {
+      return NextResponse.json({ message: 'Already a member' });
+    }
+
+    // Add user to group
+    await sql`
+      INSERT INTO group_members (group_id, user_id, role)
+      VALUES (${groupId}, ${decoded.userId}, 'member')
+    `;
+
+    // Update members count
+    await sql`
+      UPDATE community_groups 
+      SET members_count = members_count + 1
+      WHERE id = ${groupId}
+    `;
+
+    return NextResponse.json({ message: 'Joined successfully' });
   } catch (error) {
     console.error('Error joining group:', error);
-    return NextResponse.json(
-      { error: 'Failed to join group' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

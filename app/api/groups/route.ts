@@ -1,124 +1,41 @@
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { groupChats, groupChatMembers, users } from '@/lib/db/schema';
-import { requireAuth } from '@/lib/auth/middleware';
-import { desc, eq } from 'drizzle-orm';
+import { neon } from '@neondatabase/serverless';
+import { verify } from 'jsonwebtoken';
 
-// GET all groupChats or user's groupChats
+const sql = neon(process.env.DATABASE_URL!);
+
 export async function GET(request: NextRequest) {
-  const authResult = await requireAuth(request);
-  
-  if ('error' in authResult) {
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
-
   try {
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type'); // 'all' or 'my'
-
-    if (type === 'my') {
-      // Get user's groupChats
-      const userGroups = await db
-        .select({
-          id: groupChats.id,
-          name: groupChats.name,
-          description: groupChats.description,
-          coverPhoto: groupChats.coverPhoto,
-          privacy: groupChats.privacy,
-          membersCount: groupChats.membersCount,
-          createdAt: groupChats.createdAt,
-          role: groupChatMembers.role,
-        })
-        .from(groupChatMembers)
-        .leftJoin(groupChats, eq(groupChatMembers.groupId, groupChats.id))
-        .where(eq(groupChatMembers.userId, authResult.user.id))
-        .orderBy(desc(groupChats.createdAt));
-
-      return NextResponse.json({ groupChats: userGroups });
-    } else {
-      // Get all public groupChats
-      const allGroups = await db
-        .select({
-          id: groupChats.id,
-          name: groupChats.name,
-          description: groupChats.description,
-          coverPhoto: groupChats.coverPhoto,
-          privacy: groupChats.privacy,
-          membersCount: groupChats.membersCount,
-          createdAt: groupChats.createdAt,
-          creator: {
-            id: users.id,
-            name: users.name,
-            avatar: users.avatar,
-          },
-        })
-        .from(groupChats)
-        .leftJoin(users, eq(groupChats.createdBy, users.id))
-        .where(eq(groupChats.privacy, 'public'))
-        .orderBy(desc(groupChats.createdAt));
-
-      return NextResponse.json({ groupChats: allGroups });
-    }
-  } catch (error) {
-    console.error('Error fetching groupChats:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch groupChats' },
-      { status: 500 }
-    );
-  }
-}
-
-// POST create new group
-export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
-  
-  if ('error' in authResult) {
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
-
-  try {
-    const body = await request.json();
-    const { name, description, coverPhoto, privacy } = body;
-
-    if (!name || !name.trim()) {
-      return NextResponse.json(
-        { error: 'Group name is required' },
-        { status: 400 }
-      );
+    const token = request.cookies.get('token')?.value;
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Create group
-    const [newGroup] = await db.insert(groupChats).values({
-      name: name.trim(),
-      description: description || null,
-      coverPhoto: coverPhoto || null,
-      privacy: privacy || 'public',
-      createdBy: authResult.user.id,
-      membersCount: 1,
-    }).returning();
+    const decoded = verify(token, process.env.JWT_SECRET!) as any;
 
-    // Add creator as admin member
-    await db.insert(groupChatMembers).values({
-      groupId: newGroup.id,
-      userId: authResult.user.id,
-      role: 'admin',
-    });
+    // Get all active groups with member counts
+    const groups = await sql`
+      SELECT 
+        cg.*,
+        COUNT(DISTINCT gm.id) as members_count,
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 FROM group_members 
+            WHERE group_id = cg.id AND user_id = ${decoded.userId}
+          ) THEN true 
+          ELSE false 
+        END as is_member
+      FROM community_groups cg
+      LEFT JOIN group_members gm ON cg.id = gm.group_id
+      WHERE cg.is_active = true
+      GROUP BY cg.id
+      ORDER BY cg.created_at DESC
+    `;
 
-    return NextResponse.json({ group: newGroup }, { status: 201 });
+    return NextResponse.json({ groups });
   } catch (error) {
-    console.error('Error creating group:', error);
-    return NextResponse.json(
-      { error: 'Failed to create group' },
-      { status: 500 }
-    );
+    console.error('Error fetching groups:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
