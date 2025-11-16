@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { users, follows, posts, lessonProgress, lessons, postTags } from '@/lib/db/schema';
+import { users, follows,  lessonProgress, lessons, postTags } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, and, or, desc, sql } from 'drizzle-orm';
 
@@ -174,7 +174,7 @@ export async function GET(
         createdAt: posts.createdAt,
       })
       .from(posts)
-      .innerJoin(postTags, eq(posts.id, postTags.postId))
+      .innerJoin( eq(posts.id, postTags.postId))
       .where(eq(postTags.userId, userId))
       .orderBy(desc(posts.createdAt))
       .limit(12);

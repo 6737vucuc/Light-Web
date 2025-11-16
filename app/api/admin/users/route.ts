@@ -4,12 +4,11 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { 
-  users, posts, comments, follows, notifications, messages, blockedUsers,
-  likes, commentLikes, stories, storyViews, savedPosts, postTags,
-  messageReactions, typingIndicators, reports, groupChatMembers, groupChatMessages,
-  lessonProgress, friendships, userPrivacySettings, vpnLogs,
+  users, follows, notifications, messages,
+  messageReactions, typingIndicators, reports,
+  lessonProgress, userPrivacySettings, vpnLogs,
   supportRequests, testimonies, encryptionKeys,
-  groupChats, lessons, dailyVerses, shares, reactions, groupMessages
+  lessons, dailyVerses, communityGroups, groupMembers, groupMessages
 } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, desc, or } from 'drizzle-orm';
