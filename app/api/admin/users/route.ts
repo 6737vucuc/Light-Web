@@ -234,7 +234,7 @@ export async function DELETE(request: NextRequest) {
       );
       
       // Delete group chat messages (depends on group chats)
-      await db.delete(groupChatMessages).where(eq(groupChatMessages.userId, userIdNum));
+      await db.delete(groupMessages).where(eq(groupMessages.userId, userIdNum));
       
       // Delete group messages (depends on group chats)
       await db.delete(groupMessages).where(eq(groupMessages.userId, userIdNum));

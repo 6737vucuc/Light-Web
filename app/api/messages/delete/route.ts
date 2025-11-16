@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (isGroupMessage) {
       // Delete group message (only sender can delete)
       await db
-        .update(groupChatMessages)
+        .update(groupMessages)
         .set({
           isDeleted: true,
           deletedAt: new Date(),
@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
         })
         .where(
           and(
-            eq(groupChatMessages.id, messageId),
-            eq(groupChatMessages.userId, authResult.user.id)
+            eq(groupMessages.id, messageId),
+            eq(groupMessages.userId, authResult.user.id)
           )
         );
     } else {
