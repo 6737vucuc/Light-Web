@@ -81,9 +81,9 @@ export default function CommunityPage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  المجتمع
+                  Community
                 </h1>
-                <p className="text-xs text-gray-500">دردشة جماعية</p>
+                <p className="text-xs text-gray-500">Group Chat</p>
               </div>
             </div>
 
@@ -124,14 +124,14 @@ export default function CommunityPage() {
           <div>
             {/* Welcome Banner */}
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 mb-6 text-white shadow-lg">
-              <h2 className="text-2xl font-bold mb-2">مرحباً {currentUser?.name}! 👋</h2>
+              <h2 className="text-2xl font-bold mb-2">Welcome {currentUser?.name}! 👋</h2>
               <p className="text-purple-100">
-                انضم إلى المجموعات وشارك في المحادثات مع المجتمع
+                Join groups and participate in conversations with the community
               </p>
               <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-lg p-3 text-sm">
                 <p className="flex items-center gap-2">
                   <span className="text-yellow-300">⚠️</span>
-                  يتم حذف جميع الرسائل تلقائياً كل 24 ساعة للحفاظ على الخصوصية
+                  All messages are automatically deleted every 24 hours for privacy
                 </p>
               </div>
             </div>
@@ -142,8 +142,8 @@ export default function CommunityPage() {
                 <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Users className="w-12 h-12 text-gray-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">لا توجد مجموعات متاحة</h3>
-                <p className="text-gray-500">سيتم إضافة المجموعات قريباً من قبل الإدارة</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No Groups Available</h3>
+                <p className="text-gray-500">Groups will be added soon by the administration</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -191,7 +191,7 @@ export default function CommunityPage() {
                       <div className="mt-4 pt-4 border-t border-gray-100">
                         <div className="flex items-center justify-center gap-2 text-purple-600 font-medium group-hover:text-pink-600 transition-colors">
                           <MessageCircle className="w-5 h-5" />
-                          <span>فتح المحادثة</span>
+                          <span>Open Chat</span>
                         </div>
                       </div>
                     </div>
@@ -211,7 +211,7 @@ export default function CommunityPage() {
             className="flex flex-col items-center justify-center flex-1 h-full"
           >
             <Home className="w-6 h-6 text-purple-600" strokeWidth={2} />
-            <span className="text-xs text-purple-600 font-medium mt-1">المجتمع</span>
+            <span className="text-xs text-purple-600 font-medium mt-1">Community</span>
           </button>
 
           <button
@@ -219,7 +219,7 @@ export default function CommunityPage() {
             className="flex flex-col items-center justify-center flex-1 h-full"
           >
             <MessageCircle className="w-6 h-6 text-gray-600" strokeWidth={2} />
-            <span className="text-xs text-gray-600 mt-1">الرسائل</span>
+            <span className="text-xs text-gray-600 mt-1">Messages</span>
           </button>
 
           <button
@@ -227,7 +227,7 @@ export default function CommunityPage() {
             className="flex flex-col items-center justify-center flex-1 h-full"
           >
             <User className="w-6 h-6 text-gray-600" strokeWidth={2} />
-            <span className="text-xs text-gray-600 mt-1">الملف الشخصي</span>
+            <span className="text-xs text-gray-600 mt-1">Profile</span>
           </button>
         </div>
       </nav>

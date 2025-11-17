@@ -204,8 +204,8 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
               <Send className="w-8 h-8 text-gray-400" />
             </div>
-            <p className="text-center">لا توجد رسائل بعد</p>
-            <p className="text-sm text-center mt-1">كن أول من يبدأ المحادثة!</p>
+            <p className="text-center">No messages yet</p>
+            <p className="text-sm text-center mt-1">Be the first to start the conversation!</p>
           </div>
         ) : (
           messages.map((message) => {
@@ -325,7 +325,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="اكتب رسالة..."
+            placeholder="Type a message..."
             className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             disabled={isSending}
           />
