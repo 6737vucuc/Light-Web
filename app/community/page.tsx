@@ -215,14 +215,6 @@ export default function CommunityPage() {
           </button>
 
           <button
-            onClick={() => router.push('/messages')}
-            className="flex flex-col items-center justify-center flex-1 h-full"
-          >
-            <MessageCircle className="w-6 h-6 text-gray-600" strokeWidth={2} />
-            <span className="text-xs text-gray-600 mt-1">Messages</span>
-          </button>
-
-          <button
             onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
             className="flex flex-col items-center justify-center flex-1 h-full"
           >
