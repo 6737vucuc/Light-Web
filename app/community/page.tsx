@@ -89,7 +89,7 @@ export default function CommunityPage() {
 
             {/* User Avatar */}
             <button
-              onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
+              onClick={() => router.push('/profile')}
               className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 border-2 border-purple-600 hover:scale-105 transition-transform"
             >
               {currentUser?.avatar ? (
@@ -215,7 +215,7 @@ export default function CommunityPage() {
           </button>
 
           <button
-            onClick={() => router.push(`/user-profile/${currentUser?.id}`)}
+            onClick={() => router.push('/profile')}
             className="flex flex-col items-center justify-center flex-1 h-full"
           >
             <User className="w-6 h-6 text-gray-600" strokeWidth={2} />
