@@ -1,41 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { verify } from 'jsonwebtoken';
+import { db } from '@/lib/db';
+import { communityGroups } from '@/lib/db/schema';
+import { verifyAuth } from '@/lib/auth/verify';
+import { eq } from 'drizzle-orm';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
+// Get all groups
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
-
-    // Get all active groups with member counts
-    const groups = await sql`
-      SELECT 
-        cg.*,
-        COUNT(DISTINCT gm.id) as members_count,
-        CASE 
-          WHEN EXISTS (
-            SELECT 1 FROM group_members 
-            WHERE group_id = cg.id AND user_id = ${decoded.userId}
-          ) THEN true 
-          ELSE false 
-        END as is_member
-      FROM community_groups cg
-      LEFT JOIN group_members gm ON cg.id = gm.group_id
-      WHERE cg.is_active = true
-      GROUP BY cg.id
-      ORDER BY cg.created_at DESC
-    `;
+    const groups = await db.query.communityGroups.findMany({
+      orderBy: (communityGroups, { desc }) => [desc(communityGroups.createdAt)],
+    });
 
     return NextResponse.json({ groups });
   } catch (error) {
     console.error('Error fetching groups:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// Create a new group (admin only)
+export async function POST(request: NextRequest) {
+  try {
+    const user = await verifyAuth(request);
+    
+    if (!user || !user.isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { name, description, color, icon } = body;
+
+    if (!name) {
+      return NextResponse.json(
+        { error: 'Group name is required' },
+        { status: 400 }
+      );
+    }
+
+    const [group] = await db.insert(communityGroups).values({
+      name,
+      description: description || null,
+      color: color || '#8B5CF6',
+      icon: icon || 'users',
+      createdBy: user.userId,
+      membersCount: 0,
+      messagesCount: 0,
+    }).returning();
+
+    return NextResponse.json({
+      message: 'Group created successfully',
+      group,
+    });
+  } catch (error) {
+    console.error('Error creating group:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
