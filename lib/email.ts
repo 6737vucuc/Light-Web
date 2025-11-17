@@ -144,7 +144,7 @@ Light of Life Team
     </div>
     <div class="footer">
       <p>This is an automated email. Please do not reply to this message.</p>
-      <p>&copy; 2024 Light of Life. All rights reserved.</p>
+      <p>&copy; 2025 Light of Life. All rights reserved.</p>
     </div>
   </div>
 </body>
