@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { users, passwordResets } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
+import { sendPasswordResetEmail } from '@/lib/email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,35 +44,18 @@ export async function POST(request: NextRequest) {
       expiresAt,
     });
 
-    // Send email (using environment variables for email service)
+    // Create reset URL
     const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`;
     
-    // Here you would integrate with an email service like SendGrid, Resend, etc.
-    // For now, we'll log it (in production, send actual email)
-    console.log('Password reset link:', resetUrl);
-    
-    // Example email content
-    const emailContent = `
-      Hello ${user.name},
-      
-      You requested to reset your password. Click the link below to reset it:
-      
-      ${resetUrl}
-      
-      This link will expire in 1 hour.
-      
-      If you didn't request this, please ignore this email.
-      
-      Best regards,
-      Light of Life Team
-    `;
-
-    // TODO: Send actual email using your email service
-    // await sendEmail({
-    //   to: user.email,
-    //   subject: 'Reset Your Password',
-    //   text: emailContent,
-    // });
+    // Send email using Nodemailer
+    try {
+      await sendPasswordResetEmail(user.email, user.name, resetUrl);
+      console.log('Password reset email sent successfully to:', user.email);
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // Still return success to prevent email enumeration
+      // In production, you might want to log this error for monitoring
+    }
 
     return NextResponse.json({
       message: 'If an account exists with this email, you will receive a password reset link.',
