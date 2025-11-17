@@ -15,6 +15,8 @@ export default function AdminPage() {
   const tabs = [
     { id: 'lessons', label: 'Lessons', icon: BookOpen },
     { id: 'verses', label: 'Daily Verses', icon: Calendar },
+    { id: 'groups', label: 'Groups Management', icon: Users },
+    { id: 'reports', label: 'Reports', icon: AlertTriangle },
     { id: 'statistics', label: 'Statistics', icon: Users },
     { id: 'testimonies', label: 'Testimonies', icon: Heart },
     { id: 'support', label: 'Support Requests', icon: MessageCircle },
@@ -59,6 +61,8 @@ export default function AdminPage() {
         <div className="bg-white rounded-lg shadow-md p-6">
           {activeTab === 'lessons' && <LessonsManager />}
           {activeTab === 'verses' && <VersesManager />}
+          {activeTab === 'groups' && <GroupsManager />}
+          {activeTab === 'reports' && <ReportsManager />}
           {activeTab === 'statistics' && <StatisticsManager />}
           {activeTab === 'testimonies' && <TestimoniesManager />}
           {activeTab === 'support' && <SupportManager />}
@@ -1401,6 +1405,474 @@ function VPNDetectionManager() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// Groups Manager Component
+function GroupsManager() {
+  const toast = useToast();
+  const [groups, setGroups] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    id: null,
+    name: '',
+    description: '',
+    color: '#8B5CF6',
+    icon: 'users',
+  });
+
+  useEffect(() => {
+    fetchGroups();
+  }, []);
+
+  const fetchGroups = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/groups');
+      const data = await response.json();
+      setGroups(data.groups || []);
+    } catch (error) {
+      console.error('Fetch groups error:', error);
+      toast.error('Failed to load groups');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const url = formData.id ? `/api/groups/${formData.id}` : '/api/groups';
+      const method = formData.id ? 'PATCH' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save group');
+      }
+
+      toast.success(formData.id ? 'Group updated successfully' : 'Group created successfully');
+      setShowForm(false);
+      resetForm();
+      fetchGroups();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (group: any) => {
+    setFormData({
+      id: group.id,
+      name: group.name,
+      description: group.description || '',
+      color: group.color || '#8B5CF6',
+      icon: group.icon || 'users',
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this group?')) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/groups/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete group');
+      }
+
+      toast.success('Group deleted successfully');
+      fetchGroups();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      id: null,
+      name: '',
+      description: '',
+      color: '#8B5CF6',
+      icon: 'users',
+    });
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Groups Management</h2>
+        <button
+          onClick={() => {
+            resetForm();
+            setShowForm(!showForm);
+          }}
+          className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          Create Group
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-gray-50 p-6 rounded-lg mb-6">
+          <h3 className="text-lg font-semibold mb-4">
+            {formData.id ? 'Edit Group' : 'Create New Group'}
+          </h3>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Group Name
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Color
+              </label>
+              <input
+                type="color"
+                value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                className="w-20 h-10 border rounded-lg"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+              >
+                {loading ? 'Saving...' : 'Save Group'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
+                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {loading && !showForm ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {groups.map((group) => (
+            <div
+              key={group.id}
+              className="border rounded-lg p-4 hover:shadow-lg transition-shadow"
+              style={{ borderLeftColor: group.color, borderLeftWidth: '4px' }}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold text-lg text-gray-900">{group.name}</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(group)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(group.id)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-gray-600 text-sm mb-3">{group.description}</p>
+              <div className="flex justify-between text-sm text-gray-900">
+                <span>{group.membersCount || 0} members</span>
+                <span>{group.messagesCount || 0} messages</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && groups.length === 0 && !showForm && (
+        <div className="text-center py-12 text-gray-900">
+          <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+          <p>No groups found. Create your first group!</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Reports Manager Component
+function ReportsManager() {
+  const toast = useToast();
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/reports');
+      const data = await response.json();
+      setReports(data.reports || []);
+    } catch (error) {
+      console.error('Fetch reports error:', error);
+      toast.error('Failed to load reports');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (reportId: number, status: string, adminNotes?: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/reports/${reportId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, adminNotes }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update report');
+      }
+
+      toast.success('Report updated successfully');
+      fetchReports();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBanUser = async (userId: number, reason: string) => {
+    if (!confirm('Are you sure you want to ban this user?')) return;
+
+    const duration = prompt('Enter ban duration in days (leave empty for permanent):');
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/ban-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          ban: true,
+          reason,
+          duration: duration ? parseInt(duration) : null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to ban user');
+      }
+
+      toast.success('User banned successfully');
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredReports = reports.filter((report) => {
+    if (filter === 'all') return true;
+    return report.status === filter;
+  });
+
+  const getStatusBadge = (status: string) => {
+    const styles = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      reviewed: 'bg-blue-100 text-blue-800',
+      resolved: 'bg-green-100 text-green-800',
+    };
+    return styles[status as keyof typeof styles] || styles.pending;
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Reports Management</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setFilter('pending')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'pending' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            Pending
+          </button>
+          <button
+            onClick={() => setFilter('reviewed')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'reviewed' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            Reviewed
+          </button>
+          <button
+            onClick={() => setFilter('resolved')}
+            className={`px-4 py-2 rounded-lg ${
+              filter === 'resolved' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            Resolved
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredReports.map((report) => (
+            <div key={report.id} className="border rounded-lg p-6 bg-white shadow-sm">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusBadge(report.status)}`}>
+                    {report.status}
+                  </span>
+                  <p className="text-sm text-gray-900 mt-2">
+                    Reported: {new Date(report.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Reporter:</p>
+                  <p className="text-gray-900">{report.reporter?.name || 'Unknown'}</p>
+                  <p className="text-sm text-gray-900">{report.reporter?.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Reported User:</p>
+                  <p className="text-gray-900">{report.reportedUser?.name || 'Unknown'}</p>
+                  <p className="text-sm text-gray-900">{report.reportedUser?.email}</p>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-sm font-semibold text-gray-700 mb-1">Reason:</p>
+                <p className="text-gray-900 bg-gray-50 p-3 rounded">{report.reason}</p>
+              </div>
+
+              {report.adminNotes && (
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-1">Admin Notes:</p>
+                  <p className="text-gray-900 bg-blue-50 p-3 rounded">{report.adminNotes}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                {report.status === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const notes = prompt('Add admin notes (optional):');
+                        handleUpdateStatus(report.id, 'reviewed', notes || undefined);
+                      }}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Mark as Reviewed
+                    </button>
+                    <button
+                      onClick={() => handleBanUser(report.reportedUserId, report.reason)}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2"
+                    >
+                      <Ban className="w-4 h-4" />
+                      Ban User
+                    </button>
+                  </>
+                )}
+                {report.status === 'reviewed' && (
+                  <button
+                    onClick={() => {
+                      const notes = prompt('Add resolution notes:');
+                      handleUpdateStatus(report.id, 'resolved', notes || undefined);
+                    }}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
+                  >
+                    <Check className="w-4 h-4" />
+                    Mark as Resolved
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && filteredReports.length === 0 && (
+        <div className="text-center py-12 text-gray-900">
+          <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+          <p>No reports found.</p>
         </div>
       )}
     </div>
