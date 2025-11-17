@@ -178,3 +178,16 @@ export const lessonProgress = pgTable('lesson_progress', {
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+
+// ========================================
+// PASSWORD RESET
+// ========================================
+// Password resets table
+export const passwordResets = pgTable('password_resets', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
