@@ -105,7 +105,7 @@ export default function DailyVerseSection() {
               {/* Title */}
               <h3 className="text-xl md:text-2xl font-bold text-white drop-shadow-lg flex items-center justify-center gap-2">
                 <BookOpen className="w-5 h-5" />
-                Daily Verse / الآية اليومية
+                Daily Verse
               </h3>
               
               {/* Verse Text */}
