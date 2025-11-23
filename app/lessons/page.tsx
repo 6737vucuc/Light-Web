@@ -9,6 +9,8 @@ interface Lesson {
   title: string;
   content: string;
   imageUrl: string | null;
+  videoUrl: string | null;
+  religion: string;
   createdAt: string;
 }
 
@@ -51,19 +53,19 @@ export default function LessonsPage() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Biblical Lessons
+            Religious Lessons / الدروس الدينية
           </h1>
           <p className="text-xl text-gray-600">
-            Grow in faith through God's Word
+            Grow in faith through spiritual teachings
           </p>
         </div>
 
         {lessons.length === 0 ? (
           <div className="text-center py-12">
             <BookOpen className="mx-auto h-12 w-12 text-gray-900" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No lessons yet</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No lessons available</h3>
             <p className="mt-1 text-sm text-gray-900">
-              Check back soon for new biblical teachings.
+              Please set your religion in profile settings to view lessons.
             </p>
           </div>
         ) : (
@@ -118,6 +120,15 @@ export default function LessonsPage() {
                     alt={selectedLesson.title}
                     fill
                     className="object-cover"
+                  />
+                </div>
+              )}
+              {selectedLesson.videoUrl && (
+                <div className="w-full">
+                  <video
+                    src={selectedLesson.videoUrl}
+                    controls
+                    className="w-full h-64 object-cover"
                   />
                 </div>
               )}

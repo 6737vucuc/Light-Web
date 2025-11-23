@@ -9,11 +9,13 @@ interface DailyVerseProps {
 }
 
 interface Verse {
-  id: number;
-  verse: string;
-  reference: string;
+  id?: number;
+  verseText: string;
+  verseReference: string;
   imageUrl?: string;
-  scheduledDate: Date;
+  displayDate?: string;
+  religion?: string;
+  language?: string;
 }
 
 export default function DailyVerse({ onClose }: DailyVerseProps) {
@@ -112,12 +114,12 @@ export default function DailyVerse({ onClose }: DailyVerseProps) {
                   
                   {/* Verse Text */}
                   <p className="text-lg md:text-2xl font-serif text-white leading-relaxed drop-shadow-lg italic">
-                    "{verse.verse}"
+                    "{verse.verseText}"
                   </p>
                   
                   {/* Reference */}
                   <p className="text-base md:text-xl font-semibold text-white/90 drop-shadow-md">
-                    — {verse.reference}
+                    — {verse.verseReference}
                   </p>
                   
                   {/* Close Button (Alternative) */}
@@ -146,12 +148,12 @@ export default function DailyVerse({ onClose }: DailyVerseProps) {
                 
                 {/* Verse Text */}
                 <p className="text-xl md:text-3xl font-serif text-white leading-relaxed max-w-2xl italic">
-                  "{verse.verse}"
+                  "{verse.verseText}"
                 </p>
                 
                 {/* Reference */}
                 <p className="text-lg md:text-2xl font-semibold text-white/90">
-                  — {verse.reference}
+                  — {verse.verseReference}
                 </p>
                 
                 {/* Close Button */}

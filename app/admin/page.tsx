@@ -86,6 +86,7 @@ function LessonsManager() {
     content: '',
     imageUrl: '',
     videoUrl: '',
+    religion: 'christianity',
   });
 
   useEffect(() => {
@@ -152,7 +153,7 @@ function LessonsManager() {
 
       if (response.ok) {
         setShowForm(false);
-        setFormData({ id: null, title: '', content: '', imageUrl: '', videoUrl: '' });
+        setFormData({ id: null, title: '', content: '', imageUrl: '', videoUrl: '', religion: 'christianity' });
         fetchLessons();
       }
     } catch (error) {
@@ -222,6 +223,24 @@ function LessonsManager() {
               />
             </div>
             
+            {/* Religion Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Religion / الديانة
+              </label>
+              <select
+                value={formData.religion}
+                onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+              >
+                <option value="christianity">Christianity / المسيحية</option>
+                <option value="islam">Islam / الإسلام</option>
+                <option value="judaism">Judaism / اليهودية</option>
+                <option value="all">All Religions / جميع الديانات</option>
+              </select>
+            </div>
+            
             {/* Image Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -287,7 +306,7 @@ function LessonsManager() {
                 type="button"
                 onClick={() => {
                   setShowForm(false);
-                  setFormData({ id: null, title: '', content: '', imageUrl: '', videoUrl: '' });
+                  setFormData({ id: null, title: '', content: '', imageUrl: '', videoUrl: '', religion: 'christianity' });
                 }}
                 className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
@@ -309,6 +328,12 @@ function LessonsManager() {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold">{lesson.title}</h3>
+                  <p className="text-sm text-purple-600 font-medium">
+                    {lesson.religion === 'christianity' && 'المسيحية / Christianity'}
+                    {lesson.religion === 'islam' && 'الإسلام / Islam'}
+                    {lesson.religion === 'judaism' && 'اليهودية / Judaism'}
+                    {lesson.religion === 'all' && 'جميع الديانات / All Religions'}
+                  </p>
                   <p className="text-gray-600 mt-2">{lesson.content.substring(0, 150)}...</p>
                   {lesson.imageUrl && (
                     <img src={lesson.imageUrl} alt={lesson.title} className="mt-2 h-24 rounded" />
@@ -356,6 +381,7 @@ function VersesManager() {
     reference: '',
     imageUrl: '',
     scheduledDate: new Date().toISOString().split('T')[0],
+    religion: 'christianity',
   });
 
   useEffect(() => {
@@ -423,7 +449,8 @@ function VersesManager() {
           verse: '', 
           reference: '', 
           imageUrl: '', 
-          scheduledDate: new Date().toISOString().split('T')[0] 
+          scheduledDate: new Date().toISOString().split('T')[0],
+          religion: 'christianity'
         });
         fetchVerses();
       }
@@ -506,6 +533,23 @@ function VersesManager() {
               />
             </div>
             
+            {/* Religion Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Religion / الديانة
+              </label>
+              <select
+                value={formData.religion}
+                onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+              >
+                <option value="christianity">Christianity / المسيحية</option>
+                <option value="islam">Islam / الإسلام</option>
+                <option value="judaism">Judaism / اليهودية</option>
+              </select>
+            </div>
+            
             {/* Image Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -572,10 +616,15 @@ function VersesManager() {
             <div key={verse.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <p className="text-lg italic">&quot;{verse.verse}&quot;</p>
-                  <p className="text-sm text-gray-600 mt-2">- {verse.reference}</p>
+                  <p className="text-lg italic">&quot;{verse.verseText}&quot;</p>
+                  <p className="text-sm text-gray-600 mt-2">- {verse.verseReference}</p>
+                  <p className="text-sm text-purple-600 font-medium mt-1">
+                    {verse.religion === 'christianity' && 'المسيحية / Christianity'}
+                    {verse.religion === 'islam' && 'الإسلام / Islam'}
+                    {verse.religion === 'judaism' && 'اليهودية / Judaism'}
+                  </p>
                   <p className="text-xs text-gray-900 mt-1">
-                    Display Date: {new Date(verse.scheduledDate).toLocaleDateString()}
+                    Display Date: {new Date(verse.displayDate).toLocaleDateString()}
                   </p>
                   {verse.imageUrl && (
                     <img src={verse.imageUrl} alt={verse.reference} className="mt-2 h-24 rounded" />
@@ -585,8 +634,12 @@ function VersesManager() {
                   <button
                     onClick={() => {
                       setFormData({
-                        ...verse,
-                        scheduledDate: new Date(verse.scheduledDate).toISOString().split('T')[0]
+                        id: verse.id,
+                        verse: verse.verseText,
+                        reference: verse.verseReference,
+                        imageUrl: verse.imageUrl || '',
+                        scheduledDate: new Date(verse.displayDate).toISOString().split('T')[0],
+                        religion: verse.religion || 'christianity'
                       });
                       setShowForm(true);
                     }}

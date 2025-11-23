@@ -163,6 +163,23 @@ export const dailyVerses = pgTable('daily_verses', {
 });
 
 // ========================================
+// LESSONS SYSTEM
+// ========================================
+
+// Lessons table
+export const lessons = pgTable('lessons', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  content: text('content').notNull(),
+  imageUrl: text('image_url'),
+  videoUrl: text('video_url'),
+  religion: varchar('religion', { length: 50 }).notNull(), // islam, christianity, etc.
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ========================================
 // LESSON PROGRESS TRACKING
 // ========================================
 
