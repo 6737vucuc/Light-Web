@@ -10,7 +10,6 @@ interface Verse {
   verseReference: string;
   imageUrl?: string;
   displayDate?: string;
-  religion?: string;
   language?: string;
 }
 

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { verse, reference, imageUrl, scheduledDate, religion } = body;
+    const { verse, reference, imageUrl, scheduledDate } = body;
 
     if (!verse || !reference || !scheduledDate) {
       return NextResponse.json(
@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
       verseText: verse,
       verseReference: reference,
       displayDate: scheduledDate,
-      religion: religion || 'christianity',
-      language: 'ar',
+      religion: 'all',
+      language: 'en',
       isActive: true,
       createdBy: user.userId,
     }).returning();
@@ -82,7 +82,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, verse, reference, imageUrl, scheduledDate, religion } = body;
+    const { id, verse, reference, imageUrl, scheduledDate } = body;
 
     if (!id || !verse || !reference || !scheduledDate) {
       return NextResponse.json(
@@ -97,7 +97,6 @@ export async function PUT(request: NextRequest) {
         verseText: verse,
         verseReference: reference,
         displayDate: scheduledDate,
-        religion: religion || 'christianity',
       })
       .where(eq(dailyVerses.id, id))
       .returning();
