@@ -53,10 +53,10 @@ export default function LessonsPage() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Religious Lessons / الدروس الدينية
+            Lessons
           </h1>
-          <p className="text-xl text-gray-600">
-            Grow in faith through spiritual teachings
+          <p className="text-xl text-gray-600 italic">
+            Where hearts encounter the light of Christ, and lives are transformed by His grace
           </p>
         </div>
 
