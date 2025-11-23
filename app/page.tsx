@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, BookOpen, Users, Shield } from 'lucide-react';
 import DailyVerse from '@/components/verses/DailyVerse';
+import DailyVerseSection from '@/components/verses/DailyVerseSection';
 
 export default function Home() {
   return (
@@ -34,6 +35,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Daily Verse Section */}
+      <DailyVerseSection />
 
       {/* Features Section */}
       <section className="py-20 bg-white">

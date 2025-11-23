@@ -1,0 +1,12 @@
+Vercel CLI 48.10.10
+Retrieving project…
+Deploying anwar-kouns-projects/light-web
+Uploading [--------------------] (0.0B/68.7KB)
+Uploading [=========-----------] (32.0KB/68.7KB)
+Uploading [=============-------] (48.0KB/68.7KB)
+Uploading [==================--] (64.0KB/68.7KB)
+Uploading [====================] (68.7KB/68.7KB)
+Inspect: https://vercel.com/anwar-kouns-projects/light-web/8iBMZqti9JZpQXqDP64GR1dPggr2 [4s]
+Production: https://light-gohb0kcts-anwar-kouns-projects.vercel.app [4s]
+https://light-gohb0kcts-anwar-kouns-projects.vercel.appQueued...
+Error: Deployment not found
