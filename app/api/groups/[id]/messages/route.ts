@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { verify } from 'jsonwebtoken';
 import Pusher from 'pusher';
+import { encryptMessageMilitary, decryptMessageMilitary } from '@/lib/security/military-encryption';
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -51,7 +52,29 @@ export async function GET(
       ORDER BY gm.created_at ASC
     `;
 
-    return NextResponse.json({ messages });
+    // Decrypt messages before sending
+    const decryptedMessages = messages.map(msg => {
+      try {
+        // If message is encrypted, decrypt it
+        if (msg.is_encrypted && msg.content) {
+          return {
+            ...msg,
+            content: decryptMessageMilitary(msg.content),
+            is_encrypted: true
+          };
+        }
+        return msg;
+      } catch (error) {
+        console.error('Error decrypting message:', error);
+        return {
+          ...msg,
+          content: '[Encrypted message - decryption failed]',
+          is_encrypted: true
+        };
+      }
+    });
+
+    return NextResponse.json({ messages: decryptedMessages });
   } catch (error) {
     console.error('Error fetching messages:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -89,10 +112,13 @@ export async function POST(
       return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }
 
-    // Insert message
+    // Encrypt message content using military-grade encryption
+    const encryptedContent = content ? encryptMessageMilitary(content) : null;
+
+    // Insert encrypted message
     const [newMessage] = await sql`
-      INSERT INTO group_messages (group_id, user_id, content, message_type, media_url)
-      VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${mediaUrl || null})
+      INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, is_encrypted)
+      VALUES (${groupId}, ${decoded.userId}, ${encryptedContent}, ${messageType || 'text'}, ${mediaUrl || null}, ${true})
       RETURNING *
     `;
 
@@ -108,11 +134,14 @@ export async function POST(
       SELECT name, username, avatar FROM users WHERE id = ${decoded.userId}
     `;
 
+    // Decrypt message before broadcasting (clients will receive decrypted version)
     const messageWithUser = {
       ...newMessage,
+      content: content, // Send original content (not encrypted) to clients
       user_name: user.name,
       user_username: user.username,
       user_avatar: user.avatar,
+      is_encrypted: true
     };
 
     // Broadcast to Pusher

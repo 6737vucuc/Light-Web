@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Send, Image as ImageIcon, Smile, MoreVertical, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Image as ImageIcon, Smile, MoreVertical, Trash2, MessageCircle, Flag } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
 
@@ -18,9 +19,12 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   const [isSending, setIsSending] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     loadMessages();
@@ -218,18 +222,59 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
               >
                 {/* Avatar */}
                 {!isOwnMessage && (
-                  <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                    {message.user_avatar ? (
-                      <Image
-                        src={getAvatarUrl(message.user_avatar)}
-                        alt={message.user_name}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
-                        {message.user_name?.charAt(0).toUpperCase()}
+                  <div className="relative">
+                    <div 
+                      className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
+                      onClick={() => {
+                        setSelectedUserId(message.user_id);
+                        setShowUserMenu(true);
+                      }}
+                    >
+                      {message.user_avatar ? (
+                        <Image
+                          src={getAvatarUrl(message.user_avatar)}
+                          alt={message.user_name}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs font-bold">
+                          {message.user_name?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* User Menu */}
+                    {showUserMenu && selectedUserId === message.user_id && (
+                      <div className="absolute left-0 top-10 z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px]">
+                        <button
+                          onClick={() => {
+                            router.push(`/messages?userId=${message.user_id}`);
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-purple-50 flex items-center gap-2 text-gray-700 hover:text-purple-600 transition-colors"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          <span className="text-sm font-medium">Send Private Message</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            // Open report modal
+                            window.location.href = `/community/report?userId=${message.user_id}`;
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center gap-2 text-gray-700 hover:text-red-600 transition-colors"
+                        >
+                          <Flag className="w-4 h-4" />
+                          <span className="text-sm font-medium">Report User</span>
+                        </button>
+                        <button
+                          onClick={() => setShowUserMenu(false)}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-50 text-gray-500 text-xs mt-1 border-t border-gray-100"
+                        >
+                          Close
+                        </button>
                       </div>
                     )}
                   </div>
