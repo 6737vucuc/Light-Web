@@ -16,7 +16,7 @@
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.8.0",
     "clsx": "^2.1.1",
-    "drizzle-kit": "^0.31.5",
+    "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.44.7",
     "jose": "^6.1.0",
     "jsonwebtoken": "^9.0.2",
