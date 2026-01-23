@@ -2,8 +2,11 @@
 
 import { useState, useId } from 'react';
 import { Heart, Wrench, BookHeart, Loader2, CheckCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function SupportPage() {
+  const t = useTranslations('support');
+  const tCommon = useTranslations('common');
   const typeId = useId();
   const subjectId = useId();
   const messageId = useId();
@@ -20,21 +23,21 @@ export default function SupportPage() {
   const supportTypes = [
     {
       value: 'technical',
-      label: 'Technical Issue',
+      label: t('technicalIssue'),
       icon: Wrench,
-      description: 'Report a bug or technical problem',
+      description: t('technicalIssueDesc'),
     },
     {
       value: 'testimony',
-      label: 'Share Testimony',
+      label: t('shareTestimony'),
       icon: BookHeart,
-      description: 'Share your faith testimony with us',
+      description: t('shareTestimonyDesc'),
     },
     {
       value: 'prayer',
-      label: 'Prayer Request',
+      label: t('prayerRequest'),
       icon: Heart,
-      description: 'Submit a prayer request',
+      description: t('prayerRequestDesc'),
     },
   ];
 
@@ -74,10 +77,10 @@ export default function SupportPage() {
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Support Center
+            {t('title')}
           </h1>
           <p className="text-xl text-gray-600">
-            We're here to help and pray with you
+            {t('subtitle')}
           </p>
         </div>
 
@@ -109,8 +112,8 @@ export default function SupportPage() {
         <div className="bg-white rounded-lg shadow-md p-8">
           {success && (
             <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center">
-              <CheckCircle className="h-5 w-5 mr-2" />
-              Your request has been submitted successfully!
+              <CheckCircle className="h-5 w-5 me-2" />
+              {tCommon('success')}
             </div>
           )}
 
@@ -123,7 +126,7 @@ export default function SupportPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor={typeId} className="block text-sm font-medium text-gray-700 mb-2">
-                Request Type *
+                {t('requestType')} *
               </label>
               <select
                 id={typeId}
@@ -132,7 +135,7 @@ export default function SupportPage() {
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               >
-                <option value="">Select a type...</option>
+                <option value="">{t('selectType')}</option>
                 {supportTypes.map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
@@ -143,7 +146,7 @@ export default function SupportPage() {
 
             <div>
               <label htmlFor={subjectId} className="block text-sm font-medium text-gray-700 mb-2">
-                Subject {formData.type === 'technical' && '*'}
+                {t('subject')} {formData.type === 'technical' && '*'}
               </label>
               <input
                 id={subjectId}
@@ -152,13 +155,13 @@ export default function SupportPage() {
                 value={formData.subject}
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
-                placeholder="Brief description..."
+                placeholder={t('subjectPlaceholder')}
               />
             </div>
 
             <div>
               <label htmlFor={messageId} className="block text-sm font-medium text-gray-700 mb-2">
-                Message *
+                {t('message')} *
               </label>
               <textarea
                 id={messageId}
@@ -167,13 +170,7 @@ export default function SupportPage() {
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
-                placeholder={
-                  formData.type === 'prayer'
-                    ? 'Share your prayer request...'
-                    : formData.type === 'testimony'
-                    ? 'Share your testimony...'
-                    : 'Describe the issue...'
-                }
+                placeholder={t('messagePlaceholder')}
               />
             </div>
 
@@ -184,11 +181,11 @@ export default function SupportPage() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
-                  Submitting...
+                  <Loader2 className="animate-spin -ml-1 me-3 h-5 w-5 rtl:ml-3 rtl:-mr-1" />
+                  {tCommon('loading')}
                 </>
               ) : (
-                'Submit Request'
+                t('submitRequest')
               )}
             </button>
           </form>

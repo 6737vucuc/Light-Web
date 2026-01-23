@@ -5,8 +5,12 @@ import Link from 'next/link';
 import { Heart, BookOpen, Users, Shield } from 'lucide-react';
 import DailyVerse from '@/components/verses/DailyVerse';
 import DailyVerseSection from '@/components/verses/DailyVerseSection';
+import { useTranslations } from 'next-intl';
 
 export default function Home() {
+  const t = useTranslations('home');
+  const tCommon = useTranslations('common');
+
   return (
     <div className="min-h-screen">
       {/* Daily Verse Modal */}
@@ -27,10 +31,10 @@ export default function Home() {
               </div>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              ✨ Spreading the Love and Peace of Jesus Christ ✨
+              ✨ {t('heroTitle')} ✨
             </h1>
             <p className="text-lg md:text-xl text-purple-100 max-w-3xl mx-auto italic">
-              "Illuminating hearts with His love, walking in His grace, and sharing His eternal peace."
+              "{t('heroSubtitle')}"
             </p>
           </div>
         </div>
@@ -43,28 +47,28 @@ export default function Home() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold text-center mb-12 text-gray-800">
-            Our Ministry
+            {t('ourMinistry')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <FeatureCard
               icon={<BookOpen className="w-12 h-12" />}
-              title="Biblical Lessons"
-              description="Explore in-depth Bible studies and teachings to grow in faith"
+              title={t('biblicalLessons')}
+              description={t('biblicalLessonsDesc')}
             />
             <FeatureCard
               icon={<Heart className="w-12 h-12" />}
-              title="Prayer Support"
-              description="Share your prayer requests and receive support from our community"
+              title={t('prayerSupport')}
+              description={t('prayerSupportDesc')}
             />
             <FeatureCard
               icon={<Users className="w-12 h-12" />}
-              title="Community"
-              description="Connect with believers worldwide through our chat and forums"
+              title={t('communityTitle')}
+              description={t('communityDesc')}
             />
             <FeatureCard
               icon={<Shield className="w-12 h-12" />}
-              title="Secure & Private"
-              description="End-to-end encrypted messaging for your privacy and security"
+              title={t('securePrivate')}
+              description={t('securePrivateDesc')}
             />
           </div>
         </div>
@@ -74,10 +78,10 @@ export default function Home() {
       <section className="py-20 bg-gradient-to-r from-purple-600 to-blue-500 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold mb-6">
-            Begin Your Journey with Christ
+            {t('beginJourney')}
           </h2>
           <p className="text-xl mb-8">
-            Join thousands of believers growing in faith together
+            {t('joinThousands')}
           </p>
         </div>
       </section>

@@ -5,8 +5,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { Menu, X, LogOut } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import LanguageSwitcher from './LanguageSwitcher';
 
 export default function Navbar() {
+  const t = useTranslations();
   const [isOpen, setIsOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -48,16 +51,16 @@ export default function Navbar() {
   };
 
   const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/lessons', label: 'Lessons' },
-    { href: '/support', label: 'Support' },
-    { href: '/community', label: 'Community' },
+    { href: '/', label: t('common.home') },
+    { href: '/lessons', label: t('common.lessons') },
+    { href: '/support', label: t('common.support') },
+    { href: '/community', label: t('common.community') },
   ];
 
   if (isAuthenticated) {
-    navLinks.push({ href: '/profile', label: 'Profile' });
+    navLinks.push({ href: '/profile', label: t('common.profile') });
     if (user?.isAdmin) {
-      navLinks.push({ href: '/admin', label: 'Admin' });
+      navLinks.push({ href: '/admin', label: t('common.admin') });
     }
   }
 
@@ -66,22 +69,22 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo and Title */}
-          <Link href="/" className="flex items-center space-x-3">
+          <Link href="/" className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="relative w-10 h-10 rounded-full overflow-hidden shadow-md">
               <Image
                 src="/logo.png"
-                alt="Light of Life"
+                alt={t('navbar.lightOfLife')}
                 fill
                 className="object-cover"
               />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
-              Light of Life
+              {t('navbar.lightOfLife')}
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-6 rtl:space-x-reverse">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -92,39 +95,45 @@ export default function Navbar() {
               </Link>
             ))}
             
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+            
             {!isAuthenticated ? (
               <>
                 <Link
                   href="/auth/register"
                   className="text-gray-700 hover:text-purple-600 transition-colors font-medium"
                 >
-                  Join Us
+                  {t('common.joinUs')}
                 </Link>
                 <Link
                   href="/auth/login"
                   className="bg-gradient-to-r from-purple-600 to-blue-500 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-blue-600 transition-colors font-medium"
                 >
-                  Sign In
+                  {t('common.signIn')}
                 </Link>
               </>
             ) : (
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-blue-600 transition-colors font-medium"
+                className="flex items-center space-x-2 rtl:space-x-reverse bg-gradient-to-r from-purple-600 to-blue-500 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-blue-600 transition-colors font-medium"
               >
                 <LogOut className="h-4 w-4" />
-                <span>Sign Out</span>
+                <span>{t('common.signOut')}</span>
               </button>
             )}
           </div>
 
           {/* Mobile menu button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 rounded-md text-gray-700 hover:text-purple-600 hover:bg-gray-100"
-          >
-            {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+          <div className="md:hidden flex items-center gap-2">
+            <LanguageSwitcher />
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 rounded-md text-gray-700 hover:text-purple-600 hover:bg-gray-100"
+            >
+              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
@@ -149,14 +158,14 @@ export default function Navbar() {
                     onClick={() => setIsOpen(false)}
                     className="text-gray-700 hover:text-purple-600 transition-colors font-medium px-2 py-2"
                   >
-                    Join Us
+                    {t('common.joinUs')}
                   </Link>
                   <Link
                     href="/auth/login"
                     onClick={() => setIsOpen(false)}
                     className="bg-gradient-to-r from-purple-600 to-blue-500 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-blue-600 transition-colors font-medium text-center"
                   >
-                    Sign In
+                    {t('common.signIn')}
                   </Link>
                 </>
               ) : (
@@ -165,10 +174,10 @@ export default function Navbar() {
                     handleLogout();
                     setIsOpen(false);
                   }}
-                  className="flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-blue-600 transition-colors font-medium"
+                  className="flex items-center justify-center space-x-2 rtl:space-x-reverse bg-gradient-to-r from-purple-600 to-blue-500 text-white px-6 py-2 rounded-lg hover:from-purple-700 hover:to-blue-600 transition-colors font-medium"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span>Sign Out</span>
+                  <span>{t('common.signOut')}</span>
                 </button>
               )}
             </div>
@@ -178,4 +187,3 @@ export default function Navbar() {
     </nav>
   );
 }
-

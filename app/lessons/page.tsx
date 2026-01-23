@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { BookOpen, Calendar, User } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface Lesson {
   id: number;
@@ -15,6 +16,8 @@ interface Lesson {
 }
 
 export default function LessonsPage() {
+  const t = useTranslations('lessons');
+  const tCommon = useTranslations('common');
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -42,7 +45,7 @@ export default function LessonsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading lessons...</p>
+          <p className="mt-4 text-gray-600">{tCommon('loading')}</p>
         </div>
       </div>
     );
@@ -53,19 +56,19 @@ export default function LessonsPage() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Lessons
+            {t('title')}
           </h1>
           <p className="text-xl text-gray-600 italic">
-            Where hearts encounter the light of Christ, and lives are transformed by His grace
+            {t('subtitle')}
           </p>
         </div>
 
         {lessons.length === 0 ? (
           <div className="text-center py-12">
             <BookOpen className="mx-auto h-12 w-12 text-gray-900" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No lessons available</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">{t('noLessons')}</h3>
             <p className="mt-1 text-sm text-gray-900">
-              Please set your religion in profile settings to view lessons.
+              {t('setReligion')}
             </p>
           </div>
         ) : (
@@ -94,7 +97,7 @@ export default function LessonsPage() {
                     {lesson.content}
                   </p>
                   <div className="flex items-center text-sm text-gray-900">
-                    <Calendar className="h-4 w-4 mr-1" />
+                    <Calendar className="h-4 w-4 me-1" />
                     {new Date(lesson.createdAt).toLocaleDateString()}
                   </div>
                 </div>
@@ -137,7 +140,7 @@ export default function LessonsPage() {
                   {selectedLesson.title}
                 </h2>
                 <div className="flex items-center text-sm text-gray-900 mb-6">
-                  <Calendar className="h-4 w-4 mr-1" />
+                  <Calendar className="h-4 w-4 me-1" />
                   {new Date(selectedLesson.createdAt).toLocaleDateString()}
                 </div>
                 <div className="prose max-w-none">
@@ -149,7 +152,7 @@ export default function LessonsPage() {
                   onClick={() => setSelectedLesson(null)}
                   className="mt-6 w-full bg-gradient-to-r from-purple-600 to-blue-500 text-white py-3 rounded-lg hover:from-purple-700 hover:to-blue-600 transition-colors"
                 >
-                  Close
+                  {tCommon('close')}
                 </button>
               </div>
             </div>
@@ -159,4 +162,3 @@ export default function LessonsPage() {
     </div>
   );
 }
-

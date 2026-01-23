@@ -5,8 +5,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 function LoginForm() {
+  const t = useTranslations('auth');
+  const tCommon = useTranslations('common');
+  const tNavbar = useTranslations('navbar');
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/';
@@ -37,13 +41,12 @@ function LoginForm() {
 
       const data = await response.json();
 
-
       // Redirect to specified page or home
       router.push(redirectUrl);
       router.refresh();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || 'An error occurred during login. Please try again.');
+      setError(err.message || t('invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -57,7 +60,7 @@ function LoginForm() {
           <div className="relative w-24 h-24 rounded-full overflow-hidden shadow-lg">
             <Image
               src="/logo.png"
-              alt="Light of Life"
+              alt={tNavbar('lightOfLife')}
               fill
               className="object-cover"
             />
@@ -67,10 +70,10 @@ function LoginForm() {
         {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <h1 className="text-3xl font-bold text-center mb-2 bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
-            Welcome Back
+            {t('welcomeBack')}
           </h1>
           <p className="text-center text-gray-600 mb-8">
-            Sign in to continue to Light of Life
+            {t('signInToContinue')}
           </p>
 
           {error && (
@@ -82,7 +85,7 @@ function LoginForm() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
+                {t('emailAddress')}
               </label>
               <input
                 type="email"
@@ -96,7 +99,7 @@ function LoginForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                {t('password')}
               </label>
               <div className="relative">
                 <input
@@ -105,12 +108,12 @@ function LoginForm() {
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
-                  placeholder="Enter your password"
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-900 hover:text-gray-700"
+                  className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-900 hover:text-gray-700"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -122,7 +125,7 @@ function LoginForm() {
                 href="/auth/forgot-password"
                 className="text-sm text-purple-600 hover:text-purple-700 font-medium"
               >
-                Forgot Password?
+                {t('forgotPassword')}
               </Link>
             </div>
 
@@ -133,20 +136,20 @@ function LoginForm() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Signing in...
+                  <Loader2 className="w-5 h-5 me-2 animate-spin" />
+                  {tCommon('loading')}
                 </>
               ) : (
-                'Sign In'
+                tCommon('signIn')
               )}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
-              Don't have an account?{' '}
+              {t('dontHaveAccount')}{' '}
               <Link href="/auth/register" className="text-purple-600 hover:text-purple-700 font-semibold">
-                Create Account
+                {t('createAccount')}
               </Link>
             </p>
           </div>
@@ -157,6 +160,7 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const tCommon = useTranslations('common');
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
@@ -167,4 +171,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-

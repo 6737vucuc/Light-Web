@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Users, MessageCircle, Home, User } from 'lucide-react';
 import Image from 'next/image';
 import GroupChat from '@/components/community/GroupChat';
+import { useTranslations } from 'next-intl';
 
 export default function CommunityPage() {
+  const t = useTranslations('community');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -81,9 +84,9 @@ export default function CommunityPage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Community
+                  {t('title')}
                 </h1>
-                <p className="text-xs text-gray-500">Group Chat</p>
+                <p className="text-xs text-gray-500">{t('groupChat')}</p>
               </div>
             </div>
 
@@ -124,14 +127,14 @@ export default function CommunityPage() {
           <div>
             {/* Welcome Banner */}
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 mb-6 text-white shadow-lg">
-              <h2 className="text-2xl font-bold mb-2">Welcome {currentUser?.name}! 👋</h2>
+              <h2 className="text-2xl font-bold mb-2">{t('welcome')} {currentUser?.name}! 👋</h2>
               <p className="text-purple-100">
-                Join groups and participate in conversations with the community
+                {t('joinGroups')}
               </p>
               <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-lg p-3 text-sm">
                 <p className="flex items-center gap-2">
                   <span className="text-yellow-300">⚠️</span>
-                  All messages are automatically deleted every 24 hours for privacy
+                  {t('messagesDeleted')}
                 </p>
               </div>
             </div>
@@ -142,8 +145,8 @@ export default function CommunityPage() {
                 <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Users className="w-12 h-12 text-gray-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No Groups Available</h3>
-                <p className="text-gray-500">Groups will be added soon by the administration</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('noGroups')}</h3>
+                <p className="text-gray-500">{t('groupsComingSoon')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -166,11 +169,11 @@ export default function CommunityPage() {
 
                     {/* Group Info */}
                     <div className="p-5">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2 text-right">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2 text-start">
                         {group.name}
                       </h3>
                       {group.description && (
-                        <p className="text-gray-600 text-sm mb-4 text-right line-clamp-2">
+                        <p className="text-gray-600 text-sm mb-4 text-start line-clamp-2">
                           {group.description}
                         </p>
                       )}
@@ -179,11 +182,11 @@ export default function CommunityPage() {
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-1 text-gray-500">
                           <Users className="w-4 h-4" />
-                          <span>{group.members_count || 0}</span>
+                          <span>{group.members_count || 0} {t('members')}</span>
                         </div>
                         <div className="flex items-center gap-1 text-gray-500">
                           <MessageCircle className="w-4 h-4" />
-                          <span>{group.messages_count || 0}</span>
+                          <span>{group.messages_count || 0} {t('messages')}</span>
                         </div>
                       </div>
 
@@ -191,7 +194,7 @@ export default function CommunityPage() {
                       <div className="mt-4 pt-4 border-t border-gray-100">
                         <div className="flex items-center justify-center gap-2 text-purple-600 font-medium group-hover:text-pink-600 transition-colors">
                           <MessageCircle className="w-5 h-5" />
-                          <span>Open Chat</span>
+                          <span>{t('openChat')}</span>
                         </div>
                       </div>
                     </div>
@@ -211,7 +214,7 @@ export default function CommunityPage() {
             className="flex flex-col items-center justify-center flex-1 h-full"
           >
             <Home className="w-6 h-6 text-purple-600" strokeWidth={2} />
-            <span className="text-xs text-purple-600 font-medium mt-1">Community</span>
+            <span className="text-xs text-purple-600 font-medium mt-1">{tCommon('community')}</span>
           </button>
 
           <button
@@ -219,7 +222,7 @@ export default function CommunityPage() {
             className="flex flex-col items-center justify-center flex-1 h-full"
           >
             <User className="w-6 h-6 text-gray-600" strokeWidth={2} />
-            <span className="text-xs text-gray-600 mt-1">Profile</span>
+            <span className="text-xs text-gray-600 mt-1">{tCommon('profile')}</span>
           </button>
         </div>
       </nav>
