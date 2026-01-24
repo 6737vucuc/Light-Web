@@ -8,6 +8,8 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createToken } from '@/lib/auth/jwt';
 import { sendAccountLockoutNotification } from '@/lib/utils/email';
+import { detectVPN, shouldBlockConnection, getBlockReason } from '@/lib/utils/vpn-detection';
+import { vpnLogs } from '@/lib/db/schema';
 
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
@@ -17,6 +19,80 @@ const LOCKOUT_DURATION_MINUTES = 30;
 
 export async function POST(request: NextRequest) {
   try {
+    // Get client IP
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown';
+    
+    // VPN Detection - with complete error isolation
+    let shouldBlock = false;
+    let vpnWarning = null;
+    
+    try {
+      const vpnResult = await detectVPN(clientIp);
+      shouldBlock = shouldBlockConnection(vpnResult);
+      
+      // Log VPN detection (non-blocking)
+      try {
+        await db.insert(vpnLogs).values({
+          userId: null,
+          ipAddress: vpnResult.ipAddress || clientIp,
+          country: vpnResult.country || null,
+          countryCode: vpnResult.countryCode || null,
+          city: vpnResult.city || null,
+          region: vpnResult.region || null,
+          isp: vpnResult.isp || null,
+          organization: vpnResult.organization || null,
+          asn: vpnResult.asn || null,
+          isVPN: vpnResult.isVPN || false,
+          isTor: vpnResult.isTor || false,
+          isProxy: vpnResult.isProxy || false,
+          isHosting: vpnResult.isHosting || false,
+          isAnonymous: vpnResult.isAnonymous || false,
+          riskScore: vpnResult.riskScore || 0,
+          threatLevel: vpnResult.threatLevel || 'low',
+          detectionService: vpnResult.detectionService || 'unknown',
+          detectionData: vpnResult.detectionData ? JSON.stringify(vpnResult.detectionData) : null,
+          isBlocked: shouldBlock,
+          blockReason: shouldBlock ? getBlockReason(vpnResult) : null,
+          userAgent: request.headers.get('user-agent') || null,
+          requestPath: '/api/auth/login',
+          requestMethod: 'POST',
+        });
+      } catch (logError) {
+        // Silently fail - logging should never break login
+        console.error('VPN log insert failed (non-critical):', logError);
+      }
+      
+      // Block if VPN/Tor detected
+      if (shouldBlock) {
+        return NextResponse.json(
+          { 
+            error: getBlockReason(vpnResult),
+            vpnDetected: true,
+            threatLevel: vpnResult.threatLevel,
+          },
+          { 
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      
+      // Set warning for response if VPN detected but not blocked
+      if (vpnResult.isVPN || vpnResult.isProxy) {
+        vpnWarning = {
+          detected: true,
+          message: 'VPN or Proxy detected. Please disable it for better security.',
+          type: vpnResult.isTor ? 'tor' : vpnResult.isVPN ? 'vpn' : 'proxy',
+          riskScore: vpnResult.riskScore,
+        };
+      }
+    } catch (vpnError) {
+      // Complete failure isolation - VPN detection errors should never break login
+      console.error('VPN detection completely failed (allowing login):', vpnError);
+    }
+    
     // Apply rate limiting - strict for login attempts
     const clientId = getClientIdentifier(request);
     const rateLimit = checkRateLimit(clientId, RateLimitConfigs.AUTH);
@@ -33,7 +109,7 @@ export async function POST(request: NextRequest) {
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
-        { status: 400 }
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -42,7 +118,7 @@ export async function POST(request: NextRequest) {
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { error: 'Invalid email format' },
-        { status: 400 }
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -55,7 +131,7 @@ export async function POST(request: NextRequest) {
       // Use generic error message to prevent user enumeration
       return NextResponse.json(
         { error: 'Invalid email or password' },
-        { status: 401 }
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -73,7 +149,7 @@ export async function POST(request: NextRequest) {
           message: `Your account has been locked due to multiple failed login attempts. Please try again in ${remainingMinutes} minutes.`,
           lockedUntil: user.lockedUntil,
         },
-        { status: 423 } // 423 Locked
+        { status: 423, headers: { 'Content-Type': 'application/json' } } // 423 Locked
       );
     }
 
@@ -81,7 +157,7 @@ export async function POST(request: NextRequest) {
     if (!user.emailVerified) {
       return NextResponse.json(
         { error: 'Please verify your email first' },
-        { status: 401 }
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -94,7 +170,7 @@ export async function POST(request: NextRequest) {
             bannedUntil: user.bannedUntil,
             message: `Your account has been banned. Please come back after ${new Date(user.bannedUntil).toLocaleDateString('en-US')}`,
           },
-          { status: 403 }
+          { status: 403, headers: { 'Content-Type': 'application/json' } }
         );
       } else {
         // Unban user if ban period has expired
@@ -148,7 +224,7 @@ export async function POST(request: NextRequest) {
             message: `Your account has been locked for ${LOCKOUT_DURATION_MINUTES} minutes due to multiple failed login attempts.`,
             lockedUntil: lockedUntil,
           },
-          { status: 423 }
+          { status: 423, headers: { 'Content-Type': 'application/json' } }
         );
       } else {
         // Just increment the counter
@@ -170,7 +246,7 @@ export async function POST(request: NextRequest) {
             message: `Invalid credentials. ${remainingAttempts} attempt(s) remaining before account lockout.`,
             remainingAttempts,
           },
-          { status: 401 }
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
         );
       }
     }
@@ -194,16 +270,25 @@ export async function POST(request: NextRequest) {
     });
 
     // Create response with minimal user data
-    const response = NextResponse.json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        isAdmin: user.isAdmin,
+    const response = NextResponse.json(
+      {
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+          isAdmin: user.isAdmin,
+        },
+        vpnWarning: vpnWarning,
       },
-    });
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
     // Set secure cookie with strict settings
     response.cookies.set('token', token, {
@@ -224,8 +309,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'An error occurred during login' },
-      { status: 500 }
+      { 
+        error: 'An error occurred during login',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
     );
   }
 }

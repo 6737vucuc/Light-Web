@@ -29,7 +29,16 @@ export interface VPNDetectionResult {
  */
 export async function detectVPNWithIPAPI(ipAddress: string): Promise<VPNDetectionResult> {
   try {
-    const response = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,message,country,countryCode,region,city,isp,org,as,proxy,hosting,query`);
+    // Add 5 second timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(
+      `http://ip-api.com/json/${ipAddress}?fields=status,message,country,countryCode,region,city,isp,org,as,proxy,hosting,query`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+    
     const data = await response.json();
 
     if (data.status === 'fail') {
@@ -131,9 +140,16 @@ export async function detectVPNWithIPQS(ipAddress: string): Promise<VPNDetection
   }
 
   try {
+    // Add 5 second timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
     const response = await fetch(
-      `https://ipqualityscore.com/api/json/ip/${apiKey}/${ipAddress}?strictness=1&allow_public_access_points=true&fast=true`
+      `https://ipqualityscore.com/api/json/ip/${apiKey}/${ipAddress}?strictness=1&allow_public_access_points=true&fast=true`,
+      { signal: controller.signal }
     );
+    clearTimeout(timeoutId);
+    
     const data = await response.json();
 
     if (!data.success) {
