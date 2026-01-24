@@ -9,6 +9,9 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { isRtlLocale, Locale } from '@/i18n';
 
+// Force dynamic rendering for all pages using next-intl
+export const dynamic = 'force-dynamic';
+
 const cairo = Cairo({ 
   subsets: ["latin", "arabic"],
   weight: ["400", "600", "700"],
