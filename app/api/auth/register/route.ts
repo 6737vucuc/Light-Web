@@ -8,6 +8,8 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 import { createToken } from '@/lib/auth/jwt';
+import { sendVerificationCode, generateVerificationCode } from '@/lib/utils/email';
+import { verificationCodes } from '@/lib/db/schema';
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest) {
     // Hash password with 10 rounds
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user with immediate email verification (emailVerified: true)
+    // Create user with email verification pending (emailVerified: false)
     const [newUser] = await db.insert(users).values({
       name: name.trim(),
       username: normalizedEmail.split('@')[0] + Math.floor(Math.random() * 10000),
@@ -112,39 +114,38 @@ export async function POST(request: NextRequest) {
       religion: religion || null,
       gender: gender || null,
       country: country || null,
-      emailVerified: true, // تفعيل التحقق الفوري
+      emailVerified: false, // يتطلب تحقق من البريد الإلكتروني
       isAdmin: false,
       isBanned: false,
     }).returning();
 
-    // Create JWT token for immediate login
-    const token = await createToken({
-      userId: newUser.id,
-      email: newUser.email,
-      isAdmin: newUser.isAdmin,
+    // Generate and send verification code
+    const verificationCode = generateVerificationCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Store verification code in database
+    await db.insert(verificationCodes).values({
+      email: normalizedEmail,
+      code: verificationCode,
+      expiresAt,
     });
+
+    // Send verification email
+    try {
+      await sendVerificationCode(normalizedEmail, verificationCode, newUser.name);
+      console.log(`Verification code sent to: ${normalizedEmail}`);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Continue registration even if email fails
+    }
 
     // Log successful registration
-    console.log(`New user registered and auto-verified: ${normalizedEmail} from IP: ${clientId}`);
+    console.log(`New user registered: ${normalizedEmail} from IP: ${clientId}`);
 
     const response = NextResponse.json({
-      message: 'Registration successful',
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        avatar: newUser.avatar,
-        isAdmin: newUser.isAdmin,
-      },
-    });
-
-    // Set secure cookie with strict settings
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
+      message: 'Registration successful. Please check your email for verification code.',
+      requiresVerification: true,
+      email: normalizedEmail,
     });
 
     // Add rate limit headers

@@ -4,9 +4,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function RegisterPage() {
+  const t = useTranslations('auth');
+  const tc = useTranslations('common');
+  const tp = useTranslations('profile');
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -57,58 +61,58 @@ export default function RegisterPage() {
     
     if (step === 1) {
       if (!formData.firstName.trim() || !formData.lastName.trim()) {
-        setError('Please enter your first and last name');
+        setError(t('pleaseEnterNames'));
         return false;
       }
       if (formData.firstName.trim().length < 2 || formData.lastName.trim().length < 2) {
-        setError('Names must be at least 2 characters');
+        setError(t('namesMinLength'));
         return false;
       }
     }
     
     if (step === 2) {
       if (!formData.birthDate) {
-        setError('Please enter your date of birth');
+        setError(t('pleaseEnterBirthDate'));
         return false;
       }
       const age = calculateAge(formData.birthDate);
       if (age < 18) {
-        setError('You must be at least 18 years old to register');
+        setError(t('mustBe18Error'));
         return false;
       }
       if (!formData.gender) {
-        setError('Please select your gender');
+        setError(t('pleaseSelectGender'));
         return false;
       }
       if (!formData.country) {
-        setError('Please select your country');
+        setError(t('pleaseSelectCountry'));
         return false;
       }
     }
     
     if (step === 3) {
       if (!formData.email) {
-        setError('Please enter your email');
+        setError(t('pleaseEnterEmail'));
         return false;
       }
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
-        setError('Please enter a valid email address');
+        setError(t('invalidEmail'));
         return false;
       }
     }
     
     if (step === 4) {
       if (!formData.password) {
-        setError('Please enter a password');
+        setError(t('pleaseEnterPassword'));
         return false;
       }
       if (formData.password.length < 8) {
-        setError('Password must be at least 8 characters long');
+        setError(t('passwordMin8'));
         return false;
       }
       if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match');
+        setError(t('passwordsDoNotMatchError'));
         return false;
       }
     }
@@ -147,10 +151,17 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+        throw new Error(data.error || t('registrationFailed'));
       }
 
-      router.push(`/auth/verify?email=${encodeURIComponent(formData.email)}`);
+      // Check if verification is required
+      if (data.requiresVerification) {
+        // Redirect to verification page
+        router.push(`/auth/verify?email=${encodeURIComponent(formData.email)}`);
+      } else {
+        // If no verification needed, redirect to home
+        router.push('/');
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -165,9 +176,9 @@ export default function RegisterPage() {
   };
 
   const getPasswordStrengthText = () => {
-    if (passwordStrength <= 1) return 'Weak';
-    if (passwordStrength <= 3) return 'Medium';
-    return 'Strong';
+    if (passwordStrength <= 1) return t('weak');
+    if (passwordStrength <= 3) return t('medium');
+    return t('strong');
   };
 
   return (
@@ -189,10 +200,10 @@ export default function RegisterPage() {
         {step === 1 && (
           <div className="bg-white border border-gray-300 rounded-lg p-10 shadow-sm">
             <h2 className="text-2xl font-normal text-gray-900 mb-2">
-              Create your Account
+              {t('createYourAccount')}
             </h2>
             <p className="text-sm text-gray-600 mb-6">
-              Enter your name
+              {t('enterYourName')}
             </p>
 
             {error && (
@@ -210,7 +221,7 @@ export default function RegisterPage() {
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
-                    placeholder="First name"
+                    placeholder={t('firstName')}
                   />
                 </div>
                 <div>
@@ -219,7 +230,7 @@ export default function RegisterPage() {
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
-                    placeholder="Last name"
+                    placeholder={t('lastName')}
                   />
                 </div>
               </div>
@@ -229,13 +240,13 @@ export default function RegisterPage() {
                   href="/auth/login"
                   className="text-sm font-medium text-purple-600 hover:text-purple-700"
                 >
-                  Sign in instead
+                  {t('signInInstead')}
                 </Link>
                 <button
                   type="submit"
                   className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-md hover:from-purple-700 hover:to-blue-600 font-medium"
                 >
-                  Next
+                  {tc('next')}
                 </button>
               </div>
             </form>
@@ -246,10 +257,10 @@ export default function RegisterPage() {
         {step === 2 && (
           <div className="bg-white border border-gray-300 rounded-lg p-10 shadow-sm">
             <h2 className="text-2xl font-normal text-gray-900 mb-2">
-              Basic information
+              {t('basicInformation')}
             </h2>
             <p className="text-sm text-gray-600 mb-6">
-              Enter your birthday and religion (optional)
+              {t('enterBirthdayReligion')}
             </p>
 
             {error && (
@@ -261,7 +272,7 @@ export default function RegisterPage() {
             <form onSubmit={(e) => { e.preventDefault(); handleNext(); }} className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-700 mb-2">
-                  Birthday
+                  {t('birthday')}
                 </label>
                 <input
                   type="date"
@@ -272,134 +283,112 @@ export default function RegisterPage() {
                   className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 />
                 <p className="mt-2 text-xs text-gray-900">
-                  You must be at least 18 years old
+                  {t('mustBe18')}
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-700 mb-2">
-                  Gender
+                  {tp('gender')}
                 </label>
                 <select
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                   className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 >
-                  <option value="">Select...</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
+                  <option value="">{t('selectGender')}</option>
+                  <option value="Male">{tp('male')}</option>
+                  <option value="Female">{tp('female')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-700 mb-2">
-                  Country
+                  {tp('country')}
                 </label>
                 <select
                   value={formData.country}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
                 >
-                  <option value="">Select...</option>
-                  <option value="United States">United States</option>
-                  <option value="United Kingdom">United Kingdom</option>
-                  <option value="Canada">Canada</option>
-                  <option value="Australia">Australia</option>
-                  <option value="Germany">Germany</option>
-                  <option value="France">France</option>
-                  <option value="Spain">Spain</option>
-                  <option value="Italy">Italy</option>
-                  <option value="Netherlands">Netherlands</option>
-                  <option value="Belgium">Belgium</option>
-                  <option value="Switzerland">Switzerland</option>
-                  <option value="Austria">Austria</option>
-                  <option value="Sweden">Sweden</option>
-                  <option value="Norway">Norway</option>
-                  <option value="Denmark">Denmark</option>
-                  <option value="Finland">Finland</option>
-                  <option value="Poland">Poland</option>
-                  <option value="Czech Republic">Czech Republic</option>
-                  <option value="Hungary">Hungary</option>
-                  <option value="Romania">Romania</option>
-                  <option value="Bulgaria">Bulgaria</option>
-                  <option value="Greece">Greece</option>
-                  <option value="Portugal">Portugal</option>
-                  <option value="Ireland">Ireland</option>
-                  <option value="Egypt">Egypt</option>
-                  <option value="Saudi Arabia">Saudi Arabia</option>
-                  <option value="UAE">UAE</option>
-                  <option value="Kuwait">Kuwait</option>
-                  <option value="Qatar">Qatar</option>
-                  <option value="Bahrain">Bahrain</option>
-                  <option value="Oman">Oman</option>
-                  <option value="Jordan">Jordan</option>
-                  <option value="Lebanon">Lebanon</option>
-                  <option value="Syria">Syria</option>
-                  <option value="Iraq">Iraq</option>
-                  <option value="Palestine">Palestine</option>
-                  <option value="Israel">Israel</option>
-                  <option value="Turkey">Turkey</option>
-                  <option value="Iran">Iran</option>
-                  <option value="Pakistan">Pakistan</option>
-                  <option value="India">India</option>
-                  <option value="Bangladesh">Bangladesh</option>
-                  <option value="Sri Lanka">Sri Lanka</option>
-                  <option value="Nepal">Nepal</option>
-                  <option value="China">China</option>
-                  <option value="Japan">Japan</option>
-                  <option value="South Korea">South Korea</option>
-                  <option value="Thailand">Thailand</option>
-                  <option value="Vietnam">Vietnam</option>
-                  <option value="Philippines">Philippines</option>
-                  <option value="Indonesia">Indonesia</option>
-                  <option value="Malaysia">Malaysia</option>
-                  <option value="Singapore">Singapore</option>
-                  <option value="Brazil">Brazil</option>
-                  <option value="Mexico">Mexico</option>
-                  <option value="Argentina">Argentina</option>
-                  <option value="Chile">Chile</option>
-                  <option value="Colombia">Colombia</option>
-                  <option value="Peru">Peru</option>
-                  <option value="South Africa">South Africa</option>
-                  <option value="Nigeria">Nigeria</option>
-                  <option value="Kenya">Kenya</option>
-                  <option value="Ethiopia">Ethiopia</option>
-                  <option value="Ghana">Ghana</option>
-                  <option value="Morocco">Morocco</option>
+                  <option value="">{t('selectCountry')}</option>
+                  <option value="Afghanistan">Afghanistan</option>
+                  <option value="Albania">Albania</option>
                   <option value="Algeria">Algeria</option>
-                  <option value="Tunisia">Tunisia</option>
-                  <option value="Libya">Libya</option>
+                  <option value="Argentina">Argentina</option>
+                  <option value="Australia">Australia</option>
+                  <option value="Austria">Austria</option>
+                  <option value="Bangladesh">Bangladesh</option>
+                  <option value="Belgium">Belgium</option>
+                  <option value="Brazil">Brazil</option>
+                  <option value="Canada">Canada</option>
+                  <option value="China">China</option>
+                  <option value="Colombia">Colombia</option>
+                  <option value="Denmark">Denmark</option>
+                  <option value="Egypt">Egypt</option>
+                  <option value="Finland">Finland</option>
+                  <option value="France">France</option>
+                  <option value="Germany">Germany</option>
+                  <option value="Greece">Greece</option>
+                  <option value="India">India</option>
+                  <option value="Indonesia">Indonesia</option>
+                  <option value="Iran">Iran</option>
+                  <option value="Iraq">Iraq</option>
+                  <option value="Ireland">Ireland</option>
+                  <option value="Israel">Israel</option>
+                  <option value="Italy">Italy</option>
+                  <option value="Japan">Japan</option>
+                  <option value="Jordan">Jordan</option>
+                  <option value="Kenya">Kenya</option>
+                  <option value="Lebanon">Lebanon</option>
+                  <option value="Malaysia">Malaysia</option>
+                  <option value="Mexico">Mexico</option>
+                  <option value="Morocco">Morocco</option>
+                  <option value="Netherlands">Netherlands</option>
+                  <option value="New Zealand">New Zealand</option>
+                  <option value="Nigeria">Nigeria</option>
+                  <option value="Norway">Norway</option>
+                  <option value="Pakistan">Pakistan</option>
+                  <option value="Palestine">Palestine</option>
+                  <option value="Philippines">Philippines</option>
+                  <option value="Poland">Poland</option>
+                  <option value="Portugal">Portugal</option>
+                  <option value="Qatar">Qatar</option>
+                  <option value="Romania">Romania</option>
+                  <option value="Russia">Russia</option>
+                  <option value="Saudi Arabia">Saudi Arabia</option>
+                  <option value="Singapore">Singapore</option>
+                  <option value="South Africa">South Africa</option>
+                  <option value="South Korea">South Korea</option>
+                  <option value="Spain">Spain</option>
                   <option value="Sudan">Sudan</option>
-                  <option value="Other">Other</option>
+                  <option value="Sweden">Sweden</option>
+                  <option value="Switzerland">Switzerland</option>
+                  <option value="Syria">Syria</option>
+                  <option value="Thailand">Thailand</option>
+                  <option value="Tunisia">Tunisia</option>
+                  <option value="Turkey">Turkey</option>
+                  <option value="UAE">United Arab Emirates</option>
+                  <option value="UK">United Kingdom</option>
+                  <option value="USA">United States</option>
+                  <option value="Vietnam">Vietnam</option>
+                  <option value="Yemen">Yemen</option>
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">
-                  Religion (Optional)
-                </label>
-                <select
-                  value={formData.religion}
-                  onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+              <div className="flex justify-between items-center pt-4">
+                <button
+                  type="button"
+                  onClick={() => setStep(step - 1)}
+                  className="text-sm font-medium text-purple-600 hover:text-purple-700"
                 >
-                  <option value="">Select...</option>
-                  <option value="Christian">Christian</option>
-                  <option value="Muslim">Muslim</option>
-                  <option value="Jewish">Jewish</option>
-                  <option value="Hindu">Hindu</option>
-                  <option value="Buddhist">Buddhist</option>
-                  <option value="Other">Other</option>
-                  <option value="None">None</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end pt-4">
+                  {tc('back')}
+                </button>
                 <button
                   type="submit"
                   className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-md hover:from-purple-700 hover:to-blue-600 font-medium"
                 >
-                  Next
+                  {tc('next')}
                 </button>
               </div>
             </form>
@@ -410,10 +399,10 @@ export default function RegisterPage() {
         {step === 3 && (
           <div className="bg-white border border-gray-300 rounded-lg p-10 shadow-sm">
             <h2 className="text-2xl font-normal text-gray-900 mb-2">
-              Choose your email
+              {t('emailStep')}
             </h2>
             <p className="text-sm text-gray-600 mb-6">
-              You can use letters, numbers & periods
+              {t('enterYourEmail')}
             </p>
 
             {error && (
@@ -430,16 +419,23 @@ export default function RegisterPage() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
-                  placeholder="your.email@example.com"
+                  placeholder={t('yourEmail')}
                 />
               </div>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-between items-center pt-4">
+                <button
+                  type="button"
+                  onClick={() => setStep(step - 1)}
+                  className="text-sm font-medium text-purple-600 hover:text-purple-700"
+                >
+                  {tc('back')}
+                </button>
                 <button
                   type="submit"
                   className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-md hover:from-purple-700 hover:to-blue-600 font-medium"
                 >
-                  Next
+                  {tc('next')}
                 </button>
               </div>
             </form>
@@ -450,10 +446,10 @@ export default function RegisterPage() {
         {step === 4 && (
           <div className="bg-white border border-gray-300 rounded-lg p-10 shadow-sm">
             <h2 className="text-2xl font-normal text-gray-900 mb-2">
-              Create a strong password
+              {t('passwordStep')}
             </h2>
             <p className="text-sm text-gray-600 mb-6">
-              Create a strong password with a mix of letters, numbers and symbols
+              {t('createSecurePassword')}
             </p>
 
             {error && (
@@ -470,37 +466,34 @@ export default function RegisterPage() {
                     autoFocus
                     value={formData.password}
                     onChange={(e) => handlePasswordChange(e.target.value)}
-                    className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 pr-12 text-gray-900"
-                    placeholder="Password"
+                    className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                    placeholder={t('passwordPlaceholder')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-900" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-900" />
-                    )}
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
+
                 {formData.password && (
                   <div className="mt-2">
-                    <div className="text-xs text-gray-600 mb-1">
-                      Password strength: <span className={passwordStrength <= 1 ? 'text-red-600' : passwordStrength <= 3 ? 'text-yellow-600' : 'text-green-600'}>{getPasswordStrengthText()}</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-600">{t('passwordStrength')}</span>
+                      <span className="text-xs font-medium text-gray-900">
+                        {getPasswordStrengthText()}
+                      </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1">
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
                       <div
-                        className={`h-1 rounded-full transition-all ${getPasswordStrengthColor()}`}
+                        className={`h-1.5 rounded-full transition-all ${getPasswordStrengthColor()}`}
                         style={{ width: `${(passwordStrength / 5) * 100}%` }}
                       />
                     </div>
                   </div>
                 )}
-                <p className="mt-2 text-xs text-gray-900">
-                  Use 8 or more characters with a mix of letters, numbers & symbols
-                </p>
               </div>
 
               <div>
@@ -509,46 +502,47 @@ export default function RegisterPage() {
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 pr-12 text-gray-900"
-                    placeholder="Confirm"
+                    className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                    placeholder={t('confirmPasswordPlaceholder')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-900" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-900" />
-                    )}
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-between items-center pt-4">
+                <button
+                  type="button"
+                  onClick={() => setStep(step - 1)}
+                  className="text-sm font-medium text-purple-600 hover:text-purple-700"
+                  disabled={loading}
+                >
+                  {tc('back')}
+                </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-md hover:from-purple-700 hover:to-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-md hover:from-purple-700 hover:to-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {loading ? (
-                    <span className="flex items-center">
-                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                      Creating...
-                    </span>
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {tc('loading')}
+                    </>
                   ) : (
-                    'Next'
+                    t('createAccount')
                   )}
                 </button>
               </div>
             </form>
           </div>
         )}
-
-
       </div>
     </div>
   );
 }
-
