@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createToken } from '@/lib/auth/jwt';
+import { sendAccountLockoutNotification } from '@/lib/utils/email';
 
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
@@ -126,6 +127,20 @@ export async function POST(request: NextRequest) {
           .where(eq(users.id, user.id));
         
         console.warn(`Account locked due to ${newFailedAttempts} failed attempts: ${email} from IP: ${clientId}`);
+        
+        // Send email notification about account lockout
+        try {
+          await sendAccountLockoutNotification(
+            user.email,
+            user.name,
+            clientId,
+            lockedUntil
+          );
+          console.log(`Account lockout notification sent to: ${email}`);
+        } catch (emailError) {
+          console.error('Failed to send account lockout notification:', emailError);
+          // Don't fail the request if email fails
+        }
         
         return NextResponse.json(
           {
