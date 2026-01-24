@@ -22,6 +22,7 @@ export default function AdminPage() {
     { id: 'support', label: 'Support Requests', icon: MessageCircle },
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'vpn', label: 'VPN Detection', icon: AlertTriangle },
+    { id: 'security', label: 'Security Dashboard', icon: Shield },
   ];
 
   return (
@@ -68,6 +69,7 @@ export default function AdminPage() {
           {activeTab === 'support' && <SupportManager />}
           {activeTab === 'users' && <UsersManager />}
           {activeTab === 'vpn' && <VPNDetectionManager />}
+          {activeTab === 'security' && <SecurityDashboardRedirect />}
         </div>
       </div>
     </div>
@@ -1903,6 +1905,23 @@ function ReportsManager() {
           <p>No reports found.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// Security Dashboard Redirect Component
+function SecurityDashboardRedirect() {
+  useEffect(() => {
+    // Redirect to the dedicated Security Dashboard page
+    window.location.href = '/admin/security';
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <Shield className="w-16 h-16 text-purple-600 mb-4 animate-pulse" />
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">Redirecting to Security Dashboard...</h3>
+      <p className="text-gray-500">Please wait while we redirect you to the full security dashboard.</p>
     </div>
   );
 }
