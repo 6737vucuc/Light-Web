@@ -8,8 +8,6 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createToken } from '@/lib/auth/jwt';
 import { sendAccountLockoutNotification } from '@/lib/utils/email';
-import { detectVPN, shouldBlockConnection, getBlockReason } from '@/lib/utils/vpn-detection';
-import { vpnLogs } from '@/lib/db/schema';
 
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
@@ -19,84 +17,6 @@ const LOCKOUT_DURATION_MINUTES = 30;
 
 export async function POST(request: NextRequest) {
   try {
-    // Get client IP
-    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-                     request.headers.get('x-real-ip') || 
-                     'unknown';
-    
-    // VPN Detection with error handling
-    let vpnResult;
-    let shouldBlock = false;
-    
-    try {
-      vpnResult = await detectVPN(clientIp);
-      shouldBlock = shouldBlockConnection(vpnResult);
-    } catch (vpnError) {
-      console.error('VPN detection failed:', vpnError);
-      // On VPN detection error, allow login (fail-open)
-      vpnResult = {
-        ipAddress: clientIp,
-        isVPN: false,
-        isTor: false,
-        isProxy: false,
-        isHosting: false,
-        isAnonymous: false,
-        riskScore: 0,
-        threatLevel: 'low' as const,
-        detectionService: 'error',
-        detectionData: { error: vpnError instanceof Error ? vpnError.message : 'Unknown error' },
-      };
-    }
-    
-    // Log VPN detection
-    try {
-      await db.insert(vpnLogs).values({
-        userId: null, // Will be set after login if successful
-        ipAddress: vpnResult.ipAddress,
-        country: vpnResult.country,
-        countryCode: vpnResult.countryCode,
-        city: vpnResult.city,
-        region: vpnResult.region,
-        isp: vpnResult.isp,
-        organization: vpnResult.organization,
-        asn: vpnResult.asn,
-        isVPN: vpnResult.isVPN,
-        isTor: vpnResult.isTor,
-        isProxy: vpnResult.isProxy,
-        isHosting: vpnResult.isHosting,
-        isAnonymous: vpnResult.isAnonymous,
-        riskScore: vpnResult.riskScore,
-        threatLevel: vpnResult.threatLevel,
-        detectionService: vpnResult.detectionService,
-        detectionData: vpnResult.detectionData ? JSON.stringify(vpnResult.detectionData) : null,
-        isBlocked: shouldBlock,
-        blockReason: shouldBlock ? getBlockReason(vpnResult) : null,
-        userAgent: request.headers.get('user-agent') || null,
-        requestPath: '/api/auth/login',
-        requestMethod: 'POST',
-      });
-    } catch (logError) {
-      console.error('Failed to log VPN detection:', logError);
-      // Continue even if logging fails
-    }
-    
-    // Block if VPN/Tor detected
-    if (shouldBlock) {
-      return NextResponse.json(
-        { 
-          error: getBlockReason(vpnResult),
-          vpnDetected: true,
-          threatLevel: vpnResult.threatLevel,
-        },
-        { status: 403 }
-      );
-    }
-    
-    // Show warning if VPN detected but not blocked
-    if (vpnResult.isVPN || vpnResult.isProxy) {
-      // Will continue but add warning in response
-    }
-    
     // Apply rate limiting - strict for login attempts
     const clientId = getClientIdentifier(request);
     const rateLimit = checkRateLimit(clientId, RateLimitConfigs.AUTH);
@@ -283,13 +203,6 @@ export async function POST(request: NextRequest) {
         avatar: user.avatar,
         isAdmin: user.isAdmin,
       },
-      // VPN warning if detected
-      vpnWarning: (vpnResult.isVPN || vpnResult.isProxy) ? {
-        detected: true,
-        message: 'VPN or Proxy detected. Please disable it for better security.',
-        type: vpnResult.isTor ? 'tor' : vpnResult.isVPN ? 'vpn' : 'proxy',
-        riskScore: vpnResult.riskScore,
-      } : null,
     });
 
     // Set secure cookie with strict settings
