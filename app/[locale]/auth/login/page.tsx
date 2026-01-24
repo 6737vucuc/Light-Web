@@ -34,9 +34,22 @@ function LoginForm() {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json().catch(() => ({
-        error: 'Invalid response from server'
-      }));
+      console.log('Login response status:', response.status);
+      console.log('Login response ok:', response.ok);
+
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Non-JSON response:', contentType);
+        throw new Error('Server returned invalid response. Please try again.');
+      }
+
+      const data = await response.json().catch((jsonError) => {
+        console.error('JSON parse error:', jsonError);
+        return { error: 'Invalid response from server' };
+      });
+
+      console.log('Login response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || data.message || 'Login failed');
