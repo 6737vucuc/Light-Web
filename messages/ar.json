@@ -25,7 +25,8 @@
     "success": "تم بنجاح",
     "confirm": "تأكيد",
     "yes": "نعم",
-    "no": "لا"
+    "no": "لا",
+    "country": "البلد"
   },
   "navbar": {
     "lightOfLife": "نور الحياة"

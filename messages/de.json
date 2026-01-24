@@ -25,7 +25,8 @@
     "success": "Erfolg",
     "confirm": "Bestätigen",
     "yes": "Ja",
-    "no": "Nein"
+    "no": "Nein",
+    "country": "Land"
   },
   "navbar": {
     "lightOfLife": "Licht des Lebens"

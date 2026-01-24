@@ -306,7 +306,24 @@ export default function RegisterPage() {
 
               <div>
                 <label className="block text-sm text-gray-700 mb-2">
-                  {tp('country')}
+                  {tp('religion')}
+                </label>
+                <select
+                  value={formData.religion}
+                  onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                >
+                  <option value="">{t('selectGender')}</option>
+                  <option value="Christianity">Christianity</option>
+                  <option value="Islam">Islam</option>
+                  <option value="Judaism">Judaism</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">
+                  {tc('country')}
                 </label>
                 <select
                   value={formData.country}

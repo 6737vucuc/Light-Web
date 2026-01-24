@@ -19,7 +19,11 @@ const nextConfig = {
           },
           {
             key: 'X-Frame-Options',
-            value: 'SAMEORIGIN'
+            value: 'DENY'
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload'
           },
           {
             key: 'X-Content-Type-Options',
@@ -35,7 +39,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(self), microphone=(self), geolocation=()'
+            value: 'camera=(), microphone=(), geolocation=(), payment=()'
           }
         ],
       },
@@ -65,6 +69,7 @@ const nextConfig = {
     minimumCacheTTL: 60,
     dangerouslyAllowSVG: false,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    contentDispositionType: 'attachment',
   },
 
   // Disable powered by header

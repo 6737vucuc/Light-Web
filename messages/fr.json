@@ -25,7 +25,8 @@
     "success": "Succès",
     "confirm": "Confirmer",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "country": "Pays"
   },
   "navbar": {
     "lightOfLife": "Lumière de Vie"

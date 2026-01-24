@@ -38,27 +38,19 @@ export default function LanguageSwitcher() {
 
   const handleLocaleChange = (newLocale: string) => {
     // Remove current locale from pathname if present
-    let newPathname = pathname;
+    let pathParts = pathname.split('/').filter(Boolean);
     
-    // Check if pathname starts with a locale
-    const pathParts = pathname.split('/').filter(Boolean);
+    // Check if first part is a locale and remove it
     if (pathParts.length > 0 && locales.some(l => l.code === pathParts[0])) {
       pathParts.shift(); // Remove current locale
     }
     
-    // Build new pathname
-    if (newLocale === 'en') {
-      newPathname = '/' + pathParts.join('/');
-    } else {
-      newPathname = '/' + newLocale + '/' + pathParts.join('/');
-    }
-    
-    // Ensure we have at least a slash
-    if (!newPathname || newPathname === '') {
-      newPathname = '/';
-    }
+    // Build new pathname with new locale
+    const basePath = pathParts.join('/');
+    const newPathname = `/${newLocale}${basePath ? '/' + basePath : ''}`;
 
     router.push(newPathname);
+    router.refresh(); // Force refresh to update translations
     setIsOpen(false);
   };
 
