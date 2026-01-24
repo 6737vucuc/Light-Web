@@ -179,10 +179,13 @@ export async function detectVPNWithIPQS(ipAddress: string): Promise<VPNDetection
  * Tries IPQS first (if API key available), falls back to IP-API
  */
 export async function detectVPN(ipAddress: string): Promise<VPNDetectionResult> {
-  // Skip detection for localhost/private IPs
+  // Skip detection for localhost/private IPs/unknown
   if (
     ipAddress === '127.0.0.1' ||
     ipAddress === 'localhost' ||
+    ipAddress === 'unknown' ||
+    ipAddress === '' ||
+    !ipAddress ||
     ipAddress.startsWith('192.168.') ||
     ipAddress.startsWith('10.') ||
     ipAddress.startsWith('172.')

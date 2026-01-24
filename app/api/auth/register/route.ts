@@ -19,9 +19,29 @@ export async function POST(request: NextRequest) {
                      request.headers.get('x-real-ip') || 
                      'unknown';
     
-    // VPN Detection
-    const vpnResult = await detectVPN(clientIp);
-    const shouldBlock = shouldBlockConnection(vpnResult);
+    // VPN Detection with error handling
+    let vpnResult;
+    let shouldBlock = false;
+    
+    try {
+      vpnResult = await detectVPN(clientIp);
+      shouldBlock = shouldBlockConnection(vpnResult);
+    } catch (vpnError) {
+      console.error('VPN detection failed:', vpnError);
+      // On VPN detection error, allow registration (fail-open)
+      vpnResult = {
+        ipAddress: clientIp,
+        isVPN: false,
+        isTor: false,
+        isProxy: false,
+        isHosting: false,
+        isAnonymous: false,
+        riskScore: 0,
+        threatLevel: 'low' as const,
+        detectionService: 'error',
+        detectionData: { error: vpnError instanceof Error ? vpnError.message : 'Unknown error' },
+      };
+    }
     
     // Log VPN detection
     try {
