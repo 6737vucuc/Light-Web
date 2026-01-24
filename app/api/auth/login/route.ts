@@ -10,6 +10,10 @@ import { createToken } from '@/lib/auth/jwt';
 
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
+// Account lockout configuration
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MINUTES = 30;
+
 export async function POST(request: NextRequest) {
   try {
     // Apply rate limiting - strict for login attempts
@@ -54,6 +58,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if account is locked
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      const remainingMinutes = Math.ceil(
+        (new Date(user.lockedUntil).getTime() - new Date().getTime()) / (1000 * 60)
+      );
+      
+      console.warn(`Login attempt on locked account: ${email} from IP: ${clientId}`);
+      
+      return NextResponse.json(
+        {
+          error: 'Account temporarily locked',
+          message: `Your account has been locked due to multiple failed login attempts. Please try again in ${remainingMinutes} minutes.`,
+          lockedUntil: user.lockedUntil,
+        },
+        { status: 423 } // 423 Locked
+      );
+    }
+
     // Check if email is verified
     if (!user.emailVerified) {
       return NextResponse.json(
@@ -86,15 +108,68 @@ export async function POST(request: NextRequest) {
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
-      // Log failed login attempt
-      console.warn(`Failed login attempt for email: ${email} from IP: ${clientId}`);
+      // Increment failed login attempts
+      const newFailedAttempts = (user.failedLoginAttempts || 0) + 1;
+      const now = new Date();
       
-      // Use generic error message to prevent user enumeration
-      return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
-      );
+      // Check if we should lock the account
+      if (newFailedAttempts >= MAX_FAILED_ATTEMPTS) {
+        const lockedUntil = new Date(now.getTime() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
+        
+        await db
+          .update(users)
+          .set({
+            failedLoginAttempts: newFailedAttempts,
+            lastFailedLogin: now,
+            lockedUntil: lockedUntil,
+          })
+          .where(eq(users.id, user.id));
+        
+        console.warn(`Account locked due to ${newFailedAttempts} failed attempts: ${email} from IP: ${clientId}`);
+        
+        return NextResponse.json(
+          {
+            error: 'Account locked',
+            message: `Your account has been locked for ${LOCKOUT_DURATION_MINUTES} minutes due to multiple failed login attempts.`,
+            lockedUntil: lockedUntil,
+          },
+          { status: 423 }
+        );
+      } else {
+        // Just increment the counter
+        await db
+          .update(users)
+          .set({
+            failedLoginAttempts: newFailedAttempts,
+            lastFailedLogin: now,
+          })
+          .where(eq(users.id, user.id));
+        
+        const remainingAttempts = MAX_FAILED_ATTEMPTS - newFailedAttempts;
+        
+        console.warn(`Failed login attempt ${newFailedAttempts}/${MAX_FAILED_ATTEMPTS} for email: ${email} from IP: ${clientId}`);
+        
+        return NextResponse.json(
+          {
+            error: 'Invalid email or password',
+            message: `Invalid credentials. ${remainingAttempts} attempt(s) remaining before account lockout.`,
+            remainingAttempts,
+          },
+          { status: 401 }
+        );
+      }
     }
+
+    // Password is correct - reset failed attempts and unlock if needed
+    await db
+      .update(users)
+      .set({
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        lastFailedLogin: null,
+        lastSeen: new Date(),
+      })
+      .where(eq(users.id, user.id));
 
     // Create JWT token with minimal payload
     const token = await createToken({
@@ -102,12 +177,6 @@ export async function POST(request: NextRequest) {
       email: user.email,
       isAdmin: user.isAdmin,
     });
-
-    // Update last seen
-    await db
-      .update(users)
-      .set({ lastSeen: new Date() })
-      .where(eq(users.id, user.id));
 
     // Create response with minimal user data
     const response = NextResponse.json({
@@ -119,7 +188,6 @@ export async function POST(request: NextRequest) {
         avatar: user.avatar,
         isAdmin: user.isAdmin,
       },
-
     });
 
     // Set secure cookie with strict settings
@@ -134,6 +202,8 @@ export async function POST(request: NextRequest) {
     // Add rate limit headers
     response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
     response.headers.set('X-RateLimit-Reset', new Date(rateLimit.resetTime).toISOString());
+
+    console.log(`Successful login for: ${email} from IP: ${clientId}`);
 
     return response;
   } catch (error) {

@@ -41,6 +41,10 @@ export const users = pgTable('users', {
   bannedUntil: timestamp('banned_until'),
   bannedReason: text('banned_reason'),
   emailVerified: boolean('email_verified').default(false),
+  // Account security
+  failedLoginAttempts: integer('failed_login_attempts').default(0),
+  lockedUntil: timestamp('locked_until'),
+  lastFailedLogin: timestamp('last_failed_login'),
   lastSeen: timestamp('last_seen').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

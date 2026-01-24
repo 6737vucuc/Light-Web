@@ -21,6 +21,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [onlineMembers, setOnlineMembers] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,6 +46,19 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
 
       channel.bind('delete-message', (data: any) => {
         setMessages((prev) => prev.filter(m => m.id !== data.messageId));
+      });
+
+      // Listen for member presence updates
+      channel.bind('pusher:subscription_succeeded', (members: any) => {
+        setOnlineMembers(members.count || 0);
+      });
+
+      channel.bind('pusher:member_added', () => {
+        setOnlineMembers((prev) => prev + 1);
+      });
+
+      channel.bind('pusher:member_removed', () => {
+        setOnlineMembers((prev) => Math.max(0, prev - 1));
       });
     }
 
@@ -193,7 +207,14 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
 
         <div className="flex-1">
           <h2 className="text-lg font-bold text-white">{group.name}</h2>
-          <p className="text-sm text-white/80">{group.members_count || 0} أعضاء</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-white/80">{group.members_count || 0} أعضاء</p>
+            <span className="text-white/60">•</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <p className="text-sm text-white/80">{onlineMembers} متصل الآن</p>
+            </div>
+          </div>
         </div>
       </div>
 

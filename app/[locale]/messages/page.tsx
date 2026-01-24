@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import MessengerInstagram from '@/components/community/MessengerInstagram';
+import WhatsAppMessenger from '@/components/community/WhatsAppMessenger';
 import SecurityLoading from '@/components/SecurityLoading';
 import { ArrowLeft } from 'lucide-react';
 
@@ -68,7 +68,7 @@ function MessagesContent() {
 
       {/* Messenger Component - Full Page */}
       <div className="flex-1 overflow-hidden">
-        <MessengerInstagram 
+        <WhatsAppMessenger 
           currentUser={currentUser} 
           initialUserId={userId ? parseInt(userId) : undefined}
           fullPage={true}

@@ -1,0 +1,13 @@
+# WhatsApp Background
+
+To add the WhatsApp background pattern, you can:
+
+1. Download the official WhatsApp background from:
+   https://web.whatsapp.com/img/bg-chat-tile-light_686b98c9fdffef3f63127759e2057750.png
+
+2. Or create a simple pattern using CSS:
+   - Light gray with subtle pattern
+   - Color: #efeae2
+
+The background is already set in the WhatsAppMessenger component.
+If you want to use an actual image, save it as /public/whatsapp-bg.png
