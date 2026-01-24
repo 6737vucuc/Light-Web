@@ -9,12 +9,66 @@ import { eq } from 'drizzle-orm';
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 import { createToken } from '@/lib/auth/jwt';
 import { sendVerificationCode, generateVerificationCode } from '@/lib/utils/email';
-import { verificationCodes } from '@/lib/db/schema';
+import { verificationCodes, vpnLogs } from '@/lib/db/schema';
+import { detectVPN, shouldBlockConnection, getBlockReason } from '@/lib/utils/vpn-detection';
 
 export async function POST(request: NextRequest) {
   try {
-    // VPN Detection temporarily disabled for debugging
-    // TODO: Re-enable after fixing JSON response issue
+    // Get client IP
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown';
+    
+    // VPN Detection - Run in background after response is sent
+    // This ensures registration response is not delayed
+    const performVPNDetection = async () => {
+      try {
+        const vpnResult = await detectVPN(clientIp);
+        if (vpnResult) {
+          const shouldBlock = shouldBlockConnection(vpnResult);
+          
+          // Log VPN detection
+          try {
+            await db.insert(vpnLogs).values({
+              userId: null,
+              ipAddress: vpnResult.ipAddress || clientIp,
+              country: vpnResult.country || null,
+              countryCode: vpnResult.countryCode || null,
+              city: vpnResult.city || null,
+              region: vpnResult.region || null,
+              isp: vpnResult.isp || null,
+              organization: vpnResult.organization || null,
+              asn: vpnResult.asn || null,
+              isVPN: vpnResult.isVPN || false,
+              isTor: vpnResult.isTor || false,
+              isProxy: vpnResult.isProxy || false,
+              isHosting: vpnResult.isHosting || false,
+              isAnonymous: vpnResult.isAnonymous || false,
+              riskScore: vpnResult.riskScore || 0,
+              threatLevel: vpnResult.threatLevel || 'low',
+              detectionService: vpnResult.detectionService || 'unknown',
+              detectionData: vpnResult.detectionData ? JSON.stringify(vpnResult.detectionData) : null,
+              isBlocked: shouldBlock,
+              blockReason: shouldBlock ? getBlockReason(vpnResult) : null,
+              userAgent: request.headers.get('user-agent') || null,
+              requestPath: '/api/auth/register',
+              requestMethod: 'POST',
+            });
+            
+            if (shouldBlock) {
+              console.warn(`VPN/Proxy detected for IP ${clientIp} - Risk: ${vpnResult.riskScore}`);
+            }
+          } catch (logError) {
+            console.error('VPN log insert failed:', logError);
+          }
+        }
+      } catch (vpnError) {
+        console.error('VPN detection failed:', vpnError);
+      }
+    };
+    
+    // Start VPN detection in background (don't await)
+    performVPNDetection().catch(err => console.error('Background VPN detection error:', err));
     
     // Apply strict rate limiting for registration
     const clientId = getClientIdentifier(request);
