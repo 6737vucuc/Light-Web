@@ -34,10 +34,27 @@ function LoginForm() {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-
+      // Check if response is ok first
       if (!response.ok) {
-        throw new Error(data.error || data.message || 'Login failed');
+        // Try to parse error JSON
+        let errorMessage = 'Login failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || 'Login failed';
+        } catch (jsonError) {
+          // If JSON parsing fails, use status text
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse success response
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse success response:', jsonError);
+        throw new Error('Invalid response from server. Please try again.');
       }
 
       // Redirect to specified page or home
