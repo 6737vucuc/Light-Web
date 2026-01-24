@@ -1,31 +1,42 @@
 'use client';
 
-import { Shield, AlertTriangle, XCircle } from 'lucide-react';
+import { Shield, AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export default function VPNBlockedPage() {
   const t = useTranslations();
-  const [countdown, setCountdown] = useState(5);
-  const [canRetry, setCanRetry] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkMessage, setCheckMessage] = useState('');
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          setCanRetry(true);
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
+  const handleRetry = async () => {
+    setIsChecking(true);
+    setCheckMessage('Checking your connection...');
+
+    try {
+      // Check if VPN is still active by making a request to homepage
+      const response = await fetch('/', {
+        method: 'HEAD',
+        cache: 'no-store',
       });
-    }, 1000);
 
-    return () => clearInterval(timer);
-  }, []);
-
-  const handleRetry = () => {
-    window.location.href = '/';
+      // If we get here without redirect, VPN is off
+      if (response.ok || response.redirected) {
+        setCheckMessage('✓ VPN disabled! Redirecting...');
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+      } else {
+        setCheckMessage('⚠ VPN still detected. Please disable it completely.');
+        setIsChecking(false);
+      }
+    } catch (error) {
+      // If fetch fails, try to navigate anyway
+      setCheckMessage('Attempting to access...');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
+    }
   };
 
   return (
@@ -104,11 +115,11 @@ export default function VPNBlockedPage() {
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0 font-bold text-sm">2</span>
-                  <span><strong>Clear your browser cache</strong> - Clear cookies and cached data.</span>
+                  <span><strong>Clear your browser cache</strong> - Clear cookies and cached data (optional).</span>
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0 font-bold text-sm">3</span>
-                  <span><strong>Restart your browser</strong> - Close and reopen your browser completely.</span>
+                  <span><strong>Restart your browser</strong> - Close and reopen your browser completely (optional).</span>
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0 font-bold text-sm">4</span>
@@ -117,19 +128,47 @@ export default function VPNBlockedPage() {
               </ol>
             </div>
 
+            {/* Check Message */}
+            {checkMessage && (
+              <div className={`mb-4 p-4 rounded-lg text-center font-medium ${
+                checkMessage.includes('✓') 
+                  ? 'bg-green-50 text-green-800 border border-green-200' 
+                  : checkMessage.includes('⚠')
+                  ? 'bg-yellow-50 text-yellow-800 border border-yellow-200'
+                  : 'bg-blue-50 text-blue-800 border border-blue-200'
+              }`}>
+                {checkMessage}
+              </div>
+            )}
+
             {/* Retry Button */}
             <div className="text-center">
-              {canRetry ? (
-                <button
-                  onClick={handleRetry}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                >
-                  Retry Access
-                </button>
-              ) : (
-                <div className="bg-gray-100 text-gray-600 px-8 py-4 rounded-lg font-semibold text-lg inline-block">
-                  Please wait {countdown} seconds...
-                </div>
+              <button
+                onClick={handleRetry}
+                disabled={isChecking}
+                className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center mx-auto ${
+                  isChecking
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'
+                }`}
+              >
+                {isChecking ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-5 h-5 mr-2" />
+                    Retry Access
+                  </>
+                )}
+              </button>
+              
+              {!isChecking && (
+                <p className="mt-3 text-sm text-gray-600">
+                  Make sure to disable VPN before clicking
+                </p>
               )}
             </div>
 

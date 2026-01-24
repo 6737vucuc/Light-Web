@@ -34,12 +34,13 @@ function LoginForm() {
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Login failed');
-      }
+      const data = await response.json().catch(() => ({
+        error: 'Invalid response from server'
+      }));
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Login failed');
+      }
 
       // Redirect to specified page or home
       router.push(redirectUrl);
