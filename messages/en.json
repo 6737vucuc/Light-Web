@@ -103,7 +103,17 @@
     "pleaseEnterPassword": "Please enter a password",
     "passwordMin8": "Password must be at least 8 characters long",
     "passwordsDoNotMatchError": "Passwords do not match",
-    "registrationFailed": "Registration failed"
+    "registrationFailed": "Registration failed",
+    "verifyYourEmail": "Verify Your Email",
+    "sentCodeTo": "We've sent a 6-digit code to",
+    "enterAllDigits": "Please enter all 6 digits",
+    "verificationFailed": "Verification failed",
+    "verifying": "Verifying...",
+    "verifyEmailButton": "Verify Email",
+    "didntReceiveCode": "Didn't receive the code?",
+    "resend": "Resend",
+    "emailVerifiedSuccess": "Email verified successfully! Redirecting to login...",
+    "emailAndCodeRequired": "Email and code are required"
   },
   "lessons": {
     "title": "Lessons",

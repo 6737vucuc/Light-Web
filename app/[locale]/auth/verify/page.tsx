@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/lib/contexts/ToastContext';
+import { useTranslations } from 'next-intl';
 
 function VerifyContent() {
+  const t = useTranslations('auth');
   const toast = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,7 +47,7 @@ function VerifyContent() {
     const verificationCode = code.join('');
     
     if (verificationCode.length !== 6) {
-      setError('Please enter all 6 digits');
+        setError(t('enterAllDigits'));
       return;
     }
 
@@ -62,7 +64,7 @@ function VerifyContent() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Verification failed');
+        throw new Error(data.error || t('verificationFailed'));
       }
 
       setSuccess(true);
@@ -90,10 +92,10 @@ function VerifyContent() {
             />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Verify Your Email
+            {t('verifyYourEmail')}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            We've sent a 6-digit code to<br />
+            {t('sentCodeTo')}<br />
             <span className="font-medium text-purple-600">{email}</span>
           </p>
         </div>
@@ -101,13 +103,13 @@ function VerifyContent() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-center">
-              {error}
+              {error || t('emailAndCodeRequired')}
             </div>
           )}
 
           {success && (
             <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-center">
-              Email verified successfully! Redirecting to login...
+              {t('emailVerifiedSuccess')}
             </div>
           )}
 
@@ -121,7 +123,7 @@ function VerifyContent() {
                 value={digit}
                 onChange={(e) => handleChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
-                className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
               />
             ))}
           </div>
@@ -134,16 +136,16 @@ function VerifyContent() {
             {loading ? (
               <>
                 <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
-                Verifying...
+                {t('verifying')}
               </>
             ) : (
-              'Verify Email'
+              t('verifyEmailButton')
             )}
           </button>
 
           <div className="text-center">
             <p className="text-sm text-gray-600">
-              Didn't receive the code?{' '}
+              {t('didntReceiveCode')}{' '}
               <button
                 type="button"
                 className="font-medium text-purple-600 hover:text-purple-500"
@@ -152,7 +154,7 @@ function VerifyContent() {
                   toast.info('Resend functionality coming soon!');
                 }}
               >
-                Resend
+                {t('resend')}
               </button>
             </p>
           </div>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -12,6 +12,8 @@ export default function RegisterPage() {
   const tc = useTranslations('common');
   const tp = useTranslations('profile');
   const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string;
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -157,7 +159,7 @@ export default function RegisterPage() {
       // Check if verification is required
       if (data.requiresVerification) {
         // Redirect to verification page
-        router.push(`/auth/verify?email=${encodeURIComponent(formData.email)}`);
+        router.push(`/${locale}/auth/verify?email=${encodeURIComponent(formData.email)}`);
       } else {
         // If no verification needed, redirect to home
         router.push('/');

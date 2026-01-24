@@ -103,7 +103,17 @@
     "pleaseEnterPassword": "Veuillez entrer un mot de passe",
     "passwordMin8": "Le mot de passe doit contenir au moins 8 caractères",
     "passwordsDoNotMatchError": "Les mots de passe ne correspondent pas",
-    "registrationFailed": "Échec de l'inscription"
+    "registrationFailed": "Échec de l'inscription",
+    "verifyYourEmail": "Vérifier votre Email",
+    "sentCodeTo": "Nous avons envoyé un code à 6 chiffres à",
+    "enterAllDigits": "Veuillez entrer tous les 6 chiffres",
+    "verificationFailed": "Échec de la vérification",
+    "verifying": "Vérification...",
+    "verifyEmailButton": "Vérifier l'Email",
+    "didntReceiveCode": "Vous n'avez pas reçu le code?",
+    "resend": "Renvoyer",
+    "emailVerifiedSuccess": "Email vérifié avec succès! Redirection vers la connexion...",
+    "emailAndCodeRequired": "L'email et le code sont requis"
   },
   "lessons": {
     "title": "Leçons",

@@ -103,7 +103,17 @@
     "pleaseEnterPassword": "Por favor ingresa una contraseña",
     "passwordMin8": "La contraseña debe tener al menos 8 caracteres",
     "passwordsDoNotMatchError": "Las contraseñas no coinciden",
-    "registrationFailed": "Registro fallido"
+    "registrationFailed": "Registro fallido",
+    "verifyYourEmail": "Verifica tu Correo",
+    "sentCodeTo": "Hemos enviado un código de 6 dígitos a",
+    "enterAllDigits": "Por favor ingresa todos los 6 dígitos",
+    "verificationFailed": "Verificación fallida",
+    "verifying": "Verificando...",
+    "verifyEmailButton": "Verificar Correo",
+    "didntReceiveCode": "¿No recibiste el código?",
+    "resend": "Reenviar",
+    "emailVerifiedSuccess": "¡Correo verificado con éxito! Redirigiendo al inicio de sesión...",
+    "emailAndCodeRequired": "El correo y el código son requeridos"
   },
   "lessons": {
     "title": "Lecciones",

@@ -103,7 +103,17 @@
     "pleaseEnterPassword": "الرجاء إدخال كلمة المرور",
     "passwordMin8": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
     "passwordsDoNotMatchError": "كلمات المرور غير متطابقة",
-    "registrationFailed": "فشل التسجيل"
+    "registrationFailed": "فشل التسجيل",
+    "verifyYourEmail": "تحقق من بريدك الإلكتروني",
+    "sentCodeTo": "لقد أرسلنا رمزاً مكوناً من 6 أرقام إلى",
+    "enterAllDigits": "الرجاء إدخال جميع الأرقام الستة",
+    "verificationFailed": "فشل التحقق",
+    "verifying": "جاري التحقق...",
+    "verifyEmailButton": "تحقق من البريد",
+    "didntReceiveCode": "لم تستلم الرمز؟",
+    "resend": "إعادة الإرسال",
+    "emailVerifiedSuccess": "تم التحقق من البريد بنجاح! جاري إعادة التوجيه إلى تسجيل الدخول...",
+    "emailAndCodeRequired": "البريد الإلكتروني والرمز مطلوبان"
   },
   "lessons": {
     "title": "الدروس",
