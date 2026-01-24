@@ -19,60 +19,54 @@ export async function POST(request: NextRequest) {
                      request.headers.get('x-real-ip') || 
                      'unknown';
     
-    // VPN Detection - with complete error isolation
-    let shouldBlock = false;
+    // VPN Detection - Run in background, don't block registration
+    // This prevents VPN API delays from affecting registration response time
+    detectVPN(clientIp)
+      .then(async (vpnResult) => {
+        if (vpnResult) {
+          const shouldBlock = shouldBlockConnection(vpnResult);
+          
+          // Log VPN detection (background, non-blocking)
+          try {
+            await db.insert(vpnLogs).values({
+              userId: null,
+              ipAddress: vpnResult.ipAddress || clientIp,
+              country: vpnResult.country || null,
+              countryCode: vpnResult.countryCode || null,
+              city: vpnResult.city || null,
+              region: vpnResult.region || null,
+              isp: vpnResult.isp || null,
+              organization: vpnResult.organization || null,
+              asn: vpnResult.asn || null,
+              isVPN: vpnResult.isVPN || false,
+              isTor: vpnResult.isTor || false,
+              isProxy: vpnResult.isProxy || false,
+              isHosting: vpnResult.isHosting || false,
+              isAnonymous: vpnResult.isAnonymous || false,
+              riskScore: vpnResult.riskScore || 0,
+              threatLevel: vpnResult.threatLevel || 'low',
+              detectionService: vpnResult.detectionService || 'unknown',
+              detectionData: vpnResult.detectionData ? JSON.stringify(vpnResult.detectionData) : null,
+              isBlocked: shouldBlock,
+              blockReason: shouldBlock ? getBlockReason(vpnResult) : null,
+              userAgent: request.headers.get('user-agent') || null,
+              requestPath: '/api/auth/register',
+              requestMethod: 'POST',
+            });
+            
+            if (shouldBlock) {
+              console.warn(`VPN/Proxy detected for IP ${clientIp} - logged but not blocked during registration`);
+            }
+          } catch (logError) {
+            console.error('VPN log insert failed (non-critical):', logError);
+          }
+        }
+      })
+      .catch((vpnError) => {
+        console.error('VPN detection failed (non-critical):', vpnError);
+      });
     
-    try {
-      const vpnResult = await detectVPN(clientIp);
-      shouldBlock = shouldBlockConnection(vpnResult);
-      
-      // Log VPN detection (non-blocking)
-      try {
-        await db.insert(vpnLogs).values({
-          userId: null,
-          ipAddress: vpnResult.ipAddress || clientIp,
-          country: vpnResult.country || null,
-          countryCode: vpnResult.countryCode || null,
-          city: vpnResult.city || null,
-          region: vpnResult.region || null,
-          isp: vpnResult.isp || null,
-          organization: vpnResult.organization || null,
-          asn: vpnResult.asn || null,
-          isVPN: vpnResult.isVPN || false,
-          isTor: vpnResult.isTor || false,
-          isProxy: vpnResult.isProxy || false,
-          isHosting: vpnResult.isHosting || false,
-          isAnonymous: vpnResult.isAnonymous || false,
-          riskScore: vpnResult.riskScore || 0,
-          threatLevel: vpnResult.threatLevel || 'low',
-          detectionService: vpnResult.detectionService || 'unknown',
-          detectionData: vpnResult.detectionData ? JSON.stringify(vpnResult.detectionData) : null,
-          isBlocked: shouldBlock,
-          blockReason: shouldBlock ? getBlockReason(vpnResult) : null,
-          userAgent: request.headers.get('user-agent') || null,
-          requestPath: '/api/auth/register',
-          requestMethod: 'POST',
-        });
-      } catch (logError) {
-        // Silently fail - logging should never break registration
-        console.error('VPN log insert failed (non-critical):', logError);
-      }
-      
-      // Block if VPN/Tor detected
-      if (shouldBlock) {
-        return NextResponse.json(
-          { 
-            error: getBlockReason(vpnResult),
-            vpnDetected: true,
-            threatLevel: vpnResult.threatLevel,
-          },
-          { status: 403 }
-        );
-      }
-    } catch (vpnError) {
-      // Complete failure isolation - VPN detection errors should never break registration
-      console.error('VPN detection completely failed (allowing registration):', vpnError);
-    }
+    // Continue with registration immediately - don't wait for VPN detection
     
     // Apply strict rate limiting for registration
     const clientId = getClientIdentifier(request);

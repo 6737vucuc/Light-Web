@@ -24,74 +24,54 @@ export async function POST(request: NextRequest) {
                      request.headers.get('x-real-ip') || 
                      'unknown';
     
-    // VPN Detection - with complete error isolation
-    let shouldBlock = false;
-    let vpnWarning = null;
-    
-    try {
-      const vpnResult = await detectVPN(clientIp);
-      shouldBlock = shouldBlockConnection(vpnResult);
-      
-      // Log VPN detection (non-blocking)
-      try {
-        await db.insert(vpnLogs).values({
-          userId: null,
-          ipAddress: vpnResult.ipAddress || clientIp,
-          country: vpnResult.country || null,
-          countryCode: vpnResult.countryCode || null,
-          city: vpnResult.city || null,
-          region: vpnResult.region || null,
-          isp: vpnResult.isp || null,
-          organization: vpnResult.organization || null,
-          asn: vpnResult.asn || null,
-          isVPN: vpnResult.isVPN || false,
-          isTor: vpnResult.isTor || false,
-          isProxy: vpnResult.isProxy || false,
-          isHosting: vpnResult.isHosting || false,
-          isAnonymous: vpnResult.isAnonymous || false,
-          riskScore: vpnResult.riskScore || 0,
-          threatLevel: vpnResult.threatLevel || 'low',
-          detectionService: vpnResult.detectionService || 'unknown',
-          detectionData: vpnResult.detectionData ? JSON.stringify(vpnResult.detectionData) : null,
-          isBlocked: shouldBlock,
-          blockReason: shouldBlock ? getBlockReason(vpnResult) : null,
-          userAgent: request.headers.get('user-agent') || null,
-          requestPath: '/api/auth/login',
-          requestMethod: 'POST',
-        });
-      } catch (logError) {
-        // Silently fail - logging should never break login
-        console.error('VPN log insert failed (non-critical):', logError);
-      }
-      
-      // Block if VPN/Tor detected
-      if (shouldBlock) {
-        return NextResponse.json(
-          { 
-            error: getBlockReason(vpnResult),
-            vpnDetected: true,
-            threatLevel: vpnResult.threatLevel,
-          },
-          { 
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
+    // VPN Detection - Run in background, don't block login
+    // This prevents VPN API delays from affecting login response time
+    detectVPN(clientIp)
+      .then(async (vpnResult) => {
+        if (vpnResult) {
+          const shouldBlock = shouldBlockConnection(vpnResult);
+          
+          // Log VPN detection (background, non-blocking)
+          try {
+            await db.insert(vpnLogs).values({
+              userId: null,
+              ipAddress: vpnResult.ipAddress || clientIp,
+              country: vpnResult.country || null,
+              countryCode: vpnResult.countryCode || null,
+              city: vpnResult.city || null,
+              region: vpnResult.region || null,
+              isp: vpnResult.isp || null,
+              organization: vpnResult.organization || null,
+              asn: vpnResult.asn || null,
+              isVPN: vpnResult.isVPN || false,
+              isTor: vpnResult.isTor || false,
+              isProxy: vpnResult.isProxy || false,
+              isHosting: vpnResult.isHosting || false,
+              isAnonymous: vpnResult.isAnonymous || false,
+              riskScore: vpnResult.riskScore || 0,
+              threatLevel: vpnResult.threatLevel || 'low',
+              detectionService: vpnResult.detectionService || 'unknown',
+              detectionData: vpnResult.detectionData ? JSON.stringify(vpnResult.detectionData) : null,
+              isBlocked: shouldBlock,
+              blockReason: shouldBlock ? getBlockReason(vpnResult) : null,
+              userAgent: request.headers.get('user-agent') || null,
+              requestPath: '/api/auth/login',
+              requestMethod: 'POST',
+            });
+            
+            if (shouldBlock) {
+              console.warn(`VPN/Proxy detected for IP ${clientIp} - logged but not blocked during login`);
+            }
+          } catch (logError) {
+            console.error('VPN log insert failed (non-critical):', logError);
           }
-        );
-      }
-      
-      // Set warning for response if VPN detected but not blocked
-      if (vpnResult.isVPN || vpnResult.isProxy) {
-        vpnWarning = {
-          detected: true,
-          message: 'VPN or Proxy detected. Please disable it for better security.',
-          type: vpnResult.isTor ? 'tor' : vpnResult.isVPN ? 'vpn' : 'proxy',
-          riskScore: vpnResult.riskScore,
-        };
-      }
-    } catch (vpnError) {
-      // Complete failure isolation - VPN detection errors should never break login
-      console.error('VPN detection completely failed (allowing login):', vpnError);
-    }
+        }
+      })
+      .catch((vpnError) => {
+        console.error('VPN detection failed (non-critical):', vpnError);
+      });
+    
+    // Continue with login immediately - don't wait for VPN detection
     
     // Apply rate limiting - strict for login attempts
     const clientId = getClientIdentifier(request);
@@ -280,7 +260,6 @@ export async function POST(request: NextRequest) {
           avatar: user.avatar,
           isAdmin: user.isAdmin,
         },
-        vpnWarning: vpnWarning,
       },
       {
         status: 200,
