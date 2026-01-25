@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -11,6 +12,14 @@ interface Toast {
   duration?: number;
 }
 
+interface ConfirmOptions {
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  type?: 'danger' | 'warning' | 'info' | 'success';
+}
+
 interface ToastContextType {
   toasts: Toast[];
   showToast: (message: string, type?: ToastType, duration?: number) => void;
@@ -19,12 +28,18 @@ interface ToastContextType {
   warning: (message: string, duration?: number) => void;
   info: (message: string, duration?: number) => void;
   removeToast: (id: string) => void;
+  confirm: (options: ConfirmOptions) => Promise<boolean>;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    options: ConfirmOptions;
+    resolve: (value: boolean) => void;
+  } | null>(null);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
@@ -75,6 +90,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [showToast]
   );
 
+  const confirm = useCallback(
+    (options: ConfirmOptions): Promise<boolean> => {
+      return new Promise((resolve) => {
+        setConfirmDialog({
+          isOpen: true,
+          options,
+          resolve,
+        });
+      });
+    },
+    []
+  );
+
+  const handleConfirmClose = useCallback((result: boolean) => {
+    if (confirmDialog) {
+      confirmDialog.resolve(result);
+      setConfirmDialog(null);
+    }
+  }, [confirmDialog]);
+
   return (
     <ToastContext.Provider
       value={{
@@ -85,9 +120,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         warning,
         info,
         removeToast,
+        confirm,
       }}
     >
       {children}
+      {confirmDialog && (
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          title={confirmDialog.options.title}
+          message={confirmDialog.options.message}
+          confirmText={confirmDialog.options.confirmText}
+          cancelText={confirmDialog.options.cancelText}
+          type={confirmDialog.options.type}
+          onConfirm={() => handleConfirmClose(true)}
+          onCancel={() => handleConfirmClose(false)}
+        />
+      )}
     </ToastContext.Provider>
   );
 }

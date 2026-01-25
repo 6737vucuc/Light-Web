@@ -166,7 +166,15 @@ function LessonsManager() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this lesson?')) return;
+    const confirmed = await toast.confirm({
+      title: 'Delete Lesson',
+      message: 'Are you sure you want to delete this lesson? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'danger',
+    });
+    
+    if (!confirmed) return;
 
     setLoading(true);
     try {
@@ -462,7 +470,13 @@ function VersesManager() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this verse?')) return;
+    const confirmed = await toast.confirm({
+      title: 'Delete Verse',
+      message: 'Are you sure you want to delete this daily verse?',
+      confirmText: 'Delete',
+      type: 'danger',
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     try {
@@ -766,7 +780,13 @@ function TestimoniesManager() {
   };
 
   const deleteTestimony = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this testimony?')) return;
+    const confirmed = await toast.confirm({
+      title: 'Delete Testimony',
+      message: 'Are you sure you want to delete this testimony?',
+      confirmText: 'Delete',
+      type: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/testimonies/${id}`, {
@@ -879,7 +899,13 @@ function SupportManager() {
   };
 
   const deleteRequest = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this request?')) return;
+    const confirmed = await toast.confirm({
+      title: 'Delete Support Request',
+      message: 'Are you sure you want to delete this support request?',
+      confirmText: 'Delete',
+      type: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/support/${id}`, {
@@ -1030,11 +1056,15 @@ function UsersManager() {
 
   const toggleBlockUser = async (userId: number, currentStatus: boolean) => {
     const action = currentStatus ? 'unban' : 'ban';
-    const message = currentStatus 
-      ? 'Are you sure you want to unban this user?' 
-      : 'Are you sure you want to ban this user? They will receive an email notification.';
-    
-    if (!confirm(message)) return;
+    const confirmed = await toast.confirm({
+      title: currentStatus ? 'Unban User' : 'Ban User',
+      message: currentStatus 
+        ? 'Are you sure you want to unban this user?' 
+        : 'Are you sure you want to ban this user? They will receive an email notification.',
+      confirmText: currentStatus ? 'Unban' : 'Ban',
+      type: currentStatus ? 'warning' : 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const response = await fetch('/api/admin/ban-user', {
@@ -1064,7 +1094,13 @@ function UsersManager() {
 
   const toggleAdminStatus = async (userId: number, currentStatus: boolean) => {
     const action = currentStatus ? 'remove admin from' : 'make admin';
-    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+    const confirmed = await toast.confirm({
+      title: currentStatus ? 'Remove Admin' : 'Make Admin',
+      message: `Are you sure you want to ${action} this user?`,
+      confirmText: currentStatus ? 'Remove Admin' : 'Make Admin',
+      type: 'warning',
+    });
+    if (!confirmed) return;
 
     try {
       const response = await fetch('/api/admin/make-admin', {
@@ -1091,7 +1127,13 @@ function UsersManager() {
   };
 
   const deleteUser = async (userId: number) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    const confirmed = await toast.confirm({
+      title: 'Delete User',
+      message: 'Are you sure you want to delete this user? This action cannot be undone and all their data will be permanently removed.',
+      confirmText: 'Delete',
+      type: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/users?id=${userId}`, {
@@ -1522,7 +1564,13 @@ function GroupsManager() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this group?')) return;
+    const confirmed = await toast.confirm({
+      title: 'Delete Group',
+      message: 'Are you sure you want to delete this group? All members will be removed.',
+      confirmText: 'Delete',
+      type: 'danger',
+    });
+    if (!confirmed) return;
 
     setLoading(true);
     try {
@@ -1735,7 +1783,13 @@ function ReportsManager() {
   };
 
   const handleBanUser = async (userId: number, reason: string) => {
-    if (!confirm('Are you sure you want to ban this user?')) return;
+    const confirmed = await toast.confirm({
+      title: 'Ban User from Group',
+      message: 'Are you sure you want to ban this user from the group?',
+      confirmText: 'Ban',
+      type: 'danger',
+    });
+    if (!confirmed) return;
 
     const duration = prompt('Enter ban duration in days (leave empty for permanent):');
     
