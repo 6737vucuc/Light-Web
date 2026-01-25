@@ -1030,26 +1030,31 @@ function UsersManager() {
 
   const toggleBlockUser = async (userId: number, currentStatus: boolean) => {
     const action = currentStatus ? 'unban' : 'ban';
-    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+    const message = currentStatus 
+      ? 'Are you sure you want to unban this user?' 
+      : 'Are you sure you want to ban this user? They will receive an email notification.';
+    
+    if (!confirm(message)) return;
 
     try {
-      const bannedUntil = action === 'ban' ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : null;
-      
-      const response = await fetch('/api/admin/users', {
-        method: 'PUT',
+      const response = await fetch('/api/admin/ban-user', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId, 
-          action,
-          bannedUntil 
+          ban: !currentStatus,
+          reason: 'Violation of Terms of Service',
+          duration: 365 // 1 year
         }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        toast.success(`User ${action}ned successfully`);
+        toast.success(data.message);
         fetchUsers();
       } else {
-        toast.error(`Failed to ${action} user`);
+        toast.error(data.error || `Failed to ${action} user`);
       }
     } catch (error) {
       console.error(`${action} user error:`, error);
