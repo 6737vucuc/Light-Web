@@ -428,3 +428,115 @@ export async function sendSuspiciousActivityAlert(
   
   console.log('Suspicious activity email sent to:', userEmail);
 }
+
+// Send Account Banned Alert
+export async function sendAccountBannedAlert(
+  userName: string,
+  userEmail: string,
+  reason: string,
+  duration?: number,
+  bannedUntil?: Date
+) {
+  const transporter = createSecurityTransporter();
+  
+  const isPermanent = !duration || !bannedUntil;
+  const durationText = isPermanent 
+    ? 'permanently' 
+    : `for ${duration} day${duration > 1 ? 's' : ''}`;
+  
+  const untilText = bannedUntil 
+    ? new Date(bannedUntil).toLocaleString('en-US', {
+        dateStyle: 'full',
+        timeStyle: 'short'
+      })
+    : 'N/A';
+  
+  const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <p style="color: #991b1b; margin: 0; font-size: 16px; line-height: 1.6;">
+        <strong>Your account has been ${isPermanent ? 'permanently banned' : 'temporarily suspended'} by an administrator.</strong>
+      </p>
+    </div>
+
+    <h2 style="color: #1f2937; font-size: 20px; margin: 30px 0 15px 0;">📋 Ban Details:</h2>
+    
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">Status:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #dc2626; font-weight: bold;">${isPermanent ? 'PERMANENTLY BANNED' : 'TEMPORARILY SUSPENDED'}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">Reason:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${reason || 'Violation of Terms of Service'}</td>
+      </tr>
+      ${!isPermanent ? `
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">Duration:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${duration} day${duration > 1 ? 's' : ''}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">Ban Expires:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${untilText}</td>
+      </tr>
+      ` : ''}
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">Banned On:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${new Date().toLocaleString()}</td>
+      </tr>
+    </table>
+
+    <h2 style="color: #1f2937; font-size: 20px; margin: 30px 0 15px 0;">⚠️ What This Means:</h2>
+    
+    <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <ul style="color: #991b1b; margin: 0; padding-left: 20px; line-height: 1.8;">
+        <li>You cannot log in to your account</li>
+        <li>Your profile is no longer visible to other users</li>
+        <li>You cannot access any content or features</li>
+        ${isPermanent ? '<li>This ban is permanent and cannot be reversed</li>' : '<li>Your account will be automatically restored after the ban period</li>'}
+      </ul>
+    </div>
+
+    ${!isPermanent ? `
+    <div style="background-color: #fefce8; border-left: 4px solid #eab308; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <p style="color: #854d0e; margin: 0; font-size: 14px; line-height: 1.6;">
+        <strong>📅 Your Account Will Be Restored:</strong><br>
+        After ${duration} day${duration > 1 ? 's' : ''}, on ${untilText}, your account will be automatically reactivated. You'll be able to log in and use all features normally.
+      </p>
+    </div>
+    ` : ''}
+
+    <h2 style="color: #1f2937; font-size: 20px; margin: 30px 0 15px 0;">🤝 Need Help?</h2>
+    
+    <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+      <p style="color: #166534; margin: 0; font-size: 14px; line-height: 1.6;">
+        <strong>If you believe this ban was made in error:</strong><br>
+        Please contact our support team at <a href="mailto:support@lightoflife.com" style="color: #16a34a; text-decoration: underline;">support@lightoflife.com</a> with your account details and explain your situation. We'll review your case carefully.
+      </p>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL}/support" 
+         style="display: inline-block; background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%); color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+        Contact Support
+      </a>
+    </div>
+  `;
+  
+  const emailHtml = createSecurityEmailTemplate(
+    isPermanent ? 'Account Permanently Banned' : 'Account Temporarily Suspended',
+    '🚫',
+    content,
+    '#dc2626'
+  );
+  
+  await transporter.sendMail({
+    from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+    to: userEmail,
+    subject: `🚫 ${isPermanent ? 'Account Permanently Banned' : 'Account Temporarily Suspended'}`,
+    html: emailHtml,
+  });
+  
+  console.log(`Account ban email sent to: ${userEmail} (${isPermanent ? 'permanent' : `${duration} days`})`);
+}

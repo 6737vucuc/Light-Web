@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
 import { eq } from 'drizzle-orm';
+import { sendAccountBannedAlert } from '@/lib/security-email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,6 +66,23 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(users.id, userId))
       .returning();
+
+    // Send email notification if user was banned
+    if (ban) {
+      try {
+        await sendAccountBannedAlert(
+          targetUser.name,
+          targetUser.email,
+          reason || 'Violation of Terms of Service',
+          duration,
+          bannedUntil
+        );
+        console.log(`Ban notification sent to: ${targetUser.email}`);
+      } catch (emailError) {
+        console.error('Failed to send ban notification:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
 
     return NextResponse.json({
       message: ban ? 'User banned successfully' : 'User unbanned successfully',
