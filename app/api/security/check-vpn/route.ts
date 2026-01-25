@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth/session';
+import { verifyAuth } from '@/lib/auth/verify';
 import { detectVPN, logVPNDetection, shouldBlockVPN, getClientIP } from '@/lib/security/vpn-detector';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const user = await verifyAuth(request);
     
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Log detection
     await logVPNDetection(
-      session.user.id,
+      user.userId,
       ipAddress,
       detection,
       userAgent,
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: session.user.id,
-          email: session.user.email,
+          userId: user.userId,
+          email: user.email,
           ipAddress,
           detection,
         }),
