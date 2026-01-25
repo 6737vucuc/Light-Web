@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Send, Image as ImageIcon, Smile, MoreVertical, Trash2, MessageCircle, Flag } from 'lucide-react';
+import { ArrowLeft, Send, Image as ImageIcon, Smile, MoreVertical, Trash2, MessageCircle, Flag, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
@@ -22,6 +22,9 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [onlineMembers, setOnlineMembers] = useState<number>(0);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportingMessage, setReportingMessage] = useState<any>(null);
+  const [reportReason, setReportReason] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,6 +192,41 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
     });
   };
 
+  const handleReportMessage = (message: any) => {
+    setReportingMessage(message);
+    setShowReportModal(true);
+  };
+
+  const submitReport = async () => {
+    if (!reportReason.trim() || !reportingMessage) return;
+
+    try {
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId: reportingMessage.id,
+          reportedUserId: reportingMessage.user_id,
+          groupId: group.id,
+          reason: reportReason,
+        }),
+      });
+
+      if (response.ok) {
+        alert('تم إرسال البلاغ بنجاح. سيتم مراجعته من قبل الإدارة.');
+        setShowReportModal(false);
+        setReportingMessage(null);
+        setReportReason('');
+      } else {
+        const data = await response.json();
+        alert(data.error || 'فشل إرسال البلاغ');
+      }
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      alert('حدث خطأ أثناء إرسال البلاغ');
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden h-[calc(100vh-200px)] md:h-[600px] flex flex-col">
       {/* Chat Header */}
@@ -332,13 +370,21 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
                       </span>
                     </div>
 
-                    {/* Delete button for own messages */}
-                    {isOwnMessage && (
+                    {/* Action buttons */}
+                    {isOwnMessage ? (
                       <button
                         onClick={() => deleteMessage(message.id)}
                         className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all"
                       >
                         <Trash2 className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleReportMessage(message)}
+                        className="absolute -right-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-all"
+                        title="Report inappropriate message"
+                      >
+                        <Flag className="w-4 h-4" />
                       </button>
                     )}
                   </div>
@@ -409,6 +455,74 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
           </button>
         </div>
       </div>
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">إبلاغ عن رسالة</h3>
+              <button
+                onClick={() => {
+                  setShowReportModal(false);
+                  setReportingMessage(null);
+                  setReportReason('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">الرسالة:</p>
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <p className="text-sm text-gray-900">{reportingMessage?.content}</p>
+                <p className="text-xs text-gray-500 mt-1">من: {reportingMessage?.user_name}</p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                سبب الإبلاغ:
+              </label>
+              <textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder="اشرح سبب إبلاغك عن هذه الرسالة..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                rows={4}
+              />
+            </div>
+
+            <div className="bg-yellow-50 border-r-4 border-yellow-500 p-3 rounded-lg mb-4">
+              <p className="text-xs text-yellow-900">
+                <strong>ملاحظة:</strong> سيتم مراجعة البلاغ من قبل فريق الإدارة واتخاذ الإجراء المناسب.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowReportModal(false);
+                  setReportingMessage(null);
+                  setReportReason('');
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={submitReport}
+                disabled={!reportReason.trim()}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg hover:from-red-700 hover:to-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                إرسال البلاغ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
