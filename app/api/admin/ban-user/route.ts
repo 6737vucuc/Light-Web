@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
           targetUser.email,
           reason || 'Violation of Terms of Service',
           duration,
-          bannedUntil
+          bannedUntil || undefined
         );
         console.log(`Ban notification sent to: ${targetUser.email}`);
       } catch (emailError) {
