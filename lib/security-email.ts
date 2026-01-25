@@ -109,7 +109,13 @@ export async function sendVPNAlert(
   ipAddress: string,
   detection: any
 ) {
-  const transporter = createSecurityTransporter();
+  try {
+    console.log('Creating security email transporter...');
+    console.log('VPN_EMAIL_SERVICE:', process.env.VPN_EMAIL_SERVICE || 'not set');
+    console.log('VPN_EMAIL_USER:', process.env.VPN_EMAIL_USER ? 'set' : 'not set');
+    console.log('VPN_EMAIL_PASS:', process.env.VPN_EMAIL_PASS ? 'set' : 'not set');
+    
+    const transporter = createSecurityTransporter();
   
   const content = `
     <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
@@ -185,14 +191,22 @@ export async function sendVPNAlert(
     '#dc2626'
   );
   
-  await transporter.sendMail({
-    from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
-    to: userEmail,
-    subject: '⚠️ Security Warning - VPN/Proxy Detected',
-    html: emailHtml,
-  });
-  
-  console.log('VPN warning email sent to:', userEmail);
+    console.log('Attempting to send email to:', userEmail);
+    const info = await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: '⚠️ Security Warning - VPN/Proxy Detected',
+      html: emailHtml,
+    });
+    
+    console.log('VPN warning email sent successfully!');
+    console.log('Message ID:', info.messageId);
+    console.log('Response:', info.response);
+  } catch (error) {
+    console.error('Error in sendVPNAlert:');
+    console.error('Error details:', error);
+    throw error;
+  }
 }
 
 // Send Account Lockout Alert
@@ -334,14 +348,23 @@ export async function sendPasswordChangedAlert(
     '#16a34a'
   );
   
-  await transporter.sendMail({
-    from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
-    to: userEmail,
-    subject: '🔑 Password Changed Successfully',
-    html: emailHtml,
-  });
-  
-  console.log('Password changed email sent to:', userEmail);
+    console.log('Attempting to send email to:', userEmail);
+    const info = await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: '⚠️ Security Warning - VPN/Proxy Detected',
+      html: emailHtml,
+    });
+    
+    console.log('VPN warning email sent successfully!');
+    console.log('Message ID:', info.messageId);
+  } catch (error: any) {
+    console.error('❌ Error in sendVPNAlert:');
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Full error:', error);
+    throw error;
+  }
 }
 
 // Send Suspicious Activity Alert

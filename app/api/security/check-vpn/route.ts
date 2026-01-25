@@ -34,19 +34,30 @@ export async function POST(request: NextRequest) {
 
     // If VPN detected, trigger email notification
     if (blocked) {
-      // Send email notification (will be handled by admin dashboard or cron job)
-      await fetch(`${request.nextUrl.origin}/api/admin/vpn-alerts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.userId,
-          email: user.email,
-          ipAddress,
-          detection,
-        }),
-      }).catch(err => console.error('Failed to send VPN alert:', err));
+      try {
+        console.log('Sending VPN alert email to:', user.email);
+        const emailResponse = await fetch(`${request.nextUrl.origin}/api/admin/vpn-alerts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: user.userId,
+            email: user.email,
+            ipAddress,
+            detection,
+          }),
+        });
+        
+        const emailResult = await emailResponse.json();
+        if (emailResponse.ok) {
+          console.log('VPN alert email sent successfully:', emailResult);
+        } else {
+          console.error('Failed to send VPN alert email:', emailResult);
+        }
+      } catch (err) {
+        console.error('Error sending VPN alert:', err);
+      }
     }
 
     return NextResponse.json({
