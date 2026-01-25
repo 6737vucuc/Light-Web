@@ -1398,27 +1398,27 @@ function VPNDetectionManager() {
                 </tr>
               ) : (
                 logs.map((log) => (
-                  <tr key={log.id} className={log.wasBlocked ? 'bg-red-50' : ''}>
+                  <tr key={log.id} className={log.isBlocked ? 'bg-red-50' : ''}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(log.createdAt)}
+                      {formatDate(log.detectedAt || log.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                      {log.ip}
+                      {log.ipAddress || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getConnectionBadge(log)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {log.service || '-'}
+                      {log.isp || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {log.city && log.country ? `${log.city}, ${log.country}` : log.country || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                      {log.org || '-'}
+                      {log.organization || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {log.wasBlocked ? (
+                      {log.isBlocked ? (
                         <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded flex items-center gap-1 w-fit">
                           <Ban className="w-3 h-3" />
                           Blocked
