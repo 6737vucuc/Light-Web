@@ -1,15 +1,50 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, BookOpen, Users, Shield } from 'lucide-react';
 import DailyVerse from '@/components/verses/DailyVerse';
 import DailyVerseSection from '@/components/verses/DailyVerseSection';
+import VPNWarningModal from '@/components/VPNWarningModal';
 import { useTranslations } from 'next-intl';
 
 export default function Home() {
   const t = useTranslations('home');
   const tCommon = useTranslations('common');
+  const [showVPNWarning, setShowVPNWarning] = useState(false);
+  const [vpnDetection, setVpnDetection] = useState<any>(null);
+  const [isCheckingVPN, setIsCheckingVPN] = useState(false);
+
+  useEffect(() => {
+    checkVPNStatus();
+  }, []);
+
+  const checkVPNStatus = async () => {
+    if (isCheckingVPN) return;
+    
+    setIsCheckingVPN(true);
+    try {
+      const response = await fetch('/api/security/check-vpn', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.blocked) {
+          setVpnDetection(data.detection);
+          setShowVPNWarning(true);
+        }
+      }
+    } catch (error) {
+      console.error('VPN check error:', error);
+    } finally {
+      setIsCheckingVPN(false);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -85,6 +120,15 @@ export default function Home() {
           </p>
         </div>
       </section>
+
+      {/* VPN Warning Modal */}
+      {showVPNWarning && vpnDetection && (
+        <VPNWarningModal
+          isOpen={showVPNWarning}
+          onClose={() => setShowVPNWarning(false)}
+          detection={vpnDetection}
+        />
+      )}
     </div>
   );
 }
