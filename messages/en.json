@@ -28,6 +28,35 @@
     "no": "No",
     "country": "Country"
   },
+  "vpn": {
+    "warning": "Security Warning",
+    "detected": "VPN/Proxy Detected",
+    "detectedUsing": "Access attempt detected using:",
+    "whyBlocked": "Why do we block VPN?",
+    "reason1": "Privacy Protection: We protect all users' privacy from suspicious activities",
+    "reason2": "Fraud Prevention: VPNs are sometimes used in fraudulent activities",
+    "reason3": "Security: We ensure a safe environment for all community members",
+    "reason4": "Compliance: We adhere to international security and privacy standards",
+    "whatToDo": "What should you do?",
+    "step1": "Turn off VPN/Proxy: Disable any VPN or Proxy service",
+    "step2": "Restart your browser: Close and reopen your browser",
+    "step3": "Sign in again: Try accessing your account without VPN",
+    "warningNote": "Continuing to attempt access using VPN may result in temporary account suspension to protect platform security. A warning email has been sent to your email address.",
+    "understood": "I understand, I will turn off VPN",
+    "backToSite": "Back to Site"
+  },
+  "reports": {
+    "title": "Report Message",
+    "message": "Message:",
+    "from": "From:",
+    "reason": "Report Reason:",
+    "reasonPlaceholder": "Explain why you are reporting this message...",
+    "note": "The report will be reviewed by the admin team and appropriate action will be taken.",
+    "submit": "Submit Report",
+    "success": "Report submitted successfully. It will be reviewed by the admin.",
+    "error": "Failed to submit report",
+    "reportButton": "Report"
+  },
   "navbar": {
     "lightOfLife": "Light of Life"
   },

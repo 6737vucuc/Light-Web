@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { X, Shield, AlertTriangle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface VPNWarningModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface VPNWarningModalProps {
 
 export default function VPNWarningModal({ isOpen, onClose, detection }: VPNWarningModalProps) {
   const [show, setShow] = useState(false);
+  const t = useTranslations('vpn');
 
   useEffect(() => {
     if (isOpen) {
@@ -49,8 +51,8 @@ export default function VPNWarningModal({ isOpen, onClose, detection }: VPNWarni
             </div>
           </div>
           
-          <h2 className="text-3xl font-bold text-center">تحذير أمني</h2>
-          <p className="text-center text-red-100 mt-2">تم اكتشاف استخدام VPN/Proxy</p>
+          <h2 className="text-3xl font-bold text-center">{t('warning')}</h2>
+          <p className="text-center text-red-100 mt-2">{t('detected')}</p>
         </div>
 
         {/* Content */}
@@ -58,7 +60,7 @@ export default function VPNWarningModal({ isOpen, onClose, detection }: VPNWarni
           {/* Detection Info */}
           <div className="bg-red-50 border-r-4 border-red-600 p-4 rounded-lg">
             <p className="text-red-900 font-semibold mb-2">
-              ⚠️ تم اكتشاف محاولة الوصول باستخدام:
+              ⚠️ {t('detectedUsing')}
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
               {detection.isVPN && (
@@ -83,43 +85,42 @@ export default function VPNWarningModal({ isOpen, onClose, detection }: VPNWarni
           <div className="space-y-3">
             <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
               <Shield className="w-5 h-5 text-blue-600" />
-              لماذا نمنع استخدام VPN؟
+              {t('whyBlocked')}
             </h3>
             <ul className="space-y-2 text-gray-700">
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 mt-1">•</span>
-                <span><strong>حماية الخصوصية:</strong> نحمي خصوصية جميع المستخدمين من الأنشطة المشبوهة</span>
+                <span>{t('reason1')}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 mt-1">•</span>
-                <span><strong>منع الاحتيال:</strong> VPN يُستخدم أحياناً في أنشطة احتيالية</span>
+                <span>{t('reason2')}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 mt-1">•</span>
-                <span><strong>الأمان:</strong> نضمن بيئة آمنة لجميع أعضاء المجتمع</span>
+                <span>{t('reason3')}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 mt-1">•</span>
-                <span><strong>الامتثال:</strong> نلتزم بمعايير الأمان والخصوصية الدولية</span>
+                <span>{t('reason4')}</span>
               </li>
             </ul>
           </div>
 
           {/* What to do */}
           <div className="bg-green-50 border-r-4 border-green-600 p-4 rounded-lg">
-            <h3 className="text-lg font-bold text-green-900 mb-3">✅ ماذا يجب أن تفعل؟</h3>
+            <h3 className="text-lg font-bold text-green-900 mb-3">✅ {t('whatToDo')}</h3>
             <ol className="space-y-2 text-green-900 list-decimal list-inside">
-              <li><strong>أوقف VPN/Proxy:</strong> قم بإيقاف تشغيل أي VPN أو Proxy</li>
-              <li><strong>أعد تشغيل المتصفح:</strong> أغلق المتصفح وافتحه مجدداً</li>
-              <li><strong>سجل الدخول مرة أخرى:</strong> حاول الدخول إلى حسابك بدون VPN</li>
+              <li>{t('step1')}</li>
+              <li>{t('step2')}</li>
+              <li>{t('step3')}</li>
             </ol>
           </div>
 
           {/* Warning */}
           <div className="bg-yellow-50 border-r-4 border-yellow-500 p-4 rounded-lg">
             <p className="text-yellow-900 text-sm">
-              <strong>⚠️ تحذير:</strong> الاستمرار في محاولة الوصول باستخدام VPN قد يؤدي إلى تعليق حسابك مؤقتاً لحماية أمان المنصة. 
-              تم إرسال إيميل تحذيري إلى بريدك الإلكتروني.
+              <strong>⚠️</strong> {t('warningNote')}
             </p>
           </div>
 
@@ -129,7 +130,7 @@ export default function VPNWarningModal({ isOpen, onClose, detection }: VPNWarni
               onClick={handleClose}
               className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105"
             >
-              فهمت، سأقوم بإيقاف VPN
+              {t('understood')}
             </button>
           </div>
         </div>
