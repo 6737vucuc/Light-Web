@@ -116,8 +116,8 @@ export async function sendVPNAlert(
     console.log('VPN_EMAIL_PASS:', process.env.VPN_EMAIL_PASS ? 'set' : 'not set');
     
     const transporter = createSecurityTransporter();
-  
-  const content = `
+    
+    const content = `
     <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
     
     <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
@@ -182,15 +182,15 @@ export async function sendVPNAlert(
         Back to Site
       </a>
     </div>
-  `;
-  
-  const emailHtml = createSecurityEmailTemplate(
-    'Security Warning',
-    '⚠️',
-    content,
-    '#dc2626'
-  );
-  
+    `;
+    
+    const emailHtml = createSecurityEmailTemplate(
+      'Security Warning',
+      '⚠️',
+      content,
+      '#dc2626'
+    );
+    
     console.log('Attempting to send email to:', userEmail);
     const info = await transporter.sendMail({
       from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
@@ -201,10 +201,10 @@ export async function sendVPNAlert(
     
     console.log('VPN warning email sent successfully!');
     console.log('Message ID:', info.messageId);
-    console.log('Response:', info.response);
-  } catch (error) {
-    console.error('Error in sendVPNAlert:');
-    console.error('Error details:', error);
+  } catch (error: any) {
+    console.error('❌ Error in sendVPNAlert:');
+    console.error('Error message:', error.message);
+    console.error('Full error:', error);
     throw error;
   }
 }
