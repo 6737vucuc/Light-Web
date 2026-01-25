@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createToken } from '@/lib/auth/jwt';
-import { sendAccountLockoutNotification } from '@/lib/utils/email';
+import { sendAccountLockoutAlert } from '@/lib/security-email';
 import { detectVPN, shouldBlockConnection, getBlockReason } from '@/lib/utils/vpn-detection';
 import { vpnLogs } from '@/lib/db/schema';
 
@@ -188,11 +188,11 @@ export async function POST(request: NextRequest) {
         
         // Send email notification about account lockout
         try {
-          await sendAccountLockoutNotification(
-            user.email,
+          await sendAccountLockoutAlert(
             user.name,
-            clientId,
-            lockedUntil
+            user.email,
+            MAX_FAILED_ATTEMPTS,
+            LOCKOUT_DURATION_MINUTES
           );
           console.log(`Account lockout notification sent to: ${email}`);
         } catch (emailError) {
