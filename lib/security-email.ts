@@ -348,23 +348,14 @@ export async function sendPasswordChangedAlert(
     '#16a34a'
   );
   
-    console.log('Attempting to send email to:', userEmail);
-    const info = await transporter.sendMail({
-      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
-      to: userEmail,
-      subject: '⚠️ Security Warning - VPN/Proxy Detected',
-      html: emailHtml,
-    });
-    
-    console.log('VPN warning email sent successfully!');
-    console.log('Message ID:', info.messageId);
-  } catch (error: any) {
-    console.error('❌ Error in sendVPNAlert:');
-    console.error('Error message:', error.message);
-    console.error('Error code:', error.code);
-    console.error('Full error:', error);
-    throw error;
-  }
+  await transporter.sendMail({
+    from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+    to: userEmail,
+    subject: '🔑 Password Changed Successfully',
+    html: emailHtml,
+  });
+  
+  console.log('Password changed email sent to:', userEmail);
 }
 
 // Send Suspicious Activity Alert
