@@ -26,19 +26,30 @@ export async function POST(
     `;
 
     if (existingMember) {
+      // Update last_active timestamp for existing member
+      await sql`
+        UPDATE group_members 
+        SET last_active = NOW()
+        WHERE group_id = ${groupId} AND user_id = ${decoded.userId}
+      `;
       return NextResponse.json({ message: 'Already a member' });
     }
 
     // Add user to group
     await sql`
-      INSERT INTO group_members (group_id, user_id, role)
-      VALUES (${groupId}, ${decoded.userId}, 'member')
+      INSERT INTO group_members (group_id, user_id, role, joined_at, last_active)
+      VALUES (${groupId}, ${decoded.userId}, 'member', NOW(), NOW())
     `;
 
-    // Update members count
+    // Update members count with actual count
+    const [countResult] = await sql`
+      SELECT COUNT(DISTINCT user_id) as count FROM group_members 
+      WHERE group_id = ${groupId}
+    `;
+
     await sql`
       UPDATE community_groups 
-      SET members_count = members_count + 1
+      SET members_count = ${countResult.count}
       WHERE id = ${groupId}
     `;
 

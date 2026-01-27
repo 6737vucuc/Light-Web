@@ -131,7 +131,7 @@ export default function Notifications({ currentUser, onClose }: NotificationsPro
               <div className="flex-1 min-w-0">
                 <p className="text-sm">
                   <span className="font-semibold">
-                    {notification.fromUser?.username || notification.fromUser?.name}
+                    {notification.fromUser?.name}
                   </span>{' '}
                   {notification.content}
                 </p>

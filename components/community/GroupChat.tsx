@@ -22,6 +22,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [onlineMembers, setOnlineMembers] = useState<number>(0);
+  const [totalMembers, setTotalMembers] = useState<number>(0);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportingMessage, setReportingMessage] = useState<any>(null);
   const [reportReason, setReportReason] = useState('');
@@ -33,6 +34,10 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   useEffect(() => {
     loadMessages();
     joinGroup();
+    loadGroupStats();
+    
+    // Poll for stats every 30 seconds
+    const statsInterval = setInterval(loadGroupStats, 30000);
 
     // Initialize Pusher
     if (typeof window !== 'undefined') {
@@ -70,6 +75,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
         pusherRef.current.unsubscribe(`group-${group.id}`);
         pusherRef.current.disconnect();
       }
+      clearInterval(statsInterval);
     };
   }, [group.id]);
 
@@ -98,8 +104,22 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   const joinGroup = async () => {
     try {
       await fetch(`/api/groups/${group.id}/join`, { method: 'POST' });
+      loadGroupStats();
     } catch (error) {
       console.error('Error joining group:', error);
+    }
+  };
+
+  const loadGroupStats = async () => {
+    try {
+      const response = await fetch(`/api/groups/${group.id}/stats`);
+      if (response.ok) {
+        const data = await response.json();
+        setTotalMembers(data.totalMembers || 0);
+        setOnlineMembers(data.onlineMembers || 0);
+      }
+    } catch (error) {
+      console.error('Error loading group stats:', error);
     }
   };
 
@@ -246,7 +266,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
         <div className="flex-1">
           <h2 className="text-lg font-bold text-white">{group.name}</h2>
           <div className="flex items-center gap-2">
-            <p className="text-sm text-white/80">{group.members_count || 0} أعضاء</p>
+            <p className="text-sm text-white/80">{totalMembers} أعضاء</p>
             <span className="text-white/60">•</span>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -318,17 +338,6 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
                           <span className="text-sm font-medium">Send Private Message</span>
                         </button>
                         <button
-                          onClick={() => {
-                            // Open report modal
-                            window.location.href = `/community/report?userId=${message.user_id}`;
-                            setShowUserMenu(false);
-                          }}
-                          className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center gap-2 text-gray-700 hover:text-red-600 transition-colors"
-                        >
-                          <Flag className="w-4 h-4" />
-                          <span className="text-sm font-medium">Report User</span>
-                        </button>
-                        <button
                           onClick={() => setShowUserMenu(false)}
                           className="w-full px-4 py-2 text-left hover:bg-gray-50 text-gray-500 text-xs mt-1 border-t border-gray-100"
                         >
@@ -342,7 +351,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
                 {/* Message Bubble */}
                 <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-[70%]`}>
                   {!isOwnMessage && (
-                    <span className="text-xs text-gray-500 mb-1 px-2">{message.user_name}</span>
+                    <span className="text-xs text-gray-900 font-medium mb-1 px-2">{message.user_name}</span>
                   )}
                   
                   <div className="relative group">
@@ -364,8 +373,8 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
                           />
                         </div>
                       )}
-                      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                      <span className={`text-xs mt-1 block ${isOwnMessage ? 'text-white/70' : 'text-gray-500'}`}>
+                      <p className="text-sm whitespace-pre-wrap break-words font-medium">{message.content}</p>
+                      <span className={`text-xs mt-1 block ${isOwnMessage ? 'text-white/70' : 'text-gray-600'}`}>
                         {formatTime(message.created_at)}
                       </span>
                     </div>

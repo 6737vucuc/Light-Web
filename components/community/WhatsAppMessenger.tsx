@@ -257,7 +257,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           >
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
-          <h2 className="text-xl font-semibold text-gray-900">Chats</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Private Messages</h2>
           <div className="flex items-center gap-2">
             <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
               <MoreVertical className="w-5 h-5 text-gray-600" />
@@ -271,7 +271,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search or start new chat"
+              placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-[#f0f2f5] rounded-lg text-sm focus:outline-none"

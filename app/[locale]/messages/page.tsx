@@ -42,22 +42,22 @@ function MessagesContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white">
-      {/* Instagram-style Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div className="h-screen flex flex-col bg-[#f0f2f5]">
+      {/* WhatsApp-style Header */}
+      <div className="bg-[#00a884] text-white sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             {/* Back Button */}
             <button
               onClick={() => router.push('/community')}
-              className="hover:scale-110 transition-transform"
+              className="hover:opacity-80 transition-opacity"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-800" />
+              <ArrowLeft className="w-6 h-6 text-white" />
             </button>
 
             {/* Title */}
-            <h1 className="text-lg font-semibold text-gray-900">
-              {currentUser?.username || 'Messages'}
+            <h1 className="text-lg font-semibold text-white">
+              {currentUser?.name || 'Messages'}
             </h1>
 
             {/* Empty space for balance */}
