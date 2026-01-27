@@ -939,35 +939,38 @@ function SupportManager() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Support Requests</h2>
-        <div className="flex gap-2">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Support Requests</h2>
+      <div className="flex gap-6">
+        {/* Vertical Tabs */}
+        <div className="flex flex-col gap-2 min-w-[200px]">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+              filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             All ({requests.length})
           </button>
           <button
             onClick={() => setFilter('pending')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'pending' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+              filter === 'pending' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             Pending ({requests.filter(r => r.status === 'pending').length})
           </button>
           <button
             onClick={() => setFilter('resolved')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'resolved' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+              filter === 'resolved' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             Resolved ({requests.filter(r => r.status === 'resolved').length})
           </button>
         </div>
-      </div>
+
+        {/* Content Area */}
+        <div className="flex-1">
 
       {filteredRequests.length === 0 ? (
         <div className="text-center py-12 text-gray-900">
@@ -1026,6 +1029,8 @@ function SupportManager() {
           ))}
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1836,43 +1841,46 @@ function ReportsManager() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Reports Management</h2>
-        <div className="flex gap-2">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Reports Management</h2>
+      <div className="flex gap-6">
+        {/* Vertical Tabs */}
+        <div className="flex flex-col gap-2 min-w-[200px]">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+              filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             All
           </button>
           <button
             onClick={() => setFilter('pending')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'pending' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+              filter === 'pending' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             Pending
           </button>
           <button
             onClick={() => setFilter('reviewed')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'reviewed' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+              filter === 'reviewed' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             Reviewed
           </button>
           <button
             onClick={() => setFilter('resolved')}
-            className={`px-4 py-2 rounded-lg ${
-              filter === 'resolved' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+              filter === 'resolved' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             Resolved
           </button>
         </div>
-      </div>
+
+        {/* Content Area */}
+        <div className="flex-1">
 
       {loading ? (
         <div className="flex justify-center py-12">
@@ -1964,6 +1972,8 @@ function ReportsManager() {
           <p>No reports found.</p>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

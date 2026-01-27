@@ -153,7 +153,19 @@ export default function CommunityPage() {
                 {groups.map((group) => (
                   <button
                     key={group.id}
-                    onClick={() => setSelectedGroup(group)}
+                    onClick={async () => {
+                      // Join the group first
+                      try {
+                        const response = await fetch(`/api/groups/${group.id}/join`, {
+                          method: 'POST',
+                        });
+                        if (response.ok) {
+                          setSelectedGroup(group);
+                        }
+                      } catch (error) {
+                        console.error('Error joining group:', error);
+                      }
+                    }}
                     className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group"
                   >
                     {/* Group Header with Color */}
