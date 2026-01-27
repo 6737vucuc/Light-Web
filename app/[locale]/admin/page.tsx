@@ -195,7 +195,7 @@ function LessonsManager() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Manage Lessons</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Manage Lessons</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:from-purple-700 hover:to-blue-600"
@@ -344,7 +344,7 @@ function LessonsManager() {
                     {lesson.religion === 'judaism' && 'Judaism'}
                     {lesson.religion === 'all' && 'All Religions'}
                   </p>
-                  <p className="text-gray-600 mt-2">{lesson.content.substring(0, 150)}...</p>
+                  <p className="text-gray-900 mt-2">{lesson.content.substring(0, 150)}...</p>
                   {lesson.imageUrl && (
                     <img src={lesson.imageUrl} alt={lesson.title} className="mt-2 h-24 rounded" />
                   )}
@@ -497,7 +497,7 @@ function VersesManager() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Manage Daily Verses</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Manage Daily Verses</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:from-purple-700 hover:to-blue-600"
@@ -613,9 +613,9 @@ function VersesManager() {
             <div key={verse.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <p className="text-lg italic">&quot;{verse.verseText}&quot;</p>
-                  <p className="text-sm text-gray-600 mt-2">- {verse.verseReference}</p>
-                  <p className="text-xs text-gray-900 mt-1">
+                  <p className="text-lg italic text-gray-900 font-medium">&quot;{verse.verseText}&quot;</p>
+                  <p className="text-sm text-gray-900 font-medium mt-2">- {verse.verseReference}</p>
+                  <p className="text-xs text-gray-900 font-medium mt-1">
                     Display Date: {new Date(verse.displayDate).toLocaleDateString()}
                   </p>
                   {verse.imageUrl && (
@@ -817,7 +817,7 @@ function TestimoniesManager() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Testimonies</h2>
-        <p className="text-gray-600">Total: {testimonies.length}</p>
+        <p className="text-gray-900 font-medium">Total: {testimonies.length}</p>
       </div>
 
       {testimonies.length === 0 ? (
@@ -1169,7 +1169,7 @@ function UsersManager() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-        <p className="text-gray-600">Total Users: {users.length}</p>
+        <p className="text-gray-900 font-medium">Total Users: {users.length}</p>
       </div>
 
       <div className="mb-6">
@@ -1332,7 +1332,7 @@ function VPNDetectionManager() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">VPN Detection Logs</h2>
-          <p className="text-sm text-gray-600 mt-1">Monitor and track VPN/Proxy connection attempts</p>
+          <p className="text-sm text-gray-900 mt-1">Monitor and track VPN/Proxy connection attempts</p>
         </div>
         <button
           onClick={fetchVPNLogs}
@@ -1713,7 +1713,7 @@ function GroupsManager() {
                   </button>
                 </div>
               </div>
-              <p className="text-gray-600 text-sm mb-3">{group.description}</p>
+              <p className="text-gray-900 text-sm mb-3">{group.description}</p>
               <div className="flex justify-between text-sm text-gray-900">
                 <span>{group.membersCount || 0} members</span>
                 <span>{group.messagesCount || 0} messages</span>
@@ -1980,7 +1980,7 @@ function SecurityDashboardRedirect() {
     <div className="flex flex-col items-center justify-center py-12">
       <Shield className="w-16 h-16 text-purple-600 mb-4 animate-pulse" />
       <h3 className="text-xl font-semibold text-gray-900 mb-2">Redirecting to Security Dashboard...</h3>
-      <p className="text-gray-500">Please wait while we redirect you to the full security dashboard.</p>
+      <p className="text-gray-900">Please wait while we redirect you to the full security dashboard.</p>
     </div>
   );
 }
