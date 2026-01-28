@@ -274,7 +274,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-[#f0f2f5] rounded-lg text-sm focus:outline-none"
+              className="w-full pl-10 pr-4 py-2 bg-[#f0f2f5] rounded-lg text-sm focus:outline-none text-gray-900 placeholder:text-gray-500"
             />
           </div>
         </div>

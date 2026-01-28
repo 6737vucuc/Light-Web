@@ -1899,14 +1899,9 @@ function ReportsManager() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="mb-4">
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Reporter:</p>
-                  <p className="text-gray-900">{report.reporter?.name || 'Unknown'}</p>
-                  <p className="text-sm text-gray-900">{report.reporter?.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">Reported User:</p>
+                  <p className="text-sm font-semibold text-gray-700">Message Author:</p>
                   <p className="text-gray-900">{report.reportedUser?.name || 'Unknown'}</p>
                   <p className="text-sm text-gray-900">{report.reportedUser?.email}</p>
                 </div>
