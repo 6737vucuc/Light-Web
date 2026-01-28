@@ -22,6 +22,10 @@ export async function GET(
     const otherUserId = parseInt(conversationId);
     const userId = user.userId;
 
+    if (isNaN(otherUserId)) {
+      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
+    }
+
     // Get messages between the two users
     const messages = await db
       .select({
@@ -82,12 +86,18 @@ export async function POST(
   try {
     const user = await verifyAuth(request);
     if (!user) {
+      console.error('Send message error: Unauthorized');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { conversationId } = await params;
     const receiverId = parseInt(conversationId);
     const userId = user.userId;
+
+    if (isNaN(receiverId)) {
+      console.error('Send message error: Invalid receiverId', conversationId);
+      return NextResponse.json({ error: 'Invalid receiver ID' }, { status: 400 });
+    }
 
     const body = await request.json();
     const { content, messageType, mediaUrl } = body;
@@ -113,6 +123,10 @@ export async function POST(
       })
       .returning();
 
+    if (!newMessage) {
+      throw new Error('Failed to insert message into database');
+    }
+
     // Get sender info
     const [sender] = await db
       .select({
@@ -125,14 +139,14 @@ export async function POST(
     return NextResponse.json({
       message: {
         ...newMessage,
-        senderName: sender?.name,
-        senderAvatar: sender?.avatar,
+        senderName: sender?.name || 'User',
+        senderAvatar: sender?.avatar || null,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending message:', error);
     return NextResponse.json(
-      { error: 'Failed to send message' },
+      { error: 'Failed to send message: ' + (error.message || 'Unknown error') },
       { status: 500 }
     );
   }

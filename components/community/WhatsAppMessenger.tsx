@@ -49,19 +49,16 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     loadConversations();
     
-    // Initialize Pusher
     if (typeof window !== 'undefined') {
       pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
         cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
       });
 
-      // Subscribe to private user channel for calls
       const userChannel = pusherRef.current.subscribe(`user-${currentUser.id}`);
       userChannel.bind('incoming-call', (data: any) => {
         if (callStatus === 'idle') {
           setCallOtherUser({ name: data.callerName, avatar: data.callerAvatar });
           setCallStatus('incoming');
-          // Store caller's peer ID to accept later
           currentCallRef.current = { peerId: data.callerPeerId };
         }
       });
@@ -71,7 +68,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setTimeout(() => setCallStatus('idle'), 2000);
       });
 
-      // Initialize PeerJS
       const peer = new Peer(`user-${currentUser.id}-${Math.random().toString(36).substr(2, 9)}`);
       peer.on('open', (id) => {
         setPeerId(id);
@@ -79,8 +75,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
 
       peer.on('call', (call) => {
-        // This is handled by the 'incoming-call' Pusher event for UI, 
-        // but we store the call object here
         currentCallRef.current = call;
       });
     }
@@ -201,7 +195,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setIsUploadingImage(false);
       }
 
-      const response = await fetch(`/api/messages/${selectedConversation.other_user_id}`, {
+      // Use other_user_id explicitly to ensure it's a number
+      const targetId = Number(selectedConversation.other_user_id);
+      if (isNaN(targetId)) {
+        throw new Error('Invalid recipient ID');
+      }
+
+      const response = await fetch(`/api/messages/${targetId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -211,37 +211,33 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const data = await response.json();
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
         setSelectedImage(null);
         setImagePreview(null);
         setShowEmojiPicker(false);
         scrollToBottom();
+      } else {
+        alert(data.error || 'Failed to send message');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
+      alert('Error: ' + (error.message || 'Failed to send message'));
     } finally {
       setIsSending(false);
     }
   };
 
-  // Real Voice Call Logic
   const startCall = async () => {
     if (!selectedConversation || !peerId) return;
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
-      
-      setCallOtherUser({ 
-        name: selectedConversation.other_user_name, 
-        avatar: selectedConversation.other_user_avatar 
-      });
+      setCallOtherUser({ name: selectedConversation.other_user_name, avatar: selectedConversation.other_user_avatar });
       setCallStatus('calling');
-
-      // Notify other user via Pusher (this would be a real API call in production)
       await fetch('/api/messages/call/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -252,9 +248,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           callerAvatar: currentUser.avatar
         })
       });
-
     } catch (err) {
-      console.error('Failed to get local stream', err);
       alert('Please allow microphone access to make calls');
     }
   };
@@ -263,21 +257,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
-      
       if (currentCallRef.current && currentCallRef.current.answer) {
         currentCallRef.current.answer(stream);
         setupCallEvents(currentCallRef.current);
         setCallStatus('connected');
       }
     } catch (err) {
-      console.error('Failed to get local stream', err);
       rejectCall();
     }
   };
 
   const rejectCall = () => {
     setCallStatus('idle');
-    // Notify caller via Pusher
     fetch('/api/messages/call/reject', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -286,12 +277,8 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const endCall = () => {
-    if (currentCallRef.current && currentCallRef.current.close) {
-      currentCallRef.current.close();
-    }
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-    }
+    if (currentCallRef.current && currentCallRef.current.close) currentCallRef.current.close();
+    if (localStreamRef.current) localStreamRef.current.getTracks().forEach(track => track.stop());
     setCallStatus('ended');
     setTimeout(() => setCallStatus('idle'), 2000);
   };
@@ -356,14 +343,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   return (
     <div className="flex h-full bg-[#f0f2f5] overflow-hidden relative">
-      {/* Call Overlay */}
-      <CallOverlay 
-        callStatus={callStatus}
-        otherUser={callOtherUser}
-        onAccept={acceptCall}
-        onReject={rejectCall}
-        onEnd={endCall}
-      />
+      <CallOverlay callStatus={callStatus} otherUser={callOtherUser} onAccept={acceptCall} onReject={rejectCall} onEnd={endCall} />
 
       {/* Conversations List */}
       <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[350px] lg:w-[400px] flex-col bg-white border-r border-gray-200 h-full`}>
@@ -372,11 +352,9 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
           <h2 className="text-xl font-semibold text-gray-900">Messages</h2>
-          <div className="relative">
-            <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-              <MoreVertical className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
+          <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+            <MoreVertical className="w-5 h-5 text-gray-600" />
+          </button>
         </div>
 
         <div className="p-2 bg-white border-b border-gray-100">
@@ -447,8 +425,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                 <button onClick={() => setShowHeaderMenu(!showHeaderMenu)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                   <MoreVertical className="w-5 h-5 text-gray-600" />
                 </button>
-                
-                {/* Header Menu */}
                 {showHeaderMenu && (
                   <div ref={headerMenuRef} className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50">
                     <button onClick={() => router.push(`/user-profile/${selectedConversation.other_user_id}`)} className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
@@ -463,39 +439,28 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             </div>
 
             {/* Messages Container */}
-            <div 
-              className="flex-1 overflow-y-auto p-4 space-y-2 relative"
-              style={{ 
-                backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
-                backgroundBlendMode: 'overlay',
-                backgroundColor: '#efeae2'
-              }}
-            >
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 relative" style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', backgroundBlendMode: 'overlay', backgroundColor: '#efeae2' }}>
               {messages.map((message, index) => {
-                const isOwnMessage = message.sender_id === currentUser.id;
-                const showDate = index === 0 || formatDate(messages[index - 1].created_at) !== formatDate(message.created_at);
+                const isOwnMessage = message.senderId === currentUser.id || message.sender_id === currentUser.id;
+                const showDate = index === 0 || formatDate(messages[index - 1].createdAt || messages[index - 1].created_at) !== formatDate(message.createdAt || message.created_at);
                 return (
                   <div key={message.id}>
                     {showDate && (
                       <div className="flex justify-center my-4">
-                        <div className="bg-white/90 px-3 py-1 rounded-lg shadow-sm text-[11px] text-gray-600 font-medium">
-                          {formatDate(message.created_at)}
-                        </div>
+                        <div className="bg-white/90 px-3 py-1 rounded-lg shadow-sm text-[11px] text-gray-600 font-medium">{formatDate(message.createdAt || message.created_at)}</div>
                       </div>
                     )}
                     <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-1.5 shadow-sm relative ${isOwnMessage ? 'bg-[#d9fdd3]' : 'bg-white'}`}>
-                        {message.media_url && (
+                        {message.mediaUrl || message.media_url ? (
                           <div className="relative w-full min-w-[150px] h-48 rounded-lg overflow-hidden mb-1.5">
-                            <Image src={message.media_url} alt="Message image" fill className="object-cover" unoptimized />
+                            <Image src={message.mediaUrl || message.media_url} alt="Message image" fill className="object-cover" unoptimized />
                           </div>
-                        )}
-                        <p className="text-[14.5px] text-black whitespace-pre-wrap break-words leading-normal pr-10">
-                          {message.content}
-                        </p>
+                        ) : null}
+                        <p className="text-[14.5px] text-black whitespace-pre-wrap break-words leading-normal pr-10">{message.content}</p>
                         <div className="absolute bottom-1 right-1.5 flex items-center gap-0.5">
-                          <span className="text-[10px] text-gray-500">{formatTime(message.created_at)}</span>
-                          {isOwnMessage && (message.is_read ? <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /> : <Check className="w-3.5 h-3.5 text-gray-400" />)}
+                          <span className="text-[10px] text-gray-500">{formatTime(message.createdAt || message.created_at)}</span>
+                          {isOwnMessage && (message.isRead || message.is_read ? <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /> : <Check className="w-3.5 h-3.5 text-gray-400" />)}
                         </div>
                       </div>
                     </div>
@@ -509,65 +474,29 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             <div className="bg-[#f0f2f5] p-2 sm:p-3 flex items-center gap-2 sm:gap-3 border-t border-gray-200 z-30 relative">
               <div className="flex items-center">
                 <div className="relative" ref={emojiPickerRef}>
-                  <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                    <Smile className="w-6 h-6 text-gray-600" />
-                  </button>
-                  {showEmojiPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 z-50">
-                      <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.LIGHT} />
-                    </div>
-                  )}
+                  <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><Smile className="w-6 h-6 text-gray-600" /></button>
+                  {showEmojiPicker && <div className="absolute bottom-full left-0 mb-2 z-50"><EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.LIGHT} /></div>}
                 </div>
-                <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                  <Paperclip className="w-6 h-6 text-gray-600" />
-                </button>
+                <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><Paperclip className="w-6 h-6 text-gray-600" /></button>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
-              
               <div className="flex-1 relative">
                 {imagePreview && (
                   <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-lg shadow-lg flex items-center gap-2 border border-gray-200">
-                    <div className="relative w-12 h-12 rounded overflow-hidden">
-                      <Image src={imagePreview} alt="Preview" fill className="object-cover" />
-                    </div>
-                    <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="p-1 bg-gray-100 rounded-full hover:bg-gray-200">
-                      <X className="w-4 h-4 text-gray-600" />
-                    </button>
+                    <div className="relative w-12 h-12 rounded overflow-hidden"><Image src={imagePreview} alt="Preview" fill className="object-cover" /></div>
+                    <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="p-1 bg-gray-100 rounded-full hover:bg-gray-200"><X className="w-4 h-4 text-gray-600" /></button>
                   </div>
                 )}
-                <input
-                  type="text"
-                  placeholder="Type a message"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  className="w-full px-4 py-2.5 bg-white rounded-lg text-[15px] text-black focus:outline-none shadow-sm"
-                />
+                <input type="text" placeholder="Type a message" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} className="w-full px-4 py-2.5 bg-white rounded-lg text-[15px] text-black focus:outline-none shadow-sm" />
               </div>
-
-              <button
-                onClick={sendMessage}
-                disabled={isSending || (!newMessage.trim() && !selectedImage)}
-                className={`p-2.5 rounded-full transition-all flex-shrink-0 ${
-                  newMessage.trim() || selectedImage 
-                    ? 'bg-[#00a884] text-white shadow-md hover:bg-[#008f6f]' 
-                    : 'bg-transparent text-gray-500 hover:bg-gray-200'
-                }`}
-              >
+              <button onClick={sendMessage} disabled={isSending || (!newMessage.trim() && !selectedImage)} className={`p-2.5 rounded-full transition-all flex-shrink-0 ${newMessage.trim() || selectedImage ? 'bg-[#00a884] text-white shadow-md hover:bg-[#008f6f]' : 'bg-transparent text-gray-500 hover:bg-gray-200'}`}>
                 {newMessage.trim() || selectedImage ? <Send className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
               </button>
             </div>
           </>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center bg-[#f8f9fa] p-4">
-            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-4 shadow-lg">
-              <Send className="w-12 h-12 text-purple-600" />
-            </div>
+            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-4 shadow-lg"><Send className="w-12 h-12 text-purple-600" /></div>
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">Light Web Messenger</h2>
             <p className="text-gray-600 text-center max-w-md">Select a conversation to start messaging.</p>
           </div>
