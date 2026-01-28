@@ -314,12 +314,14 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
                 {!isOwnMessage && (
                   <div className="relative">
                     <div 
-                      className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
-                      onClick={() => {
+                      className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-purple-500 hover:scale-110 transition-all duration-200"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (message.user_id !== currentUser.id) {
                           router.push(`/messages?userId=${message.user_id}`);
                         }
                       }}
+                      title="انقر لفتح محادثة خاصة"
                     >
                       {message.user_avatar ? (
                         <Image

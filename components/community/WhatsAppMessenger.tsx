@@ -52,15 +52,15 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     if (!initialUserId || isLoading) return;
     
-    // Check if conversation already exists
+    // Check if conversation already exists with this user
     const existingConv = conversations.find(
-      (conv) => conv.other_user_id === initialUserId || conv.id === initialUserId
+      (conv) => conv.other_user_id === initialUserId
     );
     
     if (existingConv) {
       setSelectedConversation(existingConv);
     } else {
-      // Create new conversation
+      // Create new conversation with the user
       openConversationWithUser(initialUserId);
     }
   }, [initialUserId, conversations, isLoading]);
