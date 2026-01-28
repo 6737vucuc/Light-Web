@@ -48,12 +48,12 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} dir={isRtl ? 'rtl' : 'ltr'}>
-      <body className={`${cairo.variable} ${inter.variable} ${isRtl ? 'font-cairo' : 'font-inter'}`}>
+      <body className={`${cairo.variable} ${inter.variable} ${isRtl ? 'font-cairo' : 'font-inter'} overflow-x-hidden`}>
         <NextIntlClientProvider messages={messages}>
           <ToastProvider>
-            <div className="flex flex-col min-h-screen">
+            <div className="flex flex-col min-h-screen w-full overflow-x-hidden">
               <Navbar />
-              <main className="flex-1 bg-gray-50">
+              <main className="flex-1 bg-gray-50 w-full">
                 {children}
               </main>
               <Footer />
