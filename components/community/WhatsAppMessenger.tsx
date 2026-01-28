@@ -71,7 +71,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation.other_user_id);
-      subscribeToMessages(selectedConversation.id);
+      subscribeToMessages(selectedConversation.other_user_id);
     }
   }, [selectedConversation]);
 
@@ -109,11 +109,16 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     }
   };
 
-  const subscribeToMessages = (conversationId: number) => {
+  const subscribeToMessages = (otherUserId: number) => {
     if (!pusherRef.current) return;
-    const channel = pusherRef.current.subscribe(`conversation-${conversationId}`);
+    // Use otherUserId for channel to match how messages are sent
+    const channel = pusherRef.current.subscribe(`conversation-${otherUserId}`);
     channel.bind('new-message', (data: any) => {
-      setMessages((prev) => [...prev, data.message]);
+      setMessages((prev) => {
+        // Prevent duplicate messages
+        if (prev.find(m => m.id === data.message.id)) return prev;
+        return [...prev, data.message];
+      });
       scrollToBottom();
     });
   };
@@ -154,7 +159,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setIsUploadingImage(false);
       }
 
-      // Corrected API path: /api/messages/[otherUserId]
+      // The API expects otherUserId in the URL
       const response = await fetch(`/api/messages/${selectedConversation.other_user_id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,6 +172,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
       if (response.ok) {
         const data = await response.json();
+        // Manually add message to UI for instant feedback
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
         setSelectedImage(null);
@@ -175,10 +181,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         scrollToBottom();
       } else {
         const errorData = await response.json();
-        console.error('Failed to send message:', errorData.error);
+        alert('Failed to send: ' + (errorData.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      alert('Network error while sending message');
     } finally {
       setIsSending(false);
     }
@@ -219,6 +226,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const handleCall = () => {
+    // Standard tel: protocol for real calling
     window.location.href = `tel:${selectedConversation.other_user_phone || ''}`;
   };
 
