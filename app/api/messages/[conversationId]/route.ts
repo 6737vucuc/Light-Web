@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { directMessages, users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq, or, and, desc } from 'drizzle-orm';
+import { eq, or, and } from 'drizzle-orm';
 import { encrypt, decrypt } from '@/lib/crypto';
 
 export const runtime = 'nodejs';
@@ -118,7 +118,7 @@ export async function POST(
     // Encrypt content before saving to DB
     const encryptedContent = content ? encrypt(content) : '';
 
-    // Insert message using correct field names from schema
+    // Insert message using explicit field mapping to avoid any ORM issues
     const [newMessage] = await db
       .insert(directMessages)
       .values({
@@ -127,16 +127,17 @@ export async function POST(
         content: encryptedContent,
         messageType: messageType || 'text',
         mediaUrl: mediaUrl || null,
-        isEncrypted: true, // Mark as encrypted
+        isEncrypted: true,
         isRead: false,
+        createdAt: new Date(),
       })
       .returning();
 
     if (!newMessage) {
-      throw new Error('Failed to insert message');
+      throw new Error('Failed to insert message into database');
     }
 
-    // Get sender info
+    // Get sender info for immediate UI update
     const [sender] = await db
       .select({
         name: users.name,
@@ -154,9 +155,13 @@ export async function POST(
       },
     });
   } catch (error: any) {
-    console.error('Error sending message:', error);
+    console.error('CRITICAL: Message send failed:', error);
     return NextResponse.json(
-      { error: 'Failed to send message: ' + (error.message || 'Unknown error') },
+      { 
+        error: 'Failed to send message', 
+        details: error.message,
+        hint: 'Please ensure the direct_messages table exists with correct columns.'
+      }, 
       { status: 500 }
     );
   }
