@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Image as ImageIcon, ArrowLeft, MoreVertical, Phone, Video, Search, Smile, Paperclip, Mic, X, Reply, Check, CheckCheck } from 'lucide-react';
+import { Send, Image as ImageIcon, ArrowLeft, MoreVertical, Phone, Search, Smile, Paperclip, Mic, X, Check, CheckCheck, Trash2, User as UserIcon } from 'lucide-react';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
 import { useRouter } from 'next/navigation';
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 
 interface WhatsAppMessengerProps {
   currentUser: any;
@@ -24,10 +25,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<any>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadConversations();
@@ -36,8 +41,21 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
       });
     }
+
+    // Close menus when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+      if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
+        setShowHeaderMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+
     return () => {
       if (pusherRef.current) pusherRef.current.disconnect();
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -144,7 +162,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           conversationId: selectedConversation.id,
           content: content,
           mediaUrl: imageUrl,
-          replyToId: replyingTo?.id,
         }),
       });
 
@@ -152,14 +169,17 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setNewMessage('');
         setSelectedImage(null);
         setImagePreview(null);
-        setReplyingTo(null);
-        // We don't need to call loadMessages here as Pusher will handle the update
+        setShowEmojiPicker(false);
       }
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
       setIsSending(false);
     }
+  };
+
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setNewMessage(prev => prev + emojiData.emoji);
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,6 +212,20 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const handleCall = () => {
+    // If user has a phone number in their profile, we use it. 
+    // Since we don't have a specific phone field in schema yet, we'll use a placeholder or prompt.
+    // For now, we'll trigger a tel: link which is the standard for "real" calling on devices.
+    window.location.href = `tel:${selectedConversation.other_user_phone || ''}`;
+  };
+
+  const clearChat = async () => {
+    if (!confirm('Are you sure you want to clear this chat?')) return;
+    // Implementation for clearing chat would go here (API call)
+    setMessages([]);
+    setShowHeaderMenu(false);
+  };
+
   const filteredConversations = conversations.filter(conv =>
     conv.other_user_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -213,9 +247,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
           <h2 className="text-xl font-semibold text-gray-900">Messages</h2>
-          <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-            <MoreVertical className="w-5 h-5 text-gray-600" />
-          </button>
+          <div className="relative">
+            <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+              <MoreVertical className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
         </div>
 
         <div className="p-2 bg-white border-b border-gray-100">
@@ -266,7 +302,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         {selectedConversation ? (
           <>
             {/* Chat Header */}
-            <div className="bg-[#f0f2f5] px-4 py-2 flex items-center gap-3 border-b border-gray-200 z-20 min-h-[59px]">
+            <div className="bg-[#f0f2f5] px-4 py-2 flex items-center gap-3 border-b border-gray-200 z-30 min-h-[59px]">
               <button onClick={() => setSelectedConversation(null)} className="p-2 hover:bg-gray-200 rounded-full md:hidden">
                 <ArrowLeft className="w-6 h-6 text-gray-600" />
               </button>
@@ -279,10 +315,25 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                 <h3 className="font-semibold text-gray-900 truncate">{selectedConversation.other_user_name}</h3>
                 <p className="text-[11px] text-green-600 font-medium">Online</p>
               </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <button className="p-2 hover:bg-gray-200 rounded-full transition-colors hidden sm:block"><Video className="w-5 h-5 text-gray-600" /></button>
-                <button className="p-2 hover:bg-gray-200 rounded-full transition-colors hidden sm:block"><Phone className="w-5 h-5 text-gray-600" /></button>
-                <button className="p-2 hover:bg-gray-200 rounded-full transition-colors"><MoreVertical className="w-5 h-5 text-gray-600" /></button>
+              <div className="flex items-center gap-1 sm:gap-2 relative">
+                <button onClick={handleCall} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title="Call">
+                  <Phone className="w-5 h-5 text-gray-600" />
+                </button>
+                <button onClick={() => setShowHeaderMenu(!showHeaderMenu)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                  <MoreVertical className="w-5 h-5 text-gray-600" />
+                </button>
+                
+                {/* Header Menu */}
+                {showHeaderMenu && (
+                  <div ref={headerMenuRef} className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50">
+                    <button onClick={() => router.push(`/user-profile/${selectedConversation.other_user_id}`)} className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                      <UserIcon className="w-4 h-4" /> View Profile
+                    </button>
+                    <button onClick={clearChat} className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                      <Trash2 className="w-4 h-4" /> Clear Chat
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -330,9 +381,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             </div>
 
             {/* Input Area */}
-            <div className="bg-[#f0f2f5] p-2 sm:p-3 flex items-center gap-2 sm:gap-3 border-t border-gray-200 z-20">
+            <div className="bg-[#f0f2f5] p-2 sm:p-3 flex items-center gap-2 sm:gap-3 border-t border-gray-200 z-30 relative">
               <div className="flex items-center">
-                <button className="p-2 hover:bg-gray-200 rounded-full transition-colors hidden sm:block"><Smile className="w-6 h-6 text-gray-600" /></button>
+                <div className="relative" ref={emojiPickerRef}>
+                  <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                    <Smile className="w-6 h-6 text-gray-600" />
+                  </button>
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-full left-0 mb-2 z-50">
+                      <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.LIGHT} />
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                   <Paperclip className="w-6 h-6 text-gray-600" />
                 </button>
