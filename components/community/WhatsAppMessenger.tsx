@@ -49,10 +49,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   }, []);
 
   useEffect(() => {
-    if (initialUserId) {
-      openConversationWithUser(initialUserId);
+    if (initialUserId && conversations.length > 0) {
+      // Check if conversation already exists
+      const existingConv = conversations.find(
+        (conv) => conv.other_user_id === initialUserId
+      );
+      if (existingConv) {
+        setSelectedConversation(existingConv);
+      } else {
+        openConversationWithUser(initialUserId);
+      }
     }
-  }, [initialUserId]);
+  }, [initialUserId, conversations]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -117,7 +125,9 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       if (response.ok) {
         const data = await response.json();
         setSelectedConversation(data.conversation);
-        loadConversations();
+        await loadConversations();
+      } else {
+        console.error('Failed to start conversation:', await response.text());
       }
     } catch (error) {
       console.error('Error starting conversation:', error);

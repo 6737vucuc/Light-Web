@@ -43,14 +43,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return conversation object
-    // The conversation ID is just the recipient's ID for simplicity
-    // Messages will be filtered by sender/receiver pair
+    // Return conversation object matching the structure from conversations API
     const conversation = {
       id: recipientId,
-      user: recipient,
-      lastMessage: null,
+      name: recipient.name,
+      avatar: recipient.avatar,
+      lastSeen: null,
+      lastMessage: '',
+      lastMessageTime: null,
       unreadCount: 0,
+      other_user_id: recipientId,
     };
 
     return NextResponse.json({ conversation });
