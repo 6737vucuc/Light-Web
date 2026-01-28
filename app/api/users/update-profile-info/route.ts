@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = authResult.user.id;
-    const { bio, location, work } = await request.json();
+    const body = await request.json();
+    const { bio, location, work, avatar, name, gender, birthDate, religion } = body;
 
     // Update profile info
     const updateData: any = {
@@ -29,6 +30,11 @@ export async function POST(request: NextRequest) {
     if (bio !== undefined) updateData.bio = bio;
     if (location !== undefined) updateData.location = location;
     if (work !== undefined) updateData.work = work;
+    if (avatar !== undefined) updateData.avatar = avatar;
+    if (name !== undefined) updateData.name = name;
+    if (gender !== undefined) updateData.gender = gender;
+    if (birthDate !== undefined) updateData.birthDate = birthDate;
+    if (religion !== undefined) updateData.religion = religion;
 
     await db
       .update(users)
@@ -38,6 +44,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Profile info updated successfully',
+      avatarUrl: avatar // Return avatarUrl if it was updated
     });
   } catch (error) {
     console.error('Error updating profile info:', error);

@@ -98,23 +98,39 @@ export default function ProfilePage() {
     setUploadingAvatar(true);
     try {
       const formData = new FormData();
-      formData.append('avatar', file);
+      formData.append('file', file); // Changed from 'avatar' to 'file' to match /api/upload
 
-      const response = await fetch('/api/users/update-avatar', {
+      // Step 1: Upload to S3/Cloudinary via /api/upload
+      const uploadResponse = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update avatar');
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || 'Failed to upload image');
       }
 
-      setUser(prev => prev ? { ...prev, avatar: data.avatarUrl } : null);
+      const uploadData = await uploadResponse.json();
+      const avatarUrl = uploadData.url;
+
+      // Step 2: Update user profile with new avatar URL
+      const updateResponse = await fetch('/api/users/update-profile-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar: avatarUrl }),
+      });
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(errorData.error || 'Failed to update profile');
+      }
+
+      setUser(prev => prev ? { ...prev, avatar: avatarUrl } : null);
       toast.success('Avatar updated successfully');
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('Avatar update error:', error);
+      toast.error(error.message || 'An error occurred while updating avatar');
     } finally {
       setUploadingAvatar(false);
     }
@@ -203,10 +219,10 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Profile Card */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
-          {/* Avatar Section */}
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-8 text-center">
+          {/* Avatar Section - Simplified without Cover */}
+          <div className="bg-white p-8 text-center border-b border-gray-100">
             <div className="relative inline-block">
-              <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
+              <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-purple-100 shadow-md">
                 <Image
                   src={getAvatarUrl(user.avatar)}
                   alt={user.name}
@@ -218,10 +234,10 @@ export default function ProfilePage() {
               <button
                 onClick={() => avatarInputRef.current?.click()}
                 disabled={uploadingAvatar}
-                className="absolute bottom-0 right-0 bg-white text-purple-600 p-2 rounded-full shadow-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                className="absolute bottom-0 right-0 bg-purple-600 text-white p-2 rounded-full shadow-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
               >
                 {uploadingAvatar ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                 ) : (
                   <Camera className="w-5 h-5" />
                 )}
@@ -234,8 +250,8 @@ export default function ProfilePage() {
                 className="hidden"
               />
             </div>
-            <h2 className="text-2xl font-bold text-white mt-4">{user.name}</h2>
-            <p className="text-purple-100">{user.email}</p>
+            <h2 className="text-2xl font-bold text-gray-900 mt-4">{user.name}</h2>
+            <p className="text-gray-500">{user.email}</p>
           </div>
 
           {/* Tabs */}
@@ -302,10 +318,10 @@ export default function ProfilePage() {
 
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex items-center gap-2 text-gray-600 mb-2">
-                      <Users className="w-4 h-4" />
+                      <User className="w-4 h-4" />
                       <span className="text-sm font-medium">Gender</span>
                     </div>
-                    <p className="text-gray-900 font-medium capitalize">{user.gender}</p>
+                    <p className="text-gray-900 font-medium capitalize">{user.gender || 'Not specified'}</p>
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-lg">
@@ -314,7 +330,7 @@ export default function ProfilePage() {
                       <span className="text-sm font-medium">Birth Date</span>
                     </div>
                     <p className="text-gray-900 font-medium">
-                      {new Date(user.birthDate).toLocaleDateString()}
+                      {user.birthDate ? new Date(user.birthDate).toLocaleDateString() : 'Not specified'}
                     </p>
                   </div>
 
@@ -323,12 +339,12 @@ export default function ProfilePage() {
                       <Heart className="w-4 h-4" />
                       <span className="text-sm font-medium">Religion</span>
                     </div>
-                    <p className="text-gray-900 font-medium capitalize">{user.religion}</p>
+                    <p className="text-gray-900 font-medium capitalize">{user.religion || 'Not specified'}</p>
                   </div>
                 </div>
 
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <p className="text-sm text-blue-700">
                     <strong>Note:</strong> Personal information cannot be changed. If you need to update any details, please contact support.
                   </p>
                 </div>
@@ -336,174 +352,171 @@ export default function ProfilePage() {
             )}
 
             {activeTab === 'lessons' && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Lessons Progress</h3>
-                
-                {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-4 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <BookOpen className="w-5 h-5" />
-                      <span className="text-sm font-medium">Total</span>
-                    </div>
-                    <p className="text-3xl font-bold">{stats.total}</p>
+              <div className="space-y-6">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-purple-50 p-4 rounded-xl text-center">
+                    <div className="text-2xl font-bold text-purple-600">{stats.total}</div>
+                    <div className="text-xs text-purple-600 font-medium">Total Lessons</div>
                   </div>
-
-                  <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle className="w-5 h-5" />
-                      <span className="text-sm font-medium">Completed</span>
-                    </div>
-                    <p className="text-3xl font-bold">{stats.completed}</p>
+                  <div className="bg-green-50 p-4 rounded-xl text-center">
+                    <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+                    <div className="text-xs text-green-600 font-medium">Completed</div>
                   </div>
-
-                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Clock className="w-5 h-5" />
-                      <span className="text-sm font-medium">In Progress</span>
-                    </div>
-                    <p className="text-3xl font-bold">{stats.inProgress}</p>
+                  <div className="bg-blue-50 p-4 rounded-xl text-center">
+                    <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
+                    <div className="text-xs text-blue-600 font-medium">In Progress</div>
                   </div>
-
-                  <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Award className="w-5 h-5" />
-                      <span className="text-sm font-medium">Completion</span>
-                    </div>
-                    <p className="text-3xl font-bold">{stats.completionRate}%</p>
+                  <div className="bg-orange-50 p-4 rounded-xl text-center">
+                    <div className="text-2xl font-bold text-orange-600">{stats.completionRate}%</div>
+                    <div className="text-xs text-orange-600 font-medium">Completion</div>
                   </div>
                 </div>
 
                 {/* Lessons List */}
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Recent Progress</h3>
                   {lessonProgress.length === 0 ? (
-                    <div className="text-center py-12">
-                      <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                      <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                       <p className="text-gray-500">No lessons started yet</p>
-                      <button
+                      <button 
                         onClick={() => router.push('/lessons')}
-                        className="mt-4 bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
+                        className="mt-4 text-purple-600 font-medium hover:underline"
                       >
                         Browse Lessons
                       </button>
                     </div>
                   ) : (
-                    lessonProgress.map((progress) => (
-                      <div
-                        key={progress.lessonId}
-                        className="bg-gray-50 p-4 rounded-lg hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-gray-900">{progress.lesson.title}</h4>
+                    <div className="grid grid-cols-1 gap-4">
+                      {lessonProgress.map((progress) => (
+                        <div key={progress.lessonId} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+                          <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                            {progress.lesson?.imageUrl ? (
+                              <Image src={progress.lesson.imageUrl} alt={progress.lesson.title} fill className="object-cover" unoptimized />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-purple-100 text-purple-600">
+                                <BookOpen className="w-6 h-6" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 truncate">{progress.lesson?.title || 'Untitled Lesson'}</h4>
+                            <div className="mt-2 flex items-center gap-3">
+                              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-500 ${progress.completed ? 'bg-green-500' : 'bg-purple-600'}`}
+                                  style={{ width: `${progress.progress}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-medium text-gray-500">{progress.progress}%</span>
+                            </div>
+                          </div>
                           {progress.completed && (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
                           )}
                         </div>
-                        
-                        {/* Progress Bar */}
-                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                          <div
-                            className="bg-gradient-to-r from-purple-600 to-pink-600 h-2 rounded-full transition-all"
-                            style={{ width: `${progress.progress}%` }}
-                          ></div>
-                        </div>
-                        
-                        <div className="flex justify-between text-sm text-gray-600">
-                          <span>{progress.progress}% Complete</span>
-                          <span>
-                            {progress.completed
-                              ? `Completed ${new Date(progress.completedAt!).toLocaleDateString()}`
-                              : `Last watched ${new Date(progress.lastWatchedAt).toLocaleDateString()}`}
-                          </span>
-                        </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
             )}
 
             {activeTab === 'settings' && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900">Account Settings</h3>
                 
-                <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Current Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showCurrentPassword ? 'text' : 'password'}
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                      >
-                        {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
+                {/* Change Password */}
+                <form onSubmit={handlePasswordChange} className="space-y-4 bg-gray-50 p-6 rounded-xl">
+                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Change Password
+                  </h4>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-600 focus:border-transparent outline-none transition-all"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      New Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showNewPassword ? 'text' : 'password'}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        required
-                        minLength={6}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                      >
-                        {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-600 focus:border-transparent outline-none transition-all"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Confirm New Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        required
-                        minLength={6}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                      >
-                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-600 focus:border-transparent outline-none transition-all"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   <button
                     type="submit"
                     disabled={changingPassword}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors font-medium disabled:opacity-50"
+                    className="w-full bg-purple-600 text-white py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {changingPassword ? 'Changing Password...' : 'Change Password'}
+                    {changingPassword ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    ) : (
+                      'Update Password'
+                    )}
                   </button>
                 </form>
+
+                {/* Danger Zone */}
+                <div className="p-6 border-2 border-red-100 rounded-xl bg-red-50">
+                  <h4 className="text-red-700 font-bold mb-2">Danger Zone</h4>
+                  <p className="text-sm text-red-600 mb-4">Once you delete your account, there is no going back. Please be certain.</p>
+                  <button className="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors">
+                    Delete Account
+                  </button>
+                </div>
               </div>
             )}
           </div>
