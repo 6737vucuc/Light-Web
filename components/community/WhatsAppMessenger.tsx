@@ -6,6 +6,8 @@ import Image from 'next/image';
 import Pusher from 'pusher-js';
 import { useRouter } from 'next/navigation';
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
+import Peer from 'peerjs';
+import CallOverlay from './CallOverlay';
 
 interface WhatsAppMessengerProps {
   currentUser: any;
@@ -28,17 +30,58 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   
+  // Call States
+  const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'incoming' | 'connected' | 'ended'>('idle');
+  const [callOtherUser, setCallOtherUser] = useState({ name: '', avatar: '' as string | null });
+  const [peerId, setPeerId] = useState<string | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
+  
+  const peerRef = useRef<Peer | null>(null);
+  const currentCallRef = useRef<any>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     loadConversations();
+    
+    // Initialize Pusher
     if (typeof window !== 'undefined') {
       pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
         cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
+      });
+
+      // Subscribe to private user channel for calls
+      const userChannel = pusherRef.current.subscribe(`user-${currentUser.id}`);
+      userChannel.bind('incoming-call', (data: any) => {
+        if (callStatus === 'idle') {
+          setCallOtherUser({ name: data.callerName, avatar: data.callerAvatar });
+          setCallStatus('incoming');
+          // Store caller's peer ID to accept later
+          currentCallRef.current = { peerId: data.callerPeerId };
+        }
+      });
+
+      userChannel.bind('call-rejected', () => {
+        setCallStatus('ended');
+        setTimeout(() => setCallStatus('idle'), 2000);
+      });
+
+      // Initialize PeerJS
+      const peer = new Peer(`user-${currentUser.id}-${Math.random().toString(36).substr(2, 9)}`);
+      peer.on('open', (id) => {
+        setPeerId(id);
+        peerRef.current = peer;
+      });
+
+      peer.on('call', (call) => {
+        // This is handled by the 'incoming-call' Pusher event for UI, 
+        // but we store the call object here
+        currentCallRef.current = call;
       });
     }
 
@@ -54,6 +97,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
     return () => {
       if (pusherRef.current) pusherRef.current.disconnect();
+      if (peerRef.current) peerRef.current.destroy();
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
@@ -111,11 +155,9 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   const subscribeToMessages = (otherUserId: number) => {
     if (!pusherRef.current) return;
-    // Use otherUserId for channel to match how messages are sent
     const channel = pusherRef.current.subscribe(`conversation-${otherUserId}`);
     channel.bind('new-message', (data: any) => {
       setMessages((prev) => {
-        // Prevent duplicate messages
         if (prev.find(m => m.id === data.message.id)) return prev;
         return [...prev, data.message];
       });
@@ -159,7 +201,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setIsUploadingImage(false);
       }
 
-      // The API expects otherUserId in the URL
       const response = await fetch(`/api/messages/${selectedConversation.other_user_id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -172,23 +213,99 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
       if (response.ok) {
         const data = await response.json();
-        // Manually add message to UI for instant feedback
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
         setSelectedImage(null);
         setImagePreview(null);
         setShowEmojiPicker(false);
         scrollToBottom();
-      } else {
-        const errorData = await response.json();
-        alert('Failed to send: ' + (errorData.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Network error while sending message');
     } finally {
       setIsSending(false);
     }
+  };
+
+  // Real Voice Call Logic
+  const startCall = async () => {
+    if (!selectedConversation || !peerId) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStreamRef.current = stream;
+      
+      setCallOtherUser({ 
+        name: selectedConversation.other_user_name, 
+        avatar: selectedConversation.other_user_avatar 
+      });
+      setCallStatus('calling');
+
+      // Notify other user via Pusher (this would be a real API call in production)
+      await fetch('/api/messages/call/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientId: selectedConversation.other_user_id,
+          callerPeerId: peerId,
+          callerName: currentUser.name,
+          callerAvatar: currentUser.avatar
+        })
+      });
+
+    } catch (err) {
+      console.error('Failed to get local stream', err);
+      alert('Please allow microphone access to make calls');
+    }
+  };
+
+  const acceptCall = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStreamRef.current = stream;
+      
+      if (currentCallRef.current && currentCallRef.current.answer) {
+        currentCallRef.current.answer(stream);
+        setupCallEvents(currentCallRef.current);
+        setCallStatus('connected');
+      }
+    } catch (err) {
+      console.error('Failed to get local stream', err);
+      rejectCall();
+    }
+  };
+
+  const rejectCall = () => {
+    setCallStatus('idle');
+    // Notify caller via Pusher
+    fetch('/api/messages/call/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipientId: selectedConversation?.other_user_id })
+    });
+  };
+
+  const endCall = () => {
+    if (currentCallRef.current && currentCallRef.current.close) {
+      currentCallRef.current.close();
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    setCallStatus('ended');
+    setTimeout(() => setCallStatus('idle'), 2000);
+  };
+
+  const setupCallEvents = (call: any) => {
+    call.on('stream', (remoteStream: MediaStream) => {
+      if (!remoteAudioRef.current) {
+        remoteAudioRef.current = document.createElement('audio');
+        remoteAudioRef.current.autoplay = true;
+      }
+      remoteAudioRef.current.srcObject = remoteStream;
+    });
+    call.on('close', endCall);
+    call.on('error', endCall);
   };
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
@@ -225,17 +342,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const handleCall = () => {
-    // Standard tel: protocol for real calling
-    window.location.href = `tel:${selectedConversation.other_user_phone || ''}`;
-  };
-
-  const clearChat = async () => {
-    if (!confirm('Are you sure you want to clear this chat?')) return;
-    setMessages([]);
-    setShowHeaderMenu(false);
-  };
-
   const filteredConversations = conversations.filter(conv =>
     conv.other_user_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -250,6 +356,15 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   return (
     <div className="flex h-full bg-[#f0f2f5] overflow-hidden relative">
+      {/* Call Overlay */}
+      <CallOverlay 
+        callStatus={callStatus}
+        otherUser={callOtherUser}
+        onAccept={acceptCall}
+        onReject={rejectCall}
+        onEnd={endCall}
+      />
+
       {/* Conversations List */}
       <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[350px] lg:w-[400px] flex-col bg-white border-r border-gray-200 h-full`}>
         <div className="bg-[#f0f2f5] px-4 py-[10px] flex items-center justify-between border-b border-gray-200 min-h-[59px]">
@@ -326,7 +441,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                 <p className="text-[11px] text-green-600 font-medium">Online</p>
               </div>
               <div className="flex items-center gap-1 sm:gap-2 relative">
-                <button onClick={handleCall} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title="Call">
+                <button onClick={startCall} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title="Voice Call">
                   <Phone className="w-5 h-5 text-gray-600" />
                 </button>
                 <button onClick={() => setShowHeaderMenu(!showHeaderMenu)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
