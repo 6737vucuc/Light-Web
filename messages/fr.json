@@ -178,7 +178,9 @@
     "groupsComingSoon": "Les groupes seront bientôt ajoutés par l'administration",
     "openChat": "Ouvrir le Chat",
     "members": "Membres",
-    "messages": "Messages"
+    "messages": "Messages",
+    "deleteMessage": "Supprimer le Message",
+    "deleteMessageConfirm": "Êtes-vous sûr de vouloir supprimer ce message? Cette action ne peut pas être annulée."
   },
   "profile": {
     "myProfile": "Mon Profil",

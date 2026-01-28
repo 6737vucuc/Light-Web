@@ -178,7 +178,9 @@
     "groupsComingSoon": "Groups will be added soon by the administration",
     "openChat": "Join Group",
     "members": "Members",
-    "messages": "Messages"
+    "messages": "Messages",
+    "deleteMessage": "Delete Message",
+    "deleteMessageConfirm": "Are you sure you want to delete this message? This action cannot be undone."
   },
   "profile": {
     "myProfile": "My Profile",

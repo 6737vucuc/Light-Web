@@ -179,7 +179,9 @@
     "groupsComingSoon": "سيتم إضافة المجموعات قريباً من قبل الإدارة",
     "openChat": "انضم للمجموعة",
     "members": "الأعضاء",
-    "messages": "الرسائل"
+    "messages": "الرسائل",
+    "deleteMessage": "حذف الرسالة",
+    "deleteMessageConfirm": "هل أنت متأكد من حذف هذه الرسالة؟ لا يمكن التراجع عن هذا الإجراء."
   },
   "profile": {
     "myProfile": "ملفي الشخصي",

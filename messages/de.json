@@ -149,7 +149,9 @@
     "groupsComingSoon": "Gruppen werden bald von der Verwaltung hinzugefügt",
     "openChat": "Chat Öffnen",
     "members": "Mitglieder",
-    "messages": "Nachrichten"
+    "messages": "Nachrichten",
+    "deleteMessage": "Nachricht Löschen",
+    "deleteMessageConfirm": "Sind Sie sicher, dass Sie diese Nachricht löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden."
   },
   "profile": {
     "myProfile": "Mein Profil",

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
+import { useToast } from '@/components/ui/ToastContext';
 
 interface GroupChatProps {
   group: any;
@@ -15,6 +16,7 @@ interface GroupChatProps {
 
 export default function GroupChat({ group, currentUser, onBack }: GroupChatProps) {
   const t = useTranslations();
+  const toast = useToast();
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -183,7 +185,15 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   };
 
   const deleteMessage = async (messageId: number) => {
-    if (!confirm('هل تريد حذف هذه الرسالة؟')) return;
+    const confirmed = await toast.confirm({
+      title: t('community.deleteMessage'),
+      message: t('community.deleteMessageConfirm'),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      type: 'danger',
+    });
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/groups/${group.id}/messages/${messageId}`, {
