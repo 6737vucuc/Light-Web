@@ -6,21 +6,23 @@ import {
   Plus, Edit, Trash2, Check, X, Loader2, Ban, UserX, Upload, Image as ImageIcon, Video, AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/lib/contexts/ToastContext';
+import { useTranslations } from 'next-intl';
 
 export default function AdminPage() {
   const toast = useToast();
+  const t = useTranslations('admin');
   const [activeTab, setActiveTab] = useState('lessons');
   const [loading, setLoading] = useState(false);
 
   const tabs = [
-    { id: 'lessons', label: 'Lessons', icon: BookOpen },
-    { id: 'verses', label: 'Daily Verses', icon: Calendar },
-    { id: 'groups', label: 'Groups Management', icon: Users },
-    { id: 'reports', label: 'Reports', icon: AlertTriangle },
-    { id: 'statistics', label: 'Statistics', icon: Users },
-    { id: 'support', label: 'Support Requests', icon: MessageCircle },
-    { id: 'users', label: 'User Management', icon: Users },
-    { id: 'vpn', label: 'VPN Detection', icon: AlertTriangle },
+    { id: 'lessons', label: t('lessons'), icon: BookOpen },
+    { id: 'verses', label: t('dailyVerses'), icon: Calendar },
+    { id: 'groups', label: t('groupsManagement'), icon: Users },
+    { id: 'reports', label: t('reports'), icon: AlertTriangle },
+    { id: 'statistics', label: t('statistics'), icon: Users },
+    { id: 'support', label: t('supportRequests'), icon: MessageCircle },
+    { id: 'users', label: t('userManagement'), icon: Users },
+    { id: 'vpn', label: t('vpnDetection'), icon: AlertTriangle },
     { id: 'security', label: 'Security Dashboard', icon: Shield },
   ];
 
@@ -28,8 +30,8 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-purple-600 to-blue-500 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold">Admin Dashboard</h1>
-          <p className="mt-2 text-purple-100">Manage your ministry platform</p>
+          <h1 className="text-4xl font-bold">{t('dashboard')}</h1>
+          <p className="mt-2 text-purple-100">{t('managePlatform')}</p>
         </div>
       </div>
 
@@ -76,6 +78,7 @@ export default function AdminPage() {
 
 function LessonsManager() {
   const toast = useToast();
+  const t = useTranslations('admin');
   const [lessons, setLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -193,13 +196,13 @@ function LessonsManager() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Manage Lessons</h2>
+        <h2 className="text-2xl font-bold text-gray-900">{t('manageLessons')}</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:from-purple-700 hover:to-blue-600"
         >
           <Plus className="w-5 h-5 mr-2" />
-          Create New Lesson
+          {t('createNewLesson')}
         </button>
       </div>
 
@@ -208,7 +211,7 @@ function LessonsManager() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Title
+                {t('title')}
               </label>
               <input
                 type="text"
@@ -220,7 +223,7 @@ function LessonsManager() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Content
+                {t('content')}
               </label>
               <textarea
                 value={formData.content}
@@ -234,7 +237,7 @@ function LessonsManager() {
             {/* Religion Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Religion
+                {t('religion')}
               </label>
               <select
                 value={formData.religion}
@@ -242,10 +245,10 @@ function LessonsManager() {
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               >
-                <option value="christianity">Christianity</option>
-                <option value="islam">Islam</option>
-                <option value="judaism">Judaism</option>
-                <option value="all">All Religions</option>
+                <option value="christianity">{t('christianity')}</option>
+                <option value="islam">{t('islam')}</option>
+                <option value="judaism">{t('judaism')}</option>
+                <option value="all">{t('allReligions')}</option>
               </select>
             </div>
             
