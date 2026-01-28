@@ -86,12 +86,13 @@ export async function GET(request: NextRequest) {
 
         return {
           id: conv.otherUserId,
-          name: conv.name,
-          avatar: conv.avatar,
-          lastSeen: conv.lastSeen,
-          lastMessage: lastMessage?.content || '',
-          lastMessageTime: lastMessage?.createdAt,
-          unreadCount: Number(unreadCount[0]?.count || 0),
+          other_user_id: conv.otherUserId,
+          other_user_name: conv.name,
+          other_user_avatar: conv.avatar,
+          last_message: lastMessage?.content || '',
+          last_message_at: lastMessage?.createdAt,
+          unread_count: Number(unreadCount[0]?.count || 0),
+          created_at: lastMessage?.createdAt || new Date().toISOString(),
         };
       })
     );

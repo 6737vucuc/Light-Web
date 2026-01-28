@@ -43,16 +43,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return conversation object matching the structure from conversations API
+    // Return conversation object matching the structure expected by WhatsAppMessenger
     const conversation = {
       id: recipientId,
-      name: recipient.name,
-      avatar: recipient.avatar,
-      lastSeen: null,
-      lastMessage: '',
-      lastMessageTime: null,
-      unreadCount: 0,
       other_user_id: recipientId,
+      other_user_name: recipient.name,
+      other_user_avatar: recipient.avatar,
+      last_message: '',
+      last_message_at: null,
+      unread_count: 0,
+      created_at: new Date().toISOString(),
     };
 
     return NextResponse.json({ conversation });
