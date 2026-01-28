@@ -195,7 +195,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setIsUploadingImage(false);
       }
 
-      // Use other_user_id explicitly to ensure it's a number
       const targetId = Number(selectedConversation.other_user_id);
       if (isNaN(targetId)) {
         throw new Error('Invalid recipient ID');
@@ -229,6 +228,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     } finally {
       setIsSending(false);
     }
+  };
+
+  const clearChat = async () => {
+    if (!confirm('Are you sure you want to clear this chat?')) return;
+    setMessages([]);
+    setShowHeaderMenu(false);
   };
 
   const startCall = async () => {
