@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { directMessages, users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
 import { eq, or, and, desc } from 'drizzle-orm';
+import { encrypt, decrypt } from '@/lib/crypto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,7 @@ export async function GET(
     }
 
     // Get messages between the two users
-    const messages = await db
+    const rawMessages = await db
       .select({
         id: directMessages.id,
         senderId: directMessages.senderId,
@@ -36,6 +37,7 @@ export async function GET(
         messageType: directMessages.messageType,
         mediaUrl: directMessages.mediaUrl,
         isRead: directMessages.isRead,
+        isEncrypted: directMessages.isEncrypted,
         createdAt: directMessages.createdAt,
         senderName: users.name,
         senderAvatar: users.avatar,
@@ -55,6 +57,12 @@ export async function GET(
         )
       )
       .orderBy(directMessages.createdAt);
+
+    // Decrypt messages for the UI
+    const messages = rawMessages.map(msg => ({
+      ...msg,
+      content: msg.isEncrypted ? decrypt(msg.content || '') : msg.content
+    }));
 
     // Mark messages as read
     await db
@@ -107,16 +115,19 @@ export async function POST(
       );
     }
 
+    // Encrypt content before saving to DB
+    const encryptedContent = content ? encrypt(content) : '';
+
     // Insert message using correct field names from schema
     const [newMessage] = await db
       .insert(directMessages)
       .values({
         senderId: userId,
         receiverId: receiverId,
-        content: content || '',
+        content: encryptedContent,
         messageType: messageType || 'text',
         mediaUrl: mediaUrl || null,
-        isEncrypted: false,
+        isEncrypted: true, // Mark as encrypted
         isRead: false,
       })
       .returning();
@@ -137,6 +148,7 @@ export async function POST(
     return NextResponse.json({
       message: {
         ...newMessage,
+        content: content, // Return original content to the sender's UI
         senderName: sender?.name || 'User',
         senderAvatar: sender?.avatar || null,
       },
