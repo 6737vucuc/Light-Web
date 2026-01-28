@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import Peer from 'peerjs';
 import CallOverlay from './CallOverlay';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 interface WhatsAppMessengerProps {
   currentUser: any;
@@ -17,6 +18,7 @@ interface WhatsAppMessengerProps {
 
 export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage = false }: WhatsAppMessengerProps) {
   const router = useRouter();
+  const toast = useToast();
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -220,20 +222,29 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setShowEmojiPicker(false);
         scrollToBottom();
       } else {
-        alert(data.error || 'Failed to send message');
+        toast.error(data.error || 'Failed to send message');
       }
     } catch (error: any) {
       console.error('Error sending message:', error);
-      alert('Error: ' + (error.message || 'Failed to send message'));
+      toast.error('Error: ' + (error.message || 'Failed to send message'));
     } finally {
       setIsSending(false);
     }
   };
 
   const clearChat = async () => {
-    if (!confirm('Are you sure you want to clear this chat?')) return;
-    setMessages([]);
-    setShowHeaderMenu(false);
+    const confirmed = await toast.confirm({
+      title: 'Clear Chat',
+      message: 'Are you sure you want to clear this chat? This action cannot be undone.',
+      confirmText: 'Clear',
+      type: 'danger'
+    });
+    
+    if (confirmed) {
+      setMessages([]);
+      setShowHeaderMenu(false);
+      toast.success('Chat cleared successfully');
+    }
   };
 
   const startCall = async () => {
@@ -254,7 +265,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         })
       });
     } catch (err) {
-      alert('Please allow microphone access to make calls');
+      toast.error('Please allow microphone access to make calls');
     }
   };
 
@@ -510,5 +521,3 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     </div>
   );
 }
-
-// Final build fix confirmation - v1.0.1

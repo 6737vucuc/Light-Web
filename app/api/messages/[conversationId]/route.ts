@@ -86,7 +86,6 @@ export async function POST(
   try {
     const user = await verifyAuth(request);
     if (!user) {
-      console.error('Send message error: Unauthorized');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -95,7 +94,6 @@ export async function POST(
     const userId = user.userId;
 
     if (isNaN(receiverId)) {
-      console.error('Send message error: Invalid receiverId', conversationId);
       return NextResponse.json({ error: 'Invalid receiver ID' }, { status: 400 });
     }
 
@@ -109,12 +107,12 @@ export async function POST(
       );
     }
 
-    // Insert message
+    // Insert message using correct field names from schema
     const [newMessage] = await db
       .insert(directMessages)
       .values({
         senderId: userId,
-        receiverId,
+        receiverId: receiverId,
         content: content || '',
         messageType: messageType || 'text',
         mediaUrl: mediaUrl || null,
@@ -124,7 +122,7 @@ export async function POST(
       .returning();
 
     if (!newMessage) {
-      throw new Error('Failed to insert message into database');
+      throw new Error('Failed to insert message');
     }
 
     // Get sender info
