@@ -18,7 +18,6 @@ export default function AdminPage() {
     { id: 'groups', label: 'Groups Management', icon: Users },
     { id: 'reports', label: 'Reports', icon: AlertTriangle },
     { id: 'statistics', label: 'Statistics', icon: Users },
-    { id: 'testimonies', label: 'Testimonies', icon: Heart },
     { id: 'support', label: 'Support Requests', icon: MessageCircle },
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'vpn', label: 'VPN Detection', icon: AlertTriangle },
@@ -65,7 +64,6 @@ export default function AdminPage() {
           {activeTab === 'groups' && <GroupsManager />}
           {activeTab === 'reports' && <ReportsManager />}
           {activeTab === 'statistics' && <StatisticsManager />}
-          {activeTab === 'testimonies' && <TestimoniesManager />}
           {activeTab === 'support' && <SupportManager />}
           {activeTab === 'users' && <UsersManager />}
           {activeTab === 'vpn' && <VPNDetectionManager />}
@@ -940,12 +938,12 @@ function SupportManager() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Support Requests</h2>
-      <div className="flex gap-6">
-        {/* Vertical Tabs */}
-        <div className="flex flex-col gap-2 min-w-[200px]">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        {/* Tabs - Horizontal on mobile, Vertical on desktop */}
+        <div className="flex md:flex-col gap-2 overflow-x-auto md:min-w-[200px]">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+            className={`px-4 py-3 rounded-lg md:text-left text-center font-medium transition-colors whitespace-nowrap ${
               filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -953,7 +951,7 @@ function SupportManager() {
           </button>
           <button
             onClick={() => setFilter('pending')}
-            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+            className={`px-4 py-3 rounded-lg md:text-left text-center font-medium transition-colors whitespace-nowrap ${
               filter === 'pending' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -961,7 +959,7 @@ function SupportManager() {
           </button>
           <button
             onClick={() => setFilter('resolved')}
-            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+            className={`px-4 py-3 rounded-lg md:text-left text-center font-medium transition-colors whitespace-nowrap ${
               filter === 'resolved' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -1842,12 +1840,12 @@ function ReportsManager() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Reports Management</h2>
-      <div className="flex gap-6">
-        {/* Vertical Tabs */}
-        <div className="flex flex-col gap-2 min-w-[200px]">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        {/* Tabs - Horizontal on mobile, Vertical on desktop */}
+        <div className="flex md:flex-col gap-2 overflow-x-auto md:min-w-[200px]">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+            className={`px-4 py-3 rounded-lg md:text-left text-center font-medium transition-colors whitespace-nowrap ${
               filter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -1855,7 +1853,7 @@ function ReportsManager() {
           </button>
           <button
             onClick={() => setFilter('pending')}
-            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+            className={`px-4 py-3 rounded-lg md:text-left text-center font-medium transition-colors whitespace-nowrap ${
               filter === 'pending' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -1863,7 +1861,7 @@ function ReportsManager() {
           </button>
           <button
             onClick={() => setFilter('reviewed')}
-            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+            className={`px-4 py-3 rounded-lg md:text-left text-center font-medium transition-colors whitespace-nowrap ${
               filter === 'reviewed' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -1871,7 +1869,7 @@ function ReportsManager() {
           </button>
           <button
             onClick={() => setFilter('resolved')}
-            className={`px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+            className={`px-4 py-3 rounded-lg md:text-left text-center font-medium transition-colors whitespace-nowrap ${
               filter === 'resolved' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >

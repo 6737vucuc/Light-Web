@@ -240,7 +240,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full bg-[#f0f2f5]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00a884]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
@@ -310,7 +310,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                         unoptimized
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-[#00a884] text-white text-lg font-bold">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-pink-500 text-white text-lg font-bold">
                         {conv.other_user_name?.charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -334,7 +334,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
                 {/* Unread badge */}
                 {conv.unread_count > 0 && (
-                  <div className="w-5 h-5 bg-[#00a884] rounded-full flex items-center justify-center">
+                  <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
                     <span className="text-xs text-white font-semibold">
                       {conv.unread_count}
                     </span>
@@ -370,7 +370,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                     unoptimized
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-[#00a884] text-white font-bold">
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-pink-500 text-white font-bold">
                     {selectedConversation.other_user_name?.charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -451,7 +451,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                       >
                         {/* Reply Preview */}
                         {message.reply_to && (
-                          <div className="bg-gray-100/50 border-l-4 border-[#00a884] pl-2 py-1 mb-2 rounded">
+                          <div className="bg-gray-100/50 border-l-4 border-purple-600 pl-2 py-1 mb-2 rounded">
                             <p className="text-xs text-gray-600 font-semibold">
                               {message.reply_to_user_name}
                             </p>
@@ -524,7 +524,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           {/* Reply Preview */}
           {replyingTo && (
             <div className="bg-[#f0f2f5] px-4 py-2 flex items-center gap-2 border-t border-gray-200">
-              <div className="flex-1 border-l-4 border-[#00a884] pl-2">
+              <div className="flex-1 border-l-4 border-purple-600 pl-2">
                 <p className="text-xs text-gray-600 font-semibold">
                   Replying to {replyingTo.sender_name}
                 </p>
@@ -598,7 +598,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               <button
                 onClick={sendMessage}
                 disabled={isSending || isUploadingImage}
-                className="p-2 bg-[#00a884] hover:bg-[#008f6d] rounded-full transition-colors disabled:opacity-50"
+                className="p-2 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 rounded-full transition-colors disabled:opacity-50"
               >
                 <Send className="w-5 h-5 text-white" />
               </button>
@@ -613,7 +613,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         <div className="hidden md:flex flex-1 items-center justify-center bg-[#f8f9fa] border-l border-gray-200">
           <div className="text-center px-4">
             <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <Send className="w-12 h-12 text-[#00a884]" />
+              <Send className="w-12 h-12 text-purple-600" />
             </div>
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">WhatsApp Web</h2>
             <p className="text-gray-600 max-w-md">

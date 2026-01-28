@@ -56,34 +56,34 @@ export default function ConfirmDialog({
   const Icon = config.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-slideUp">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/30 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto animate-slideUp">
         {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className={`p-3 rounded-full ${config.iconBg}`}>
-              <Icon className={`h-6 w-6 ${config.iconColor}`} />
+        <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className={`p-2 sm:p-3 rounded-full ${config.iconBg}`}>
+              <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${config.iconColor}`} />
             </div>
-            <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900">{title}</h3>
           </div>
           <button
             onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          <p className="text-gray-700 leading-relaxed">{message}</p>
+        <div className="p-4 sm:p-6">
+          <p className="text-sm sm:text-base text-gray-700 leading-relaxed">{message}</p>
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-6 bg-gray-50 rounded-b-2xl">
+        <div className="flex flex-col sm:flex-row gap-3 p-4 sm:p-6 bg-gray-50 rounded-b-2xl">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm sm:text-base"
           >
             {cancelText}
           </button>
@@ -92,7 +92,7 @@ export default function ConfirmDialog({
               onConfirm();
               onCancel();
             }}
-            className={`flex-1 px-4 py-3 text-white rounded-lg font-medium transition-colors ${config.buttonColor}`}
+            className={`flex-1 px-4 py-3 text-white rounded-lg font-medium transition-colors text-sm sm:text-base ${config.buttonColor}`}
           >
             {confirmText}
           </button>

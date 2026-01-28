@@ -42,9 +42,9 @@ function MessagesContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[#f0f2f5]">
-      {/* WhatsApp-style Header */}
-      <div className="bg-[#00a884] text-white sticky top-0 z-50">
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             {/* Back Button */}

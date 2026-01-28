@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Send, Image as ImageIcon, Smile, MoreVertical, Trash2, MessageCircle, Flag, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
 
@@ -13,6 +14,7 @@ interface GroupChatProps {
 }
 
 export default function GroupChat({ group, currentUser, onBack }: GroupChatProps) {
+  const t = useTranslations();
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -467,10 +469,10 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
 
       {/* Report Modal */}
       {showReportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">إبلاغ عن رسالة</h3>
+              <h3 className="text-xl font-bold text-gray-900">{t('reports.title')}</h3>
               <button
                 onClick={() => {
                   setShowReportModal(false);
@@ -484,21 +486,21 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
             </div>
 
             <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">الرسالة:</p>
+              <p className="text-sm text-gray-600 mb-2">{t('reports.message')}</p>
               <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                 <p className="text-sm text-gray-900">{reportingMessage?.content}</p>
-                <p className="text-xs text-gray-500 mt-1">من: {reportingMessage?.user_name}</p>
+                <p className="text-xs text-gray-500 mt-1">{t('reports.from')} {reportingMessage?.user_name}</p>
               </div>
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                سبب الإبلاغ:
+                {t('reports.reason')}
               </label>
               <textarea
                 value={reportReason}
                 onChange={(e) => setReportReason(e.target.value)}
-                placeholder="اشرح سبب إبلاغك عن هذه الرسالة..."
+                placeholder={t('reports.reasonPlaceholder')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                 rows={4}
               />
@@ -506,7 +508,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
 
             <div className="bg-yellow-50 border-r-4 border-yellow-500 p-3 rounded-lg mb-4">
               <p className="text-xs text-yellow-900">
-                <strong>ملاحظة:</strong> سيتم مراجعة البلاغ من قبل فريق الإدارة واتخاذ الإجراء المناسب.
+                <strong>{t('common.note')}:</strong> {t('reports.note')}
               </p>
             </div>
 
@@ -519,14 +521,14 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                إلغاء
+                {t('common.cancel')}
               </button>
               <button
                 onClick={submitReport}
                 disabled={!reportReason.trim()}
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg hover:from-red-700 hover:to-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                إرسال البلاغ
+                {t('reports.submit')}
               </button>
             </div>
           </div>
