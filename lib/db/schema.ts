@@ -215,6 +215,26 @@ export const passwordResets = pgTable('password_resets', {
 
 
 // ========================================
+// DIRECT MESSAGES SYSTEM
+// ========================================
+
+// Direct messages table
+export const directMessages = pgTable('direct_messages', {
+  id: serial('id').primaryKey(),
+  senderId: integer('sender_id').references(() => users.id).notNull(),
+  receiverId: integer('receiver_id').references(() => users.id).notNull(),
+  content: text('content'),
+  messageType: varchar('message_type', { length: 20 }).default('text'),
+  mediaUrl: text('media_url'),
+  isEncrypted: boolean('is_encrypted').default(true),
+  isRead: boolean('is_read').default(false),
+  readAt: timestamp('read_at'),
+  isDeleted: boolean('is_deleted').default(false),
+  deletedAt: timestamp('deleted_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ========================================
 // TESTIMONIES SYSTEM
 // ========================================
 

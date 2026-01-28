@@ -870,7 +870,7 @@ function SupportManager() {
     try {
       const response = await fetch('/api/admin/support');
       const data = await response.json();
-      setRequests(data.requests || []);
+      setRequests(data.tickets || []);
     } catch (error) {
       console.error('Fetch support requests error:', error);
     } finally {
@@ -1752,7 +1752,7 @@ function ReportsManager() {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/reports');
+      const response = await fetch('/api/admin/reports');
       const data = await response.json();
       setReports(data.reports || []);
     } catch (error) {

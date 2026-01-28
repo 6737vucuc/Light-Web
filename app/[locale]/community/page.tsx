@@ -19,6 +19,13 @@ export default function CommunityPage() {
 
   useEffect(() => {
     checkAuth();
+    // Restore selected group from localStorage on page load
+    const savedGroupId = localStorage.getItem('selectedGroupId');
+    if (savedGroupId) {
+      const groupId = parseInt(savedGroupId);
+      // We'll set the group after loading groups
+      setSelectedGroup({ id: groupId });
+    }
   }, []);
 
   useEffect(() => {
@@ -26,6 +33,16 @@ export default function CommunityPage() {
       loadGroups();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    // Restore full group data after groups are loaded
+    if (groups.length > 0 && selectedGroup && !selectedGroup.name) {
+      const fullGroup = groups.find(g => g.id === selectedGroup.id);
+      if (fullGroup) {
+        setSelectedGroup(fullGroup);
+      }
+    }
+  }, [groups, selectedGroup]);
 
   const checkAuth = async () => {
     try {
@@ -120,7 +137,10 @@ export default function CommunityPage() {
           <GroupChat
             group={selectedGroup}
             currentUser={currentUser}
-            onBack={() => setSelectedGroup(null)}
+            onBack={() => {
+              setSelectedGroup(null);
+              localStorage.removeItem('selectedGroupId');
+            }}
           />
         ) : (
           /* Groups List */
@@ -161,6 +181,8 @@ export default function CommunityPage() {
                         });
                         if (response.ok) {
                           setSelectedGroup(group);
+                          // Save to localStorage
+                          localStorage.setItem('selectedGroupId', group.id.toString());
                         }
                       } catch (error) {
                         console.error('Error joining group:', error);
