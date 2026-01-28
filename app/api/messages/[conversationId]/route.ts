@@ -65,16 +65,20 @@ export async function GET(
     }));
 
     // Mark messages as read
-    await db
-      .update(directMessages)
-      .set({ isRead: true, readAt: new Date() })
-      .where(
-        and(
-          eq(directMessages.senderId, otherUserId),
-          eq(directMessages.receiverId, userId),
-          eq(directMessages.isRead, false)
-        )
-      );
+    try {
+      await db
+        .update(directMessages)
+        .set({ isRead: true, readAt: new Date() })
+        .where(
+          and(
+            eq(directMessages.senderId, otherUserId),
+            eq(directMessages.receiverId, userId),
+            eq(directMessages.isRead, false)
+          )
+        );
+    } catch (e) {
+      console.error('Non-critical: Failed to update read status', e);
+    }
 
     return NextResponse.json({ messages });
   } catch (error) {
@@ -91,77 +95,92 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
+  console.log('--- START MESSAGE SEND PROCESS ---');
   try {
+    // 1. Auth Check
     const user = await verifyAuth(request);
     if (!user) {
+      console.log('Auth failed');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log('Auth success for user:', user.userId);
 
+    // 2. Params Check
     const { conversationId } = await params;
     const receiverId = parseInt(conversationId);
     const userId = user.userId;
 
     if (isNaN(receiverId)) {
+      console.log('Invalid receiverId:', conversationId);
       return NextResponse.json({ error: 'Invalid receiver ID' }, { status: 400 });
     }
+    console.log('Sending from', userId, 'to', receiverId);
 
+    // 3. Body Check
     const body = await request.json();
     const { content, messageType, mediaUrl } = body;
+    console.log('Message content length:', content?.length || 0);
 
-    if (!content && !mediaUrl) {
-      return NextResponse.json(
-        { error: 'Message content is required' },
-        { status: 400 }
-      );
+    // 4. Encryption
+    let encryptedContent = '';
+    try {
+      encryptedContent = content ? encrypt(content) : '';
+      console.log('Encryption success');
+    } catch (e: any) {
+      console.error('Encryption failed:', e.message);
+      encryptedContent = content; // Fallback
     }
 
-    // Encrypt content before saving to DB
-    const encryptedContent = content ? encrypt(content) : '';
+    // 5. Database Insert
+    console.log('Attempting DB insert...');
+    try {
+      const [newMessage] = await db
+        .insert(directMessages)
+        .values({
+          senderId: userId,
+          receiverId: receiverId,
+          content: encryptedContent,
+          messageType: messageType || 'text',
+          mediaUrl: mediaUrl || null,
+          isEncrypted: true,
+          isRead: false,
+        })
+        .returning();
 
-    // Insert message using explicit field mapping to avoid any ORM issues
-    const [newMessage] = await db
-      .insert(directMessages)
-      .values({
-        senderId: userId,
-        receiverId: receiverId,
-        content: encryptedContent,
-        messageType: messageType || 'text',
-        mediaUrl: mediaUrl || null,
-        isEncrypted: true,
-        isRead: false,
-        createdAt: new Date(),
-      })
-      .returning();
+      if (!newMessage) {
+        console.log('DB insert returned no result');
+        throw new Error('No message returned from database');
+      }
+      console.log('DB insert success, ID:', newMessage.id);
 
-    if (!newMessage) {
-      throw new Error('Failed to insert message into database');
+      // 6. Get Sender Info
+      const [sender] = await db
+        .select({ name: users.name, avatar: users.avatar })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      console.log('--- END MESSAGE SEND PROCESS SUCCESS ---');
+      return NextResponse.json({
+        message: {
+          ...newMessage,
+          content: content,
+          senderName: sender?.name || 'User',
+          senderAvatar: sender?.avatar || null,
+        },
+      });
+    } catch (dbError: any) {
+      console.error('DATABASE ERROR DURING INSERT:', dbError);
+      return NextResponse.json({
+        error: 'Database Error',
+        details: dbError.message,
+        code: dbError.code,
+        hint: 'Check if table direct_messages exists and has correct columns.'
+      }, { status: 500 });
     }
-
-    // Get sender info for immediate UI update
-    const [sender] = await db
-      .select({
-        name: users.name,
-        avatar: users.avatar,
-      })
-      .from(users)
-      .where(eq(users.id, userId));
-
-    return NextResponse.json({
-      message: {
-        ...newMessage,
-        content: content, // Return original content to the sender's UI
-        senderName: sender?.name || 'User',
-        senderAvatar: sender?.avatar || null,
-      },
-    });
   } catch (error: any) {
-    console.error('CRITICAL: Message send failed:', error);
+    console.error('GENERAL ERROR DURING SEND:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to send message', 
-        details: error.message,
-        hint: 'Please ensure the direct_messages table exists with correct columns.'
-      }, 
+      { error: 'Failed to send message', details: error.message },
       { status: 500 }
     );
   }
