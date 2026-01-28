@@ -168,10 +168,10 @@ function LessonsManager() {
 
   const handleDelete = async (id: number) => {
     const confirmed = await toast.confirm({
-      title: 'Delete Lesson',
-      message: 'Are you sure you want to delete this lesson? This action cannot be undone.',
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
+      title: t('deleteLesson'),
+      message: t('deleteLessonConfirm'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       type: 'danger',
     });
     
@@ -255,12 +255,12 @@ function LessonsManager() {
             {/* Image Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Image (optional)
+                {t('uploadImage')} ({t('optional')})
               </label>
               <div className="flex items-center space-x-4">
                 <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer">
                   <ImageIcon className="w-5 h-5 mr-2" />
-                  Choose Image
+                  {t('chooseImage')}
                   <input
                     type="file"
                     accept="image/*"
@@ -270,7 +270,7 @@ function LessonsManager() {
                   />
                 </label>
                 {formData.imageUrl && (
-                  <span className="text-sm text-green-600">✓ Image uploaded</span>
+                  <span className="text-sm text-green-600">✓ {t('imageUploaded')}</span>
                 )}
                 {uploading && <Loader2 className="w-5 h-5 animate-spin" />}
               </div>
@@ -282,12 +282,12 @@ function LessonsManager() {
             {/* Video Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Video (optional)
+                {t('uploadVideo')} ({t('optional')})
               </label>
               <div className="flex items-center space-x-4">
                 <label className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer">
                   <Video className="w-5 h-5 mr-2" />
-                  Choose Video
+                  {t('chooseVideo')}
                   <input
                     type="file"
                     accept="video/*"
@@ -297,7 +297,7 @@ function LessonsManager() {
                   />
                 </label>
                 {formData.videoUrl && (
-                  <span className="text-sm text-green-600">✓ Video uploaded</span>
+                  <span className="text-sm text-green-600">✓ {t('videoUploaded')}</span>
                 )}
               </div>
               {formData.videoUrl && (
@@ -311,7 +311,7 @@ function LessonsManager() {
                 disabled={loading || uploading}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
-                {loading ? 'Saving...' : formData.id ? 'Update' : 'Create'}
+                {loading ? t('saving') : formData.id ? t('update') : t('create')}
               </button>
               <button
                 type="button"
@@ -321,7 +321,7 @@ function LessonsManager() {
                 }}
                 className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
-                Cancel
+                {t('cancel')}
               </button>
             </div>
           </div>
@@ -340,10 +340,10 @@ function LessonsManager() {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold">{lesson.title}</h3>
                   <p className="text-sm text-purple-600 font-medium">
-                    {lesson.religion === 'christianity' && 'Christianity'}
-                    {lesson.religion === 'islam' && 'Islam'}
-                    {lesson.religion === 'judaism' && 'Judaism'}
-                    {lesson.religion === 'all' && 'All Religions'}
+                    {lesson.religion === 'christianity' && t('christianity')}
+                    {lesson.religion === 'islam' && t('islam')}
+                    {lesson.religion === 'judaism' && t('judaism')}
+                    {lesson.religion === 'all' && t('allReligions')}
                   </p>
                   <p className="text-gray-900 mt-2">{lesson.content.substring(0, 150)}...</p>
                   {lesson.imageUrl && (
@@ -382,6 +382,7 @@ function LessonsManager() {
 // VersesManager with file upload
 function VersesManager() {
   const toast = useToast();
+  const t = useTranslations('admin');
   const [verses, setVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -498,13 +499,13 @@ function VersesManager() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Manage Daily Verses</h2>
+        <h2 className="text-2xl font-bold text-gray-900">{t('manageVerses')}</h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:from-purple-700 hover:to-blue-600"
         >
           <Plus className="w-5 h-5 mr-2" />
-          Add Daily Verse
+          {t('addNewVerse')}
         </button>
       </div>
 
@@ -513,7 +514,7 @@ function VersesManager() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Verse Text
+                {t('verseText')}
               </label>
               <textarea
                 value={formData.verse}
@@ -525,7 +526,7 @@ function VersesManager() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reference (e.g., John 3:16)
+                {t('reference')}
               </label>
               <input
                 type="text"
@@ -537,7 +538,7 @@ function VersesManager() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Display Date
+                {t('date')}
               </label>
               <input
                 type="date"
@@ -551,12 +552,12 @@ function VersesManager() {
             {/* Image Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Image (optional)
+                {t('uploadImage')} ({t('optional')})
               </label>
               <div className="flex items-center space-x-4">
                 <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer">
                   <ImageIcon className="w-5 h-5 mr-2" />
-                  Choose Image
+                  {t('chooseImage')}
                   <input
                     type="file"
                     accept="image/*"
@@ -566,7 +567,7 @@ function VersesManager() {
                   />
                 </label>
                 {formData.imageUrl && (
-                  <span className="text-sm text-green-600">✓ Image uploaded</span>
+                  <span className="text-sm text-green-600">✓ {t('imageUploaded')}</span>
                 )}
                 {uploading && <Loader2 className="w-5 h-5 animate-spin" />}
               </div>
@@ -581,7 +582,7 @@ function VersesManager() {
                 disabled={loading || uploading}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
-                {loading ? 'Saving...' : formData.id ? 'Update' : 'Create'}
+                {loading ? t('saving') : formData.id ? t('update') : t('create')}
               </button>
               <button
                 type="button"
@@ -597,7 +598,7 @@ function VersesManager() {
                 }}
                 className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
-                Cancel
+                {t('cancel')}
               </button>
             </div>
           </div>
@@ -656,6 +657,7 @@ function VersesManager() {
 }
 
 function StatisticsManager() {
+  const t = useTranslations('admin');
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -686,14 +688,14 @@ function StatisticsManager() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">User Statistics</h2>
+      <h2 className="text-2xl font-bold text-gray-900">{t('statistics')}</h2>
       
       {/* Gender Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-600">Total Users</p>
+              <p className="text-sm font-medium text-blue-600">{t('totalUsers')}</p>
               <p className="text-3xl font-bold text-blue-900 mt-2">{stats?.total || 0}</p>
             </div>
             <Users className="w-12 h-12 text-blue-600 opacity-50" />
@@ -760,6 +762,7 @@ function StatisticsManager() {
 // Testimonies Manager
 function TestimoniesManager() {
   const toast = useToast();
+  const t = useTranslations('admin');
   const [testimonies, setTestimonies] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -858,6 +861,7 @@ function TestimoniesManager() {
 // Support Requests Manager
 function SupportManager() {
   const toast = useToast();
+  const t = useTranslations('admin');
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('all');
@@ -1039,6 +1043,7 @@ function SupportManager() {
 // Users Manager
 function UsersManager() {
   const toast = useToast();
+  const t = useTranslations('admin');
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1286,6 +1291,7 @@ function UsersManager() {
 
 
 function VPNDetectionManager() {
+  const t = useTranslations('admin');
   const [logs, setLogs] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [serviceStats, setServiceStats] = useState<any>({});
@@ -1498,6 +1504,7 @@ function VPNDetectionManager() {
 // Groups Manager Component
 function GroupsManager() {
   const toast = useToast();
+  const t = useTranslations('admin');
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -1571,9 +1578,10 @@ function GroupsManager() {
 
   const handleDelete = async (id: number) => {
     const confirmed = await toast.confirm({
-      title: 'Delete Group',
-      message: 'Are you sure you want to delete this group? All members will be removed.',
-      confirmText: 'Delete',
+      title: t('delete'),
+      message: t('areYouSure'),
+      confirmText: t('delete'),
+      cancelText: t('cancel'),
       type: 'danger',
     });
     if (!confirmed) return;
@@ -1610,7 +1618,7 @@ function GroupsManager() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Groups Management</h2>
+        <h2 className="text-2xl font-bold text-gray-900">{t('manageGroups')}</h2>
         <button
           onClick={() => {
             resetForm();
@@ -1619,20 +1627,20 @@ function GroupsManager() {
           className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
-          Create Group
+          {t('createNewGroup')}
         </button>
       </div>
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-gray-50 p-6 rounded-lg mb-6">
           <h3 className="text-lg font-semibold mb-4">
-            {formData.id ? 'Edit Group' : 'Create New Group'}
+            {formData.id ? t('edit') : t('createNewGroup')}
           </h3>
           
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Group Name
+                {t('groupName')}
               </label>
               <input
                 type="text"
@@ -1645,7 +1653,7 @@ function GroupsManager() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
+                {t('description')}
               </label>
               <textarea
                 value={formData.description}
@@ -1657,7 +1665,7 @@ function GroupsManager() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Color
+                {t('color')}
               </label>
               <input
                 type="color"
@@ -1683,7 +1691,7 @@ function GroupsManager() {
                 }}
                 className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
               >
-                Cancel
+                {t('cancel')}
               </button>
             </div>
           </div>
@@ -1742,6 +1750,7 @@ function GroupsManager() {
 // Reports Manager Component
 function ReportsManager() {
   const toast = useToast();
+  const t = useTranslations('admin');
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all');
@@ -1842,7 +1851,7 @@ function ReportsManager() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Reports Management</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('reports')}</h2>
       <div className="flex flex-col md:flex-row gap-4 md:gap-6">
         {/* Tabs - Horizontal on mobile, Vertical on desktop */}
         <div className="flex md:flex-col gap-2 overflow-x-auto md:min-w-[200px]">
@@ -1977,6 +1986,7 @@ function ReportsManager() {
 
 // Security Dashboard Redirect Component
 function SecurityDashboardRedirect() {
+  const t = useTranslations('admin');
   useEffect(() => {
     // Redirect to the dedicated Security Dashboard page
     window.location.href = '/admin/security';
@@ -1985,8 +1995,8 @@ function SecurityDashboardRedirect() {
   return (
     <div className="flex flex-col items-center justify-center py-12">
       <Shield className="w-16 h-16 text-purple-600 mb-4 animate-pulse" />
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">Redirecting to Security Dashboard...</h3>
-      <p className="text-gray-900">Please wait while we redirect you to the full security dashboard.</p>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('redirectingToSecurity')}</h3>
+      <p className="text-gray-900">{t('redirectingToSecurity')}</p>
     </div>
   );
 }
