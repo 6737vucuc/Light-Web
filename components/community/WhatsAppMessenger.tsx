@@ -48,20 +48,22 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     };
   }, []);
 
+  // Handle initial userId from URL parameter
   useEffect(() => {
-    if (initialUserId && !isLoading) {
-      // Check if conversation already exists
-      const existingConv = conversations.find(
-        (conv) => conv.other_user_id === initialUserId || conv.id === initialUserId
-      );
-      if (existingConv) {
-        setSelectedConversation(existingConv);
-      } else {
-        // Create new conversation
-        openConversationWithUser(initialUserId);
-      }
+    if (!initialUserId || isLoading) return;
+    
+    // Check if conversation already exists
+    const existingConv = conversations.find(
+      (conv) => conv.other_user_id === initialUserId || conv.id === initialUserId
+    );
+    
+    if (existingConv) {
+      setSelectedConversation(existingConv);
+    } else {
+      // Create new conversation
+      openConversationWithUser(initialUserId);
     }
-  }, [initialUserId, isLoading]);
+  }, [initialUserId, conversations, isLoading]);
 
   useEffect(() => {
     if (selectedConversation) {
