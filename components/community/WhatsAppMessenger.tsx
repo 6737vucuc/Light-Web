@@ -42,7 +42,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
     }
 
-    // Close menus when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
         setShowEmojiPicker(false);
@@ -71,7 +70,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   useEffect(() => {
     if (selectedConversation) {
-      loadMessages(selectedConversation.id);
+      loadMessages(selectedConversation.other_user_id);
       subscribeToMessages(selectedConversation.id);
     }
   }, [selectedConversation]);
@@ -98,9 +97,9 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     }
   };
 
-  const loadMessages = async (conversationId: number) => {
+  const loadMessages = async (otherUserId: number) => {
     try {
-      const response = await fetch(`/api/messages/${conversationId}`);
+      const response = await fetch(`/api/messages/${otherUserId}`);
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages || []);
@@ -155,21 +154,28 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setIsUploadingImage(false);
       }
 
-      const response = await fetch('/api/messages/send', {
+      // Corrected API path: /api/messages/[otherUserId]
+      const response = await fetch(`/api/messages/${selectedConversation.other_user_id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conversationId: selectedConversation.id,
           content: content,
           mediaUrl: imageUrl,
+          messageType: imageUrl ? 'image' : 'text'
         }),
       });
 
       if (response.ok) {
+        const data = await response.json();
+        setMessages(prev => [...prev, data.message]);
         setNewMessage('');
         setSelectedImage(null);
         setImagePreview(null);
         setShowEmojiPicker(false);
+        scrollToBottom();
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to send message:', errorData.error);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -213,15 +219,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const handleCall = () => {
-    // If user has a phone number in their profile, we use it. 
-    // Since we don't have a specific phone field in schema yet, we'll use a placeholder or prompt.
-    // For now, we'll trigger a tel: link which is the standard for "real" calling on devices.
     window.location.href = `tel:${selectedConversation.other_user_phone || ''}`;
   };
 
   const clearChat = async () => {
     if (!confirm('Are you sure you want to clear this chat?')) return;
-    // Implementation for clearing chat would go here (API call)
     setMessages([]);
     setShowHeaderMenu(false);
   };
