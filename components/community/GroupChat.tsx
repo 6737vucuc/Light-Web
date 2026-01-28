@@ -23,8 +23,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   const [isSending, setIsSending] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [showUserMenu, setShowUserMenu] = useState(false);
+
   const [onlineMembers, setOnlineMembers] = useState<number>(0);
   const [totalMembers, setTotalMembers] = useState<number>(0);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -317,8 +316,9 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
                     <div 
                       className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
                       onClick={() => {
-                        setSelectedUserId(message.user_id);
-                        setShowUserMenu(true);
+                        if (message.user_id !== currentUser.id) {
+                          router.push(`/messages?userId=${message.user_id}`);
+                        }
                       }}
                     >
                       {message.user_avatar ? (
@@ -335,28 +335,6 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
                         </div>
                       )}
                     </div>
-                    
-                    {/* User Menu */}
-                    {showUserMenu && selectedUserId === message.user_id && (
-                      <div className="absolute left-0 top-10 z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px]">
-                        <button
-                          onClick={() => {
-                            router.push(`/messages?userId=${message.user_id}`);
-                            setShowUserMenu(false);
-                          }}
-                          className="w-full px-4 py-2 text-left hover:bg-purple-50 flex items-center gap-2 text-gray-700 hover:text-purple-600 transition-colors"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span className="text-sm font-medium">Send Private Message</span>
-                        </button>
-                        <button
-                          onClick={() => setShowUserMenu(false)}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-50 text-gray-500 text-xs mt-1 border-t border-gray-100"
-                        >
-                          Close
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )}
 
