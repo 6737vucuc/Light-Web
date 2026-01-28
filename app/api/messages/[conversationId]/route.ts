@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { directMessages, users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq, or, and } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { encrypt, decrypt } from '@/lib/crypto';
 
 export const runtime = 'nodejs';
@@ -27,55 +26,44 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
     }
 
-    const rawMessages = await db
-      .select({
-        id: directMessages.id,
-        senderId: directMessages.senderId,
-        receiverId: directMessages.receiverId,
-        content: directMessages.content,
-        messageType: directMessages.messageType,
-        mediaUrl: directMessages.mediaUrl,
-        isRead: directMessages.isRead,
-        isEncrypted: directMessages.isEncrypted,
-        createdAt: directMessages.createdAt,
-        senderName: users.name,
-        senderAvatar: users.avatar,
-      })
-      .from(directMessages)
-      .leftJoin(users, eq(directMessages.senderId, users.id))
-      .where(
-        or(
-          and(
-            eq(directMessages.senderId, userId),
-            eq(directMessages.receiverId, otherUserId)
-          ),
-          and(
-            eq(directMessages.senderId, otherUserId),
-            eq(directMessages.receiverId, userId)
-          )
-        )
-      )
-      .orderBy(directMessages.createdAt);
+    // Use Raw SQL to fetch messages to avoid any ORM mapping issues
+    const query = sql`
+      SELECT 
+        dm.id, 
+        dm.sender_id as "senderId", 
+        dm.receiver_id as "receiverId", 
+        dm.content, 
+        dm.message_type as "messageType", 
+        dm.media_url as "mediaUrl", 
+        dm.is_read as "isRead", 
+        dm.is_encrypted as "isEncrypted", 
+        dm.created_at as "createdAt",
+        u.name as "senderName",
+        u.avatar as "senderAvatar"
+      FROM direct_messages dm
+      LEFT JOIN users u ON dm.sender_id = u.id
+      WHERE (dm.sender_id = ${userId} AND dm.receiver_id = ${otherUserId})
+         OR (dm.sender_id = ${otherUserId} AND dm.receiver_id = ${userId})
+      ORDER BY dm.created_at ASC
+    `;
 
+    const result = await db.execute(query);
+    const rawMessages = result.rows as any[];
+
+    // Decrypt messages for the UI
     const messages = rawMessages.map(msg => ({
       ...msg,
       content: msg.isEncrypted ? decrypt(msg.content || '') : msg.content
     }));
 
+    // Mark messages as read (Silent update)
     try {
-      await db
-        .update(directMessages)
-        .set({ isRead: true, readAt: new Date() })
-        .where(
-          and(
-            eq(directMessages.senderId, otherUserId),
-            eq(directMessages.receiverId, userId),
-            eq(directMessages.isRead, false)
-          )
-        );
-    } catch (e) {
-      // Silent fail for read status update
-    }
+      await db.execute(sql`
+        UPDATE direct_messages 
+        SET is_read = true, read_at = NOW() 
+        WHERE sender_id = ${otherUserId} AND receiver_id = ${userId} AND is_read = false
+      `);
+    } catch (e) {}
 
     return NextResponse.json({ messages });
   } catch (error) {
@@ -109,34 +97,47 @@ export async function POST(
       return NextResponse.json({ error: 'Content Required' }, { status: 400 });
     }
 
+    // Encrypt content with Intelligence Grade AES-256-GCM
     const encryptedContent = content ? encrypt(content) : '';
 
-    const [newMessage] = await db
-      .insert(directMessages)
-      .values({
-        senderId: userId,
-        receiverId: receiverId,
-        content: encryptedContent,
-        messageType: messageType || 'text',
-        mediaUrl: mediaUrl || null,
-        isEncrypted: true,
-        isRead: false,
-      })
-      .returning();
+    // Use Raw SQL for INSERT to bypass any ORM/Schema conflicts
+    const insertQuery = sql`
+      INSERT INTO direct_messages (
+        sender_id, 
+        receiver_id, 
+        content, 
+        message_type, 
+        media_url, 
+        is_encrypted, 
+        is_read, 
+        created_at
+      ) VALUES (
+        ${userId}, 
+        ${receiverId}, 
+        ${encryptedContent}, 
+        ${messageType || 'text'}, 
+        ${mediaUrl || null}, 
+        true, 
+        false, 
+        NOW()
+      ) RETURNING id, sender_id as "senderId", receiver_id as "receiverId", content, message_type as "messageType", media_url as "mediaUrl", is_encrypted as "isEncrypted", is_read as "isRead", created_at as "createdAt"
+    `;
+
+    const result = await db.execute(insertQuery);
+    const newMessage = result.rows[0] as any;
 
     if (!newMessage) {
       throw new Error('Insert Failed');
     }
 
-    const [sender] = await db
-      .select({ name: users.name, avatar: users.avatar })
-      .from(users)
-      .where(eq(users.id, userId));
+    // Get sender info
+    const senderResult = await db.execute(sql`SELECT name, avatar FROM users WHERE id = ${userId}`);
+    const sender = senderResult.rows[0] as any;
 
     return NextResponse.json({
       message: {
         ...newMessage,
-        content: content,
+        content: content, // Return original content to sender
         senderName: sender?.name || 'User',
         senderAvatar: sender?.avatar || null,
       },
