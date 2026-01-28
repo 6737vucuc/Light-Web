@@ -49,18 +49,19 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   }, []);
 
   useEffect(() => {
-    if (initialUserId && conversations.length > 0) {
+    if (initialUserId && !isLoading) {
       // Check if conversation already exists
       const existingConv = conversations.find(
-        (conv) => conv.other_user_id === initialUserId
+        (conv) => conv.other_user_id === initialUserId || conv.id === initialUserId
       );
       if (existingConv) {
         setSelectedConversation(existingConv);
       } else {
+        // Create new conversation
         openConversationWithUser(initialUserId);
       }
     }
-  }, [initialUserId, conversations]);
+  }, [initialUserId, isLoading]);
 
   useEffect(() => {
     if (selectedConversation) {
