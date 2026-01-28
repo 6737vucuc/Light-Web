@@ -34,8 +34,7 @@ export async function PATCH(
       .update(reports)
       .set({ 
         status, 
-        adminNotes: adminNotes || null,
-        updatedAt: new Date() 
+        adminNotes: adminNotes || null
       })
       .where(eq(reports.id, reportId));
 
