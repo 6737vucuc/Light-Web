@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
-import { useToast } from '@/lib/toast/ToastContext';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 interface GroupChatProps {
   group: any;
