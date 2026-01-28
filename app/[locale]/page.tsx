@@ -65,11 +65,11 @@ export default function Home() {
                 />
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              ✨ {t('heroTitle')} ✨
+            <h1 className="text-3xl md:text-4xl font-semibold mb-6">
+              {t('heroTitle')}
             </h1>
-            <p className="text-lg md:text-xl text-purple-100 max-w-3xl mx-auto italic">
-              "{t('heroSubtitle')}"
+            <p className="text-xl md:text-2xl text-white max-w-3xl mx-auto font-bold tracking-wide">
+              {t('heroSubtitle')}
             </p>
           </div>
         </div>
