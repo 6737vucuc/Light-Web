@@ -3,15 +3,17 @@
 import React from 'react';
 import { useToast, ToastType } from '@/lib/contexts/ToastContext';
 import { X, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
+import { useParams } from 'next/navigation';
 
 interface ToastItemProps {
   id: string;
   message: string;
   type: ToastType;
   onClose: (id: string) => void;
+  isRtl: boolean;
 }
 
-function ToastItem({ id, message, type, onClose }: ToastItemProps) {
+function ToastItem({ id, message, type, onClose, isRtl }: ToastItemProps) {
   const icons = {
     success: <CheckCircle className="w-5 h-5" />,
     error: <XCircle className="w-5 h-5" />,
@@ -42,8 +44,9 @@ function ToastItem({ id, message, type, onClose }: ToastItemProps) {
 
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm transition-all duration-300 animate-slideInRight min-w-[300px] max-w-md ${bgColors[type]}`}
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-300 ${isRtl ? 'animate-slideInLeft' : 'animate-slideInRight'} min-w-[300px] max-w-md ${bgColors[type]}`}
       role="alert"
+      dir={isRtl ? 'rtl' : 'ltr'}
     >
       <div className={`flex-shrink-0 ${colors[type]}`}>
         {icons[type]}
@@ -55,10 +58,10 @@ function ToastItem({ id, message, type, onClose }: ToastItemProps) {
       </div>
       <button
         onClick={() => onClose(id)}
-        className="flex-shrink-0 p-1 hover:bg-white/50 rounded transition-colors"
+        className="flex-shrink-0 p-1 hover:bg-white/50 rounded-full transition-colors"
         aria-label="Close"
       >
-        <X className="w-4 h-4 text-gray-600" />
+        <X className="w-4 h-4 text-gray-500" />
       </button>
     </div>
   );
@@ -66,13 +69,16 @@ function ToastItem({ id, message, type, onClose }: ToastItemProps) {
 
 export function ToastContainer() {
   const { toasts, removeToast } = useToast();
+  const params = useParams();
+  const locale = params?.locale as string || 'ar';
+  const isRtl = locale === 'ar';
 
   if (toasts.length === 0) return null;
 
   return (
     <>
       <div
-        className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"
+        className={`fixed top-4 ${isRtl ? 'left-4' : 'right-4'} z-[9999] flex flex-col gap-2 pointer-events-none`}
         aria-live="polite"
         aria-atomic="true"
       >
@@ -83,6 +89,7 @@ export function ToastContainer() {
               message={toast.message}
               type={toast.type}
               onClose={removeToast}
+              isRtl={isRtl}
             />
           </div>
         ))}
@@ -100,8 +107,23 @@ export function ToastContainer() {
           }
         }
 
+        @keyframes slideInLeft {
+          from {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
         .animate-slideInRight {
           animation: slideInRight 0.3s ease-out;
+        }
+
+        .animate-slideInLeft {
+          animation: slideInLeft 0.3s ease-out;
         }
       `}</style>
     </>

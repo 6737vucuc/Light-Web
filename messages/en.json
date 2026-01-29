@@ -259,7 +259,10 @@
     "sending": "Sending...",
     "uploading": "Uploading...",
     "chat": "Chat",
-    "messages": "Messages"
+    "messages": "Messages",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
   },
   "privateChat": {
     "title": "Private Messages",
@@ -298,7 +301,10 @@
     "sending": "Sending...",
     "uploading": "Uploading...",
     "chat": "Chat",
-    "messages": "Messages"
+    "messages": "Messages",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
   },
   "footer": {
     "developedBy": "Developed by",
