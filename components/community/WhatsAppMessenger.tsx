@@ -74,6 +74,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         if (callStatus === 'idle') {
           setCallOtherUser({ name: data.callerName, avatar: data.callerAvatar });
           setCallStatus('incoming');
+          // Store the caller's peer ID to call them back when accepting
           currentCallRef.current = { peerId: data.callerPeerId };
         }
       });
@@ -97,7 +98,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
 
       peer.on('call', (call) => {
+        // This is for the caller's side or when being called
         currentCallRef.current = call;
+        
+        // Auto-setup events if we're already in a call state (like after answering)
+        if (callStatus === 'connected' || callStatus === 'calling') {
+          setupCallEvents(call);
+        }
       });
     }
 
@@ -358,32 +365,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     if (!selectedConversation || !peerId) return;
     
     try {
-      let stream: MediaStream | null = null;
-      
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          },
-          video: false
-        });
-      } catch (permissionError: any) {
-        if (permissionError.name === 'NotAllowedError') {
-          toast.error(t('microphonePermission'));
-        } else if (permissionError.name === 'NotFoundError') {
-          toast.error(t('microphoneNotFound'));
-        } else if (permissionError.name === 'NotReadableError') {
-          toast.error(t('microphoneInUse'));
-        } else {
-          toast.error(t('callFailed'));
-        }
-        return;
-      }
+      // Step 1: Request Microphone Access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
+        video: false
+      });
 
       if (!stream) {
-        toast.error(t('callFailed'));
+        toast.error(t('microphonePermission'));
         return;
       }
       
@@ -391,6 +384,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       setCallOtherUser({ name: selectedConversation.other_user_name, avatar: selectedConversation.other_user_avatar });
       setCallStatus('calling');
       
+      // Step 2: Notify the other user via Pusher
       const response = await fetch('/api/messages/call/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -403,13 +397,15 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
 
       if (!response.ok) {
-        toast.error(t('callFailed'));
-        setCallStatus('idle');
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach(track => track.stop());
-        }
+        throw new Error('Failed to initiate call');
       }
+
+      // Note: The actual WebRTC call will be initiated by the receiver when they accept, 
+      // or we can initiate it here and wait for them to answer.
+      // For PeerJS, the caller usually calls peer.call(remoteId, stream)
+      
     } catch (err: any) {
+      console.error('Call error:', err);
       toast.error(t('callFailed'));
       setCallStatus('idle');
       if (localStreamRef.current) {
@@ -420,52 +416,59 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   const acceptCall = async () => {
     try {
-      let stream: MediaStream | null = null;
-      
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
-      } catch (permissionError: any) {
+      // Step 1: Request Microphone Access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      if (!stream) {
         toast.error(t('microphonePermission'));
         rejectCall();
         return;
       }
 
-      if (!stream) {
-        rejectCall();
-        return;
-      }
-
       localStreamRef.current = stream;
-      if (currentCallRef.current && currentCallRef.current.answer) {
+      setCallStatus('connected');
+
+      // Step 2: Establish WebRTC connection using PeerJS
+      if (peerRef.current && currentCallRef.current?.peerId) {
+        // We are the receiver, we initiate the PeerJS call to the caller's peerId
+        const call = peerRef.current.call(currentCallRef.current.peerId, stream);
+        currentCallRef.current = call;
+        setupCallEvents(call);
+      } else if (currentCallRef.current && currentCallRef.current.answer) {
+        // If we already have an incoming call object from peer.on('call')
         currentCallRef.current.answer(stream);
         setupCallEvents(currentCallRef.current);
-        setCallStatus('connected');
       }
     } catch (err) {
+      console.error('Accept call error:', err);
       rejectCall();
     }
   };
 
   const rejectCall = () => {
     setCallStatus('idle');
-    fetch('/api/messages/call/reject', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipientId: selectedConversation?.other_user_id })
-    });
+    if (selectedConversation) {
+      fetch('/api/messages/call/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientId: selectedConversation.other_user_id })
+      });
+    } else if (currentCallRef.current?.peerId) {
+      // If we don't have selectedConversation yet (incoming call from someone else)
+      // We'd need their actual database ID which we should include in the initiate call payload
+    }
   };
 
   const endCall = () => {
     if (currentCallRef.current && currentCallRef.current.close) currentCallRef.current.close();
     if (localStreamRef.current) localStreamRef.current.getTracks().forEach(track => track.stop());
     
-    // Notify other user via API
     if (selectedConversation) {
       fetch('/api/messages/call/end', {
         method: 'POST',
@@ -485,9 +488,19 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         remoteAudioRef.current.autoplay = true;
       }
       remoteAudioRef.current.srcObject = remoteStream;
+      // Ensure it plays
+      remoteAudioRef.current.play().catch(e => console.error("Audio play error:", e));
     });
-    call.on('close', endCall);
-    call.on('error', endCall);
+    
+    call.on('close', () => {
+      setCallStatus('ended');
+      setTimeout(() => setCallStatus('idle'), 2000);
+    });
+    
+    call.on('error', (err: any) => {
+      console.error('Peer call error:', err);
+      endCall();
+    });
   };
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
@@ -684,7 +697,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                           <button
                             onClick={() => deleteForEveryone(msg.id)}
                             disabled={isDeleting}
-                            className="w-full px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 text-right flex items-center justify-end gap-2"
+                            className={`w-full px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 ${isRtl ? 'justify-end text-right' : 'justify-start text-left'}`}
                           >
                             {isDeleting ? t('loading') : t('deleteForEveryone')}
                             <Trash2 className="w-3 h-3" />

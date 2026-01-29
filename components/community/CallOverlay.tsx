@@ -22,18 +22,49 @@ export default function CallOverlay({ callStatus, otherUser, onAccept, onReject,
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [duration, setDuration] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (callStatus === 'connected') {
+      // Start timer when connected
       timerRef.current = setInterval(() => {
         setDuration(prev => prev + 1);
       }, 1000);
+      
+      // Stop ringing sound
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    } else if (callStatus === 'calling' || callStatus === 'incoming') {
+      // Play ringing sound
+      if (!audioRef.current) {
+        audioRef.current = new Audio(
+          callStatus === 'calling' 
+            ? 'https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3' // Outgoing ring
+            : 'https://assets.mixkit.co/active_storage/sfx/1358/1358-preview.mp3' // Incoming ring
+        );
+        audioRef.current.loop = true;
+        audioRef.current.play().catch(e => console.error("Audio play error:", e));
+      }
     } else {
+      // Stop timer and sounds for idle/ended
       if (timerRef.current) clearInterval(timerRef.current);
-      if (callStatus === 'idle' || callStatus === 'ended') setDuration(0);
+      if (callStatus === 'idle' || callStatus === 'ended') {
+        setDuration(0);
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+      }
     }
+    
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
     };
   }, [callStatus]);
 
@@ -43,15 +74,21 @@ export default function CallOverlay({ callStatus, otherUser, onAccept, onReject,
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getAvatarUrl = (avatar?: string | null) => {
+    if (!avatar) return '/default-avatar.png';
+    if (avatar.startsWith('data:') || avatar.startsWith('http')) return avatar;
+    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
+  };
+
   if (callStatus === 'idle') return null;
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 animate-in fade-in duration-300">
       {/* User Info */}
       <div className="flex flex-col items-center mb-12">
-        <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-purple-500 shadow-2xl mb-6 animate-pulse">
+        <div className={`relative w-32 h-32 rounded-full overflow-hidden border-4 ${callStatus === 'connected' ? 'border-green-500' : 'border-purple-500'} shadow-2xl mb-6 ${callStatus === 'calling' || callStatus === 'incoming' ? 'animate-pulse' : ''}`}>
           <Image 
-            src={otherUser.avatar || '/default-avatar.png'} 
+            src={getAvatarUrl(otherUser.avatar)} 
             alt={otherUser.name} 
             fill 
             className="object-cover"
@@ -59,12 +96,15 @@ export default function CallOverlay({ callStatus, otherUser, onAccept, onReject,
           />
         </div>
         <h2 className="text-3xl font-bold mb-2">{otherUser.name}</h2>
-        <p className="text-purple-300 font-medium">
-          {callStatus === 'calling' && t('calling')}
-          {callStatus === 'incoming' && t('incomingCall')}
-          {callStatus === 'connected' && formatDuration(duration)}
-          {callStatus === 'ended' && t('callEnded')}
-        </p>
+        <div className="flex items-center gap-2">
+          {callStatus === 'connected' && <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>}
+          <p className={`${callStatus === 'connected' ? 'text-green-400' : 'text-purple-300'} font-medium`}>
+            {callStatus === 'calling' && t('calling')}
+            {callStatus === 'incoming' && t('incomingCall')}
+            {callStatus === 'connected' && formatDuration(duration)}
+            {callStatus === 'ended' && t('callEnded')}
+          </p>
+        </div>
       </div>
 
       {/* Controls */}
