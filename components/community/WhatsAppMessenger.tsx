@@ -103,7 +103,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       if (peerRef.current) peerRef.current.destroy();
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [selectedMessageId]);
+  }, [currentUser.id]);
 
   useEffect(() => {
     if (!initialUserId || isLoading) return;
@@ -118,7 +118,8 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation.other_user_id);
-      subscribeToMessages(selectedConversation.other_user_id);
+      const unsubscribe = subscribeToMessages(selectedConversation.other_user_id);
+      return unsubscribe;
     }
   }, [selectedConversation]);
 
@@ -150,6 +151,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages || []);
+        // Mark messages as read when loaded
+        try {
+          await fetch(`/api/messages/${otherUserId}/mark-read`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (e) {}
       }
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -158,7 +166,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   const subscribeToMessages = (otherUserId: number) => {
     if (!pusherRef.current) return;
-    const channel = pusherRef.current.subscribe(`conversation-${otherUserId}`);
+    const currentUserId = currentUser.id;
+    const channelId = `conversation-${Math.min(currentUserId, otherUserId)}-${Math.max(currentUserId, otherUserId)}`;
+    const channel = pusherRef.current.subscribe(channelId);
+    
     channel.bind('new-message', (data: any) => {
       setMessages((prev) => {
         if (prev.find(m => m.id === data.message.id)) return prev;
@@ -173,9 +184,16 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       ));
     });
 
-    channel.bind('messages-read', () => {
-      setMessages((prev) => prev.map(m => ({ ...m, isRead: true })));
+    channel.bind('message-read', (data: any) => {
+      setMessages((prev) => prev.map(m => 
+        m.id === data.messageId ? { ...m, isRead: true } : m
+      ));
     });
+
+    return () => {
+      channel.unbind_all();
+      pusherRef.current?.unsubscribe(channelId);
+    };
   };
 
   const openConversationWithUser = async (userId: number) => {
@@ -290,10 +308,26 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     if (!selectedConversation || !peerId) return;
     try {
       // Explicitly request microphone permissions
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (permissionError: any) {
+        if (permissionError.name === 'NotAllowedError') {
+          toast.error('يرجى السماح بالوصول للميكروفون من إعدادات المتصفح لإجراء المكالمة');
+        } else if (permissionError.name === 'NotFoundError') {
+          toast.error('لم يتم العثور على ميكروفون. يرجى التحقق من أجهزتك');
+        } else {
+          toast.error('خطأ في الوصول للميكروفون: ' + permissionError.message);
+        }
+        return;
+      }
+
+      if (!stream) return;
+      
       localStreamRef.current = stream;
       setCallOtherUser({ name: selectedConversation.other_user_name, avatar: selectedConversation.other_user_avatar });
       setCallStatus('calling');
+      
       await fetch('/api/messages/call/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -304,14 +338,33 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           callerAvatar: currentUser.avatar
         })
       });
-    } catch (err) {
-      toast.error('يرجى السماح بالوصول للميكروفون من إعدادات المتصفح لإجراء المكالمة');
+    } catch (err: any) {
+      toast.error('خطأ في بدء المكالمة: ' + (err.message || 'حاول مرة أخرى'));
     }
   };
 
   const acceptCall = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (permissionError: any) {
+        if (permissionError.name === 'NotAllowedError') {
+          toast.error('يرجى السماح بالوصول للميكروفون لقبول المكالمة');
+        } else if (permissionError.name === 'NotFoundError') {
+          toast.error('لم يتم العثور على ميكروفون');
+        } else {
+          toast.error('خطأ في الوصول للميكروفون');
+        }
+        rejectCall();
+        return;
+      }
+
+      if (!stream) {
+        rejectCall();
+        return;
+      }
+
       localStreamRef.current = stream;
       if (currentCallRef.current && currentCallRef.current.answer) {
         currentCallRef.current.answer(stream);
@@ -511,7 +564,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                       <div className="flex items-center justify-end gap-1 mt-1">
                         <span className="text-[10px] text-[#667781]">{formatTime(msg.createdAt)}</span>
                         {isOwn && !msg.isDeleted && (
-                          msg.isRead ? <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /> : <CheckCheck className="w-3.5 h-3.5 text-[#667781]" />
+                          msg.isRead ? <CheckCheck className="w-3.5 h-3.5 text-[#31a24c]" /> : <Check className="w-3.5 h-3.5 text-[#667781]" />
                         )}
                       </div>
 

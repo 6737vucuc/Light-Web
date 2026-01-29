@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, sql as neonSql } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth/verify';
 import { encrypt, decrypt } from '@/lib/crypto';
+import { pusherServer, RealtimeChatService } from '@/lib/realtime/chat';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -125,20 +126,32 @@ export async function POST(
     const senderResult = await neonSql`SELECT name, avatar FROM users WHERE id = ${userId}`;
     const sender = senderResult[0];
 
+    const messageData = {
+      ...newMessage,
+      content: content,
+      senderName: sender?.name || 'User',
+      senderAvatar: sender?.avatar || null,
+      isRead: false,
+      isDeleted: false,
+    };
+
+    // Trigger Pusher event for real-time updates
+    try {
+      const channelId = `conversation-${Math.min(userId, receiverId)}-${Math.max(userId, receiverId)}`;
+      await pusherServer.trigger(channelId, 'new-message', { message: messageData });
+    } catch (pusherError) {
+      // Pusher error shouldn't prevent message from being sent
+    }
+
     return NextResponse.json({
-      message: {
-        ...newMessage,
-        content: content,
-        senderName: sender?.name || 'User',
-        senderAvatar: sender?.avatar || null,
-      },
+      message: messageData,
     });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
   }
 }
 
-// DELETE for "Delete for Everyone"
+// DELETE for \"Delete for Everyone\"
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ conversationId: string }> }
@@ -147,19 +160,34 @@ export async function DELETE(
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const { conversationId } = await params;
+    const receiverId = parseInt(conversationId);
     const { searchParams } = new URL(request.url);
     const messageId = searchParams.get('messageId');
 
     if (!messageId) return NextResponse.json({ error: 'Message ID required' }, { status: 400 });
 
     // Update message to be deleted for everyone
-    await neonSql`
+    const updateResult = await neonSql`
       UPDATE direct_messages 
       SET is_deleted = true, deleted_at = NOW(), content = NULL, media_url = NULL
       WHERE id = ${parseInt(messageId)} AND sender_id = ${user.userId}
+      RETURNING id
     `;
 
-    return NextResponse.json({ success: true });
+    if (updateResult.length === 0) {
+      return NextResponse.json({ error: 'Message not found or unauthorized' }, { status: 404 });
+    }
+
+    // Trigger Pusher event to notify both users
+    try {
+      const channelId = `conversation-${Math.min(user.userId, receiverId)}-${Math.max(user.userId, receiverId)}`;
+      await pusherServer.trigger(channelId, 'message-deleted', { messageId: parseInt(messageId) });
+    } catch (pusherError) {
+      // Pusher error shouldn't prevent deletion
+    }
+
+    return NextResponse.json({ success: true, messageId: parseInt(messageId) });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
   }
