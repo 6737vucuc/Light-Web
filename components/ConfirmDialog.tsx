@@ -56,7 +56,7 @@ export default function ConfirmDialog({
   const Icon = config.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/30 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/30 backdrop-blur-sm animate-fadeIn" dir="rtl">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto animate-slideUp">
         {/* Header */}
         <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
@@ -80,7 +80,7 @@ export default function ConfirmDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex flex-col sm:flex-row gap-3 p-4 sm:p-6 bg-gray-50 rounded-b-2xl">
+        <div className="flex flex-col-reverse sm:flex-row gap-3 p-4 sm:p-6 bg-gray-50 rounded-b-2xl">
           <button
             onClick={onCancel}
             className="flex-1 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm sm:text-base"

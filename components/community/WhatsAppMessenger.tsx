@@ -32,6 +32,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Call States
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'incoming' | 'connected' | 'ended'>('idle');
@@ -43,6 +44,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
+  const messageContextRef = useRef<HTMLDivElement>(null);
   
   const peerRef = useRef<Peer | null>(null);
   const currentCallRef = useRef<any>(null);
@@ -89,11 +91,8 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
         setShowHeaderMenu(false);
       }
-      if (selectedMessageId !== null) {
-        const target = event.target as HTMLElement;
-        if (!target.closest('.message-bubble')) {
-          setSelectedMessageId(null);
-        }
+      if (messageContextRef.current && !messageContextRef.current.contains(event.target as Node)) {
+        setSelectedMessageId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -103,7 +102,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       if (peerRef.current) peerRef.current.destroy();
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [currentUser.id]);
+  }, [currentUser.id, callStatus]);
 
   useEffect(() => {
     if (!initialUserId || isLoading) return;
@@ -253,11 +252,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setShowEmojiPicker(false);
         scrollToBottom();
       } else {
-        toast.error(data.error || 'Failed to send message');
+        toast.error(data.error || 'فشل إرسال الرسالة');
       }
     } catch (error: any) {
       console.error('Error sending message:', error);
-      toast.error('Error: ' + (error.message || 'Failed to send message'));
+      toast.error('خطأ: ' + (error.message || 'فشل إرسال الرسالة'));
     } finally {
       setIsSending(false);
     }
@@ -268,10 +267,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       title: 'حذف الرسالة',
       message: 'هل تريد حذف هذه الرسالة لدى الجميع؟',
       confirmText: 'حذف لدى الجميع',
+      cancelText: 'إلغاء',
       type: 'danger'
     });
 
     if (confirmed) {
+      setIsDeleting(true);
       try {
         const response = await fetch(`/api/messages/${selectedConversation.other_user_id}?messageId=${messageId}`, {
           method: 'DELETE'
@@ -281,9 +282,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             m.id === messageId ? { ...m, isDeleted: true, content: 'تم حذف هذه الرسالة' } : m
           ));
           toast.success('تم حذف الرسالة لدى الجميع');
+        } else {
+          toast.error('فشل حذف الرسالة');
         }
       } catch (error) {
         toast.error('فشل حذف الرسالة');
+      } finally {
+        setIsDeleting(false);
       }
     }
     setSelectedMessageId(null);
@@ -291,44 +296,58 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   const clearChat = async () => {
     const confirmed = await toast.confirm({
-      title: 'Clear Chat',
-      message: 'Are you sure you want to clear this chat? This action cannot be undone.',
-      confirmText: 'Clear',
+      title: 'مسح المحادثة',
+      message: 'هل تريد مسح هذه المحادثة؟ لا يمكن التراجع عن هذا الإجراء.',
+      confirmText: 'مسح',
+      cancelText: 'إلغاء',
       type: 'danger'
     });
     
     if (confirmed) {
       setMessages([]);
       setShowHeaderMenu(false);
-      toast.success('Chat cleared successfully');
+      toast.success('تم مسح المحادثة بنجاح');
     }
   };
 
   const startCall = async () => {
     if (!selectedConversation || !peerId) return;
+    
     try {
-      // Explicitly request microphone permissions
+      // Request microphone permissions explicitly
       let stream: MediaStream | null = null;
+      
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
       } catch (permissionError: any) {
         if (permissionError.name === 'NotAllowedError') {
-          toast.error('يرجى السماح بالوصول للميكروفون من إعدادات المتصفح لإجراء المكالمة');
+          toast.error('يرجى السماح بالوصول للميكروفون من إعدادات المتصفح');
         } else if (permissionError.name === 'NotFoundError') {
           toast.error('لم يتم العثور على ميكروفون. يرجى التحقق من أجهزتك');
+        } else if (permissionError.name === 'NotReadableError') {
+          toast.error('الميكروفون قيد الاستخدام من قبل تطبيق آخر');
         } else {
           toast.error('خطأ في الوصول للميكروفون: ' + permissionError.message);
         }
         return;
       }
 
-      if (!stream) return;
+      if (!stream) {
+        toast.error('فشل الحصول على الميكروفون');
+        return;
+      }
       
       localStreamRef.current = stream;
       setCallOtherUser({ name: selectedConversation.other_user_name, avatar: selectedConversation.other_user_avatar });
       setCallStatus('calling');
       
-      await fetch('/api/messages/call/initiate', {
+      const response = await fetch('/api/messages/call/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -338,19 +357,38 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           callerAvatar: currentUser.avatar
         })
       });
+
+      if (!response.ok) {
+        toast.error('فشل بدء المكالمة');
+        setCallStatus('idle');
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(track => track.stop());
+        }
+      }
     } catch (err: any) {
       toast.error('خطأ في بدء المكالمة: ' + (err.message || 'حاول مرة أخرى'));
+      setCallStatus('idle');
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+      }
     }
   };
 
   const acceptCall = async () => {
     try {
       let stream: MediaStream | null = null;
+      
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
       } catch (permissionError: any) {
         if (permissionError.name === 'NotAllowedError') {
-          toast.error('يرجى السماح بالوصول للميكروفون لقبول المكالمة');
+          toast.error('يرجى السماح بالوصول للميكروفون');
         } else if (permissionError.name === 'NotFoundError') {
           toast.error('لم يتم العثور على ميكروفون');
         } else {
@@ -425,7 +463,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const formatTime = (date: string) => {
-    return new Date(date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return new Date(date).toLocaleTimeString('ar-SA', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
   const filteredConversations = conversations.filter(conv =>
@@ -441,16 +479,16 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   }
 
   return (
-    <div className="flex h-full bg-[#f0f2f5] overflow-hidden relative">
+    <div className="flex h-full bg-[#f0f2f5] overflow-hidden relative" dir="rtl">
       <CallOverlay callStatus={callStatus} otherUser={callOtherUser} onAccept={acceptCall} onReject={rejectCall} onEnd={endCall} />
 
       {/* Conversations List */}
-      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[350px] lg:w-[400px] flex-col bg-white border-r border-gray-200 h-full`}>
+      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[350px] lg:w-[400px] flex-col bg-white border-l border-gray-200 h-full`}>
         <div className="bg-[#f0f2f5] px-4 py-[10px] flex items-center justify-between border-b border-gray-200 min-h-[59px]">
           <button onClick={() => router.push('/community')} className="p-2 hover:bg-gray-200 rounded-full md:hidden">
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
-          <h2 className="text-xl font-semibold text-gray-900">Messages</h2>
+          <h2 className="text-xl font-semibold text-gray-900">الرسائل</h2>
           <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
             <MoreVertical className="w-5 h-5 text-gray-600" />
           </button>
@@ -458,13 +496,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
         <div className="p-2 bg-white border-b border-gray-100">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search messages..."
+              placeholder="ابحث عن رسالة..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-[#f0f2f5] rounded-lg text-sm focus:outline-none text-gray-900"
+              className="w-full pr-10 pl-4 py-2 bg-[#f0f2f5] rounded-lg text-sm focus:outline-none text-gray-900"
             />
           </div>
         </div>
@@ -472,7 +510,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         <div className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
-              <p>No conversations yet</p>
+              <p>لا توجد محادثات بعد</p>
             </div>
           ) : (
             filteredConversations.map((conv) => (
@@ -486,12 +524,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                     <Image src={getAvatarUrl(conv.other_user_avatar)} alt={conv.other_user_name} fill className="object-cover" unoptimized />
                   </div>
                 </div>
-                <div className="flex-1 min-w-0 text-left">
+                <div className="flex-1 min-w-0 text-right">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-semibold text-gray-900 truncate">{conv.other_user_name}</h3>
                     <span className="text-[11px] text-gray-500">{formatTime(conv.last_message_at || conv.created_at)}</span>
+                    <h3 className="font-semibold text-gray-900 truncate">{conv.other_user_name}</h3>
                   </div>
-                  <p className="text-sm text-gray-600 truncate">{conv.last_message || 'No messages yet'}</p>
+                  <p className="text-sm text-gray-600 truncate">{conv.last_message || 'لا توجد رسائل بعد'}</p>
                 </div>
               </button>
             ))
@@ -515,7 +553,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 truncate">{selectedConversation.other_user_name}</h3>
-                <p className="text-xs text-gray-500">Online</p>
+                <p className="text-xs text-gray-500">متصل</p>
               </div>
               <div className="flex items-center gap-4 text-gray-600">
                 <button onClick={startCall} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
@@ -526,12 +564,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                     <MoreVertical className="w-5 h-5" />
                   </button>
                   {showHeaderMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100">
-                      <button className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                        <UserIcon className="w-4 h-4" /> View Profile
+                    <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100">
+                      <button className="w-full px-4 py-2 text-right text-sm hover:bg-gray-50 flex items-center gap-2 justify-end">
+                        <UserIcon className="w-4 h-4" /> عرض الملف الشخصي
                       </button>
-                      <button onClick={clearChat} className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
-                        <Trash2 className="w-4 h-4" /> Clear Chat
+                      <button onClick={clearChat} className="w-full px-4 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 justify-end">
+                        <Trash2 className="w-4 h-4" /> مسح المحادثة
                       </button>
                     </div>
                   )}
@@ -545,7 +583,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                 const isOwn = msg.senderId === currentUser.id;
                 const isSelected = selectedMessageId === msg.id;
                 return (
-                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                  <div key={msg.id} className={`flex ${isOwn ? 'justify-start' : 'justify-end'}`}>
                     <div 
                       onClick={() => isOwn && !msg.isDeleted && setSelectedMessageId(isSelected ? null : msg.id)}
                       className={`
@@ -557,11 +595,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                     >
                       {msg.messageType === 'image' && msg.mediaUrl && (
                         <div className="mb-1 rounded overflow-hidden">
-                          <img src={msg.mediaUrl} alt="Sent image" className="max-w-full h-auto" />
+                          <img src={msg.mediaUrl} alt="صورة مرسلة" className="max-w-full h-auto" />
                         </div>
                       )}
                       <p className="text-[14.5px] leading-relaxed break-words">{msg.content}</p>
-                      <div className="flex items-center justify-end gap-1 mt-1">
+                      <div className="flex items-center justify-start gap-1 mt-1">
                         <span className="text-[10px] text-[#667781]">{formatTime(msg.createdAt)}</span>
                         {isOwn && !msg.isDeleted && (
                           msg.isRead ? <CheckCheck className="w-3.5 h-3.5 text-[#31a24c]" /> : <Check className="w-3.5 h-3.5 text-[#667781]" />
@@ -570,15 +608,16 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
                       {/* Delete for Everyone Context Menu */}
                       {isSelected && isOwn && !msg.isDeleted && (
-                        <div className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-xl py-1 z-50 border border-gray-100 min-w-[140px]">
+                        <div ref={messageContextRef} className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl py-1 z-50 border border-gray-100 min-w-[140px]">
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteForEveryone(msg.id);
                             }}
-                            className="w-full px-3 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            disabled={isDeleting}
+                            className="w-full px-3 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 justify-end disabled:opacity-50"
                           >
-                            <Trash2 className="w-4 h-4" /> الحذف لدى الجميع
+                            <Trash2 className="w-4 h-4" /> حذف لدى الجميع
                           </button>
                         </div>
                       )}
@@ -609,10 +648,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               <div className="flex-1 relative">
                 {imagePreview && (
                   <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-lg shadow-lg border border-gray-200">
-                    <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
+                    <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="absolute -top-2 -left-2 bg-red-500 text-white rounded-full p-1">
                       <X className="w-4 h-4" />
                     </button>
-                    <img src={imagePreview} alt="Preview" className="h-20 w-20 object-cover rounded" />
+                    <img src={imagePreview} alt="معاينة" className="h-20 w-20 object-cover rounded" />
                   </div>
                 )}
                 <input
@@ -620,7 +659,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Type a message"
+                  placeholder="اكتب رسالة..."
                   className="w-full bg-white px-4 py-2 rounded-lg text-sm focus:outline-none text-gray-900"
                 />
               </div>
@@ -635,8 +674,8 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4">
               <ImageIcon className="w-12 h-12 text-gray-400" />
             </div>
-            <h2 className="text-2xl font-light mb-2">WhatsApp Web</h2>
-            <p className="text-sm text-center max-w-xs">Send and receive messages without keeping your phone online.</p>
+            <h2 className="text-2xl font-light mb-2">واتساب ويب</h2>
+            <p className="text-sm text-center max-w-xs">أرسل واستقبل الرسائل دون الحاجة لإبقاء هاتفك متصلاً بالإنترنت.</p>
           </div>
         )}
       </div>
