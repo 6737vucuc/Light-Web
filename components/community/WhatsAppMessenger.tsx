@@ -59,14 +59,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize PeerJS with a more robust setup
+  // Initialize PeerJS with maximum stability settings
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const initPeer = () => {
-      // Use a cleaner ID format
-      const myPeerId = `light-v4-${currentUser.id}`;
-      console.log('Initializing PeerJS with ID:', myPeerId);
+      // Use a timestamped ID to ensure uniqueness across refreshes
+      const myPeerId = `light-v5-${currentUser.id}-${Date.now().toString().slice(-4)}`;
+      console.log('[CallSystem] Initializing PeerJS with ID:', myPeerId);
       
       const peer = new Peer(myPeerId, {
         host: '0.peerjs.com',
@@ -76,38 +76,36 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
           ]
         },
-        debug: 3 // High debug level to capture all issues
+        debug: 3
       });
 
       peer.on('open', (id) => {
-        console.log('PeerJS successfully opened with ID:', id);
+        console.log('[CallSystem] PeerJS successfully opened with ID:', id);
         setPeerId(id);
         peerRef.current = peer;
       });
 
       peer.on('call', (incomingCall) => {
-        console.log('Incoming PeerJS call from:', incomingCall.peer);
+        console.log('[CallSystem] Incoming PeerJS call from:', incomingCall.peer);
         currentCallRef.current = incomingCall;
+        // We handle the actual answering in acceptCall
       });
 
       peer.on('error', (err) => {
-        console.error('PeerJS global error:', err.type, err.message);
+        console.error('[CallSystem] PeerJS global error:', err.type, err.message);
         if (err.type === 'unavailable-id') {
-          const fallbackId = `${myPeerId}-${Math.random().toString(36).substr(2, 4)}`;
-          console.log('ID taken, retrying with fallback:', fallbackId);
-          const fallbackPeer = new Peer(fallbackId);
-          fallbackPeer.on('open', (id) => {
-            setPeerId(id);
-            peerRef.current = fallbackPeer;
-          });
+          console.log('[CallSystem] ID unavailable, retrying with new ID...');
+          setTimeout(initPeer, 1000);
         }
       });
 
       peer.on('disconnected', () => {
-        console.log('PeerJS disconnected, reconnecting...');
+        console.log('[CallSystem] PeerJS disconnected, reconnecting...');
         peer.reconnect();
       });
 
@@ -118,7 +116,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
     return () => {
       if (peer) {
-        console.log('Cleaning up PeerJS instance');
+        console.log('[CallSystem] Cleaning up PeerJS instance');
         peer.destroy();
       }
     };
@@ -135,23 +133,24 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       const userChannel = pusherRef.current.subscribe(`user-${currentUser.id}`);
       
       userChannel.bind('incoming-call', (data: any) => {
-        console.log('Incoming call Pusher signal:', data);
+        console.log('[CallSystem] Pusher: Incoming call signal received', data);
         if (callStatus === 'idle') {
           setCallOtherUser({ name: data.callerName, avatar: data.callerAvatar });
           setCallStatus('incoming');
+          // Save caller peer ID for connection
           currentCallRef.current = { peerId: data.callerPeerId, isInitiator: false };
         }
       });
 
       userChannel.bind('call-rejected', () => {
-        console.log('Call rejected Pusher signal');
+        console.log('[CallSystem] Pusher: Call rejected signal');
         cleanupCall();
         setCallStatus('ended');
         setTimeout(() => setCallStatus('idle'), 2000);
       });
 
       userChannel.bind('call-ended', () => {
-        console.log('Call ended Pusher signal');
+        console.log('[CallSystem] Pusher: Call ended signal');
         cleanupCall();
         setCallStatus('ended');
         setTimeout(() => setCallStatus('idle'), 2000);
@@ -175,8 +174,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   }, [currentUser.id, callStatus]);
 
   const cleanupCall = () => {
-    console.log('Executing call cleanup');
-    if (currentCallRef.current && currentCallRef.current.close) currentCallRef.current.close();
+    console.log('[CallSystem] Cleaning up all call resources');
+    if (currentCallRef.current && currentCallRef.current.close) {
+      try { currentCallRef.current.close(); } catch (e) {}
+    }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
@@ -184,6 +185,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = null;
     }
+    currentCallRef.current = null;
   };
 
   useEffect(() => {
@@ -402,28 +404,27 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const startCall = async () => {
-    console.log('startCall initiated. Current peerId:', peerId);
+    console.log('[CallSystem] startCall initiated. PeerID:', peerId);
     if (!selectedConversation || !peerId) {
-      console.error('Missing conversation or peerId');
       toast.error(t('callFailed'));
       return;
     }
     
     try {
-      console.log('Requesting mic access...');
+      // Step 1: Request Mic
+      console.log('[CallSystem] Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { echoCancellation: true, noiseSuppression: true },
         video: false
       });
-
-      if (!stream) throw new Error('Failed to get media stream');
       
-      console.log('Mic access granted');
+      console.log('[CallSystem] Microphone access granted');
       localStreamRef.current = stream;
       setCallOtherUser({ name: selectedConversation.other_user_name, avatar: selectedConversation.other_user_avatar });
       setCallStatus('calling');
       
-      console.log('Sending Pusher signal to recipient...');
+      // Step 2: Signal Recipient
+      console.log('[CallSystem] Signaling recipient via API...');
       const response = await fetch('/api/messages/call/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -435,11 +436,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         })
       });
 
-      if (!response.ok) throw new Error('Signaling API failed');
-      console.log('Signal sent successfully. Waiting for answer...');
+      if (!response.ok) throw new Error('Signaling failed');
+      console.log('[CallSystem] Signal sent. Waiting for answer...');
       
     } catch (err: any) {
-      console.error('Comprehensive call start error:', err);
+      console.error('[CallSystem] Failed to start call:', err);
       toast.error(t('callFailed'));
       cleanupCall();
       setCallStatus('idle');
@@ -447,34 +448,36 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const acceptCall = async () => {
-    console.log('acceptCall triggered');
+    console.log('[CallSystem] acceptCall triggered');
     try {
-      console.log('Requesting mic access to answer...');
+      console.log('[CallSystem] Requesting microphone access to answer...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       setCallStatus('connected');
 
-      if (peerRef.current && currentCallRef.current?.peerId) {
-        console.log('Calling initiator back via PeerJS:', currentCallRef.current.peerId);
-        const call = peerRef.current.call(currentCallRef.current.peerId, stream);
+      // Check if we have the initiator's peer ID
+      const targetPeerId = currentCallRef.current?.peerId;
+      if (peerRef.current && targetPeerId) {
+        console.log('[CallSystem] Establishing PeerJS call to:', targetPeerId);
+        const call = peerRef.current.call(targetPeerId, stream);
         currentCallRef.current = call;
         setupCallEvents(call);
       } else if (currentCallRef.current && currentCallRef.current.answer) {
-        console.log('Answering incoming PeerJS call directly');
+        // Fallback: Answer the incoming PeerJS object if it exists
+        console.log('[CallSystem] Answering incoming PeerJS call object');
         currentCallRef.current.answer(stream);
         setupCallEvents(currentCallRef.current);
       } else {
-        console.error('No valid peer info to establish connection');
-        throw new Error('Connection logic failed');
+        throw new Error('No peer ID available to connect');
       }
     } catch (err) {
-      console.error('Comprehensive accept call error:', err);
+      console.error('[CallSystem] Failed to accept call:', err);
       rejectCall();
     }
   };
 
   const rejectCall = () => {
-    console.log('rejectCall triggered');
+    console.log('[CallSystem] rejectCall triggered');
     cleanupCall();
     setCallStatus('idle');
     if (selectedConversation) {
@@ -487,7 +490,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const endCall = () => {
-    console.log('endCall triggered');
+    console.log('[CallSystem] endCall triggered');
     cleanupCall();
     setCallStatus('ended');
     
@@ -503,26 +506,26 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const setupCallEvents = (call: any) => {
-    console.log('Setting up PeerJS stream listeners');
+    console.log('[CallSystem] Setting up call event listeners');
     call.on('stream', (remoteStream: MediaStream) => {
-      console.log('Remote stream detected!');
+      console.log('[CallSystem] Remote stream received!');
       if (!remoteAudioRef.current) {
         remoteAudioRef.current = document.createElement('audio');
         remoteAudioRef.current.autoplay = true;
       }
       remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(e => console.error("Audio playback failure:", e));
+      remoteAudioRef.current.play().catch(e => console.error("[CallSystem] Audio play error:", e));
     });
     
     call.on('close', () => {
-      console.log('PeerJS call closed by peer');
+      console.log('[CallSystem] PeerJS call closed');
       cleanupCall();
       setCallStatus('ended');
       setTimeout(() => setCallStatus('idle'), 2000);
     });
 
     call.on('error', (err: any) => {
-      console.error('PeerJS stream error:', err);
+      console.error('[CallSystem] PeerJS call error:', err);
       endCall();
     });
   };
