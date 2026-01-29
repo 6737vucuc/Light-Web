@@ -59,59 +59,44 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 1. Initialize PeerJS with high reliability settings
+  // Initialize PeerJS with a clean approach
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const initPeer = () => {
-      // Use a unique but predictable ID
-      const myPeerId = `light-chat-${currentUser.id}`;
-      const peer = new Peer(myPeerId, {
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' }
-          ]
-        },
-        debug: 1
-      });
+    // Use a unique ID for each session to avoid conflicts
+    const myPeerId = `light-chat-${currentUser.id}-${Math.random().toString(36).substr(2, 4)}`;
+    
+    const peer = new Peer(myPeerId, {
+      host: '0.peerjs.com',
+      port: 443,
+      secure: true,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    });
 
-      peer.on('open', (id) => {
-        setPeerId(id);
-        peerRef.current = peer;
-      });
+    peer.on('open', (id) => {
+      setPeerId(id);
+      peerRef.current = peer;
+    });
 
-      peer.on('call', async (incomingCall) => {
-        currentCallRef.current = incomingCall;
-        // Don't auto-answer, let the user accept
-      });
+    peer.on('call', (incomingCall) => {
+      currentCallRef.current = incomingCall;
+      // Incoming call handling is done via acceptCall
+    });
 
-      peer.on('error', (err) => {
-        console.error('PeerJS connection error:', err);
-        if (err.type === 'unavailable-id') {
-          // Retry with a unique suffix if ID is taken
-          const retryPeer = new Peer(`${myPeerId}-${Math.random().toString(36).substr(2, 4)}`);
-          retryPeer.on('open', (id) => {
-            setPeerId(id);
-            peerRef.current = retryPeer;
-          });
-        }
-      });
-
-      return peer;
-    };
-
-    const peer = initPeer();
+    peer.on('error', (err) => {
+      console.error('PeerJS error:', err);
+    });
 
     return () => {
       if (peer) peer.destroy();
     };
   }, [currentUser.id]);
 
-  // 2. Setup Pusher and Call Listeners
   useEffect(() => {
     loadConversations();
     
@@ -126,7 +111,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         if (callStatus === 'idle') {
           setCallOtherUser({ name: data.callerName, avatar: data.callerAvatar });
           setCallStatus('incoming');
-          // Store caller info to initiate PeerJS call back when accepted
+          // Important: Store caller's peer ID
           currentCallRef.current = { peerId: data.callerPeerId, isInitiator: false };
         }
       });
@@ -393,20 +378,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     }
     
     try {
-      // 1. Request Microphone Permission First
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        video: false
-      });
-
-      if (!stream) throw new Error('No stream obtained');
-      
+      // 1. Request Mic Access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       setCallOtherUser({ name: selectedConversation.other_user_name, avatar: selectedConversation.other_user_avatar });
       setCallStatus('calling');
       
-      // 2. Notify receiver via Pusher
-      const response = await fetch('/api/messages/call/initiate', {
+      // 2. Signal recipient via Pusher
+      await fetch('/api/messages/call/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -416,37 +395,29 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           callerAvatar: currentUser.avatar
         })
       });
-
-      if (!response.ok) throw new Error('Signaling failed');
-      
-    } catch (err: any) {
-      console.error('Failed to start call:', err);
+    } catch (err) {
       toast.error(t('callFailed'));
-      cleanupCall();
       setCallStatus('idle');
     }
   };
 
   const acceptCall = async () => {
     try {
-      // 1. Request Microphone Permission
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       setCallStatus('connected');
 
-      // 2. Establish Connection
       if (peerRef.current && currentCallRef.current?.peerId) {
-        // We are accepting, so we call them back using their peerId
+        // We call them back
         const call = peerRef.current.call(currentCallRef.current.peerId, stream);
         currentCallRef.current = call;
         setupCallEvents(call);
       } else if (currentCallRef.current && currentCallRef.current.answer) {
-        // If the initiator already sent a PeerJS call request
+        // They already called us via PeerJS
         currentCallRef.current.answer(stream);
         setupCallEvents(currentCallRef.current);
       }
     } catch (err) {
-      console.error('Failed to accept call:', err);
       rejectCall();
     }
   };
@@ -466,7 +437,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const endCall = () => {
     cleanupCall();
     setCallStatus('ended');
-    
     if (selectedConversation) {
       fetch('/api/messages/call/end', {
         method: 'POST',
@@ -474,7 +444,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         body: JSON.stringify({ recipientId: selectedConversation.other_user_id })
       });
     }
-
     setTimeout(() => setCallStatus('idle'), 2000);
   };
 
@@ -485,18 +454,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         remoteAudioRef.current.autoplay = true;
       }
       remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(e => console.error("Audio playback error:", e));
+      remoteAudioRef.current.play().catch(() => {});
     });
     
     call.on('close', () => {
       cleanupCall();
       setCallStatus('ended');
       setTimeout(() => setCallStatus('idle'), 2000);
-    });
-
-    call.on('error', (err: any) => {
-      console.error('Call stream error:', err);
-      endCall();
     });
   };
 
