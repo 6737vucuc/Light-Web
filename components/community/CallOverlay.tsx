@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX, X } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 
 interface CallOverlayProps {
   callStatus: 'idle' | 'calling' | 'incoming' | 'connected' | 'ended';
@@ -16,6 +17,7 @@ interface CallOverlayProps {
 }
 
 export default function CallOverlay({ callStatus, otherUser, onAccept, onReject, onEnd }: CallOverlayProps) {
+  const t = useTranslations('messages');
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [duration, setDuration] = useState(0);
@@ -58,10 +60,10 @@ export default function CallOverlay({ callStatus, otherUser, onAccept, onReject,
         </div>
         <h2 className="text-3xl font-bold mb-2">{otherUser.name}</h2>
         <p className="text-purple-300 font-medium">
-          {callStatus === 'calling' && 'Calling...'}
-          {callStatus === 'incoming' && 'Incoming Voice Call'}
+          {callStatus === 'calling' && t('calling')}
+          {callStatus === 'incoming' && t('incomingCall')}
           {callStatus === 'connected' && formatDuration(duration)}
-          {callStatus === 'ended' && 'Call Ended'}
+          {callStatus === 'ended' && t('callEnded')}
         </p>
       </div>
 
@@ -110,9 +112,6 @@ export default function CallOverlay({ callStatus, otherUser, onAccept, onReject,
           )}
         </div>
       </div>
-
-      {/* Background Sound (Optional - would need actual audio files) */}
-      {/* <audio autoPlay loop src={callStatus === 'incoming' ? '/sounds/ringtone.mp3' : '/sounds/calling.mp3'} /> */}
     </div>
   );
 }

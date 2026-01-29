@@ -253,7 +253,13 @@
     "incomingCall": "Incoming Call",
     "callEnded": "Call ended",
     "callFailed": "Failed to start call",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "deleteSuccess": "Message deleted successfully",
+    "deleteError": "Failed to delete message",
+    "sending": "Sending...",
+    "uploading": "Uploading...",
+    "chat": "Chat",
+    "messages": "Messages"
   },
   "privateChat": {
     "title": "Private Messages",
@@ -287,9 +293,12 @@
     "callEnded": "Call ended",
     "callFailed": "Failed to start call",
     "cancel": "Cancel",
-    "confirm": "Confirm",
-    "yes": "Yes",
-    "no": "No"
+    "deleteSuccess": "Message deleted successfully",
+    "deleteError": "Failed to delete message",
+    "sending": "Sending...",
+    "uploading": "Uploading...",
+    "chat": "Chat",
+    "messages": "Messages"
   },
   "footer": {
     "developedBy": "Developed by",

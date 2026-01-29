@@ -27,6 +27,9 @@ export enum ChatEvent {
   MESSAGE_READ = 'message-read',
   MESSAGE_DELIVERED = 'message-delivered',
   PROFILE_UPDATED = 'profile-updated',
+  INCOMING_CALL = 'incoming-call',
+  CALL_REJECTED = 'call-rejected',
+  CALL_ENDED = 'call-ended',
 }
 
 export interface ChatMessage {
@@ -167,6 +170,34 @@ export class RealtimeChatService {
       );
     } catch (error) {
       console.error('Send profile update error:', error);
+    }
+  }
+
+  // Call Methods
+  static async initiateCall(
+    recipientId: number,
+    data: { callerPeerId: string; callerName: string; callerAvatar: string | null }
+  ): Promise<void> {
+    try {
+      await pusherServer.trigger(`user-${recipientId}`, ChatEvent.INCOMING_CALL, data);
+    } catch (error) {
+      console.error('Initiate call error:', error);
+    }
+  }
+
+  static async rejectCall(recipientId: number): Promise<void> {
+    try {
+      await pusherServer.trigger(`user-${recipientId}`, ChatEvent.CALL_REJECTED, {});
+    } catch (error) {
+      console.error('Reject call error:', error);
+    }
+  }
+
+  static async endCall(recipientId: number): Promise<void> {
+    try {
+      await pusherServer.trigger(`user-${recipientId}`, ChatEvent.CALL_ENDED, {});
+    } catch (error) {
+      console.error('End call error:', error);
     }
   }
 

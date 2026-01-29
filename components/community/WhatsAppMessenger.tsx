@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, Image as ImageIcon, ArrowLeft, MoreVertical, Phone, Search, Smile, Paperclip, Mic, X, Check, CheckCheck, Trash2, User as UserIcon } from 'lucide-react';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import Peer from 'peerjs';
 import CallOverlay from './CallOverlay';
 import { useToast } from '@/lib/contexts/ToastContext';
+import { useTranslations } from 'next-intl';
 
 interface WhatsAppMessengerProps {
   currentUser: any;
@@ -18,7 +19,13 @@ interface WhatsAppMessengerProps {
 
 export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage = false }: WhatsAppMessengerProps) {
   const router = useRouter();
+  const params = useParams();
+  const locale = params?.locale as string || 'ar';
+  const isRtl = locale === 'ar';
+  const t = useTranslations('messages');
+  const tCommon = useTranslations('common');
   const toast = useToast();
+  
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -33,6 +40,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   
   // Call States
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'incoming' | 'connected' | 'ended'>('idle');
@@ -45,6 +53,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
   const messageContextRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const peerRef = useRef<Peer | null>(null);
   const currentCallRef = useRef<any>(null);
@@ -60,6 +69,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
 
       const userChannel = pusherRef.current.subscribe(`user-${currentUser.id}`);
+      
       userChannel.bind('incoming-call', (data: any) => {
         if (callStatus === 'idle') {
           setCallOtherUser({ name: data.callerName, avatar: data.callerAvatar });
@@ -69,6 +79,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
 
       userChannel.bind('call-rejected', () => {
+        setCallStatus('ended');
+        setTimeout(() => setCallStatus('idle'), 2000);
+      });
+
+      userChannel.bind('call-ended', () => {
+        if (currentCallRef.current && currentCallRef.current.close) currentCallRef.current.close();
+        if (localStreamRef.current) localStreamRef.current.getTracks().forEach(track => track.stop());
         setCallStatus('ended');
         setTimeout(() => setCallStatus('idle'), 2000);
       });
@@ -124,7 +141,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isTyping]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -150,7 +167,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages || []);
-        // Mark messages as read when loaded
         try {
           await fetch(`/api/messages/${otherUserId}/mark-read`, {
             method: 'POST',
@@ -174,12 +190,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         if (prev.find(m => m.id === data.message.id)) return prev;
         return [...prev, data.message];
       });
+      setIsTyping(false);
       scrollToBottom();
     });
     
     channel.bind('message-deleted', (data: any) => {
       setMessages((prev) => prev.map(m => 
-        m.id === data.messageId ? { ...m, isDeleted: true, content: 'تم حذف هذه الرسالة' } : m
+        m.id === data.messageId ? { ...m, isDeleted: true, content: t('messageDeleted') } : m
       ));
     });
 
@@ -189,10 +206,37 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       ));
     });
 
+    channel.bind('typing', (data: any) => {
+      if (data.userId !== currentUser.id) {
+        setIsTyping(data.isTyping);
+      }
+    });
+
     return () => {
       channel.unbind_all();
       pusherRef.current?.unsubscribe(channelId);
     };
+  };
+
+  const handleTyping = () => {
+    if (!selectedConversation || !pusherRef.current) return;
+    
+    const targetId = selectedConversation.other_user_id;
+    fetch('/api/messages/typing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipientId: targetId, isTyping: true })
+    });
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      fetch('/api/messages/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientId: targetId, isTyping: false })
+      });
+    }, 3000);
   };
 
   const openConversationWithUser = async (userId: number) => {
@@ -252,11 +296,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setShowEmojiPicker(false);
         scrollToBottom();
       } else {
-        toast.error(data.error || 'فشل إرسال الرسالة');
+        toast.error(data.error || t('deleteError'));
       }
     } catch (error: any) {
       console.error('Error sending message:', error);
-      toast.error('خطأ: ' + (error.message || 'فشل إرسال الرسالة'));
+      toast.error(t('error'));
     } finally {
       setIsSending(false);
     }
@@ -264,10 +308,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   const deleteForEveryone = async (messageId: number) => {
     const confirmed = await toast.confirm({
-      title: 'حذف الرسالة',
-      message: 'هل تريد حذف هذه الرسالة لدى الجميع؟',
-      confirmText: 'حذف لدى الجميع',
-      cancelText: 'إلغاء',
+      title: t('deleteMessage'),
+      message: t('deleteMessageConfirm'),
+      confirmText: t('deleteForEveryone'),
+      cancelText: t('cancel'),
       type: 'danger'
     });
 
@@ -279,14 +323,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         });
         if (response.ok) {
           setMessages(prev => prev.map(m => 
-            m.id === messageId ? { ...m, isDeleted: true, content: 'تم حذف هذه الرسالة' } : m
+            m.id === messageId ? { ...m, isDeleted: true, content: t('messageDeleted') } : m
           ));
-          toast.success('تم حذف الرسالة لدى الجميع');
+          toast.success(t('deleteSuccess'));
         } else {
-          toast.error('فشل حذف الرسالة');
+          toast.error(t('deleteError'));
         }
       } catch (error) {
-        toast.error('فشل حذف الرسالة');
+        toast.error(t('deleteError'));
       } finally {
         setIsDeleting(false);
       }
@@ -296,17 +340,17 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   const clearChat = async () => {
     const confirmed = await toast.confirm({
-      title: 'مسح المحادثة',
-      message: 'هل تريد مسح هذه المحادثة؟ لا يمكن التراجع عن هذا الإجراء.',
-      confirmText: 'مسح',
-      cancelText: 'إلغاء',
+      title: t('clearChat'),
+      message: t('clearChatConfirm'),
+      confirmText: tCommon('delete'),
+      cancelText: t('cancel'),
       type: 'danger'
     });
     
     if (confirmed) {
       setMessages([]);
       setShowHeaderMenu(false);
-      toast.success('تم مسح المحادثة بنجاح');
+      toast.success(t('chatCleared'));
     }
   };
 
@@ -314,7 +358,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     if (!selectedConversation || !peerId) return;
     
     try {
-      // Request microphone permissions explicitly
       let stream: MediaStream | null = null;
       
       try {
@@ -323,23 +366,24 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true
-          } 
+          },
+          video: false
         });
       } catch (permissionError: any) {
         if (permissionError.name === 'NotAllowedError') {
-          toast.error('يرجى السماح بالوصول للميكروفون من إعدادات المتصفح');
+          toast.error(t('microphonePermission'));
         } else if (permissionError.name === 'NotFoundError') {
-          toast.error('لم يتم العثور على ميكروفون. يرجى التحقق من أجهزتك');
+          toast.error(t('microphoneNotFound'));
         } else if (permissionError.name === 'NotReadableError') {
-          toast.error('الميكروفون قيد الاستخدام من قبل تطبيق آخر');
+          toast.error(t('microphoneInUse'));
         } else {
-          toast.error('خطأ في الوصول للميكروفون: ' + permissionError.message);
+          toast.error(t('callFailed'));
         }
         return;
       }
 
       if (!stream) {
-        toast.error('فشل الحصول على الميكروفون');
+        toast.error(t('callFailed'));
         return;
       }
       
@@ -359,14 +403,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
 
       if (!response.ok) {
-        toast.error('فشل بدء المكالمة');
+        toast.error(t('callFailed'));
         setCallStatus('idle');
         if (localStreamRef.current) {
           localStreamRef.current.getTracks().forEach(track => track.stop());
         }
       }
     } catch (err: any) {
-      toast.error('خطأ في بدء المكالمة: ' + (err.message || 'حاول مرة أخرى'));
+      toast.error(t('callFailed'));
       setCallStatus('idle');
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -387,13 +431,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           }
         });
       } catch (permissionError: any) {
-        if (permissionError.name === 'NotAllowedError') {
-          toast.error('يرجى السماح بالوصول للميكروفون');
-        } else if (permissionError.name === 'NotFoundError') {
-          toast.error('لم يتم العثور على ميكروفون');
-        } else {
-          toast.error('خطأ في الوصول للميكروفون');
-        }
+        toast.error(t('microphonePermission'));
         rejectCall();
         return;
       }
@@ -426,6 +464,16 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const endCall = () => {
     if (currentCallRef.current && currentCallRef.current.close) currentCallRef.current.close();
     if (localStreamRef.current) localStreamRef.current.getTracks().forEach(track => track.stop());
+    
+    // Notify other user via API
+    if (selectedConversation) {
+      fetch('/api/messages/call/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientId: selectedConversation.other_user_id })
+      });
+    }
+
     setCallStatus('ended');
     setTimeout(() => setCallStatus('idle'), 2000);
   };
@@ -463,7 +511,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const formatTime = (date: string) => {
-    return new Date(date).toLocaleTimeString('ar-SA', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return new Date(date).toLocaleTimeString(locale === 'ar' ? 'ar-SA' : 'en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true 
+    });
   };
 
   const filteredConversations = conversations.filter(conv =>
@@ -479,16 +531,22 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   }
 
   return (
-    <div className="flex h-full bg-[#f0f2f5] overflow-hidden relative" dir="rtl">
-      <CallOverlay callStatus={callStatus} otherUser={callOtherUser} onAccept={acceptCall} onReject={rejectCall} onEnd={endCall} />
+    <div className="flex h-full bg-[#f0f2f5] overflow-hidden relative" dir={isRtl ? 'rtl' : 'ltr'}>
+      <CallOverlay 
+        callStatus={callStatus} 
+        otherUser={callOtherUser} 
+        onAccept={acceptCall} 
+        onReject={rejectCall} 
+        onEnd={endCall} 
+      />
 
       {/* Conversations List */}
-      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[350px] lg:w-[400px] flex-col bg-white border-l border-gray-200 h-full`}>
+      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[350px] lg:w-[400px] flex-col bg-white border-x border-gray-200 h-full`}>
         <div className="bg-[#f0f2f5] px-4 py-[10px] flex items-center justify-between border-b border-gray-200 min-h-[59px]">
-          <button onClick={() => router.push('/community')} className="p-2 hover:bg-gray-200 rounded-full md:hidden">
+          <button onClick={() => router.push(`/${locale}/community`)} className="p-2 hover:bg-gray-200 rounded-full md:hidden">
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
-          <h2 className="text-xl font-semibold text-gray-900">الرسائل</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{t('title')}</h2>
           <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
             <MoreVertical className="w-5 h-5 text-gray-600" />
           </button>
@@ -496,13 +554,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
         <div className="p-2 bg-white border-b border-gray-100">
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className={`absolute ${isRtl ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400`} />
             <input
               type="text"
-              placeholder="ابحث عن رسالة..."
+              placeholder={t('searchMessages')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pr-10 pl-4 py-2 bg-[#f0f2f5] rounded-lg text-sm focus:outline-none text-gray-900"
+              className={`w-full ${isRtl ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 bg-[#f0f2f5] rounded-lg text-sm focus:outline-none text-gray-900`}
             />
           </div>
         </div>
@@ -510,7 +568,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         <div className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
-              <p>لا توجد محادثات بعد</p>
+              <p>{t('noConversations')}</p>
             </div>
           ) : (
             filteredConversations.map((conv) => (
@@ -524,12 +582,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                     <Image src={getAvatarUrl(conv.other_user_avatar)} alt={conv.other_user_name} fill className="object-cover" unoptimized />
                   </div>
                 </div>
-                <div className="flex-1 min-w-0 text-right">
+                <div className={`flex-1 min-w-0 ${isRtl ? 'text-right' : 'text-left'}`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[11px] text-gray-500">{formatTime(conv.last_message_at || conv.created_at)}</span>
                     <h3 className="font-semibold text-gray-900 truncate">{conv.other_user_name}</h3>
                   </div>
-                  <p className="text-sm text-gray-600 truncate">{conv.last_message || 'لا توجد رسائل بعد'}</p>
+                  <p className="text-sm text-gray-600 truncate">{conv.last_message || t('noMessages')}</p>
                 </div>
               </button>
             ))
@@ -551,9 +609,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                   <Image src={getAvatarUrl(selectedConversation.other_user_avatar)} alt={selectedConversation.other_user_name} fill className="object-cover" unoptimized />
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
+              <div className={`flex-1 min-w-0 ${isRtl ? 'text-right' : 'text-left'}`}>
                 <h3 className="font-semibold text-gray-900 truncate">{selectedConversation.other_user_name}</h3>
-                <p className="text-xs text-gray-500">متصل</p>
+                <p className="text-xs text-green-600 font-medium">
+                  {isTyping ? t('typing') : t('online')}
+                </p>
               </div>
               <div className="flex items-center gap-4 text-gray-600">
                 <button onClick={startCall} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
@@ -564,12 +624,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                     <MoreVertical className="w-5 h-5" />
                   </button>
                   {showHeaderMenu && (
-                    <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100">
-                      <button className="w-full px-4 py-2 text-right text-sm hover:bg-gray-50 flex items-center gap-2 justify-end">
-                        <UserIcon className="w-4 h-4" /> عرض الملف الشخصي
+                    <div className={`absolute ${isRtl ? 'left-0' : 'right-0'} mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100`}>
+                      <button className={`w-full px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 ${isRtl ? 'justify-end text-right' : 'justify-start text-left'}`}>
+                        <UserIcon className="w-4 h-4" /> {t('viewProfile')}
                       </button>
-                      <button onClick={clearChat} className="w-full px-4 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 justify-end">
-                        <Trash2 className="w-4 h-4" /> مسح المحادثة
+                      <button onClick={clearChat} className={`w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 ${isRtl ? 'justify-end text-right' : 'justify-start text-left'}`}>
+                        <Trash2 className="w-4 h-4" /> {t('clearChat')}
                       </button>
                     </div>
                   )}
@@ -577,47 +637,57 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               </div>
             </div>
 
-            {/* Messages List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              {messages.map((msg) => {
-                const isOwn = msg.senderId === currentUser.id;
-                const isSelected = selectedMessageId === msg.id;
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#efeae2] relative">
+              <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: "url('https://w0.peakpx.com/wallpaper/580/650/wallpaper-whatsapp-background.jpg')", backgroundSize: '400px' }}></div>
+              
+              {messages.map((msg, index) => {
+                const isOwn = msg.sender_id === currentUser.id;
                 return (
-                  <div key={msg.id} className={`flex ${isOwn ? 'justify-start' : 'justify-end'}`}>
-                    <div 
-                      onClick={() => isOwn && !msg.isDeleted && setSelectedMessageId(isSelected ? null : msg.id)}
-                      className={`
-                        message-bubble relative max-w-[85%] md:max-w-[65%] px-3 py-1.5 rounded-lg shadow-sm cursor-pointer transition-all
-                        ${isOwn ? 'bg-[#d9fdd3] rounded-tr-none' : 'bg-white rounded-tl-none'}
-                        ${isSelected ? 'ring-2 ring-blue-400' : ''}
-                        ${msg.isDeleted ? 'italic text-gray-500' : 'text-[#111b21]'}
-                      `}
-                    >
-                      {msg.messageType === 'image' && msg.mediaUrl && (
+                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} relative z-10`}>
+                    <div className={`relative max-w-[70%] px-3 py-1.5 rounded-lg shadow-sm ${isOwn ? 'bg-[#dcf8c6] rounded-tr-none' : 'bg-white rounded-tl-none'}`}>
+                      {msg.message_type === 'image' && msg.media_url && (
                         <div className="mb-1 rounded overflow-hidden">
-                          <img src={msg.mediaUrl} alt="صورة مرسلة" className="max-w-full h-auto" />
+                          <Image src={msg.media_url} alt="Sent image" width={300} height={300} className="object-cover cursor-pointer" onClick={() => window.open(msg.media_url, '_blank')} unoptimized />
                         </div>
                       )}
-                      <p className="text-[14.5px] leading-relaxed break-words">{msg.content}</p>
-                      <div className="flex items-center justify-start gap-1 mt-1">
-                        <span className="text-[10px] text-[#667781]">{formatTime(msg.createdAt)}</span>
-                        {isOwn && !msg.isDeleted && (
-                          msg.isRead ? <CheckCheck className="w-3.5 h-3.5 text-[#31a24c]" /> : <Check className="w-3.5 h-3.5 text-[#667781]" />
-                        )}
+                      
+                      <div className="flex flex-col">
+                        <p className={`text-[15px] leading-relaxed text-gray-800 ${msg.is_deleted || msg.isDeleted ? 'italic text-gray-500' : ''}`}>
+                          {msg.is_deleted || msg.isDeleted ? t('messageDeleted') : msg.content}
+                        </p>
+                        <div className={`flex items-center gap-1 mt-1 self-end`}>
+                          <span className="text-[10px] text-gray-500 uppercase">{formatTime(msg.created_at)}</span>
+                          {isOwn && (
+                            <div className="flex">
+                              {msg.is_read ? (
+                                <CheckCheck className="w-3 h-3 text-blue-500" />
+                              ) : (
+                                <Check className="w-3 h-3 text-gray-400" />
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Delete for Everyone Context Menu */}
-                      {isSelected && isOwn && !msg.isDeleted && (
-                        <div ref={messageContextRef} className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl py-1 z-50 border border-gray-100 min-w-[140px]">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteForEveryone(msg.id);
-                            }}
+                      {isOwn && !(msg.is_deleted || msg.isDeleted) && (
+                        <button
+                          onClick={() => setSelectedMessageId(selectedMessageId === msg.id ? null : msg.id)}
+                          className={`absolute ${isRtl ? '-left-6' : '-right-6'} top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-500 opacity-100 transition-opacity`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {selectedMessageId === msg.id && isOwn && !(msg.is_deleted || msg.isDeleted) && (
+                        <div className={`absolute ${isRtl ? 'right-0' : 'left-0'} top-full mt-1 z-50 bg-white rounded shadow-lg border border-gray-100 py-1 min-w-[120px]`}>
+                          <button
+                            onClick={() => deleteForEveryone(msg.id)}
                             disabled={isDeleting}
-                            className="w-full px-3 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 justify-end disabled:opacity-50"
+                            className="w-full px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 text-right flex items-center justify-end gap-2"
                           >
-                            <Trash2 className="w-4 h-4" /> حذف لدى الجميع
+                            {isDeleting ? t('loading') : t('deleteForEveryone')}
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
                       )}
@@ -625,57 +695,101 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                   </div>
                 );
               })}
+              
+              {isTyping && (
+                <div className="flex justify-start relative z-10">
+                  <div className="bg-white px-3 py-2 rounded-lg shadow-sm rounded-tl-none flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
-            <div className="bg-[#f0f2f5] p-2 flex items-center gap-2 z-10">
+            <div className="bg-[#f0f2f5] p-2 flex items-center gap-2 z-30">
               <div className="relative" ref={emojiPickerRef}>
-                <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 text-gray-600 hover:text-gray-900">
+                <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 hover:bg-gray-200 rounded-full text-gray-600 transition-colors">
                   <Smile className="w-6 h-6" />
                 </button>
                 {showEmojiPicker && (
-                  <div className="absolute bottom-full left-0 mb-2 z-50">
-                    <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.LIGHT} />
+                  <div className={`absolute bottom-full ${isRtl ? 'right-0' : 'left-0'} mb-2 z-50`}>
+                    <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.LIGHT} searchDisabled />
                   </div>
                 )}
               </div>
-              <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-600 hover:text-gray-900">
+
+              <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-200 rounded-full text-gray-600 transition-colors">
                 <Paperclip className="w-6 h-6" />
               </button>
-              <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
-              
+              <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+
               <div className="flex-1 relative">
-                {imagePreview && (
-                  <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-lg shadow-lg border border-gray-200">
-                    <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="absolute -top-2 -left-2 bg-red-500 text-white rounded-full p-1">
-                      <X className="w-4 h-4" />
-                    </button>
-                    <img src={imagePreview} alt="معاينة" className="h-20 w-20 object-cover rounded" />
-                  </div>
-                )}
                 <input
                   type="text"
+                  placeholder={t('typeMessage')}
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="اكتب رسالة..."
-                  className="w-full bg-white px-4 py-2 rounded-lg text-sm focus:outline-none text-gray-900"
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    handleTyping();
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  className="w-full px-4 py-2.5 bg-white rounded-lg focus:outline-none text-gray-900"
                 />
               </div>
-              
-              <button onClick={sendMessage} disabled={isSending || (!newMessage.trim() && !selectedImage)} className={`p-2 rounded-full transition-all ${newMessage.trim() || selectedImage ? 'text-[#00a884] scale-110' : 'text-gray-400'}`}>
-                <Send className="w-6 h-6" />
-              </button>
+
+              {newMessage.trim() || selectedImage ? (
+                <button
+                  onClick={sendMessage}
+                  disabled={isSending}
+                  className="p-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors disabled:opacity-50"
+                >
+                  <Send className={`w-5 h-5 ${isRtl ? 'rotate-180' : ''}`} />
+                </button>
+              ) : (
+                <button className="p-2.5 hover:bg-gray-200 rounded-full text-gray-600 transition-colors">
+                  <Mic className="w-6 h-6" />
+                </button>
+              )}
             </div>
+
+            {/* Image Preview Overlay */}
+            {imagePreview && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+                <div className="bg-white rounded-lg p-4 max-w-lg w-full">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-semibold">{t('imagePreview')}</h3>
+                    <button onClick={() => { setSelectedImage(null); setImagePreview(null); }} className="p-1 hover:bg-gray-100 rounded-full">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="relative aspect-video mb-4 bg-gray-100 rounded overflow-hidden">
+                    <Image src={imagePreview} alt="Preview" fill className="object-contain" />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => { setSelectedImage(null); setImagePreview(null); }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">
+                      {t('cancel')}
+                    </button>
+                    <button onClick={sendMessage} disabled={isSending} className="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50">
+                      {isSending ? t('sending') : t('send')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-              <ImageIcon className="w-12 h-12 text-gray-400" />
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-500 bg-[#f8f9fa]">
+            <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+              <Send className="w-10 h-10 text-gray-400" />
             </div>
-            <h2 className="text-2xl font-light mb-2">واتساب ويب</h2>
-            <p className="text-sm text-center max-w-xs">أرسل واستقبل الرسائل دون الحاجة لإبقاء هاتفك متصلاً بالإنترنت.</p>
+            <h2 className="text-xl font-medium mb-2">{t('chat')}</h2>
+            <p className="text-sm">{t('noConversations')}</p>
           </div>
         )}
       </div>
