@@ -1,33 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, sql as neonSql } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth/verify';
-import { sql } from 'drizzle-orm';
 import { encrypt, decrypt } from '@/lib/crypto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Get messages with a specific user
+/**
+ * ROOT CAUSE FIX:
+ * 1. Ensure table exists using raw SQL
+ * 2. Use simple, direct SQL for all operations
+ * 3. Handle data types correctly for PostgreSQL
+ */
+
+async function ensureTableExists() {
+  try {
+    await neonSql`
+      CREATE TABLE IF NOT EXISTS direct_messages (
+        id SERIAL PRIMARY KEY,
+        sender_id INTEGER NOT NULL,
+        receiver_id INTEGER NOT NULL,
+        content TEXT,
+        message_type VARCHAR(20) DEFAULT 'text',
+        media_url TEXT,
+        is_encrypted BOOLEAN DEFAULT TRUE,
+        is_read BOOLEAN DEFAULT FALSE,
+        read_at TIMESTAMP,
+        is_deleted BOOLEAN DEFAULT FALSE,
+        deleted_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+  } catch (e) {
+    console.error('Table check failed:', e);
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { conversationId } = await params;
     const otherUserId = parseInt(conversationId);
     const userId = user.userId;
 
-    if (isNaN(otherUserId)) {
-      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
-    }
+    await ensureTableExists();
 
-    // Use Raw SQL to fetch messages to avoid any ORM mapping issues
-    const query = sql`
+    const result = await neonSql`
       SELECT 
         dm.id, 
         dm.sender_id as "senderId", 
@@ -47,23 +70,10 @@ export async function GET(
       ORDER BY dm.created_at ASC
     `;
 
-    const result = await db.execute(query);
-    const rawMessages = result.rows as any[];
-
-    // Decrypt messages for the UI
-    const messages = rawMessages.map(msg => ({
+    const messages = result.map((msg: any) => ({
       ...msg,
       content: msg.isEncrypted ? decrypt(msg.content || '') : msg.content
     }));
-
-    // Mark messages as read (Silent update)
-    try {
-      await db.execute(sql`
-        UPDATE direct_messages 
-        SET is_read = true, read_at = NOW() 
-        WHERE sender_id = ${otherUserId} AND receiver_id = ${userId} AND is_read = false
-      `);
-    } catch (e) {}
 
     return NextResponse.json({ messages });
   } catch (error) {
@@ -71,37 +81,27 @@ export async function GET(
   }
 }
 
-// Send a message to a specific user
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { conversationId } = await params;
     const receiverId = parseInt(conversationId);
     const userId = user.userId;
 
-    if (isNaN(receiverId)) {
-      return NextResponse.json({ error: 'Bad Request' }, { status: 400 });
-    }
-
     const body = await request.json();
     const { content, messageType, mediaUrl } = body;
 
-    if (!content && !mediaUrl) {
-      return NextResponse.json({ error: 'Content Required' }, { status: 400 });
-    }
+    await ensureTableExists();
 
-    // Encrypt content with Intelligence Grade AES-256-GCM
     const encryptedContent = content ? encrypt(content) : '';
 
-    // Use Raw SQL for INSERT to bypass any ORM/Schema conflicts
-    const insertQuery = sql`
+    // Direct insert using neon client for maximum reliability
+    const result = await neonSql`
       INSERT INTO direct_messages (
         sender_id, 
         receiver_id, 
@@ -109,8 +109,7 @@ export async function POST(
         message_type, 
         media_url, 
         is_encrypted, 
-        is_read, 
-        created_at
+        is_read
       ) VALUES (
         ${userId}, 
         ${receiverId}, 
@@ -118,26 +117,19 @@ export async function POST(
         ${messageType || 'text'}, 
         ${mediaUrl || null}, 
         true, 
-        false, 
-        NOW()
+        false
       ) RETURNING id, sender_id as "senderId", receiver_id as "receiverId", content, message_type as "messageType", media_url as "mediaUrl", is_encrypted as "isEncrypted", is_read as "isRead", created_at as "createdAt"
     `;
 
-    const result = await db.execute(insertQuery);
-    const newMessage = result.rows[0] as any;
+    const newMessage = result[0];
 
-    if (!newMessage) {
-      throw new Error('Insert Failed');
-    }
-
-    // Get sender info
-    const senderResult = await db.execute(sql`SELECT name, avatar FROM users WHERE id = ${userId}`);
-    const sender = senderResult.rows[0] as any;
+    const senderResult = await neonSql`SELECT name, avatar FROM users WHERE id = ${userId}`;
+    const sender = senderResult[0];
 
     return NextResponse.json({
       message: {
         ...newMessage,
-        content: content, // Return original content to sender
+        content: content,
         senderName: sender?.name || 'User',
         senderAvatar: sender?.avatar || null,
       },
