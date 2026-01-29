@@ -31,6 +31,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   
   // Call States
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'incoming' | 'connected' | 'ended'>('idle');
@@ -88,6 +89,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       if (headerMenuRef.current && !headerMenuRef.current.contains(event.target as Node)) {
         setShowHeaderMenu(false);
       }
+      if (selectedMessageId !== null) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.message-bubble')) {
+          setSelectedMessageId(null);
+        }
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
 
@@ -96,7 +103,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       if (peerRef.current) peerRef.current.destroy();
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [selectedMessageId]);
 
   useEffect(() => {
     if (!initialUserId || isLoading) return;
@@ -159,6 +166,16 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
       scrollToBottom();
     });
+    
+    channel.bind('message-deleted', (data: any) => {
+      setMessages((prev) => prev.map(m => 
+        m.id === data.messageId ? { ...m, isDeleted: true, content: 'تم حذف هذه الرسالة' } : m
+      ));
+    });
+
+    channel.bind('messages-read', () => {
+      setMessages((prev) => prev.map(m => ({ ...m, isRead: true })));
+    });
   };
 
   const openConversationWithUser = async (userId: number) => {
@@ -198,10 +215,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       }
 
       const targetId = Number(selectedConversation.other_user_id);
-      if (isNaN(targetId)) {
-        throw new Error('Invalid recipient ID');
-      }
-
       const response = await fetch(`/api/messages/${targetId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -232,6 +245,32 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     }
   };
 
+  const deleteForEveryone = async (messageId: number) => {
+    const confirmed = await toast.confirm({
+      title: 'حذف الرسالة',
+      message: 'هل تريد حذف هذه الرسالة لدى الجميع؟',
+      confirmText: 'حذف لدى الجميع',
+      type: 'danger'
+    });
+
+    if (confirmed) {
+      try {
+        const response = await fetch(`/api/messages/${selectedConversation.other_user_id}?messageId=${messageId}`, {
+          method: 'DELETE'
+        });
+        if (response.ok) {
+          setMessages(prev => prev.map(m => 
+            m.id === messageId ? { ...m, isDeleted: true, content: 'تم حذف هذه الرسالة' } : m
+          ));
+          toast.success('تم حذف الرسالة لدى الجميع');
+        }
+      } catch (error) {
+        toast.error('فشل حذف الرسالة');
+      }
+    }
+    setSelectedMessageId(null);
+  };
+
   const clearChat = async () => {
     const confirmed = await toast.confirm({
       title: 'Clear Chat',
@@ -250,6 +289,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const startCall = async () => {
     if (!selectedConversation || !peerId) return;
     try {
+      // Explicitly request microphone permissions
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       setCallOtherUser({ name: selectedConversation.other_user_name, avatar: selectedConversation.other_user_avatar });
@@ -265,7 +305,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         })
       });
     } catch (err) {
-      toast.error('Please allow microphone access to make calls');
+      toast.error('يرجى السماح بالوصول للميكروفون من إعدادات المتصفح لإجراء المكالمة');
     }
   };
 
@@ -333,16 +373,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   const formatTime = (date: string) => {
     return new Date(date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  };
-
-  const formatDate = (date: string) => {
-    const d = new Date(date);
-    const today = new Date();
-    if (d.toDateString() === today.toDateString()) return 'Today';
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const filteredConversations = conversations.filter(conv =>
@@ -432,89 +462,128 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 truncate">{selectedConversation.other_user_name}</h3>
-                <p className="text-[11px] text-green-600 font-medium">Online</p>
+                <p className="text-xs text-gray-500">Online</p>
               </div>
-              <div className="flex items-center gap-1 sm:gap-2 relative">
-                <button onClick={startCall} className="p-2 hover:bg-gray-200 rounded-full transition-colors" title="Voice Call">
-                  <Phone className="w-5 h-5 text-gray-600" />
+              <div className="flex items-center gap-4 text-gray-600">
+                <button onClick={startCall} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                  <Phone className="w-5 h-5" />
                 </button>
-                <button onClick={() => setShowHeaderMenu(!showHeaderMenu)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                  <MoreVertical className="w-5 h-5 text-gray-600" />
-                </button>
-                {showHeaderMenu && (
-                  <div ref={headerMenuRef} className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50">
-                    <button onClick={() => router.push(`/user-profile/${selectedConversation.other_user_id}`)} className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                      <UserIcon className="w-4 h-4" /> View Profile
-                    </button>
-                    <button onClick={clearChat} className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
-                      <Trash2 className="w-4 h-4" /> Clear Chat
-                    </button>
-                  </div>
-                )}
+                <div className="relative" ref={headerMenuRef}>
+                  <button onClick={() => setShowHeaderMenu(!showHeaderMenu)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                  {showHeaderMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100">
+                      <button className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                        <UserIcon className="w-4 h-4" /> View Profile
+                      </button>
+                      <button onClick={clearChat} className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                        <Trash2 className="w-4 h-4" /> Clear Chat
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 relative" style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', backgroundBlendMode: 'overlay', backgroundColor: '#efeae2' }}>
-              {messages.map((message, index) => {
-                const isOwnMessage = message.senderId === currentUser.id || message.sender_id === currentUser.id;
-                const showDate = index === 0 || formatDate(messages[index - 1].createdAt || messages[index - 1].created_at) !== formatDate(message.createdAt || message.created_at);
+            {/* Messages List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+              {messages.map((msg) => {
+                const isOwn = msg.senderId === currentUser.id;
+                const isSelected = selectedMessageId === msg.id;
                 return (
-                  <div key={message.id}>
-                    {showDate && (
-                      <div className="flex justify-center my-4">
-                        <div className="bg-white/90 px-3 py-1 rounded-lg shadow-sm text-[11px] text-gray-600 font-medium">{formatDate(message.createdAt || message.created_at)}</div>
-                      </div>
-                    )}
-                    <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-1.5 shadow-sm relative ${isOwnMessage ? 'bg-[#d9fdd3]' : 'bg-white'}`}>
-                        {message.mediaUrl || message.media_url ? (
-                          <div className="relative w-full min-w-[150px] h-48 rounded-lg overflow-hidden mb-1.5">
-                            <Image src={message.mediaUrl || message.media_url} alt="Message image" fill className="object-cover" unoptimized />
-                          </div>
-                        ) : null}
-                        <p className="text-[14.5px] text-black whitespace-pre-wrap break-words leading-normal pr-10">{message.content}</p>
-                        <div className="absolute bottom-1 right-1.5 flex items-center gap-0.5">
-                          <span className="text-[10px] text-gray-500">{formatTime(message.createdAt || message.created_at)}</span>
-                          {isOwnMessage && (message.isRead || message.is_read ? <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /> : <Check className="w-3.5 h-3.5 text-gray-400" />)}
+                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                    <div 
+                      onClick={() => isOwn && !msg.isDeleted && setSelectedMessageId(isSelected ? null : msg.id)}
+                      className={`
+                        message-bubble relative max-w-[85%] md:max-w-[65%] px-3 py-1.5 rounded-lg shadow-sm cursor-pointer transition-all
+                        ${isOwn ? 'bg-[#d9fdd3] rounded-tr-none' : 'bg-white rounded-tl-none'}
+                        ${isSelected ? 'ring-2 ring-blue-400' : ''}
+                        ${msg.isDeleted ? 'italic text-gray-500' : 'text-[#111b21]'}
+                      `}
+                    >
+                      {msg.messageType === 'image' && msg.mediaUrl && (
+                        <div className="mb-1 rounded overflow-hidden">
+                          <img src={msg.mediaUrl} alt="Sent image" className="max-w-full h-auto" />
                         </div>
+                      )}
+                      <p className="text-[14.5px] leading-relaxed break-words">{msg.content}</p>
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        <span className="text-[10px] text-[#667781]">{formatTime(msg.createdAt)}</span>
+                        {isOwn && !msg.isDeleted && (
+                          msg.isRead ? <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /> : <CheckCheck className="w-3.5 h-3.5 text-[#667781]" />
+                        )}
                       </div>
+
+                      {/* Delete for Everyone Context Menu */}
+                      {isSelected && isOwn && !msg.isDeleted && (
+                        <div className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-xl py-1 z-50 border border-gray-100 min-w-[140px]">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteForEveryone(msg.id);
+                            }}
+                            className="w-full px-3 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" /> الحذف لدى الجميع
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
               })}
-              <div ref={messagesEndRef} className="h-2" />
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
-            <div className="bg-[#f0f2f5] p-2 sm:p-3 flex items-center gap-2 sm:gap-3 border-t border-gray-200 z-30 relative">
-              <div className="flex items-center">
-                <div className="relative" ref={emojiPickerRef}>
-                  <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><Smile className="w-6 h-6 text-gray-600" /></button>
-                  {showEmojiPicker && <div className="absolute bottom-full left-0 mb-2 z-50"><EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.LIGHT} /></div>}
-                </div>
-                <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><Paperclip className="w-6 h-6 text-gray-600" /></button>
-              </div>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
-              <div className="flex-1 relative">
-                {imagePreview && (
-                  <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-lg shadow-lg flex items-center gap-2 border border-gray-200">
-                    <div className="relative w-12 h-12 rounded overflow-hidden"><Image src={imagePreview} alt="Preview" fill className="object-cover" /></div>
-                    <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="p-1 bg-gray-100 rounded-full hover:bg-gray-200"><X className="w-4 h-4 text-gray-600" /></button>
+            <div className="bg-[#f0f2f5] p-2 flex items-center gap-2 z-10">
+              <div className="relative" ref={emojiPickerRef}>
+                <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 text-gray-600 hover:text-gray-900">
+                  <Smile className="w-6 h-6" />
+                </button>
+                {showEmojiPicker && (
+                  <div className="absolute bottom-full left-0 mb-2 z-50">
+                    <EmojiPicker onEmojiClick={onEmojiClick} theme={Theme.LIGHT} />
                   </div>
                 )}
-                <input type="text" placeholder="Type a message" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} className="w-full px-4 py-2.5 bg-white rounded-lg text-[15px] text-black focus:outline-none shadow-sm" />
               </div>
-              <button onClick={sendMessage} disabled={isSending || (!newMessage.trim() && !selectedImage)} className={`p-2.5 rounded-full transition-all flex-shrink-0 ${newMessage.trim() || selectedImage ? 'bg-[#00a884] text-white shadow-md hover:bg-[#008f6f]' : 'bg-transparent text-gray-500 hover:bg-gray-200'}`}>
-                {newMessage.trim() || selectedImage ? <Send className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+              <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-600 hover:text-gray-900">
+                <Paperclip className="w-6 h-6" />
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleImageSelect} className="hidden" accept="image/*" />
+              
+              <div className="flex-1 relative">
+                {imagePreview && (
+                  <div className="absolute bottom-full left-0 mb-2 p-2 bg-white rounded-lg shadow-lg border border-gray-200">
+                    <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
+                      <X className="w-4 h-4" />
+                    </button>
+                    <img src={imagePreview} alt="Preview" className="h-20 w-20 object-cover rounded" />
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  placeholder="Type a message"
+                  className="w-full bg-white px-4 py-2 rounded-lg text-sm focus:outline-none text-gray-900"
+                />
+              </div>
+              
+              <button onClick={sendMessage} disabled={isSending || (!newMessage.trim() && !selectedImage)} className={`p-2 rounded-full transition-all ${newMessage.trim() || selectedImage ? 'text-[#00a884] scale-110' : 'text-gray-400'}`}>
+                <Send className="w-6 h-6" />
               </button>
             </div>
           </>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center bg-[#f8f9fa] p-4">
-            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-4 shadow-lg"><Send className="w-12 h-12 text-purple-600" /></div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">Light Web Messenger</h2>
-            <p className="text-gray-600 text-center max-w-md">Select a conversation to start messaging.</p>
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+              <ImageIcon className="w-12 h-12 text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-light mb-2">WhatsApp Web</h2>
+            <p className="text-sm text-center max-w-xs">Send and receive messages without keeping your phone online.</p>
           </div>
         )}
       </div>

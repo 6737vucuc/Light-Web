@@ -6,13 +6,6 @@ import { encrypt, decrypt } from '@/lib/crypto';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/**
- * ROOT CAUSE FIX:
- * 1. Ensure table exists using raw SQL
- * 2. Use simple, direct SQL for all operations
- * 3. Handle data types correctly for PostgreSQL
- */
-
 async function ensureTableExists() {
   try {
     await neonSql`
@@ -31,9 +24,7 @@ async function ensureTableExists() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
-  } catch (e) {
-    console.error('Table check failed:', e);
-  }
+  } catch (e) {}
 }
 
 export async function GET(
@@ -60,6 +51,7 @@ export async function GET(
         dm.media_url as "mediaUrl", 
         dm.is_read as "isRead", 
         dm.is_encrypted as "isEncrypted", 
+        dm.is_deleted as "isDeleted",
         dm.created_at as "createdAt",
         u.name as "senderName",
         u.avatar as "senderAvatar"
@@ -72,8 +64,17 @@ export async function GET(
 
     const messages = result.map((msg: any) => ({
       ...msg,
-      content: msg.isEncrypted ? decrypt(msg.content || '') : msg.content
+      content: msg.isDeleted ? 'تم حذف هذه الرسالة' : (msg.isEncrypted ? decrypt(msg.content || '') : msg.content)
     }));
+
+    // Mark as read
+    try {
+      await neonSql`
+        UPDATE direct_messages 
+        SET is_read = true, read_at = NOW() 
+        WHERE sender_id = ${otherUserId} AND receiver_id = ${userId} AND is_read = false
+      `;
+    } catch (e) {}
 
     return NextResponse.json({ messages });
   } catch (error) {
@@ -100,7 +101,6 @@ export async function POST(
 
     const encryptedContent = content ? encrypt(content) : '';
 
-    // Direct insert using neon client for maximum reliability
     const result = await neonSql`
       INSERT INTO direct_messages (
         sender_id, 
@@ -122,7 +122,6 @@ export async function POST(
     `;
 
     const newMessage = result[0];
-
     const senderResult = await neonSql`SELECT name, avatar FROM users WHERE id = ${userId}`;
     const sender = senderResult[0];
 
@@ -136,5 +135,32 @@ export async function POST(
     });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
+  }
+}
+
+// DELETE for "Delete for Everyone"
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ conversationId: string }> }
+) {
+  try {
+    const user = await verifyAuth(request);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { searchParams } = new URL(request.url);
+    const messageId = searchParams.get('messageId');
+
+    if (!messageId) return NextResponse.json({ error: 'Message ID required' }, { status: 400 });
+
+    // Update message to be deleted for everyone
+    await neonSql`
+      UPDATE direct_messages 
+      SET is_deleted = true, deleted_at = NOW(), content = NULL, media_url = NULL
+      WHERE id = ${parseInt(messageId)} AND sender_id = ${user.userId}
+    `;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete message' }, { status: 500 });
   }
 }
