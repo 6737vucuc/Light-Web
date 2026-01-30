@@ -182,20 +182,20 @@ export async function POST(
       return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }
 
-    // Insert message using Drizzle
-    const [newMessage] = await db.insert(groupMessages).values({
-      groupId: groupId,
-      userId: user.userId,
-      content: content,
-      messageType: messageType,
-      mediaUrl: mediaUrl,
-      replyToId: replyToId,
-    }).returning();
+    // Insert message using raw SQL to match actual database schema
+    const result = await rawSql`
+      INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
+      VALUES (${groupId}, ${user.userId}, ${content}, ${messageType}, ${mediaUrl}, ${replyToId})
+      RETURNING *
+    `;
+    const newMessage = result[0];
 
     // Update messages count
-    await db.update(communityGroups)
-      .set({ messagesCount: sql`COALESCE(messages_count, 0) + 1` })
-      .where(eq(communityGroups.id, groupId));
+    await rawSql`
+      UPDATE community_groups 
+      SET messages_count = COALESCE(messages_count, 0) + 1
+      WHERE id = ${groupId}
+    `;
 
     // Get user info
     const userInfo = await db.query.users.findFirst({
@@ -209,8 +209,8 @@ export async function POST(
 
     const messageWithUser = {
       ...newMessage,
-      type: newMessage.messageType || 'text',
-      imageUrl: newMessage.mediaUrl,
+      type: newMessage.message_type || 'text',
+      imageUrl: newMessage.media_url,
       user: {
         id: user.userId,
         name: userInfo?.name || 'Unknown',
