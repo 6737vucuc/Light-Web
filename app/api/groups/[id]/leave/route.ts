@@ -10,6 +10,7 @@ const pusher = new Pusher({
   key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
   secret: process.env.PUSHER_SECRET!,
   cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+  useTLS: true,
 });
 
 export async function POST(
@@ -56,11 +57,15 @@ export async function POST(
       .where(eq(communityGroups.id, groupId));
 
     // Trigger real-time update via Pusher
-    await pusher.trigger(`group-${groupId}`, 'member-left', {
-      userId: user.userId,
-      totalMembers: count,
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      await pusher.trigger(`group-${groupId}`, 'member-left', {
+        userId: user.userId,
+        totalMembers: count,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (pusherError) {
+      console.error('Pusher trigger error:', pusherError);
+    }
 
     return NextResponse.json({ message: 'Left group successfully', totalMembers: count });
   } catch (error) {

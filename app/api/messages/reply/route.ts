@@ -9,6 +9,7 @@ const pusher = new Pusher({
   key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
   secret: process.env.PUSHER_SECRET!,
   cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+  useTLS: true,
 });
 
 export async function POST(request: NextRequest) {
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch the created message with user info
     const createdMessage = await db.query.groupMessages.findFirst({
-      where: (msg) => msg.id === message[0].id,
+      where: (msg, { eq }) => eq(msg.id, message[0].id),
       with: {
         user: true,
         replyTo: {
@@ -50,7 +51,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Trigger real-time update
-    await pusher.trigger(`group-${groupId}`, 'new-message', createdMessage);
+    try {
+      await pusher.trigger(`group-${groupId}`, 'new-message', createdMessage);
+    } catch (e) {
+      console.error('Pusher trigger error:', e);
+    }
 
     return NextResponse.json({ message: createdMessage });
   } catch (error) {

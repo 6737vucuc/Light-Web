@@ -10,6 +10,7 @@ const pusher = new Pusher({
   key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
   secret: process.env.PUSHER_SECRET!,
   cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+  useTLS: true,
 });
 
 export async function POST(
@@ -55,10 +56,12 @@ export async function POST(
         ));
 
       // Trigger real-time update
-      await pusher.trigger(`group-${groupId}`, 'message-unpinned', {
-        messageId,
-        timestamp: new Date().toISOString(),
-      });
+      try {
+        await pusher.trigger(`group-${groupId}`, 'message-unpinned', {
+          messageId,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (e) {}
 
       return NextResponse.json({ message: 'Message unpinned' });
     } else {
@@ -71,10 +74,12 @@ export async function POST(
       });
 
       // Trigger real-time update
-      await pusher.trigger(`group-${groupId}`, 'message-pinned', {
-        messageId,
-        timestamp: new Date().toISOString(),
-      });
+      try {
+        await pusher.trigger(`group-${groupId}`, 'message-pinned', {
+          messageId,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (e) {}
 
       return NextResponse.json({ message: 'Message pinned' });
     }
