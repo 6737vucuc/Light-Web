@@ -63,6 +63,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const [reportReason, setReportReason] = useState('');
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
   const [showMessageOptions, setShowMessageOptions] = useState(false);
+  const [showGroupOptions, setShowGroupOptions] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
@@ -149,11 +150,27 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     }
   };
 
+  const leaveGroup = async () => {
+    try {
+      const response = await fetch(`/api/groups/${group.id}/leave`, { method: 'POST' });
+      if (response.ok) {
+        toast?.success('Left group successfully');
+        onBack();
+      } else {
+        toast?.error('Failed to leave group');
+      }
+    } catch (error) {
+      console.error('Error leaving group:', error);
+      toast?.error('Failed to leave group');
+    }
+  };
+
   const initializePusher = () => {
     if (pusherRef.current) return;
 
     pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+      authEndpoint: `/api/pusher/auth`,
     });
 
     const channel = pusherRef.current.subscribe(`group-${group.id}`);
@@ -167,6 +184,16 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     });
 
     channel.bind('presence-update', (data: any) => {
+      loadGroupStats();
+    });
+
+    channel.bind('member-left', (data: any) => {
+      setTotalMembers(data.totalMembers);
+      loadGroupStats();
+    });
+
+    channel.bind('member-joined', (data: any) => {
+      setTotalMembers(data.totalMembers);
       loadGroupStats();
     });
   };
@@ -350,9 +377,9 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white md:flex-row">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 md:flex-row">
       {/* Header - Mobile Optimized */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+      <header className="bg-white/95 backdrop-blur border-b border-gray-200 sticky top-0 z-40 shadow-md">
         <div className="px-3 md:px-4 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
             <button
@@ -364,7 +391,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
             <div className="min-w-0 flex-1">
               <h2 className="text-base md:text-lg font-bold text-gray-900 truncate">{group.name}</h2>
               <p className="text-xs md:text-sm text-gray-500 truncate">
-                {onlineMembersCount} {t('community.online')} • {totalMembers} {t('community.members')}
+                {onlineMembersCount} Online • {totalMembers} Members
               </p>
             </div>
           </div>
@@ -396,7 +423,29 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
             >
               <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-700" />
             </button>
+
+            <button
+              onClick={() => setShowGroupOptions(!showGroupOptions)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
+            >
+              <MoreVertical className="w-4 h-4 md:w-5 md:h-5 text-gray-700" />
+            </button>
           </div>
+
+          {/* Group Options Menu */}
+          {showGroupOptions && (
+            <div className="absolute top-14 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+              <button
+                onClick={() => {
+                  leaveGroup();
+                  setShowGroupOptions(false);
+                }}
+                className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 transition-colors text-sm md:text-base"
+              >
+                Leave Group
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Search Bar - Mobile Optimized */}
@@ -421,11 +470,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
       </header>
 
       {/* Main Content Area - Mobile Optimized */}
-      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row relative">
         {/* Messages Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Messages List - Mobile Optimized */}
-          <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4">
+          <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 bg-gradient-to-b from-transparent to-white/50">
             {(showSearch && searchResults.length > 0 ? searchResults : messages).map((message) => (
               <div
                 key={message.id}
@@ -515,7 +564,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
           </div>
 
           {/* Message Input - Mobile Optimized */}
-          <div className="border-t border-gray-200 p-3 md:p-4 bg-white">
+          <div className="border-t border-gray-200 p-3 md:p-4 bg-white/95 backdrop-blur">
             {imagePreview && (
               <div className="mb-3 relative inline-block">
                 <img
@@ -556,7 +605,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder={t('community.typeMessage')}
+                placeholder="Type..."
                 className="flex-1 px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               />
 
@@ -573,8 +622,8 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
         {/* Sidebar - Online Members or Pinned Messages - Mobile Optimized */}
         {showOnlineMembers && (
-          <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-gray-200 overflow-y-auto p-3 md:p-4 bg-gray-50 max-h-64 md:max-h-none">
-            <h3 className="font-bold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">{t('community.onlineMembers')}</h3>
+          <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-gray-200 overflow-y-auto p-3 md:p-4 bg-white/95 backdrop-blur max-h-64 md:max-h-none">
+            <h3 className="font-bold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Online Members</h3>
             <div className="space-y-2 md:space-y-3">
               {onlineMembers.map((member) => (
                 <div key={member.user_id} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg transition-colors">
@@ -603,11 +652,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         )}
 
         {showPinned && (
-          <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-gray-200 overflow-y-auto p-3 md:p-4 bg-gray-50 max-h-64 md:max-h-none">
-            <h3 className="font-bold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">{t('community.pinnedMessages')}</h3>
+          <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-gray-200 overflow-y-auto p-3 md:p-4 bg-white/95 backdrop-blur max-h-64 md:max-h-none">
+            <h3 className="font-bold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">Pinned Messages</h3>
             <div className="space-y-2 md:space-y-3">
               {pinnedMessages.length === 0 ? (
-                <p className="text-xs md:text-sm text-gray-500">{t('community.noPinnedMessages')}</p>
+                <p className="text-xs md:text-sm text-gray-500">No pinned messages</p>
               ) : (
                 pinnedMessages.map((pinned) => (
                   <div key={pinned.id} className="p-2 md:p-3 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
