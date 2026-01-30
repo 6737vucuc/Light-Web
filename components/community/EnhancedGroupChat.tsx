@@ -494,7 +494,9 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   const formatTime = (dateString: string) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 

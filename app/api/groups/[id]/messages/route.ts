@@ -83,6 +83,12 @@ export async function GET(
       ...msg,
       type: msg.message_type || 'text',
       imageUrl: msg.media_url,
+      createdAt: msg.created_at,
+      updatedAt: msg.updated_at,
+      userId: msg.user_id,
+      groupId: msg.group_id,
+      replyToId: msg.reply_to_id,
+      isDeleted: msg.is_deleted,
       user: {
         id: msg.user_id,
         name: msg.user_name,
