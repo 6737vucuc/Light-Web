@@ -20,6 +20,7 @@ import {
   Settings,
   ChevronDown,
   ChevronUp,
+  Phone,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -65,6 +66,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const [showMessageOptions, setShowMessageOptions] = useState(false);
   const [showGroupOptions, setShowGroupOptions] = useState(false);
   const [replyingTo, setReplyingTo] = useState<any>(null);
+  const [showUserProfile, setShowUserProfile] = useState<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
@@ -205,30 +207,56 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
   const sendMessage = async () => {
     if (!newMessage.trim() && !selectedImage) return;
+    if (!group?.id) return;
 
     setIsSending(true);
     try {
-      const formData = new FormData();
-      formData.append('content', newMessage);
-      formData.append('groupId', group.id.toString());
-      if (replyingTo) {
-        formData.append('replyToId', replyingTo.id.toString());
-      }
+      // Use JSON for text messages, FormData for images
       if (selectedImage) {
+        const formData = new FormData();
+        formData.append('content', newMessage);
         formData.append('image', selectedImage);
-      }
+        if (replyingTo) {
+          formData.append('replyToId', replyingTo.id.toString());
+        }
 
-      const response = await fetch('/api/messages/send', {
-        method: 'POST',
-        body: formData,
-      });
+        const response = await fetch(`/api/groups/${group.id}/messages`, {
+          method: 'POST',
+          body: formData,
+        });
 
-      if (response.ok) {
-        setNewMessage('');
-        setSelectedImage(null);
-        setImagePreview(null);
-        setReplyingTo(null);
-        loadMessages();
+        if (response.ok) {
+          setNewMessage('');
+          setSelectedImage(null);
+          setImagePreview(null);
+          setReplyingTo(null);
+          loadMessages();
+        } else {
+          const error = await response.json();
+          toast?.error(error.error || 'Failed to send message');
+        }
+      } else {
+        // Send as JSON for text-only messages
+        const response = await fetch(`/api/groups/${group.id}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: newMessage,
+            messageType: 'text',
+            replyToId: replyingTo?.id,
+          }),
+        });
+
+        if (response.ok) {
+          setNewMessage('');
+          setReplyingTo(null);
+          loadMessages();
+        } else {
+          const error = await response.json();
+          toast?.error(error.error || 'Failed to send message');
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -238,15 +266,21 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     }
   };
 
-  const deleteMessage = async (messageId: number) => {
+  const deleteMessage = async (messageId: number, deleteForEveryone: boolean = true) => {
     try {
-      const response = await fetch(`/api/messages/${messageId}`, {
+      const response = await fetch(`/api/groups/${group?.id}/messages/${messageId}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteForEveryone }),
       });
 
       if (response.ok) {
         setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        toast?.success('Message deleted');
+        toast?.success(deleteForEveryone ? 'Message deleted for everyone' : 'Message deleted');
+        setSelectedMessage(null);
+      } else {
+        const error = await response.json();
+        toast?.error(error.error || 'Failed to delete message');
       }
     } catch (error) {
       console.error('Error deleting message:', error);
@@ -372,41 +406,41 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-blue-50 to-purple-50">
+    <div className="flex flex-col h-[calc(100vh-180px)] md:h-[calc(100vh-120px)] bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-2xl shadow-lg overflow-hidden border border-gray-100">
       {/* Header - Mobile Optimized */}
-      <div className="bg-white/90 backdrop-blur border-b border-gray-200 p-3 md:p-4 flex items-center justify-between sticky top-0 z-10">
+      <div className="bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 p-3 md:p-4 flex items-center justify-between sticky top-0 z-10 shadow-md">
         <div className="flex items-center gap-2 md:gap-3">
-          <button onClick={onBack} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
-            <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
+          <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+            <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
           </button>
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
-            {group.name.charAt(0).toUpperCase()}
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-lg shadow-lg border-2 border-white/30">
+            {group?.name?.charAt(0)?.toUpperCase() || 'G'}
           </div>
           <div>
-            <h2 className="font-bold text-gray-900 text-sm md:text-lg leading-tight">{group.name}</h2>
-            <div className="flex items-center gap-2 text-[10px] md:text-xs text-gray-500">
+            <h2 className="font-bold text-white text-sm md:text-lg leading-tight drop-shadow-sm">{group?.name || 'Group'}</h2>
+            <div className="flex items-center gap-2 text-[10px] md:text-xs text-white/80">
               <span className="flex items-center gap-1">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-sm"></div>
                 {onlineMembersCount} Online
               </span>
-              <span>•</span>
+              <span className="text-white/50">•</span>
               <span>{totalMembers} Members</span>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-1 md:gap-2">
-          <button onClick={() => setShowSearch(!showSearch)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <Search className="w-5 h-5 text-gray-600" />
+          <button onClick={() => setShowSearch(!showSearch)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+            <Search className="w-5 h-5 text-white" />
           </button>
-          <button onClick={() => setShowPinned(!showPinned)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <Pin className="w-5 h-5 text-gray-600" />
+          <button onClick={() => setShowPinned(!showPinned)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+            <Pin className="w-5 h-5 text-white" />
           </button>
-          <button onClick={() => setShowOnlineMembers(!showOnlineMembers)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <Users className="w-5 h-5 text-gray-600" />
+          <button onClick={() => setShowOnlineMembers(!showOnlineMembers)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+            <Users className="w-5 h-5 text-white" />
           </button>
           <div className="relative">
-            <button onClick={() => setShowGroupOptions(!showGroupOptions)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <MoreVertical className="w-5 h-5 text-gray-600" />
+            <button onClick={() => setShowGroupOptions(!showGroupOptions)} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+              <MoreVertical className="w-5 h-5 text-white" />
             </button>
             {showGroupOptions && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50">
@@ -466,7 +500,15 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                 className={`flex gap-2 md:gap-3 group ${selectedMessage === message.id ? 'bg-purple-50/50 rounded-xl p-2 -m-2' : ''}`}
                 onClick={() => setSelectedMessage(selectedMessage === message.id ? null : message.id)}
               >
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 shadow-sm">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (message.user?.id !== currentUser?.id) {
+                      setShowUserProfile(message.user);
+                    }
+                  }}
+                  className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 shadow-sm hover:ring-2 hover:ring-purple-400 transition-all cursor-pointer"
+                >
                   {message.user?.avatar ? (
                     <Image
                       src={getAvatarUrl(message.user.avatar)}
@@ -481,7 +523,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                       {message.user?.name?.charAt(0).toUpperCase()}
                     </div>
                   )}
-                </div>
+                </button>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -711,6 +753,81 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
           </div>
         )}
       </div>
+
+      {/* User Profile Modal - Send Private Message */}
+      {showUserProfile && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-5 md:p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            {/* User Avatar */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 shadow-lg mb-3">
+                {showUserProfile.avatar ? (
+                  <Image
+                    src={getAvatarUrl(showUserProfile.avatar)}
+                    alt={showUserProfile.name}
+                    width={80}
+                    height={80}
+                    className="object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white font-bold text-2xl">
+                    {showUserProfile.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">{showUserProfile.name}</h3>
+              {showUserProfile.username && (
+                <p className="text-sm text-gray-500">@{showUserProfile.username}</p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  router.push(`/messages?userId=${showUserProfile.id}`);
+                  setShowUserProfile(null);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all font-semibold shadow-lg"
+              >
+                <MessageCircle className="w-5 h-5" />
+                {t('sendPrivateMessage') || 'Send Private Message'}
+              </button>
+
+              <button
+                onClick={() => {
+                  router.push(`/messages?userId=${showUserProfile.id}&call=voice`);
+                  setShowUserProfile(null);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all font-semibold shadow-lg"
+              >
+                <Phone className="w-5 h-5" />
+                {t('voiceCall') || 'Voice Call'}
+              </button>
+              
+              <button
+                onClick={() => {
+                  router.push(`/profile/${showUserProfile.id}`);
+                  setShowUserProfile(null);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-semibold"
+              >
+                <Eye className="w-5 h-5" />
+                {t('viewProfile') || 'View Profile'}
+              </button>
+            </div>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowUserProfile(null)}
+              className="mt-4 w-full px-4 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-sm font-semibold text-gray-500"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Report Modal - Mobile Optimized */}
       {showReportModal && (
