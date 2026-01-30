@@ -1,57 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { verify } from 'jsonwebtoken';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { db } from '@/lib/db';
+import { groupMembers, communityGroups } from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import { verifyAuth } from '@/lib/auth/verify';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const { id } = await params;
-    const groupId = parseInt(id);
+    const groupId = parseInt(params.id);
 
     // Check if already a member
-    const [existingMember] = await sql`
-      SELECT id FROM group_members 
-      WHERE group_id = ${groupId} AND user_id = ${decoded.userId}
-    `;
+    const existingMember = await db.query.groupMembers.findFirst({
+      where: and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.userId)
+      ),
+    });
 
     if (existingMember) {
-      // Update last_active timestamp for existing member
-      await sql`
-        UPDATE group_members 
-        SET last_active = NOW()
-        WHERE group_id = ${groupId} AND user_id = ${decoded.userId}
-      `;
       return NextResponse.json({ message: 'Already a member' });
     }
 
     // Add user to group
-    await sql`
-      INSERT INTO group_members (group_id, user_id, role, joined_at, last_active)
-      VALUES (${groupId}, ${decoded.userId}, 'member', NOW(), NOW())
-    `;
+    await db.insert(groupMembers).values({
+      groupId: groupId,
+      userId: user.userId,
+      role: 'member',
+      joinedAt: new Date(),
+    });
 
-    // Update members count with actual count
-    const [countResult] = await sql`
-      SELECT COUNT(DISTINCT user_id) as count FROM group_members 
-      WHERE group_id = ${groupId}
-    `;
+    // Update members count
+    const countResult = await db.select({ count: sql`COUNT(*)` })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
+    
+    const count = Number(countResult[0]?.count) || 0;
 
-    await sql`
-      UPDATE community_groups 
-      SET members_count = ${countResult.count}
-      WHERE id = ${groupId}
-    `;
+    await db.update(communityGroups)
+      .set({ membersCount: count })
+      .where(eq(communityGroups.id, groupId));
 
     return NextResponse.json({ message: 'Joined successfully' });
   } catch (error) {
