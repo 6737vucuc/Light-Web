@@ -206,13 +206,13 @@ export const groupMessagesRelations = relations(groupMessages, ({ one, many }) =
     fields: [groupMessages.userId],
     references: [users.id],
   }),
-  replyTo: one(groupMessages, {
+  parentMessage: one(groupMessages, {
     fields: [groupMessages.replyToId],
     references: [groupMessages.id],
-    relationName: 'replies',
+    relationName: 'messageReplies',
   }),
-  replies: many(groupMessages, {
-    relationName: 'replies',
+  childReplies: many(groupMessages, {
+    relationName: 'messageReplies',
   }),
   pinnedIn: many(pinnedMessages),
   starredBy: many(starredMessages),
