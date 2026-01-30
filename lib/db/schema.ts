@@ -89,6 +89,7 @@ export const groupMembers = pgTable('group_members', {
   canDeleteMessages: boolean('can_delete_messages').default(false),
   mutedUntil: timestamp('muted_until'),
   joinedAt: timestamp('joined_at').defaultNow(),
+  lastActive: timestamp('last_active').defaultNow(),
 });
 
 // Group Messages table
@@ -101,6 +102,10 @@ export const groupMessages = pgTable('group_messages', {
   type: varchar('type', { length: 20 }).default('text'),
   isDeleted: boolean('is_deleted').default(false),
   deletedAt: timestamp('deleted_at'),
+  replyToId: integer('reply_to_id').references((): any => groupMessages.id),
+  isPinned: boolean('is_pinned').default(false),
+  pinnedAt: timestamp('pinned_at'),
+  pinnedBy: integer('pinned_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -200,6 +205,14 @@ export const groupMessagesRelations = relations(groupMessages, ({ one, many }) =
   user: one(users, {
     fields: [groupMessages.userId],
     references: [users.id],
+  }),
+  replyTo: one(groupMessages, {
+    fields: [groupMessages.replyToId],
+    references: [groupMessages.id],
+    relationName: 'replies',
+  }),
+  replies: many(groupMessages, {
+    relationName: 'replies',
   }),
   pinnedIn: many(pinnedMessages),
   starredBy: many(starredMessages),
@@ -344,7 +357,7 @@ export const dailyVerses = pgTable('daily_verses', {
 });
 
 // ========================================
-// LESSONS SYSTEM
+// LESSON SYSTEM
 // ========================================
 
 // Lessons table
@@ -420,47 +433,7 @@ export const testimonies = pgTable('testimonies', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   content: text('content').notNull(),
+  religion: varchar('religion', { length: 50 }).notNull(),
   isApproved: boolean('is_approved').default(false),
-  approvedBy: integer('approved_by').references(() => users.id),
-  approvedAt: timestamp('approved_at'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// ========================================
-// VPN DETECTION LOGS
-// ========================================
-export const vpnLogs = pgTable('vpn_logs', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id),
-  ipAddress: varchar('ip_address', { length: 45 }).notNull(), // IPv4 or IPv6
-  country: varchar('country', { length: 100 }),
-  countryCode: varchar('country_code', { length: 2 }),
-  city: varchar('city', { length: 100 }),
-  region: varchar('region', { length: 100 }),
-  isp: varchar('isp', { length: 255 }),
-  organization: varchar('organization', { length: 255 }),
-  asn: varchar('asn', { length: 50 }),
-  // Detection flags
-  isVPN: boolean('is_vpn').default(false),
-  isTor: boolean('is_tor').default(false),
-  isProxy: boolean('is_proxy').default(false),
-  isHosting: boolean('is_hosting').default(false),
-  isAnonymous: boolean('is_anonymous').default(false),
-  // Risk assessment
-  riskScore: integer('risk_score').default(0), // 0-100
-  threatLevel: varchar('threat_level', { length: 20 }).default('low'), // low, medium, high, critical
-  // Detection service
-  detectionService: varchar('detection_service', { length: 50 }), // ipapi, ipqualityscore, etc.
-  detectionData: text('detection_data'), // JSON data from service
-  // Action taken
-  isBlocked: boolean('is_blocked').default(false),
-  blockReason: text('block_reason'),
-  // Request details
-  userAgent: text('user_agent'),
-  requestPath: varchar('request_path', { length: 255 }),
-  requestMethod: varchar('request_method', { length: 10 }),
-  // Timestamps
-  detectedAt: timestamp('detected_at').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
 });
