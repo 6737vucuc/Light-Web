@@ -1,0 +1,22 @@
+{
+  "title": "Community",
+  "groupChat": "Group Chat",
+  "welcome": "Welcome",
+  "joinGroups": "Join groups and communicate with others in real-time",
+  "messagesDeleted": "Alert: Old messages may be automatically deleted",
+  "noGroups": "No groups available",
+  "groupsComingSoon": "Groups will be added soon",
+  "members": "member",
+  "messages": "message",
+  "openChat": "Open Chat",
+  "online": "online",
+  "onlineMembers": "Online Members",
+  "pinnedMessages": "Pinned Messages",
+  "noPinnedMessages": "No pinned messages",
+  "deleteMessage": "Delete Message",
+  "deleteMessageConfirm": "Are you sure you want to delete this message?",
+  "reportMessage": "Report Message",
+  "reportReason": "Write the reason for the report...",
+  "typeMessage": "Type a message...",
+  "searchMessages": "Search messages..."
+}

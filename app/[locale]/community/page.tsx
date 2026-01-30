@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, MessageCircle, Home, User } from 'lucide-react';
 import Image from 'next/image';
-import GroupChat from '@/components/community/GroupChat';
+import EnhancedGroupChat from '@/components/community/EnhancedGroupChat';
 import { useTranslations } from 'next-intl';
 
 export default function CommunityPage() {
@@ -134,7 +134,7 @@ export default function CommunityPage() {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {selectedGroup ? (
           /* Group Chat View */
-          <GroupChat
+          <EnhancedGroupChat
             group={selectedGroup}
             currentUser={currentUser}
             onBack={() => {

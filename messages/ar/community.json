@@ -1,0 +1,22 @@
+{
+  "title": "المجتمع",
+  "groupChat": "دردشة جماعية",
+  "welcome": "مرحباً",
+  "joinGroups": "انضم إلى المجموعات وتواصل مع الآخرين في الوقت الفعلي",
+  "messagesDeleted": "تنبيه: قد يتم حذف الرسائل القديمة تلقائياً",
+  "noGroups": "لا توجد مجموعات حالياً",
+  "groupsComingSoon": "سيتم إضافة مجموعات قريباً",
+  "members": "عضو",
+  "messages": "رسالة",
+  "openChat": "فتح الدردشة",
+  "online": "متصل",
+  "onlineMembers": "الأعضاء المتصلون",
+  "pinnedMessages": "الرسائل المثبتة",
+  "noPinnedMessages": "لا توجد رسائل مثبتة",
+  "deleteMessage": "حذف الرسالة",
+  "deleteMessageConfirm": "هل أنت متأكد من رغبتك في حذف هذه الرسالة؟",
+  "reportMessage": "الإبلاغ عن الرسالة",
+  "reportReason": "اكتب سبب البلاغ...",
+  "typeMessage": "اكتب رسالة...",
+  "searchMessages": "ابحث عن الرسائل..."
+}
