@@ -171,8 +171,17 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const initializePusher = () => {
     if (pusherRef.current) return;
 
-    pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    // Use correct environment variable names from .env.example
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_APP_KEY || process.env.NEXT_PUBLIC_PUSHER_KEY;
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+
+    if (!pusherKey || !pusherCluster) {
+      console.warn('Pusher credentials missing, real-time features may not work');
+      return;
+    }
+
+    pusherRef.current = new Pusher(pusherKey, {
+      cluster: pusherCluster,
       authEndpoint: `/api/pusher/auth`,
     });
 

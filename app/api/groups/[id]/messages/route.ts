@@ -7,15 +7,22 @@ const sql = neon(process.env.DATABASE_URL!);
 // Initialize Pusher only if credentials are available
 let pusher: any = null;
 try {
-  if (process.env.PUSHER_APP_ID && process.env.PUSHER_KEY && process.env.PUSHER_SECRET && process.env.PUSHER_CLUSTER) {
+  const appId = process.env.PUSHER_APP_ID;
+  const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY || process.env.NEXT_PUBLIC_PUSHER_KEY;
+  const secret = process.env.PUSHER_SECRET;
+  const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+
+  if (appId && key && secret && cluster) {
     const Pusher = require('pusher');
     pusher = new Pusher({
-      appId: process.env.PUSHER_APP_ID,
-      key: process.env.PUSHER_KEY,
-      secret: process.env.PUSHER_SECRET,
-      cluster: process.env.PUSHER_CLUSTER,
+      appId,
+      key,
+      secret,
+      cluster,
       useTLS: true,
     });
+  } else {
+    console.warn('Pusher credentials incomplete:', { appId: !!appId, key: !!key, secret: !!secret, cluster: !!cluster });
   }
 } catch (e) {
   console.warn('Pusher initialization failed:', e);
@@ -54,18 +61,37 @@ export async function GET(
     }
 
     // Get messages with user info
-    const messages = await sql`
+    const rawMessages = await sql`
       SELECT 
-        gm.*,
+        gm.id,
+        gm.group_id,
+        gm.user_id,
+        gm.content,
+        gm.type,
+        gm.image_url,
+        gm.reply_to_id,
+        gm.is_deleted,
+        gm.created_at,
+        gm.updated_at,
         u.name as user_name,
         u.username as user_username,
-        u.avatar as user_avatar,
-        u.id as user_id
+        u.avatar as user_avatar
       FROM group_messages gm
       JOIN users u ON gm.user_id = u.id
       WHERE gm.group_id = ${groupId} AND (gm.is_deleted = false OR gm.is_deleted IS NULL)
       ORDER BY gm.created_at ASC
     `;
+
+    // Format messages to include user object as expected by Frontend
+    const messages = rawMessages.map((msg: any) => ({
+      ...msg,
+      user: {
+        id: msg.user_id,
+        name: msg.user_name,
+        username: msg.user_username,
+        avatar: msg.user_avatar
+      }
+    }));
 
     return NextResponse.json({ messages: messages || [] });
   } catch (error) {
@@ -175,19 +201,25 @@ export async function POST(
     // Insert message with correct column names from database
     let newMessage;
     try {
+      // Based on schema.ts: 
+      // group_id, user_id, content, type (not message_type), image_url (not media_url), reply_to_id
       const result = await sql`
-        INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
+        INSERT INTO group_messages (group_id, user_id, content, type, image_url, reply_to_id)
         VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${mediaUrl || null}, ${replyToId || null})
         RETURNING *
       `;
       newMessage = result[0];
-    } catch (dbError) {
+    } catch (dbError: any) {
       console.error('Database insert failed:', dbError);
-      return NextResponse.json({ error: 'Failed to save message' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Failed to save message', 
+        details: dbError.message
+      }, { status: 500 });
     }
 
     // Update messages count (don't fail if this fails)
     try {
+      // Table name is community_groups based on schema.ts
       await sql`
         UPDATE community_groups 
         SET messages_count = COALESCE(messages_count, 0) + 1
@@ -214,9 +246,16 @@ export async function POST(
       console.warn('Failed to get user info:', userError);
     }
 
-    // Format message for clients
+    // Format message for clients to match Frontend expectations
     const messageWithUser = {
       ...newMessage,
+      user: {
+        id: decoded.userId,
+        name: userName,
+        username: userUsername,
+        avatar: userAvatar,
+      },
+      // Keep flat fields for backward compatibility if needed
       user_name: userName,
       user_username: userUsername,
       user_avatar: userAvatar,
