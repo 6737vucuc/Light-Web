@@ -146,13 +146,17 @@ export async function POST(
     }
 
     // Get user info for the message
-    let user: { name: string; username: string | null; avatar: string | null } = { name: 'Unknown', username: null, avatar: null };
+    let userName = 'Unknown';
+    let userUsername: string | null = null;
+    let userAvatar: string | null = null;
     try {
       const users = await sql`
         SELECT name, username, avatar FROM users WHERE id = ${decoded.userId}
       `;
       if (users && users.length > 0) {
-        user = users[0];
+        userName = users[0].name || 'Unknown';
+        userUsername = users[0].username || null;
+        userAvatar = users[0].avatar || null;
       }
     } catch (userError) {
       console.warn('Failed to get user info:', userError);
@@ -161,9 +165,9 @@ export async function POST(
     // Format message for clients
     const messageWithUser = {
       ...newMessage,
-      user_name: user.name,
-      user_username: user.username,
-      user_avatar: user.avatar,
+      user_name: userName,
+      user_username: userUsername,
+      user_avatar: userAvatar,
     };
 
     // Broadcast to Pusher (don't fail if Pusher fails)
