@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { usePresence } from '@/lib/hooks/usePresence';
 import {
   ArrowLeft,
   Send,
