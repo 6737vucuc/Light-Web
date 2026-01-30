@@ -146,7 +146,7 @@ export async function POST(
     }
 
     // Get user info for the message
-    let user = { name: 'Unknown', username: null, avatar: null };
+    let user: { name: string; username: string | null; avatar: string | null } = { name: 'Unknown', username: null, avatar: null };
     try {
       const users = await sql`
         SELECT name, username, avatar FROM users WHERE id = ${decoded.userId}
