@@ -85,16 +85,16 @@ export async function POST(
       return NextResponse.json({ error: 'Not a member' }, { status: 403 });
     }
 
-    const { content, messageType, imageUrl, replyToId } = await request.json();
+    const { content, messageType, mediaUrl, replyToId } = await request.json();
 
-    if (!content && !imageUrl) {
+    if (!content && !mediaUrl) {
       return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }
 
-    // Insert message (without encryption for now to fix the issue)
+    // Insert message with correct column names from database
     const [newMessage] = await sql`
-      INSERT INTO group_messages (group_id, user_id, content, type, image_url, reply_to_id)
-      VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${imageUrl || null}, ${replyToId || null})
+      INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
+      VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${mediaUrl || null}, ${replyToId || null})
       RETURNING *
     `;
 
