@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { eq, and, desc, sql } from 'drizzle-orm';
+import * as schema from '@/lib/db/schema';
 
 /**
  * Advanced Group Chat Service
@@ -13,23 +14,23 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 export async function pinMessage(messageId: number, groupId: number, userId: number) {
   try {
     // Check if user is admin or moderator
-    const member = await db.query.group_members.findFirst({
+    const member = await db.query.groupMembers.findFirst({
       where: and(
-        eq(db.schema.group_members.group_id, groupId),
-        eq(db.schema.group_members.user_id, userId)
+        eq(schema.groupMembers.groupId, groupId),
+        eq(schema.groupMembers.userId, userId)
       ),
     });
 
-    if (!member?.is_admin && !member?.is_moderator) {
+    if (!member?.isAdmin && !member?.isModerator) {
       throw new Error('Only admins and moderators can pin messages');
     }
 
     // Pin the message
-    const result = await db.insert(db.schema.pinned_messages).values({
-      group_id: groupId,
-      message_id: messageId,
-      pinned_by: userId,
-      pinned_at: new Date(),
+    const result = await db.insert(schema.pinnedMessages).values({
+      groupId: groupId,
+      messageId: messageId,
+      pinnedBy: userId,
+      pinnedAt: new Date(),
     }).onConflictDoNothing();
 
     return result;
@@ -42,22 +43,22 @@ export async function pinMessage(messageId: number, groupId: number, userId: num
 export async function unpinMessage(messageId: number, groupId: number, userId: number) {
   try {
     // Check if user is admin or moderator
-    const member = await db.query.group_members.findFirst({
+    const member = await db.query.groupMembers.findFirst({
       where: and(
-        eq(db.schema.group_members.group_id, groupId),
-        eq(db.schema.group_members.user_id, userId)
+        eq(schema.groupMembers.groupId, groupId),
+        eq(schema.groupMembers.userId, userId)
       ),
     });
 
-    if (!member?.is_admin && !member?.is_moderator) {
+    if (!member?.isAdmin && !member?.isModerator) {
       throw new Error('Only admins and moderators can unpin messages');
     }
 
     // Unpin the message
-    await db.delete(db.schema.pinned_messages).where(
+    await db.delete(schema.pinnedMessages).where(
       and(
-        eq(db.schema.pinned_messages.group_id, groupId),
-        eq(db.schema.pinned_messages.message_id, messageId)
+        eq(schema.pinnedMessages.groupId, groupId),
+        eq(schema.pinnedMessages.messageId, messageId)
       )
     );
   } catch (error) {
@@ -68,8 +69,8 @@ export async function unpinMessage(messageId: number, groupId: number, userId: n
 
 export async function getPinnedMessages(groupId: number) {
   try {
-    const pinned = await db.query.pinned_messages.findMany({
-      where: eq(db.schema.pinned_messages.group_id, groupId),
+    const pinned = await db.query.pinnedMessages.findMany({
+      where: eq(schema.pinnedMessages.groupId, groupId),
       with: {
         message: {
           with: {
@@ -78,7 +79,7 @@ export async function getPinnedMessages(groupId: number) {
         },
         pinnedBy: true,
       },
-      orderBy: desc(db.schema.pinned_messages.pinned_at),
+      orderBy: desc(schema.pinnedMessages.pinnedAt),
     });
 
     return pinned;
@@ -94,10 +95,10 @@ export async function getPinnedMessages(groupId: number) {
 
 export async function starMessage(messageId: number, userId: number) {
   try {
-    const result = await db.insert(db.schema.starred_messages).values({
-      user_id: userId,
-      message_id: messageId,
-      starred_at: new Date(),
+    const result = await db.insert(schema.starredMessages).values({
+      userId: userId,
+      messageId: messageId,
+      starredAt: new Date(),
     }).onConflictDoNothing();
 
     return result;
@@ -109,10 +110,10 @@ export async function starMessage(messageId: number, userId: number) {
 
 export async function unstarMessage(messageId: number, userId: number) {
   try {
-    await db.delete(db.schema.starred_messages).where(
+    await db.delete(schema.starredMessages).where(
       and(
-        eq(db.schema.starred_messages.user_id, userId),
-        eq(db.schema.starred_messages.message_id, messageId)
+        eq(schema.starredMessages.userId, userId),
+        eq(schema.starredMessages.messageId, messageId)
       )
     );
   } catch (error) {
@@ -123,8 +124,8 @@ export async function unstarMessage(messageId: number, userId: number) {
 
 export async function getStarredMessages(userId: number) {
   try {
-    const starred = await db.query.starred_messages.findMany({
-      where: eq(db.schema.starred_messages.user_id, userId),
+    const starred = await db.query.starredMessages.findMany({
+      where: eq(schema.starredMessages.userId, userId),
       with: {
         message: {
           with: {
@@ -132,7 +133,7 @@ export async function getStarredMessages(userId: number) {
           },
         },
       },
-      orderBy: desc(db.schema.starred_messages.starred_at),
+      orderBy: desc(schema.starredMessages.starredAt),
     });
 
     return starred;
@@ -148,17 +149,17 @@ export async function getStarredMessages(userId: number) {
 
 export async function updateMemberPresence(groupId: number, userId: number, isOnline: boolean, sessionId: string) {
   try {
-    const result = await db.insert(db.schema.member_presence).values({
-      group_id: groupId,
-      user_id: userId,
-      is_online: isOnline,
-      last_seen: new Date(),
-      session_id: sessionId,
+    const result = await db.insert(schema.memberPresence).values({
+      groupId: groupId,
+      userId: userId,
+      isOnline: isOnline,
+      lastSeen: new Date(),
+      sessionId: sessionId,
     }).onConflictDoUpdate({
-      target: [db.schema.member_presence.group_id, db.schema.member_presence.user_id, db.schema.member_presence.session_id],
+      target: [schema.memberPresence.groupId, schema.memberPresence.userId, schema.memberPresence.sessionId],
       set: {
-        is_online: isOnline,
-        last_seen: new Date(),
+        isOnline: isOnline,
+        lastSeen: new Date(),
       },
     });
 
@@ -171,10 +172,10 @@ export async function updateMemberPresence(groupId: number, userId: number, isOn
 
 export async function getOnlineMembers(groupId: number) {
   try {
-    const onlineMembers = await db.query.member_presence.findMany({
+    const onlineMembers = await db.query.memberPresence.findMany({
       where: and(
-        eq(db.schema.member_presence.group_id, groupId),
-        eq(db.schema.member_presence.is_online, true)
+        eq(schema.memberPresence.groupId, groupId),
+        eq(schema.memberPresence.isOnline, true)
       ),
       with: {
         user: true,
@@ -191,13 +192,13 @@ export async function getOnlineMembers(groupId: number) {
 export async function getOnlineMembersCount(groupId: number) {
   try {
     const result = await db.select({ count: sql`COUNT(*)` })
-      .from(db.schema.member_presence)
+      .from(schema.memberPresence)
       .where(and(
-        eq(db.schema.member_presence.group_id, groupId),
-        eq(db.schema.member_presence.is_online, true)
+        eq(schema.memberPresence.groupId, groupId),
+        eq(schema.memberPresence.isOnline, true)
       ));
 
-    return result[0]?.count || 0;
+    return Number(result[0]?.count) || 0;
   } catch (error) {
     console.error('Error getting online members count:', error);
     throw error;
@@ -210,15 +211,15 @@ export async function getOnlineMembersCount(groupId: number) {
 
 export async function searchMessages(groupId: number, query: string, limit = 20) {
   try {
-    const results = await db.query.group_messages.findMany({
+    const results = await db.query.groupMessages.findMany({
       where: and(
-        eq(db.schema.group_messages.group_id, groupId),
-        sql`to_tsvector('english', content) @@ plainto_tsquery('english', ${query})`
+        eq(schema.groupMessages.groupId, groupId),
+        sql`to_tsvector('english', ${schema.groupMessages.content}) @@ plainto_tsquery('english', ${query})`
       ),
       with: {
         user: true,
       },
-      orderBy: desc(db.schema.group_messages.created_at),
+      orderBy: desc(schema.groupMessages.createdAt),
       limit,
     });
 
@@ -236,12 +237,12 @@ export async function searchMessages(groupId: number, query: string, limit = 20)
 export async function addMentions(messageId: number, mentionedUserIds: number[]) {
   try {
     const mentions = mentionedUserIds.map(userId => ({
-      message_id: messageId,
-      mentioned_user_id: userId,
-      created_at: new Date(),
+      messageId: messageId,
+      mentionedUserId: userId,
+      createdAt: new Date(),
     }));
 
-    await db.insert(db.schema.message_mentions).values(mentions).onConflictDoNothing();
+    await db.insert(schema.messageMentions).values(mentions).onConflictDoNothing();
   } catch (error) {
     console.error('Error adding mentions:', error);
     throw error;
@@ -250,20 +251,19 @@ export async function addMentions(messageId: number, mentionedUserIds: number[])
 
 export async function getMentions(userId: number, groupId: number) {
   try {
-    const mentions = await db.query.message_mentions.findMany({
-      where: eq(db.schema.message_mentions.mentioned_user_id, userId),
+    const mentions = await db.query.messageMentions.findMany({
+      where: eq(schema.messageMentions.mentionedUserId, userId),
       with: {
         message: {
-          where: eq(db.schema.group_messages.group_id, groupId),
           with: {
             user: true,
           },
         },
       },
-      orderBy: desc(db.schema.message_mentions.created_at),
+      orderBy: desc(schema.messageMentions.createdAt),
     });
 
-    return mentions.filter(m => m.message);
+    return mentions.filter(m => m.message && m.message.groupId === groupId);
   } catch (error) {
     console.error('Error getting mentions:', error);
     throw error;
@@ -277,23 +277,23 @@ export async function getMentions(userId: number, groupId: number) {
 export async function promoteToAdmin(groupId: number, userId: number, promotedBy: number) {
   try {
     // Check if promoter is admin
-    const promoter = await db.query.group_members.findFirst({
+    const promoter = await db.query.groupMembers.findFirst({
       where: and(
-        eq(db.schema.group_members.group_id, groupId),
-        eq(db.schema.group_members.user_id, promotedBy)
+        eq(schema.groupMembers.groupId, groupId),
+        eq(schema.groupMembers.userId, promotedBy)
       ),
     });
 
-    if (!promoter?.is_admin) {
+    if (!promoter?.isAdmin) {
       throw new Error('Only admins can promote members');
     }
 
     // Promote member
-    await db.update(db.schema.group_members)
-      .set({ is_admin: true })
+    await db.update(schema.groupMembers)
+      .set({ isAdmin: true })
       .where(and(
-        eq(db.schema.group_members.group_id, groupId),
-        eq(db.schema.group_members.user_id, userId)
+        eq(schema.groupMembers.groupId, groupId),
+        eq(schema.groupMembers.userId, userId)
       ));
 
     // Log activity
@@ -307,23 +307,23 @@ export async function promoteToAdmin(groupId: number, userId: number, promotedBy
 export async function muteUser(groupId: number, userId: number, mutedUntil: Date, mutedBy: number) {
   try {
     // Check if muter is admin or moderator
-    const muter = await db.query.group_members.findFirst({
+    const muter = await db.query.groupMembers.findFirst({
       where: and(
-        eq(db.schema.group_members.group_id, groupId),
-        eq(db.schema.group_members.user_id, mutedBy)
+        eq(schema.groupMembers.groupId, groupId),
+        eq(schema.groupMembers.userId, mutedBy)
       ),
     });
 
-    if (!muter?.is_admin && !muter?.is_moderator) {
+    if (!muter?.isAdmin && !muter?.isModerator) {
       throw new Error('Only admins and moderators can mute members');
     }
 
     // Mute member
-    await db.update(db.schema.group_members)
-      .set({ muted_until: mutedUntil })
+    await db.update(schema.groupMembers)
+      .set({ mutedUntil: mutedUntil })
       .where(and(
-        eq(db.schema.group_members.group_id, groupId),
-        eq(db.schema.group_members.user_id, userId)
+        eq(schema.groupMembers.groupId, groupId),
+        eq(schema.groupMembers.userId, userId)
       ));
 
     // Log activity
@@ -340,12 +340,12 @@ export async function muteUser(groupId: number, userId: number, mutedUntil: Date
 
 export async function logGroupActivity(groupId: number, userId: number | null, action: string, details?: any) {
   try {
-    await db.insert(db.schema.group_activity_log).values({
-      group_id: groupId,
-      user_id: userId,
+    await db.insert(schema.groupActivityLog).values({
+      groupId: groupId,
+      userId: userId,
       action,
-      details: details ? JSON.stringify(details) : null,
-      created_at: new Date(),
+      details: details,
+      createdAt: new Date(),
     });
   } catch (error) {
     console.error('Error logging group activity:', error);
@@ -355,12 +355,12 @@ export async function logGroupActivity(groupId: number, userId: number | null, a
 
 export async function getGroupActivityLog(groupId: number, limit = 50) {
   try {
-    const logs = await db.query.group_activity_log.findMany({
-      where: eq(db.schema.group_activity_log.group_id, groupId),
+    const logs = await db.query.groupActivityLog.findMany({
+      where: eq(schema.groupActivityLog.groupId, groupId),
       with: {
         user: true,
       },
-      orderBy: desc(db.schema.group_activity_log.created_at),
+      orderBy: desc(schema.groupActivityLog.createdAt),
       limit,
     });
 
@@ -377,10 +377,10 @@ export async function getGroupActivityLog(groupId: number, limit = 50) {
 
 export async function markMessageAsRead(messageId: number, userId: number) {
   try {
-    await db.insert(db.schema.group_message_read_receipts).values({
-      message_id: messageId,
-      user_id: userId,
-      read_at: new Date(),
+    await db.insert(schema.groupMessageReadReceipts).values({
+      messageId: messageId,
+      userId: userId,
+      readAt: new Date(),
     }).onConflictDoNothing();
   } catch (error) {
     console.error('Error marking message as read:', error);
@@ -391,10 +391,10 @@ export async function markMessageAsRead(messageId: number, userId: number) {
 export async function getMessageReadCount(messageId: number) {
   try {
     const result = await db.select({ count: sql`COUNT(*)` })
-      .from(db.schema.group_message_read_receipts)
-      .where(eq(db.schema.group_message_read_receipts.message_id, messageId));
+      .from(schema.groupMessageReadReceipts)
+      .where(eq(schema.groupMessageReadReceipts.messageId, messageId));
 
-    return result[0]?.count || 0;
+    return Number(result[0]?.count) || 0;
   } catch (error) {
     console.error('Error getting message read count:', error);
     throw error;
@@ -403,12 +403,12 @@ export async function getMessageReadCount(messageId: number) {
 
 export async function getWhoReadMessage(messageId: number) {
   try {
-    const readers = await db.query.group_message_read_receipts.findMany({
-      where: eq(db.schema.group_message_read_receipts.message_id, messageId),
+    const readers = await db.query.groupMessageReadReceipts.findMany({
+      where: eq(schema.groupMessageReadReceipts.messageId, messageId),
       with: {
         user: true,
       },
-      orderBy: desc(db.schema.group_message_read_receipts.read_at),
+      orderBy: desc(schema.groupMessageReadReceipts.readAt),
     });
 
     return readers;

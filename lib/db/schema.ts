@@ -1,4 +1,5 @@
 import { pgTable, serial, varchar, text, integer, boolean, timestamp, date, jsonb } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 // Users table
 export const users = pgTable('users', {
@@ -83,6 +84,10 @@ export const groupMembers = pgTable('group_members', {
   groupId: integer('group_id').references(() => communityGroups.id).notNull(),
   userId: integer('user_id').references(() => users.id).notNull(),
   role: varchar('role', { length: 20 }).default('member'),
+  isAdmin: boolean('is_admin').default(false),
+  isModerator: boolean('is_moderator').default(false),
+  canDeleteMessages: boolean('can_delete_messages').default(false),
+  mutedUntil: timestamp('muted_until'),
   joinedAt: timestamp('joined_at').defaultNow(),
 });
 
@@ -99,6 +104,178 @@ export const groupMessages = pgTable('group_messages', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// Pinned Messages table
+export const pinnedMessages = pgTable('pinned_messages', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => communityGroups.id).notNull(),
+  messageId: integer('message_id').references(() => groupMessages.id).notNull(),
+  pinnedBy: integer('pinned_by').references(() => users.id),
+  pinnedAt: timestamp('pinned_at').defaultNow(),
+});
+
+// Starred Messages table
+export const starredMessages = pgTable('starred_messages', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  messageId: integer('message_id').references(() => groupMessages.id).notNull(),
+  starredAt: timestamp('starred_at').defaultNow(),
+});
+
+// Message Mentions table
+export const messageMentions = pgTable('message_mentions', {
+  id: serial('id').primaryKey(),
+  messageId: integer('message_id').references(() => groupMessages.id).notNull(),
+  mentionedUserId: integer('mentioned_user_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Member Presence table
+export const memberPresence = pgTable('member_presence', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => communityGroups.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  isOnline: boolean('is_online').default(false),
+  lastSeen: timestamp('last_seen').defaultNow(),
+  sessionId: varchar('session_id', { length: 255 }),
+});
+
+// Group Activity Log table
+export const groupActivityLog = pgTable('group_activity_log', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => communityGroups.id).notNull(),
+  userId: integer('user_id').references(() => users.id),
+  action: varchar('action', { length: 50 }).notNull(),
+  details: jsonb('details'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Group Message Read Receipts table
+export const groupMessageReadReceipts = pgTable('group_message_read_receipts', {
+  id: serial('id').primaryKey(),
+  messageId: integer('message_id').references(() => groupMessages.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  readAt: timestamp('read_at').defaultNow(),
+});
+
+// ========================================
+// RELATIONS
+// ========================================
+
+export const usersRelations = relations(users, ({ many }) => ({
+  groupMemberships: many(groupMembers),
+  groupMessages: many(groupMessages),
+  pinnedMessages: many(pinnedMessages),
+  starredMessages: many(starredMessages),
+  mentions: many(messageMentions),
+  presence: many(memberPresence),
+  activityLogs: many(groupActivityLog),
+  readReceipts: many(groupMessageReadReceipts),
+}));
+
+export const communityGroupsRelations = relations(communityGroups, ({ many }) => ({
+  members: many(groupMembers),
+  messages: many(groupMessages),
+  pinnedMessages: many(pinnedMessages),
+  presence: many(memberPresence),
+  activityLogs: many(groupActivityLog),
+}));
+
+export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
+  group: one(communityGroups, {
+    fields: [groupMembers.groupId],
+    references: [communityGroups.id],
+  }),
+  user: one(users, {
+    fields: [groupMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const groupMessagesRelations = relations(groupMessages, ({ one, many }) => ({
+  group: one(communityGroups, {
+    fields: [groupMessages.groupId],
+    references: [communityGroups.id],
+  }),
+  user: one(users, {
+    fields: [groupMessages.userId],
+    references: [users.id],
+  }),
+  pinnedIn: many(pinnedMessages),
+  starredBy: many(starredMessages),
+  mentions: many(messageMentions),
+  readBy: many(groupMessageReadReceipts),
+}));
+
+export const pinnedMessagesRelations = relations(pinnedMessages, ({ one }) => ({
+  group: one(communityGroups, {
+    fields: [pinnedMessages.groupId],
+    references: [communityGroups.id],
+  }),
+  message: one(groupMessages, {
+    fields: [pinnedMessages.messageId],
+    references: [groupMessages.id],
+  }),
+  pinnedBy: one(users, {
+    fields: [pinnedMessages.pinnedBy],
+    references: [users.id],
+  }),
+}));
+
+export const starredMessagesRelations = relations(starredMessages, ({ one }) => ({
+  user: one(users, {
+    fields: [starredMessages.userId],
+    references: [users.id],
+  }),
+  message: one(groupMessages, {
+    fields: [starredMessages.messageId],
+    references: [groupMessages.id],
+  }),
+}));
+
+export const messageMentionsRelations = relations(messageMentions, ({ one }) => ({
+  message: one(groupMessages, {
+    fields: [messageMentions.messageId],
+    references: [groupMessages.id],
+  }),
+  mentionedUser: one(users, {
+    fields: [messageMentions.mentionedUserId],
+    references: [users.id],
+  }),
+}));
+
+export const memberPresenceRelations = relations(memberPresence, ({ one }) => ({
+  group: one(communityGroups, {
+    fields: [memberPresence.groupId],
+    references: [communityGroups.id],
+  }),
+  user: one(users, {
+    fields: [memberPresence.userId],
+    references: [users.id],
+  }),
+}));
+
+export const groupActivityLogRelations = relations(groupActivityLog, ({ one }) => ({
+  group: one(communityGroups, {
+    fields: [groupActivityLog.groupId],
+    references: [communityGroups.id],
+  }),
+  user: one(users, {
+    fields: [groupActivityLog.userId],
+    references: [users.id],
+  }),
+}));
+
+export const groupMessageReadReceiptsRelations = relations(groupMessageReadReceipts, ({ one }) => ({
+  message: one(groupMessages, {
+    fields: [groupMessageRead_receipts.messageId],
+    references: [groupMessages.id],
+  }),
+  user: one(users, {
+    fields: [groupMessageRead_receipts.userId],
+    references: [users.id],
+  }),
+}));
 
 // ========================================
 // REPORTS SYSTEM

@@ -1,6 +1,7 @@
 import { pusherServer } from '@/lib/realtime/chat';
 import { db } from '@/lib/db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+import * as schema from '@/lib/db/schema';
 
 /**
  * Real-time Presence Service
@@ -19,21 +20,21 @@ export class PresenceService {
   ) {
     try {
       // Update database
-      await db.insert(db.schema.member_presence).values({
-        group_id: groupId,
-        user_id: userId,
-        is_online: isOnline,
-        last_seen: new Date(),
-        session_id: sessionId,
+      await db.insert(schema.memberPresence).values({
+        groupId: groupId,
+        userId: userId,
+        isOnline: isOnline,
+        lastSeen: new Date(),
+        sessionId: sessionId,
       }).onConflictDoUpdate({
         target: [
-          db.schema.member_presence.group_id,
-          db.schema.member_presence.user_id,
-          db.schema.member_presence.session_id,
+          schema.memberPresence.groupId,
+          schema.memberPresence.userId,
+          schema.memberPresence.sessionId,
         ],
         set: {
-          is_online: isOnline,
-          last_seen: new Date(),
+          isOnline: isOnline,
+          lastSeen: new Date(),
         },
       });
 
@@ -54,10 +55,10 @@ export class PresenceService {
    */
   static async getOnlineMembers(groupId: number) {
     try {
-      const onlineMembers = await db.query.member_presence.findMany({
+      const onlineMembers = await db.query.memberPresence.findMany({
         where: and(
-          eq(db.schema.member_presence.group_id, groupId),
-          eq(db.schema.member_presence.is_online, true)
+          eq(schema.memberPresence.groupId, groupId),
+          eq(schema.memberPresence.isOnline, true)
         ),
         with: {
           user: {
@@ -72,10 +73,10 @@ export class PresenceService {
       });
 
       return onlineMembers.map(member => ({
-        userId: member.user_id,
+        userId: member.userId,
         user: member.user,
-        lastSeen: member.last_seen,
-        sessionId: member.session_id,
+        lastSeen: member.lastSeen,
+        sessionId: member.sessionId,
       }));
     } catch (error) {
       console.error('Error getting online members:', error);
@@ -88,18 +89,18 @@ export class PresenceService {
    */
   static async getOnlineMembersCount(groupId: number): Promise<number> {
     try {
-      const result = await db.query.member_presence.findMany({
+      const result = await db.query.memberPresence.findMany({
         where: and(
-          eq(db.schema.member_presence.group_id, groupId),
-          eq(db.schema.member_presence.is_online, true)
+          eq(schema.memberPresence.groupId, groupId),
+          eq(schema.memberPresence.isOnline, true)
         ),
         columns: {
-          user_id: true,
+          userId: true,
         },
       });
 
       // Count unique users (in case they have multiple sessions)
-      const uniqueUsers = new Set(result.map(m => m.user_id));
+      const uniqueUsers = new Set(result.map(m => m.userId));
       return uniqueUsers.size;
     } catch (error) {
       console.error('Error getting online members count:', error);
@@ -112,14 +113,14 @@ export class PresenceService {
    */
   static async getLastSeen(userId: number, groupId: number) {
     try {
-      const presence = await db.query.member_presence.findFirst({
+      const presence = await db.query.memberPresence.findFirst({
         where: and(
-          eq(db.schema.member_presence.user_id, userId),
-          eq(db.schema.member_presence.group_id, groupId)
+          eq(schema.memberPresence.userId, userId),
+          eq(schema.memberPresence.groupId, groupId)
         ),
       });
 
-      return presence?.last_seen || null;
+      return presence?.lastSeen || null;
     } catch (error) {
       console.error('Error getting last seen:', error);
       throw error;
@@ -136,11 +137,11 @@ export class PresenceService {
   ) {
     try {
       // Delete the session
-      await db.delete(db.schema.member_presence).where(
+      await db.delete(schema.memberPresence).where(
         and(
-          eq(db.schema.member_presence.group_id, groupId),
-          eq(db.schema.member_presence.user_id, userId),
-          eq(db.schema.member_presence.session_id, sessionId)
+          eq(schema.memberPresence.groupId, groupId),
+          eq(schema.memberPresence.userId, userId),
+          eq(schema.memberPresence.sessionId, sessionId)
         )
       );
 
@@ -163,7 +164,7 @@ export class PresenceService {
     try {
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
 
-      await db.delete(db.schema.member_presence).where(
+      await db.delete(schema.memberPresence).where(
         sql`last_seen < ${thirtyMinutesAgo}`
       );
     } catch (error) {
@@ -199,9 +200,9 @@ export class PresenceService {
   static async getPresenceStats(groupId: number) {
     try {
       const onlineMembers = await this.getOnlineMembers(groupId);
-      const totalMembers = await db.query.group_members.findMany({
-        where: eq(db.schema.group_members.group_id, groupId),
-        columns: { user_id: true },
+      const totalMembers = await db.query.groupMembers.findMany({
+        where: eq(schema.groupMembers.groupId, groupId),
+        columns: { userId: true },
       });
 
       const uniqueOnlineUsers = new Set(onlineMembers.map(m => m.userId));
@@ -221,6 +222,3 @@ export class PresenceService {
     }
   }
 }
-
-// Import sql for cleanup function
-import { sql } from 'drizzle-orm';
