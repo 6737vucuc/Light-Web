@@ -67,8 +67,8 @@ export async function GET(
         gm.group_id,
         gm.user_id,
         gm.content,
-        gm.type,
-        gm.image_url,
+        gm.message_type,
+        gm.media_url,
         gm.reply_to_id,
         gm.is_deleted,
         gm.created_at,
@@ -85,6 +85,9 @@ export async function GET(
     // Format messages to include user object as expected by Frontend
     const messages = rawMessages.map((msg: any) => ({
       ...msg,
+      // Map database names to frontend expected names
+      type: msg.message_type || 'text',
+      imageUrl: msg.media_url,
       user: {
         id: msg.user_id,
         name: msg.user_name,
@@ -201,10 +204,10 @@ export async function POST(
     // Insert message with correct column names from database
     let newMessage;
     try {
-      // Based on schema.ts: 
-      // group_id, user_id, content, type (not message_type), image_url (not media_url), reply_to_id
+      // Based on the screenshot provided by the user:
+      // columns are: group_id, user_id, content, message_type, media_url, reply_to_id
       const result = await sql`
-        INSERT INTO group_messages (group_id, user_id, content, type, image_url, reply_to_id)
+        INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
         VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${mediaUrl || null}, ${replyToId || null})
         RETURNING *
       `;
@@ -249,6 +252,9 @@ export async function POST(
     // Format message for clients to match Frontend expectations
     const messageWithUser = {
       ...newMessage,
+      // Map database names to frontend expected names
+      type: newMessage.message_type || 'text',
+      imageUrl: newMessage.media_url,
       user: {
         id: decoded.userId,
         name: userName,
