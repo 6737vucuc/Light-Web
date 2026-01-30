@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { RealtimeChatService } from '@/lib/realtime/chat';
 import { verifyAuth } from '@/lib/auth/verify';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const user = await verifyAuth(req);
     if (!user) {
