@@ -3,6 +3,15 @@ import { db } from '@/lib/db';
 import { groupMembers, communityGroups } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/verify';
+import Pusher from 'pusher';
+
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID!,
+  key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
+  secret: process.env.PUSHER_SECRET!,
+  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+  useTLS: true,
+});
 
 export async function POST(
   request: NextRequest,
@@ -47,17 +56,8 @@ export async function POST(
       .set({ membersCount: count })
       .where(eq(communityGroups.id, groupId));
 
-    // Trigger real-time update via Pusher using a safe require
+    // Trigger real-time update via Pusher
     try {
-      const Pusher = require('pusher');
-      const pusher = new Pusher({
-        appId: process.env.PUSHER_APP_ID!,
-        key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-        secret: process.env.PUSHER_SECRET!,
-        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-        useTLS: true,
-      });
-
       await pusher.trigger(`group-${groupId}`, 'member-left', {
         userId: user.userId,
         totalMembers: count,
