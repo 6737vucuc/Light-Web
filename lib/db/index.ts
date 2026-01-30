@@ -2,8 +2,11 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import { Pool, neon, neonConfig } from '@neondatabase/serverless';
 import * as schema from './schema';
 
-// Configure Neon with timeout
+// Configure Neon for Supabase compatibility
 neonConfig.fetchConnectionCache = true;
+neonConfig.useSecureWebSocket = true;
+neonConfig.pipelineTLS = false;
+neonConfig.pipelineConnect = false;
 
 // Check if DATABASE_URL is available
 const databaseUrl = process.env.DATABASE_URL;
@@ -20,8 +23,8 @@ if (!databaseUrl) {
 const pool = databaseUrl 
   ? new Pool({ 
       connectionString: databaseUrl,
-      connectionTimeoutMillis: 5000, // 5 seconds timeout
-      idleTimeoutMillis: 20000, // 20 seconds idle timeout
+      connectionTimeoutMillis: 10000, // 10 seconds timeout
+      idleTimeoutMillis: 30000, // 30 seconds idle timeout
       max: 10, // Maximum 10 connections
     })
   : new Pool({ connectionString: 'postgresql://dummy:dummy@localhost:5432/dummy' });
@@ -30,6 +33,7 @@ const pool = databaseUrl
 export const db = drizzle(pool, { schema });
 
 // Raw SQL client using neon (for template literal queries)
+// This works with Supabase pooler
 export const sql = databaseUrl
   ? neon(databaseUrl, {
       fetchOptions: {

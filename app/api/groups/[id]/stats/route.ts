@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { verify } from 'jsonwebtoken';
+import { db, sql as rawSql } from '@/lib/db';
+import { groupMembers } from '@/lib/db/schema';
+import { verifyAuth } from '@/lib/auth/verify';
+import { eq } from 'drizzle-orm';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
@@ -10,22 +13,16 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const token = request.cookies.get('token')?.value;
     
-    if (!token) {
+    const user = await verifyAuth(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    try {
-      verify(token, process.env.JWT_SECRET!);
-    } catch (jwtError) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     const groupId = parseInt(id);
 
-    // Get all members with user info
-    const allMembers = await sql`
+    // Get all members with user info using raw SQL
+    const allMembers = await rawSql`
       SELECT 
         gm.id, gm.user_id, gm.role, gm.joined_at, gm.last_active,
         u.name, u.username, u.avatar
@@ -38,7 +35,7 @@ export async function GET(
     const now = new Date();
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
-    const onlineMembers = allMembers.filter(m => {
+    const onlineMembers = allMembers.filter((m: any) => {
       if (!m.last_active) return false;
       return new Date(m.last_active) > fiveMinutesAgo;
     });
@@ -46,7 +43,7 @@ export async function GET(
     return NextResponse.json({
       totalMembers: allMembers.length,
       onlineMembers: onlineMembers.length,
-      members: onlineMembers.map(m => ({
+      members: onlineMembers.map((m: any) => ({
         id: m.user_id,
         name: m.name,
         username: m.username,
@@ -59,9 +56,8 @@ export async function GET(
   } catch (error: any) {
     console.error('Error fetching group stats:', error);
     return NextResponse.json({ 
-      error: 'DEBUG_STATS_ERROR: ' + error.message, 
-      full_error: error,
-      stack: error.stack
+      error: 'Failed to fetch stats', 
+      details: error.message 
     }, { status: 500 });
   }
 }

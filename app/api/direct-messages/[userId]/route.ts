@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { verify } from 'jsonwebtoken';
+import { sql as rawSql } from '@/lib/db';
+import { verifyAuth } from '@/lib/auth/verify';
 import { encryptMessageMilitary, decryptMessageMilitary } from '@/lib/security/military-encryption';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // GET: Fetch messages between current user and specific user
 export async function GET(
@@ -12,17 +13,16 @@ export async function GET(
 ) {
   try {
     const { userId: otherUserId } = await params;
-    const token = request.cookies.get('token')?.value;
     
-    if (!token) {
+    const user = await verifyAuth(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const currentUserId = decoded.userId;
+    const currentUserId = user.userId;
 
     // Get messages between the two users
-    const messages = await sql`
+    const messages = await rawSql`
       SELECT 
         dm.*,
         sender.name as sender_name,
@@ -40,14 +40,14 @@ export async function GET(
     `;
 
     // Mark messages as read
-    await sql`
+    await rawSql`
       UPDATE direct_messages
       SET is_read = true
       WHERE sender_id = ${otherUserId} AND receiver_id = ${currentUserId} AND is_read = false
     `;
 
     // Decrypt messages
-    const decryptedMessages = messages.map(msg => {
+    const decryptedMessages = messages.map((msg: any) => {
       try {
         if (msg.is_encrypted && msg.content) {
           return {

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { verify } from 'jsonwebtoken';
+import { db } from '@/lib/db';
+import { groupMembers, communityGroups } from '@/lib/db/schema';
+import { verifyAuth } from '@/lib/auth/verify';
+import { eq, and, sql, count } from 'drizzle-orm';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
@@ -10,75 +13,69 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const token = request.cookies.get('token')?.value;
     
-    if (!token) {
+    // Verify authentication
+    const user = await verifyAuth(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let decoded: any;
-    try {
-      decoded = verify(token, process.env.JWT_SECRET!) as any;
-    } catch (jwtError) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
     const groupId = parseInt(id);
-    const userId = decoded.userId;
+    const userId = user.userId;
 
-    // 1. Check if already a member
-    let existing;
-    try {
-      existing = await sql`SELECT id FROM group_members WHERE group_id = ${groupId} AND user_id = ${userId} LIMIT 1`;
-    } catch (e) {}
+    // Check if group exists
+    const group = await db.query.communityGroups.findFirst({
+      where: eq(communityGroups.id, groupId),
+    });
 
-    if (existing && existing.length > 0) {
-      return NextResponse.json({ message: 'Already a member', status: 'existing' });
+    if (!group) {
+      return NextResponse.json({ error: 'Group not found' }, { status: 404 });
     }
 
-    // 2. Try multiple insert strategies to match the actual DB schema
-    const insertStrategies = [
-      // Strategy A: Standard with joined_at
-      async () => sql`INSERT INTO group_members (group_id, user_id, role, joined_at) VALUES (${groupId}, ${userId}, 'member', NOW())`,
-      // Strategy B: Standard with created_at
-      async () => sql`INSERT INTO group_members (group_id, user_id, role, created_at) VALUES (${groupId}, ${userId}, 'member', NOW())`,
-      // Strategy C: Minimal (let DB handle defaults)
-      async () => sql`INSERT INTO group_members (group_id, user_id, role) VALUES (${groupId}, ${userId}, 'member')`,
-      // Strategy D: Very Minimal
-      async () => sql`INSERT INTO group_members (group_id, user_id) VALUES (${groupId}, ${userId})`
-    ];
+    // Check if already a member
+    const existingMember = await db.query.groupMembers.findFirst({
+      where: and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId)
+      ),
+    });
 
-    let success = false;
-    let lastError = '';
-
-    for (const strategy of insertStrategies) {
-      try {
-        await strategy();
-        success = true;
-        break;
-      } catch (e: any) {
-        lastError = e.message;
-        console.error('Strategy failed:', e.message);
-      }
-    }
-
-    if (!success) {
+    if (existingMember) {
       return NextResponse.json({ 
-        error: 'DATABASE_INSERT_FAILED', 
-        details: lastError,
-        hint: 'Check group_members table columns'
-      }, { status: 500 });
+        message: 'Already a member', 
+        status: 'existing' 
+      });
     }
 
-    // 3. Update members count (silent fail)
-    try {
-      await sql`UPDATE community_groups SET members_count = (SELECT COUNT(*) FROM group_members WHERE group_id = ${groupId}) WHERE id = ${groupId}`;
-    } catch (e) {}
+    // Insert new member
+    await db.insert(groupMembers).values({
+      groupId: groupId,
+      userId: userId,
+      role: 'member',
+      isAdmin: false,
+      isModerator: false,
+      canDeleteMessages: false,
+    });
 
-    return NextResponse.json({ message: 'Joined successfully', status: 'success' });
-  } catch (error: any) {
+    // Update members count
+    const [memberCount] = await db
+      .select({ count: count() })
+      .from(groupMembers)
+      .where(eq(groupMembers.groupId, groupId));
+
+    await db
+      .update(communityGroups)
+      .set({ membersCount: memberCount?.count || 1 })
+      .where(eq(communityGroups.id, groupId));
+
     return NextResponse.json({ 
-      error: 'CRITICAL_JOIN_ERROR', 
+      message: 'Joined successfully', 
+      status: 'success' 
+    });
+  } catch (error: any) {
+    console.error('Error joining group:', error);
+    return NextResponse.json({ 
+      error: 'DATABASE_INSERT_FAILED', 
       details: error.message 
     }, { status: 500 });
   }

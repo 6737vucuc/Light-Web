@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { verify } from 'jsonwebtoken';
+import { db, sql as rawSql } from '@/lib/db';
+import { groupMessages, groupMembers, communityGroups, users } from '@/lib/db/schema';
+import { verifyAuth } from '@/lib/auth/verify';
+import { eq, and, asc, sql } from 'drizzle-orm';
 
-// Initialize database connection
-const sql = neon(process.env.DATABASE_URL!);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Helper to initialize Pusher safely
 function getPusher() {
@@ -35,33 +37,28 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const token = request.cookies.get('token')?.value;
     
-    if (!token) {
+    const user = await verifyAuth(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    let decoded: any;
-    try {
-      decoded = verify(token, process.env.JWT_SECRET!) as any;
-    } catch (jwtError) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     const groupId = parseInt(id);
 
     // Check if user is a member
-    const members = await sql`
-      SELECT id FROM group_members 
-      WHERE group_id = ${groupId} AND user_id = ${decoded.userId}
-    `;
+    const member = await db.query.groupMembers.findFirst({
+      where: and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.userId)
+      ),
+    });
 
-    if (!members || members.length === 0) {
+    if (!member) {
       return NextResponse.json({ error: 'Not a member' }, { status: 403 });
     }
 
-    // Get messages with user info
-    const rawMessages = await sql`
+    // Get messages with user info using raw SQL for complex join
+    const rawMessages = await rawSql`
       SELECT 
         gm.id,
         gm.group_id,
@@ -98,9 +95,8 @@ export async function GET(
   } catch (error: any) {
     console.error('Error fetching messages:', error);
     return NextResponse.json({ 
-      error: 'DEBUG_ERROR: ' + error.message, 
-      full_error: error,
-      stack: error.stack
+      error: 'Failed to fetch messages', 
+      details: error.message 
     }, { status: 500 });
   }
 }
@@ -111,28 +107,23 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const token = request.cookies.get('token')?.value;
     
-    if (!token) {
+    const user = await verifyAuth(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    let decoded: any;
-    try {
-      decoded = verify(token, process.env.JWT_SECRET!) as any;
-    } catch (jwtError) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     const groupId = parseInt(id);
 
     // Check if user is a member
-    const members = await sql`
-      SELECT id FROM group_members 
-      WHERE group_id = ${groupId} AND user_id = ${decoded.userId}
-    `;
+    const member = await db.query.groupMembers.findFirst({
+      where: and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, user.userId)
+      ),
+    });
 
-    if (!members || members.length === 0) {
+    if (!member) {
       return NextResponse.json({ error: 'Not a member' }, { status: 403 });
     }
 
@@ -191,36 +182,40 @@ export async function POST(
       return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }
 
-    // Insert message
-    const result = await sql`
-      INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
-      VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${mediaUrl || null}, ${replyToId || null})
-      RETURNING *
-    `;
-    const newMessage = result[0];
+    // Insert message using Drizzle
+    const [newMessage] = await db.insert(groupMessages).values({
+      groupId: groupId,
+      userId: user.userId,
+      content: content,
+      messageType: messageType,
+      mediaUrl: mediaUrl,
+      replyToId: replyToId,
+    }).returning();
 
-    // Update messages count (silent fail)
-    try {
-      await sql`
-        UPDATE community_groups 
-        SET messages_count = COALESCE(messages_count, 0) + 1
-        WHERE id = ${groupId}
-      `;
-    } catch (e) {}
+    // Update messages count
+    await db.update(communityGroups)
+      .set({ messagesCount: sql`COALESCE(messages_count, 0) + 1` })
+      .where(eq(communityGroups.id, groupId));
 
     // Get user info
-    const users = await sql`SELECT name, username, avatar FROM users WHERE id = ${decoded.userId}`;
-    const user = users[0] || { name: 'Unknown', username: null, avatar: null };
+    const userInfo = await db.query.users.findFirst({
+      where: eq(users.id, user.userId),
+      columns: {
+        name: true,
+        username: true,
+        avatar: true,
+      }
+    });
 
     const messageWithUser = {
       ...newMessage,
-      type: newMessage.message_type || 'text',
-      imageUrl: newMessage.media_url,
+      type: newMessage.messageType || 'text',
+      imageUrl: newMessage.mediaUrl,
       user: {
-        id: decoded.userId,
-        name: user.name,
-        username: user.username,
-        avatar: user.avatar,
+        id: user.userId,
+        name: userInfo?.name || 'Unknown',
+        username: userInfo?.username || null,
+        avatar: userInfo?.avatar || null,
       }
     };
 
@@ -229,16 +224,17 @@ export async function POST(
     if (pusher) {
       try {
         await pusher.trigger(`group-${groupId}`, 'new-message', messageWithUser);
-      } catch (e) {}
+      } catch (e) {
+        console.error('Pusher error:', e);
+      }
     }
 
     return NextResponse.json({ message: messageWithUser }, { status: 201 });
   } catch (error: any) {
     console.error('Error sending message:', error);
     return NextResponse.json({ 
-      error: 'DEBUG_ERROR: ' + error.message, 
-      full_error: error,
-      stack: error.stack
+      error: 'Failed to send message', 
+      details: error.message 
     }, { status: 500 });
   }
 }

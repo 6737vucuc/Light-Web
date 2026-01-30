@@ -1,24 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { verify } from 'jsonwebtoken';
+import { db, sql as rawSql } from '@/lib/db';
+import { users } from '@/lib/db/schema';
+import { verifyAuth } from '@/lib/auth/verify';
+import { eq } from 'drizzle-orm';
 import { encryptMessageMilitary, decryptMessageMilitary } from '@/lib/security/military-encryption';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // GET: Fetch all conversations for the current user
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const userId = decoded.userId;
+    const userId = user.userId;
 
     // Get all conversations (unique users the current user has messaged with)
-    const conversations = await sql`
+    const conversations = await rawSql`
       SELECT DISTINCT
         CASE 
           WHEN dm.sender_id = ${userId} THEN dm.receiver_id
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
     `;
 
     // Decrypt last messages
-    const decryptedConversations = conversations.map(conv => {
+    const decryptedConversations = conversations.map((conv: any) => {
       try {
         if (conv.last_message) {
           return {
@@ -89,13 +91,12 @@ export async function GET(request: NextRequest) {
 // POST: Send a new direct message
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
     const { receiverId, content, messageType, mediaUrl } = await request.json();
 
     if (!receiverId) {
@@ -107,9 +108,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if receiver exists
-    const [receiver] = await sql`
-      SELECT id FROM users WHERE id = ${receiverId}
-    `;
+    const receiver = await db.query.users.findFirst({
+      where: eq(users.id, receiverId),
+      columns: { id: true }
+    });
 
     if (!receiver) {
       return NextResponse.json({ error: 'Receiver not found' }, { status: 404 });
@@ -119,9 +121,9 @@ export async function POST(request: NextRequest) {
     const encryptedContent = content ? encryptMessageMilitary(content) : null;
 
     // Insert encrypted message
-    const [newMessage] = await sql`
+    const [newMessage] = await rawSql`
       INSERT INTO direct_messages (sender_id, receiver_id, content, message_type, media_url, is_encrypted)
-      VALUES (${decoded.userId}, ${receiverId}, ${encryptedContent}, ${messageType || 'text'}, ${mediaUrl || null}, ${true})
+      VALUES (${user.userId}, ${receiverId}, ${encryptedContent}, ${messageType || 'text'}, ${mediaUrl || null}, ${true})
       RETURNING *
     `;
 

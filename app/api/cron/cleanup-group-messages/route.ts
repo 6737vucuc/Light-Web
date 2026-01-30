@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { sql as rawSql } from '@/lib/db';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,19 +18,19 @@ export async function GET(request: NextRequest) {
     console.log('Starting group messages cleanup...');
 
     // Delete all message reactions first
-    const deletedReactions = await sql`
+    const deletedReactions = await rawSql`
       DELETE FROM message_reactions 
       WHERE message_id IN (SELECT id FROM group_messages)
     `;
 
     // Delete all group messages
-    const deletedMessages = await sql`
+    const deletedMessages = await rawSql`
       DELETE FROM group_messages
       RETURNING id
     `;
 
     // Reset messages count for all groups
-    await sql`
+    await rawSql`
       UPDATE community_groups 
       SET messages_count = 0
     `;

@@ -1,17 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { verify } from 'jsonwebtoken';
+import { db, sql as rawSql } from '@/lib/db';
+import { groupMessages, communityGroups } from '@/lib/db/schema';
+import { verifyAuth } from '@/lib/auth/verify';
+import { eq, and, sql } from 'drizzle-orm';
 import Pusher from 'pusher';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
-  useTLS: true,
-});
+function getPusher() {
+  try {
+    const appId = process.env.PUSHER_APP_ID;
+    const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
+    const secret = process.env.PUSHER_SECRET;
+    const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+
+    if (appId && key && secret && cluster) {
+      return new Pusher({
+        appId,
+        key,
+        secret,
+        cluster,
+        useTLS: true,
+      });
+    }
+  } catch (e) {
+    console.error('Pusher initialization failed:', e);
+  }
+  return null;
+}
 
 export async function DELETE(
   request: NextRequest,
@@ -19,33 +36,38 @@ export async function DELETE(
 ) {
   try {
     const { id, messageId: msgId } = await params;
-    const token = request.cookies.get('token')?.value;
     
-    if (!token) {
+    const user = await verifyAuth(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
     const groupId = parseInt(id);
     const messageId = parseInt(msgId);
 
     // Get message details
-    const [message] = await sql`
-      SELECT user_id, created_at FROM group_messages 
-      WHERE id = ${messageId} AND group_id = ${groupId}
-    `;
+    const message = await db.query.groupMessages.findFirst({
+      where: and(
+        eq(groupMessages.id, messageId),
+        eq(groupMessages.groupId, groupId)
+      ),
+      columns: {
+        userId: true,
+        createdAt: true,
+      }
+    });
 
     if (!message) {
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
 
     // Check if message belongs to user
-    if (message.user_id !== decoded.userId) {
+    if (message.userId !== user.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Check if message is within 1 hour (3600000 milliseconds)
-    const messageTime = new Date(message.created_at).getTime();
+    const messageTime = message.createdAt ? new Date(message.createdAt).getTime() : 0;
     const currentTime = new Date().getTime();
     const timeDifference = currentTime - messageTime;
     const oneHourInMs = 60 * 60 * 1000;
@@ -58,23 +80,25 @@ export async function DELETE(
     }
 
     // Delete message (from both sides)
-    await sql`
-      DELETE FROM group_messages 
-      WHERE id = ${messageId}
-    `;
+    await db.delete(groupMessages).where(eq(groupMessages.id, messageId));
 
     // Update messages count
-    await sql`
-      UPDATE community_groups 
-      SET messages_count = GREATEST(messages_count - 1, 0)
-      WHERE id = ${groupId}
-    `;
+    await db.update(communityGroups)
+      .set({ messagesCount: sql`GREATEST(messages_count - 1, 0)` })
+      .where(eq(communityGroups.id, groupId));
 
     // Broadcast deletion to Pusher (for all users)
-    await pusher.trigger(`group-${groupId}`, 'delete-message', {
-      messageId: messageId,
-      deletedBy: decoded.userId,
-    });
+    const pusher = getPusher();
+    if (pusher) {
+      try {
+        await pusher.trigger(`group-${groupId}`, 'delete-message', {
+          messageId: messageId,
+          deletedBy: user.userId,
+        });
+      } catch (e) {
+        console.error('Pusher error:', e);
+      }
+    }
 
     return NextResponse.json({ 
       message: 'تم حذف الرسالة من الطرفين',

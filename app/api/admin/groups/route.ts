@@ -1,30 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import { verify } from 'jsonwebtoken';
+import { db, sql as rawSql } from '@/lib/db';
+import { communityGroups, groupMembers, groupMessages, users } from '@/lib/db/schema';
+import { verifyAuth } from '@/lib/auth/verify';
+import { eq, sql, count } from 'drizzle-orm';
 
-const sql = neon(process.env.DATABASE_URL!);
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    
     // Check if user is admin
-    const [user] = await sql`
-      SELECT is_admin FROM users WHERE id = ${decoded.userId}
-    `;
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.userId),
+      columns: { isAdmin: true }
+    });
 
-    if (!user || !user.is_admin) {
+    if (!dbUser || !dbUser.isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get all groups with member counts
-    const groups = await sql`
+    // Get all groups with member counts using raw SQL
+    const groups = await rawSql`
       SELECT 
         cg.*,
         COUNT(DISTINCT gm.id) as actual_members_count,
@@ -46,20 +48,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    
     // Check if user is admin
-    const [user] = await sql`
-      SELECT is_admin FROM users WHERE id = ${decoded.userId}
-    `;
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.userId),
+      columns: { isAdmin: true }
+    });
 
-    if (!user || !user.is_admin) {
+    if (!dbUser || !dbUser.isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -69,10 +70,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
     }
 
-    // Create new group
-    const [newGroup] = await sql`
+    // Create new group using raw SQL to handle nullable created_by
+    const [newGroup] = await rawSql`
       INSERT INTO community_groups (name, description, color, icon, avatar, created_by)
-      VALUES (${name}, ${description || null}, ${color || '#8B5CF6'}, ${icon || 'users'}, ${avatar || null}, ${decoded.userId})
+      VALUES (${name}, ${description || null}, ${color || '#8B5CF6'}, ${icon || 'users'}, ${avatar || null}, ${user.userId})
       RETURNING *
     `;
 
@@ -85,20 +86,19 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    
     // Check if user is admin
-    const [user] = await sql`
-      SELECT is_admin FROM users WHERE id = ${decoded.userId}
-    `;
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.userId),
+      columns: { isAdmin: true }
+    });
 
-    if (!user || !user.is_admin) {
+    if (!dbUser || !dbUser.isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -109,15 +109,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Group ID is required' }, { status: 400 });
     }
 
-    // Delete group messages first
-    await sql`DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM group_messages WHERE group_id = ${groupId})`;
-    await sql`DELETE FROM group_messages WHERE group_id = ${groupId}`;
-    
-    // Delete group members
-    await sql`DELETE FROM group_members WHERE group_id = ${groupId}`;
-    
-    // Delete group
-    await sql`DELETE FROM community_groups WHERE id = ${groupId}`;
+    const gId = parseInt(groupId);
+
+    // Delete related data using raw SQL
+    await rawSql`DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM group_messages WHERE group_id = ${gId})`;
+    await rawSql`DELETE FROM group_messages WHERE group_id = ${gId}`;
+    await rawSql`DELETE FROM group_members WHERE group_id = ${gId}`;
+    await rawSql`DELETE FROM community_groups WHERE id = ${gId}`;
 
     return NextResponse.json({ message: 'Group deleted successfully' });
   } catch (error) {
