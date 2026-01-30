@@ -58,6 +58,10 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('Error fetching group stats:', error);
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'DEBUG_STATS_ERROR: ' + error.message, 
+      full_error: error,
+      stack: error.stack
+    }, { status: 500 });
   }
 }

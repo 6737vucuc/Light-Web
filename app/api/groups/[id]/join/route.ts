@@ -51,6 +51,10 @@ export async function POST(
     return NextResponse.json({ message: 'Joined successfully', membersCount: count });
   } catch (error: any) {
     console.error('Error joining group:', error);
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'DEBUG_JOIN_ERROR: ' + error.message, 
+      full_error: error,
+      stack: error.stack
+    }, { status: 500 });
   }
 }
