@@ -45,6 +45,15 @@ export async function DELETE(
     const groupId = parseInt(id);
     const messageId = parseInt(msgId);
 
+    // Get request body for delete options
+    let deleteForEveryone = true;
+    try {
+      const body = await request.json();
+      deleteForEveryone = body.deleteForEveryone !== false;
+    } catch {
+      // Default to delete for everyone if no body
+    }
+
     // Get message details
     const message = await db.query.groupMessages.findFirst({
       where: and(
@@ -54,6 +63,7 @@ export async function DELETE(
       columns: {
         userId: true,
         createdAt: true,
+        content: true,
       }
     });
 
@@ -66,44 +76,62 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Check if message is within 1 hour (3600000 milliseconds)
-    const messageTime = message.createdAt ? new Date(message.createdAt).getTime() : 0;
-    const currentTime = new Date().getTime();
-    const timeDifference = currentTime - messageTime;
-    const oneHourInMs = 60 * 60 * 1000;
+    if (deleteForEveryone) {
+      // Check if message is within 1 hour for delete for everyone
+      const messageTime = message.createdAt ? new Date(message.createdAt).getTime() : 0;
+      const currentTime = new Date().getTime();
+      const timeDifference = currentTime - messageTime;
+      const oneHourInMs = 60 * 60 * 1000;
 
-    if (timeDifference > oneHourInMs) {
-      return NextResponse.json({ 
-        error: 'لا يمكن حذف الرسالة بعد مرور ساعة',
-        canDelete: false 
-      }, { status: 400 });
-    }
-
-    // Delete message (from both sides)
-    await db.delete(groupMessages).where(eq(groupMessages.id, messageId));
-
-    // Update messages count
-    await db.update(communityGroups)
-      .set({ messagesCount: sql`GREATEST(messages_count - 1, 0)` })
-      .where(eq(communityGroups.id, groupId));
-
-    // Broadcast deletion to Pusher (for all users)
-    const pusher = getPusher();
-    if (pusher) {
-      try {
-        await pusher.trigger(`group-${groupId}`, 'delete-message', {
-          messageId: messageId,
-          deletedBy: user.userId,
-        });
-      } catch (e) {
-        console.error('Pusher error:', e);
+      if (timeDifference > oneHourInMs) {
+        return NextResponse.json({ 
+          error: 'Cannot delete for everyone after 1 hour. You can still delete for yourself.',
+          canDeleteForEveryone: false,
+          canDeleteForMe: true
+        }, { status: 400 });
       }
-    }
 
-    return NextResponse.json({ 
-      message: 'تم حذف الرسالة من الطرفين',
-      deletedFromBothSides: true 
-    });
+      // Delete message completely (for everyone)
+      await db.delete(groupMessages).where(eq(groupMessages.id, messageId));
+
+      // Update messages count
+      await db.update(communityGroups)
+        .set({ messagesCount: sql`GREATEST(messages_count - 1, 0)` })
+        .where(eq(communityGroups.id, groupId));
+
+      // Broadcast deletion to all users via Pusher
+      const pusher = getPusher();
+      if (pusher) {
+        try {
+          await pusher.trigger(`group-${groupId}`, 'message-deleted', {
+            messageId: messageId,
+            deletedBy: user.userId,
+            deleteForEveryone: true,
+          });
+        } catch (e) {
+          console.error('Pusher error:', e);
+        }
+      }
+
+      return NextResponse.json({ 
+        message: 'Message deleted for everyone',
+        deletedForEveryone: true 
+      });
+    } else {
+      // Mark message as deleted for this user only (soft delete)
+      await db.update(groupMessages)
+        .set({ 
+          isDeleted: true,
+          deletedAt: new Date(),
+          content: '[This message was deleted]'
+        })
+        .where(eq(groupMessages.id, messageId));
+
+      return NextResponse.json({ 
+        message: 'Message deleted for you',
+        deletedForEveryone: false 
+      });
+    }
   } catch (error) {
     console.error('Error deleting message:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

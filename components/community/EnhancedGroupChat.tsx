@@ -58,6 +58,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const [showPinned, setShowPinned] = useState(false);
   const [showOnlineMembers, setShowOnlineMembers] = useState(false);
 
+  // Typing indicator
+  const [typingUsers, setTypingUsers] = useState<any[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // UI state
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportingMessage, setReportingMessage] = useState<any>(null);
@@ -228,6 +233,63 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
       setTotalMembers(data.totalMembers);
       loadGroupStats();
     });
+
+    // Typing indicator events
+    channel.bind('user-typing', (data: any) => {
+      if (data.userId !== currentUser?.id) {
+        setTypingUsers((prev) => {
+          const exists = prev.find(u => u.userId === data.userId);
+          if (exists) return prev;
+          return [...prev, { userId: data.userId, name: data.name, avatar: data.avatar }];
+        });
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+          setTypingUsers((prev) => prev.filter(u => u.userId !== data.userId));
+        }, 3000);
+      }
+    });
+
+    channel.bind('user-stopped-typing', (data: any) => {
+      setTypingUsers((prev) => prev.filter(u => u.userId !== data.userId));
+    });
+  };
+
+  // ============================================
+  // Typing Indicator Functions
+  // ============================================
+
+  const handleTyping = async () => {
+    if (!isTyping) {
+      setIsTyping(true);
+      try {
+        await fetch(`/api/groups/${group.id}/typing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isTyping: true }),
+        });
+      } catch (error) {
+        console.error('Error sending typing status:', error);
+      }
+    }
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set new timeout to stop typing after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(async () => {
+      setIsTyping(false);
+      try {
+        await fetch(`/api/groups/${group.id}/typing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isTyping: false }),
+        });
+      } catch (error) {
+        console.error('Error stopping typing status:', error);
+      }
+    }, 2000);
   };
 
   // ============================================
@@ -235,6 +297,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   // ============================================
 
   const sendMessage = async () => {
+    // Stop typing indicator when sending
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    setIsTyping(false);
     if (!newMessage.trim() && !selectedImage) return;
     if (!group?.id) return;
 
@@ -260,7 +327,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
           setImagePreview(null);
           setReplyingTo(null);
           loadMessages();
-          toast?.success('Message sent successfully');
+          // Removed success toast for better UX
         } else {
           const error = await response.json();
           console.error('Failed to send message with image:', error);
@@ -284,7 +351,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
           setNewMessage('');
           setReplyingTo(null);
           loadMessages();
-          toast?.success('Message sent successfully');
+          // Removed success toast for better UX
         } else {
           const error = await response.json();
           console.error('Failed to send text message:', error);
@@ -612,13 +679,20 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                         <Pin className="w-4 h-4 text-purple-500" />
                       </button>
                       {currentUser.id === message.userId && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); deleteMessage(message.id); }}
-                          className="p-1.5 bg-white hover:bg-gray-100 rounded-lg shadow-sm border border-gray-100 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </button>
+                        <div className="relative group">
+                          <button
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              // Show delete options
+                              const deleteForAll = window.confirm('Delete for everyone? Click OK for everyone, Cancel for just you.');
+                              deleteMessage(message.id, deleteForAll);
+                            }}
+                            className="p-1.5 bg-white hover:bg-red-50 rounded-lg shadow-sm border border-gray-100 transition-colors"
+                            title="Delete for everyone"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </button>
+                        </div>
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleReportMessage(message); }}
@@ -634,6 +708,35 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
             ))}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Typing Indicator */}
+          {typingUsers.length > 0 && (
+            <div className="px-4 py-2 bg-white/80 border-t border-gray-100 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {typingUsers.slice(0, 3).map((user, idx) => (
+                    <div key={user.userId} className="w-6 h-6 rounded-full bg-purple-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-purple-700">
+                      {user.name?.charAt(0).toUpperCase()}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-600">
+                    {typingUsers.length === 1 
+                      ? `${typingUsers[0].name} is typing` 
+                      : typingUsers.length === 2 
+                        ? `${typingUsers[0].name} and ${typingUsers[1].name} are typing`
+                        : `${typingUsers.length} people are typing`}
+                  </span>
+                  <div className="flex gap-0.5">
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Message Input - Mobile Optimized */}
           <div className="border-t border-gray-200 p-3 md:p-4 bg-white/95 backdrop-blur">
@@ -688,7 +791,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
               <div className="flex-1 relative">
                 <textarea
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    handleTyping();
+                  }}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();

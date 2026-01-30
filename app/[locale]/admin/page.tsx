@@ -1912,16 +1912,39 @@ function ReportsManager() {
               </div>
 
               <div className="mb-4">
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">Message Author:</p>
-                  <p className="text-gray-900">{report.reportedUser?.name || 'Unknown'}</p>
-                  <p className="text-sm text-gray-900">{report.reportedUser?.email}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <span className="text-purple-700 font-bold">
+                      {report.reportedUserName?.charAt(0)?.toUpperCase() || '?'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">Message Author:</p>
+                    <p className="text-gray-900 font-medium">{report.reportedUserName || 'Unknown'}</p>
+                    <p className="text-sm text-gray-500">{report.reportedUserEmail}</p>
+                  </div>
                 </div>
               </div>
 
+              {/* Reported Message Content */}
+              {report.messageContent && (
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-1">Reported Message Content:</p>
+                  <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+                    <p className="text-gray-900 whitespace-pre-wrap">{report.messageContent}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="mb-4">
-                <p className="text-sm font-semibold text-gray-700 mb-1">Reason:</p>
-                <p className="text-gray-900 bg-gray-50 p-3 rounded">{report.reason}</p>
+                <p className="text-sm font-semibold text-gray-700 mb-1">Report Reason:</p>
+                <p className="text-gray-900 bg-yellow-50 border border-yellow-200 p-3 rounded">{report.reason}</p>
+              </div>
+
+              {/* Reporter Info */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-semibold text-gray-700 mb-1">Reported By:</p>
+                <p className="text-gray-600 text-sm">{report.reporterName} ({report.reporterEmail})</p>
               </div>
 
               {report.adminNotes && (
