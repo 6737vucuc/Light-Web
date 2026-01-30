@@ -28,7 +28,7 @@ export async function POST(
     for (const messageId of messageIds) {
       await sql`
         INSERT INTO group_message_read_receipts (message_id, user_id, read_at)
-        VALUES (${messageId}, ${user.id}, NOW())
+        VALUES (${messageId}, ${user.userId}, NOW())
         ON CONFLICT DO NOTHING
       `;
 
