@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { ilike } from 'drizzle-orm';
