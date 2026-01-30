@@ -1,22 +1,32 @@
-// Real-time Chat Updates using Pusher
+// Real-time Chat Updates using Pusher - Server Side Only
 import Pusher from 'pusher';
-import PusherClient from 'pusher-js';
 
-// Server-side Pusher instance
-export const pusherServer = new Pusher({
-  appId: process.env.PUSHER_APP_ID || '',
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY || '',
-  secret: process.env.PUSHER_SECRET || '',
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
-  useTLS: true,
-});
+// Lazy initialization of server-side Pusher instance
+let pusherServerInstance: Pusher | null = null;
 
-// Client-side Pusher instance
-export const getPusherClient = () => {
-  return new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
-    cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
-  });
+const getPusherServer = () => {
+  if (!pusherServerInstance) {
+    pusherServerInstance = new Pusher({
+      appId: process.env.PUSHER_APP_ID || '',
+      key: process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_KEY || '',
+      secret: process.env.PUSHER_SECRET || '',
+      cluster: process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
+      useTLS: true,
+    });
+  }
+  return pusherServerInstance;
 };
+
+// Export getter instead of direct instance
+export const pusherServer = {
+  trigger: async (channel: string, event: string, data: any) => {
+    const server = getPusherServer();
+    return server.trigger(channel, event, data);
+  }
+};
+
+// Re-export client-side functions for backward compatibility
+export { getPusherClient } from './pusher-client';
 
 // Real-time event types
 export enum ChatEvent {
@@ -212,74 +222,3 @@ export class RealtimeChatService {
     return `private-group-${groupId}`;
   }
 }
-
-// Client-side hooks for real-time updates
-export const useRealtimeChat = (channelId: string) => {
-  const pusher = getPusherClient();
-  const channel = pusher.subscribe(channelId);
-
-  const onNewMessage = (callback: (message: ChatMessage) => void) => {
-    channel.bind(ChatEvent.NEW_MESSAGE, callback);
-  };
-
-  const onMessageDeleted = (callback: (data: { messageId: number }) => void) => {
-    channel.bind(ChatEvent.MESSAGE_DELETED, callback);
-  };
-
-  const onTyping = (callback: (indicator: TypingIndicator) => void) => {
-    channel.bind(ChatEvent.TYPING, callback);
-  };
-
-  const onOnlineStatus = (callback: (status: OnlineStatus) => void) => {
-    channel.bind(ChatEvent.ONLINE_STATUS, callback);
-  };
-
-  const onMessageRead = (callback: (data: { messageId: number; userId: number }) => void) => {
-    channel.bind(ChatEvent.MESSAGE_READ, callback);
-  };
-
-  const onMessageDelivered = (callback: (data: { messageId: number; deliveredAt: Date }) => void) => {
-    channel.bind(ChatEvent.MESSAGE_DELIVERED, callback);
-  };
-
-  const cleanup = () => {
-    channel.unbind_all();
-    pusher.unsubscribe(channelId);
-  };
-
-  return {
-    onNewMessage,
-    onMessageDeleted,
-    onTyping,
-    onOnlineStatus,
-    onMessageRead,
-    onMessageDelivered,
-    cleanup,
-  };
-};
-
-// Presence channel for online users
-export const usePresenceChannel = (userId: number) => {
-  const pusher = getPusherClient();
-  const channelName = `presence-user-${userId}`;
-  const channel = pusher.subscribe(channelName);
-
-  const onUserOnline = (callback: (user: any) => void) => {
-    channel.bind('pusher:member_added', callback);
-  };
-
-  const onUserOffline = (callback: (user: any) => void) => {
-    channel.bind('pusher:member_removed', callback);
-  };
-
-  const cleanup = () => {
-    channel.unbind_all();
-    pusher.unsubscribe(channelName);
-  };
-
-  return {
-    onUserOnline,
-    onUserOffline,
-    cleanup,
-  };
-};

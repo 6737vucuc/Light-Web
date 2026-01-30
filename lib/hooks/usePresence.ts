@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getPusherClient } from '@/lib/realtime/chat';
+import { getPusherClient } from '@/lib/realtime/pusher-client';
 
 interface OnlineMember {
   userId: number;
