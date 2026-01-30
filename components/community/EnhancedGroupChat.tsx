@@ -200,7 +200,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      toast?.showError('Failed to send message');
+      toast?.error('Failed to send message');
     } finally {
       setIsSending(false);
     }
@@ -214,11 +214,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
       if (response.ok) {
         setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        toast?.showSuccess('Message deleted');
+        toast?.success('Message deleted');
       }
     } catch (error) {
       console.error('Error deleting message:', error);
-      toast?.showError('Failed to delete message');
+      toast?.error('Failed to delete message');
     }
   };
 
@@ -232,11 +232,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
       if (response.ok) {
         loadPinnedMessages();
-        toast?.showSuccess('Message pinned');
+        toast?.success('Message pinned');
       }
     } catch (error) {
       console.error('Error pinning message:', error);
-      toast?.showError('Failed to pin message');
+      toast?.error('Failed to pin message');
     }
   };
 
@@ -249,11 +249,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
       });
 
       if (response.ok) {
-        toast?.showSuccess('Message starred');
+        toast?.success('Message starred');
       }
     } catch (error) {
       console.error('Error starring message:', error);
-      toast?.showError('Failed to star message');
+      toast?.error('Failed to star message');
     }
   };
 
@@ -273,7 +273,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
       }
     } catch (error) {
       console.error('Error searching messages:', error);
-      toast?.showError('Failed to search messages');
+      toast?.error('Failed to search messages');
     }
   };
 
@@ -284,7 +284,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
   const submitReport = async () => {
     if (!reportReason.trim()) {
-      toast?.showError('Please provide a reason');
+      toast?.error('Please provide a reason');
       return;
     }
 
@@ -303,11 +303,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         setShowReportModal(false);
         setReportReason('');
         setReportingMessage(null);
-        toast?.showSuccess('Report submitted');
+        toast?.success('Report submitted');
       }
     } catch (error) {
       console.error('Error submitting report:', error);
-      toast?.showError('Failed to submit report');
+      toast?.error('Failed to submit report');
     }
   };
 
