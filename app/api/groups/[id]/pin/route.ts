@@ -3,15 +3,6 @@ import { db } from '@/lib/db';
 import { groupMessagePinned, groupMessages } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/verify';
-import Pusher from 'pusher';
-
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-  useTLS: true,
-});
 
 export async function POST(
   request: NextRequest,
@@ -57,6 +48,14 @@ export async function POST(
 
       // Trigger real-time update
       try {
+        const Pusher = require('pusher');
+        const pusher = new Pusher({
+          appId: process.env.PUSHER_APP_ID!,
+          key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
+          secret: process.env.PUSHER_SECRET!,
+          cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+          useTLS: true,
+        });
         await pusher.trigger(`group-${groupId}`, 'message-unpinned', {
           messageId,
           timestamp: new Date().toISOString(),
@@ -75,6 +74,14 @@ export async function POST(
 
       // Trigger real-time update
       try {
+        const Pusher = require('pusher');
+        const pusher = new Pusher({
+          appId: process.env.PUSHER_APP_ID!,
+          key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
+          secret: process.env.PUSHER_SECRET!,
+          cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+          useTLS: true,
+        });
         await pusher.trigger(`group-${groupId}`, 'message-pinned', {
           messageId,
           timestamp: new Date().toISOString(),
