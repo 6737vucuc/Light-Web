@@ -173,18 +173,24 @@ export default function CommunityPage() {
                   <button
                     key={group.id}
                     onClick={async () => {
-                      // Join the group first
+                      setIsLoading(true);
                       try {
                         const response = await fetch(`/api/groups/${group.id}/join`, {
                           method: 'POST',
                         });
+                        const data = await response.json();
+                        
                         if (response.ok) {
                           setSelectedGroup(group);
-                          // Save to localStorage
                           localStorage.setItem('selectedGroupId', group.id.toString());
+                        } else {
+                          alert(data.error || data.details || 'Failed to join group');
                         }
                       } catch (error) {
                         console.error('Error joining group:', error);
+                        alert('Connection error');
+                      } finally {
+                        setIsLoading(false);
                       }
                     }}
                     className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group"

@@ -26,7 +26,7 @@ export async function POST(
     const groupId = parseInt(id);
     const userId = decoded.userId;
 
-    // 1. Check if already a member (using a very safe query)
+    // 1. Check if already a member
     let existing;
     try {
       existing = await sql`SELECT id FROM group_members WHERE group_id = ${groupId} AND user_id = ${userId} LIMIT 1`;
@@ -38,9 +38,9 @@ export async function POST(
       return NextResponse.json({ message: 'Already a member', status: 'existing' });
     }
 
-    // 2. Try to insert with multiple possible column names for timestamp
+    // 2. Try to insert into group_members
     try {
-      // Try standard joined_at first
+      // Try with joined_at first
       await sql`
         INSERT INTO group_members (group_id, user_id, role, joined_at)
         VALUES (${groupId}, ${userId}, 'member', NOW())
@@ -48,21 +48,23 @@ export async function POST(
     } catch (insertError: any) {
       console.error('First insert attempt failed, trying alternative:', insertError.message);
       try {
-        // Try without joined_at (letting DB handle default)
+        // Try without joined_at (letting DB handle default or created_at)
         await sql`
           INSERT INTO group_members (group_id, user_id, role)
           VALUES (${groupId}, ${userId}, 'member')
         `;
       } catch (secondError: any) {
+        console.error('Second insert attempt failed:', secondError.message);
+        // Final attempt: try to see if the table has different column names
         return NextResponse.json({ 
           error: 'DATABASE_INSERT_FAILED', 
           details: secondError.message,
-          hint: 'Check if group_members table exists and has correct columns'
+          hint: 'Please check if group_members table exists and has correct columns'
         }, { status: 500 });
       }
     }
 
-    // 3. Update members count (silent fail - don't block the user)
+    // 3. Update members count in community_groups (silent fail)
     try {
       const countResult = await sql`SELECT COUNT(*) as count FROM group_members WHERE group_id = ${groupId}`;
       const count = parseInt(countResult[0].count);
