@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { verify } from 'jsonwebtoken';
-import Pusher from 'pusher';
-import { encryptMessageMilitary, decryptMessageMilitary } from '@/lib/security/military-encryption';
 
 const sql = neon(process.env.DATABASE_URL!);
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
-  useTLS: true,
-});
+// Initialize Pusher only if credentials are available
+let pusher: any = null;
+try {
+  if (process.env.PUSHER_APP_ID && process.env.PUSHER_KEY && process.env.PUSHER_SECRET && process.env.PUSHER_CLUSTER) {
+    const Pusher = require('pusher');
+    pusher = new Pusher({
+      appId: process.env.PUSHER_APP_ID,
+      key: process.env.PUSHER_KEY,
+      secret: process.env.PUSHER_SECRET,
+      cluster: process.env.PUSHER_CLUSTER,
+      useTLS: true,
+    });
+  }
+} catch (e) {
+  console.warn('Pusher initialization failed:', e);
+}
 
 export async function GET(
   request: NextRequest,
@@ -26,16 +33,23 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
+    let decoded: any;
+    try {
+      decoded = verify(token, process.env.JWT_SECRET!) as any;
+    } catch (jwtError) {
+      console.error('JWT verification failed:', jwtError);
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const groupId = parseInt(id);
 
     // Check if user is a member
-    const [member] = await sql`
+    const members = await sql`
       SELECT id FROM group_members 
       WHERE group_id = ${groupId} AND user_id = ${decoded.userId}
     `;
 
-    if (!member) {
+    if (!members || members.length === 0) {
       return NextResponse.json({ error: 'Not a member' }, { status: 403 });
     }
 
@@ -53,7 +67,7 @@ export async function GET(
       ORDER BY gm.created_at ASC
     `;
 
-    return NextResponse.json({ messages });
+    return NextResponse.json({ messages: messages || [] });
   } catch (error) {
     console.error('Error fetching messages:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -72,43 +86,77 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
+    let decoded: any;
+    try {
+      decoded = verify(token, process.env.JWT_SECRET!) as any;
+    } catch (jwtError) {
+      console.error('JWT verification failed:', jwtError);
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const groupId = parseInt(id);
 
     // Check if user is a member
-    const [member] = await sql`
+    const members = await sql`
       SELECT id FROM group_members 
       WHERE group_id = ${groupId} AND user_id = ${decoded.userId}
     `;
 
-    if (!member) {
+    if (!members || members.length === 0) {
       return NextResponse.json({ error: 'Not a member' }, { status: 403 });
     }
 
-    const { content, messageType, mediaUrl, replyToId } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+
+    const { content, messageType, mediaUrl, replyToId } = body;
 
     if (!content && !mediaUrl) {
       return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }
 
     // Insert message with correct column names from database
-    const [newMessage] = await sql`
-      INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
-      VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${mediaUrl || null}, ${replyToId || null})
-      RETURNING *
-    `;
+    let newMessage;
+    try {
+      const result = await sql`
+        INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
+        VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${mediaUrl || null}, ${replyToId || null})
+        RETURNING *
+      `;
+      newMessage = result[0];
+    } catch (dbError) {
+      console.error('Database insert failed:', dbError);
+      return NextResponse.json({ error: 'Failed to save message' }, { status: 500 });
+    }
 
-    // Update messages count
-    await sql`
-      UPDATE community_groups 
-      SET messages_count = messages_count + 1
-      WHERE id = ${groupId}
-    `;
+    // Update messages count (don't fail if this fails)
+    try {
+      await sql`
+        UPDATE community_groups 
+        SET messages_count = COALESCE(messages_count, 0) + 1
+        WHERE id = ${groupId}
+      `;
+    } catch (countError) {
+      console.warn('Failed to update message count:', countError);
+    }
 
     // Get user info for the message
-    const [user] = await sql`
-      SELECT name, username, avatar FROM users WHERE id = ${decoded.userId}
-    `;
+    let user = { name: 'Unknown', username: null, avatar: null };
+    try {
+      const users = await sql`
+        SELECT name, username, avatar FROM users WHERE id = ${decoded.userId}
+      `;
+      if (users && users.length > 0) {
+        user = users[0];
+      }
+    } catch (userError) {
+      console.warn('Failed to get user info:', userError);
+    }
 
     // Format message for clients
     const messageWithUser = {
@@ -118,10 +166,17 @@ export async function POST(
       user_avatar: user.avatar,
     };
 
-    // Broadcast to Pusher
-    await pusher.trigger(`group-${groupId}`, 'new-message', {
-      message: messageWithUser,
-    });
+    // Broadcast to Pusher (don't fail if Pusher fails)
+    if (pusher) {
+      try {
+        await pusher.trigger(`group-${groupId}`, 'new-message', {
+          message: messageWithUser,
+        });
+      } catch (pusherError) {
+        console.warn('Pusher broadcast failed:', pusherError);
+        // Don't fail the request if Pusher fails
+      }
+    }
 
     return NextResponse.json({ message: messageWithUser }, { status: 201 });
   } catch (error) {
