@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
       groupId: parseInt(groupId),
       userId: user.userId,
       content: content || '',
-      type: mediaUrl ? 'image' : 'text',
-      imageUrl: mediaUrl || null,
+      messageType: mediaUrl ? 'image' : 'text',
+      mediaUrl: mediaUrl || null,
       replyToId: replyToId ? parseInt(replyToId) : null,
       createdAt: new Date(),
     }).returning();
