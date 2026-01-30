@@ -30,52 +30,53 @@ export async function POST(
     let existing;
     try {
       existing = await sql`SELECT id FROM group_members WHERE group_id = ${groupId} AND user_id = ${userId} LIMIT 1`;
-    } catch (e) {
-      console.error('Check membership failed:', e);
-    }
+    } catch (e) {}
 
     if (existing && existing.length > 0) {
       return NextResponse.json({ message: 'Already a member', status: 'existing' });
     }
 
-    // 2. Try to insert into group_members
-    try {
-      // Try with joined_at first
-      await sql`
-        INSERT INTO group_members (group_id, user_id, role, joined_at)
-        VALUES (${groupId}, ${userId}, 'member', NOW())
-      `;
-    } catch (insertError: any) {
-      console.error('First insert attempt failed, trying alternative:', insertError.message);
+    // 2. Try multiple insert strategies to match the actual DB schema
+    const insertStrategies = [
+      // Strategy A: Standard with joined_at
+      async () => sql`INSERT INTO group_members (group_id, user_id, role, joined_at) VALUES (${groupId}, ${userId}, 'member', NOW())`,
+      // Strategy B: Standard with created_at
+      async () => sql`INSERT INTO group_members (group_id, user_id, role, created_at) VALUES (${groupId}, ${userId}, 'member', NOW())`,
+      // Strategy C: Minimal (let DB handle defaults)
+      async () => sql`INSERT INTO group_members (group_id, user_id, role) VALUES (${groupId}, ${userId}, 'member')`,
+      // Strategy D: Very Minimal
+      async () => sql`INSERT INTO group_members (group_id, user_id) VALUES (${groupId}, ${userId})`
+    ];
+
+    let success = false;
+    let lastError = '';
+
+    for (const strategy of insertStrategies) {
       try {
-        // Try without joined_at (letting DB handle default or created_at)
-        await sql`
-          INSERT INTO group_members (group_id, user_id, role)
-          VALUES (${groupId}, ${userId}, 'member')
-        `;
-      } catch (secondError: any) {
-        console.error('Second insert attempt failed:', secondError.message);
-        // Final attempt: try to see if the table has different column names
-        return NextResponse.json({ 
-          error: 'DATABASE_INSERT_FAILED', 
-          details: secondError.message,
-          hint: 'Please check if group_members table exists and has correct columns'
-        }, { status: 500 });
+        await strategy();
+        success = true;
+        break;
+      } catch (e: any) {
+        lastError = e.message;
+        console.error('Strategy failed:', e.message);
       }
     }
 
-    // 3. Update members count in community_groups (silent fail)
-    try {
-      const countResult = await sql`SELECT COUNT(*) as count FROM group_members WHERE group_id = ${groupId}`;
-      const count = parseInt(countResult[0].count);
-      await sql`UPDATE community_groups SET members_count = ${count} WHERE id = ${groupId}`;
-    } catch (e) {
-      console.warn('Count update failed (non-critical):', e);
+    if (!success) {
+      return NextResponse.json({ 
+        error: 'DATABASE_INSERT_FAILED', 
+        details: lastError,
+        hint: 'Check group_members table columns'
+      }, { status: 500 });
     }
+
+    // 3. Update members count (silent fail)
+    try {
+      await sql`UPDATE community_groups SET members_count = (SELECT COUNT(*) FROM group_members WHERE group_id = ${groupId}) WHERE id = ${groupId}`;
+    } catch (e) {}
 
     return NextResponse.json({ message: 'Joined successfully', status: 'success' });
   } catch (error: any) {
-    console.error('Global join error:', error);
     return NextResponse.json({ 
       error: 'CRITICAL_JOIN_ERROR', 
       details: error.message 
