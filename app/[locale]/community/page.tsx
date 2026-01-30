@@ -132,7 +132,7 @@ export default function CommunityPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6">
-        {selectedGroup ? (
+        {selectedGroup && selectedGroup.name ? (
           /* Group Chat View */
           <EnhancedGroupChat
             group={selectedGroup}
@@ -142,6 +142,39 @@ export default function CommunityPage() {
               localStorage.removeItem('selectedGroupId');
             }}
           />
+        ) : selectedGroup && !selectedGroup.name ? (
+          /* Loading state when group is being restored from localStorage */
+          <div className="min-h-[60vh] flex items-center justify-center">
+            <div className="text-center">
+              {/* Animated Logo */}
+              <div className="relative mb-8">
+                <div className="w-24 h-24 mx-auto bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center animate-pulse">
+                  <Users className="w-12 h-12 text-white" />
+                </div>
+                <div className="absolute -inset-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full opacity-20 animate-ping"></div>
+              </div>
+              
+              {/* Loading Text */}
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                {t('joiningGroup') || 'Joining Group...'}
+              </h3>
+              <p className="text-gray-500 mb-6">
+                {t('pleaseWait') || 'Please wait while we connect you'}
+              </p>
+              
+              {/* Loading Bar */}
+              <div className="w-48 h-1.5 bg-gray-200 rounded-full mx-auto overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-purple-600 to-pink-600 rounded-full animate-loading-bar"></div>
+              </div>
+              
+              {/* Decorative Elements */}
+              <div className="mt-8 flex justify-center gap-2">
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
+          </div>
         ) : (
           /* Groups List */
           <div>

@@ -70,7 +70,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const pusherRef = useRef<Pusher | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const sessionIdRef = useRef<string>(`${currentUser.id}-${Date.now()}`);
+  const sessionIdRef = useRef<string>(`${currentUser?.id || 'guest'}-${Date.now()}`);
 
   // ============================================
   // Initialization and Lifecycle
