@@ -268,11 +268,11 @@ export const groupActivityLogRelations = relations(groupActivityLog, ({ one }) =
 
 export const groupMessageReadReceiptsRelations = relations(groupMessageReadReceipts, ({ one }) => ({
   message: one(groupMessages, {
-    fields: [groupMessageRead_receipts.messageId],
+    fields: [groupMessageReadReceipts.messageId],
     references: [groupMessages.id],
   }),
   user: one(users, {
-    fields: [groupMessageRead_receipts.userId],
+    fields: [groupMessageReadReceipts.userId],
     references: [users.id],
   }),
 }));
