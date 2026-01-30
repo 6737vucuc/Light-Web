@@ -23,14 +23,14 @@ export async function POST(
     // Update or insert typing status
     await sql`
       INSERT INTO typing_status (group_id, user_id, is_typing, started_at)
-      VALUES (${groupId}, ${user.id}, ${isTyping}, NOW())
+      VALUES (${groupId}, ${user.userId}, ${isTyping}, NOW())
       ON CONFLICT (group_id, user_id)
       DO UPDATE SET is_typing = ${isTyping}, started_at = NOW()
     `;
 
     // Get user info for broadcast
     const userInfo = await sql`
-      SELECT id, name, avatar FROM users WHERE id = ${user.id}
+      SELECT id, name, avatar FROM users WHERE id = ${user.userId}
     `;
 
     return NextResponse.json({ 
@@ -74,7 +74,7 @@ export async function GET(
       WHERE ts.group_id = ${groupId}
         AND ts.is_typing = true
         AND ts.started_at > NOW() - INTERVAL '5 seconds'
-        AND ts.user_id != ${user.id}
+        AND ts.user_id != ${user.userId}
     `;
 
     return NextResponse.json({ 
