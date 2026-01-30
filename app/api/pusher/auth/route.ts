@@ -2,69 +2,47 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/middleware';
-import Pusher from 'pusher';
-
-// Initialize Pusher
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.NEXT_PUBLIC_PUSHER_APP_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-  useTLS: true,
-});
+import { verify } from 'jsonwebtoken';
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
-  
-  if ('error' in authResult) {
-    console.error('[Pusher Auth] Authentication failed:', authResult.error);
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
-
-  console.log('[Pusher Auth] User authenticated:', authResult.user.id);
-
   try {
+    const token = request.cookies.get('token')?.value;
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    let decoded: any;
+    try {
+      decoded = verify(token, process.env.JWT_SECRET!) as any;
+    } catch (jwtError) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const body = await request.text();
     const params = new URLSearchParams(body);
     const socketId = params.get('socket_id');
     const channelName = params.get('channel_name');
 
     if (!socketId || !channelName) {
-      console.error('[Pusher Auth] Missing parameters');
-      return NextResponse.json(
-        { error: 'Missing socket_id or channel_name' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    console.log('[Pusher Auth] Request:', { socketId, channelName, userId: authResult.user.id });
+    const appId = process.env.PUSHER_APP_ID;
+    const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
+    const secret = process.env.PUSHER_SECRET;
+    const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
-    // Verify user has access to this channel
-    const userId = authResult.user.id;
-    const expectedChannel = `private-user-${userId}`;
-
-    if (channelName !== expectedChannel) {
-      console.error('[Pusher Auth] Unauthorized channel access:', { channelName, userId, expectedChannel });
-      return NextResponse.json(
-        { error: 'Unauthorized channel access' },
-        { status: 403 }
-      );
+    if (!appId || !key || !secret || !cluster) {
+      return NextResponse.json({ error: 'Pusher not configured' }, { status: 500 });
     }
 
-    console.log('[Pusher Auth] Channel authorized:', channelName);
+    const Pusher = require('pusher');
+    const pusher = new Pusher({ appId, key, secret, cluster, useTLS: true });
 
     const authResponse = pusher.authorizeChannel(socketId, channelName);
-    
     return NextResponse.json(authResponse);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Pusher Auth] Error:', error);
-    return NextResponse.json(
-      { error: 'Authentication failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Authentication failed', details: error.message }, { status: 500 });
   }
 }

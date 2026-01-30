@@ -2,30 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { verify } from 'jsonwebtoken';
 
+// Initialize database connection
 const sql = neon(process.env.DATABASE_URL!);
 
-// Initialize Pusher only if credentials are available
-let pusher: any = null;
-try {
-  const appId = process.env.PUSHER_APP_ID;
-  const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY || process.env.NEXT_PUBLIC_PUSHER_KEY;
-  const secret = process.env.PUSHER_SECRET;
-  const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+// Helper to initialize Pusher safely
+function getPusher() {
+  try {
+    const appId = process.env.PUSHER_APP_ID;
+    const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
+    const secret = process.env.PUSHER_SECRET;
+    const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
-  if (appId && key && secret && cluster) {
-    const Pusher = require('pusher');
-    pusher = new Pusher({
-      appId,
-      key,
-      secret,
-      cluster,
-      useTLS: true,
-    });
-  } else {
-    console.warn('Pusher credentials incomplete:', { appId: !!appId, key: !!key, secret: !!secret, cluster: !!cluster });
+    if (appId && key && secret && cluster) {
+      const Pusher = require('pusher');
+      return new Pusher({
+        appId,
+        key,
+        secret,
+        cluster,
+        useTLS: true,
+      });
+    }
+  } catch (e) {
+    console.error('Pusher initialization failed:', e);
   }
-} catch (e) {
-  console.warn('Pusher initialization failed:', e);
+  return null;
 }
 
 export async function GET(
@@ -44,7 +45,6 @@ export async function GET(
     try {
       decoded = verify(token, process.env.JWT_SECRET!) as any;
     } catch (jwtError) {
-      console.error('JWT verification failed:', jwtError);
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
@@ -82,10 +82,8 @@ export async function GET(
       ORDER BY gm.created_at ASC
     `;
 
-    // Format messages to include user object as expected by Frontend
     const messages = rawMessages.map((msg: any) => ({
       ...msg,
-      // Map database names to frontend expected names
       type: msg.message_type || 'text',
       imageUrl: msg.media_url,
       user: {
@@ -97,9 +95,12 @@ export async function GET(
     }));
 
     return NextResponse.json({ messages: messages || [] });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching messages:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error.message 
+    }, { status: 500 });
   }
 }
 
@@ -119,7 +120,6 @@ export async function POST(
     try {
       decoded = verify(token, process.env.JWT_SECRET!) as any;
     } catch (jwtError) {
-      console.error('JWT verification failed:', jwtError);
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
@@ -135,7 +135,6 @@ export async function POST(
       return NextResponse.json({ error: 'Not a member' }, { status: 403 });
     }
 
-    // Check content type to determine if it's JSON or FormData
     const contentType = request.headers.get('content-type') || '';
     let content: string | null = null;
     let messageType: string = 'text';
@@ -143,19 +142,15 @@ export async function POST(
     let replyToId: number | null = null;
 
     if (contentType.includes('multipart/form-data')) {
-      // Handle FormData (image upload)
-      try {
-        const formData = await request.formData();
-        content = formData.get('content') as string || null;
-        const imageFile = formData.get('image') as File | null;
-        const replyToIdStr = formData.get('replyToId') as string | null;
-        
-        if (replyToIdStr) {
-          replyToId = parseInt(replyToIdStr);
-        }
+      const formData = await request.formData();
+      content = formData.get('content') as string || null;
+      const imageFile = formData.get('image') as File | null;
+      const replyToIdStr = formData.get('replyToId') as string | null;
+      
+      if (replyToIdStr) replyToId = parseInt(replyToIdStr);
 
-        // Upload image to Cloudinary if present
-        if (imageFile) {
+      if (imageFile) {
+        try {
           const cloudinary = require('cloudinary').v2;
           cloudinary.config({
             cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -178,110 +173,70 @@ export async function POST(
 
           mediaUrl = uploadResult.secure_url;
           messageType = 'image';
+        } catch (cloudinaryError) {
+          console.error('Cloudinary upload failed:', cloudinaryError);
+          return NextResponse.json({ error: 'Image upload failed' }, { status: 500 });
         }
-      } catch (formError) {
-        console.error('Failed to parse FormData:', formError);
-        return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
       }
     } else {
-      // Handle JSON (text message)
-      try {
-        const body = await request.json();
-        content = body.content || null;
-        messageType = body.messageType || 'text';
-        mediaUrl = body.mediaUrl || null;
-        replyToId = body.replyToId || null;
-      } catch (parseError) {
-        console.error('Failed to parse JSON:', parseError);
-        return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-      }
+      const body = await request.json();
+      content = body.content || null;
+      messageType = body.messageType || 'text';
+      mediaUrl = body.mediaUrl || null;
+      replyToId = body.replyToId || null;
     }
 
     if (!content && !mediaUrl) {
       return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }
 
-    // Insert message with correct column names from database
-    let newMessage;
-    try {
-      // Based on the screenshot provided by the user:
-      // columns are: group_id, user_id, content, message_type, media_url, reply_to_id
-      const result = await sql`
-        INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
-        VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${mediaUrl || null}, ${replyToId || null})
-        RETURNING *
-      `;
-      newMessage = result[0];
-    } catch (dbError: any) {
-      console.error('Database insert failed:', dbError);
-      return NextResponse.json({ 
-        error: 'Failed to save message', 
-        details: dbError.message
-      }, { status: 500 });
-    }
+    // Insert message
+    const result = await sql`
+      INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
+      VALUES (${groupId}, ${decoded.userId}, ${content || null}, ${messageType || 'text'}, ${mediaUrl || null}, ${replyToId || null})
+      RETURNING *
+    `;
+    const newMessage = result[0];
 
-    // Update messages count (don't fail if this fails)
+    // Update messages count (silent fail)
     try {
-      // Table name is community_groups based on schema.ts
       await sql`
         UPDATE community_groups 
         SET messages_count = COALESCE(messages_count, 0) + 1
         WHERE id = ${groupId}
       `;
-    } catch (countError) {
-      console.warn('Failed to update message count:', countError);
-    }
+    } catch (e) {}
 
-    // Get user info for the message
-    let userName = 'Unknown';
-    let userUsername: string | null = null;
-    let userAvatar: string | null = null;
-    try {
-      const users = await sql`
-        SELECT name, username, avatar FROM users WHERE id = ${decoded.userId}
-      `;
-      if (users && users.length > 0) {
-        userName = users[0].name || 'Unknown';
-        userUsername = users[0].username || null;
-        userAvatar = users[0].avatar || null;
-      }
-    } catch (userError) {
-      console.warn('Failed to get user info:', userError);
-    }
+    // Get user info
+    const users = await sql`SELECT name, username, avatar FROM users WHERE id = ${decoded.userId}`;
+    const user = users[0] || { name: 'Unknown', username: null, avatar: null };
 
-    // Format message for clients to match Frontend expectations
     const messageWithUser = {
       ...newMessage,
-      // Map database names to frontend expected names
       type: newMessage.message_type || 'text',
       imageUrl: newMessage.media_url,
       user: {
         id: decoded.userId,
-        name: userName,
-        username: userUsername,
-        avatar: userAvatar,
-      },
-      // Keep flat fields for backward compatibility if needed
-      user_name: userName,
-      user_username: userUsername,
-      user_avatar: userAvatar,
+        name: user.name,
+        username: user.username,
+        avatar: user.avatar,
+      }
     };
 
-    // Broadcast to Pusher (don't fail if Pusher fails)
+    // Broadcast via Pusher (silent fail)
+    const pusher = getPusher();
     if (pusher) {
       try {
-        await pusher.trigger(`group-${groupId}`, 'new-message', {
-          message: messageWithUser,
-        });
-      } catch (pusherError) {
-        console.warn('Pusher broadcast failed:', pusherError);
-        // Don't fail the request if Pusher fails
-      }
+        await pusher.trigger(`group-${groupId}`, 'new-message', messageWithUser);
+      } catch (e) {}
     }
 
     return NextResponse.json({ message: messageWithUser }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending message:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: error.message 
+    }, { status: 500 });
   }
 }

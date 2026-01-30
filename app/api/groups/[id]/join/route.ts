@@ -1,78 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { groupMembers, communityGroups, users } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
-import { verifyAuth } from '@/lib/auth/verify';
-import Pusher from 'pusher';
+import { neon } from '@neondatabase/serverless';
+import { verify } from 'jsonwebtoken';
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
-  useTLS: true,
-});
+const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await verifyAuth(request);
+    const { id } = await params;
+    const token = request.cookies.get('token')?.value;
     
-    if (!user) {
+    if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const groupId = parseInt(params.id);
+    let decoded: any;
+    try {
+      decoded = verify(token, process.env.JWT_SECRET!) as any;
+    } catch (jwtError) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const groupId = parseInt(id);
 
     // Check if already a member
-    const existingMember = await db.query.groupMembers.findFirst({
-      where: and(
-        eq(groupMembers.groupId, groupId),
-        eq(groupMembers.userId, user.userId)
-      ),
-    });
+    const existing = await sql`
+      SELECT id FROM group_members WHERE group_id = ${groupId} AND user_id = ${decoded.userId}
+    `;
 
-    if (existingMember) {
+    if (existing && existing.length > 0) {
       return NextResponse.json({ message: 'Already a member' });
     }
 
     // Add user to group
-    await db.insert(groupMembers).values({
-      groupId: groupId,
-      userId: user.userId,
-      role: 'member',
-      joinedAt: new Date(),
-    });
+    await sql`
+      INSERT INTO group_members (group_id, user_id, role, joined_at)
+      VALUES (${groupId}, ${decoded.userId}, 'member', NOW())
+    `;
 
     // Update members count
-    const countResult = await db.select({ count: sql`COUNT(*)` })
-      .from(groupMembers)
-      .where(eq(groupMembers.groupId, groupId));
-    
-    const count = Number(countResult[0]?.count) || 0;
+    const countResult = await sql`SELECT COUNT(*) as count FROM group_members WHERE group_id = ${groupId}`;
+    const count = parseInt(countResult[0].count);
 
-    await db.update(communityGroups)
-      .set({ membersCount: count })
-      .where(eq(communityGroups.id, groupId));
-
-    // Get user info for notification
-    const userInfo = await db.query.users.findFirst({
-      where: eq(users.id, user.userId),
-      columns: { id: true, name: true, avatar: true }
-    });
-
-    // Broadcast member count update to all users in the group
-    await pusher.trigger(`group-${groupId}`, 'member-update', {
-      type: 'join',
-      membersCount: count,
-      user: userInfo
-    });
+    await sql`
+      UPDATE community_groups SET members_count = ${count} WHERE id = ${groupId}
+    `;
 
     return NextResponse.json({ message: 'Joined successfully', membersCount: count });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error joining group:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 });
   }
 }
