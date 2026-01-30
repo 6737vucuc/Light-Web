@@ -18,6 +18,8 @@ import {
   Users,
   Eye,
   Settings,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -113,15 +115,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     }
   };
 
-  const joinGroup = async () => {
-    try {
-      await fetch(`/api/groups/${group.id}/join`, { method: 'POST' });
-      loadGroupStats();
-    } catch (error) {
-      console.error('Error joining group:', error);
-    }
-  };
-
   const loadGroupStats = async () => {
     try {
       const response = await fetch(`/api/groups/${group.id}/stats`);
@@ -129,18 +122,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         const data = await response.json();
         setTotalMembers(data.totalMembers || 0);
         setOnlineMembersCount(data.onlineMembers || 0);
-
-        // Load detailed online members
-        const onlineResponse = await fetch(`/api/groups/${group.id}/features`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getOnlineMembers' }),
-        });
-
-        if (onlineResponse.ok) {
-          const onlineData = await onlineResponse.json();
-          setOnlineMembers(onlineData.onlineMembers || []);
-        }
+        setOnlineMembers(data.members || []);
       }
     } catch (error) {
       console.error('Error loading group stats:', error);
@@ -149,225 +131,150 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
   const loadPinnedMessages = async () => {
     try {
-      const response = await fetch(`/api/groups/${group.id}/features`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getPinned' }),
-      });
-
+      const response = await fetch(`/api/groups/${group.id}/pinned`);
       if (response.ok) {
         const data = await response.json();
-        setPinnedMessages(data.pinned || []);
+        setPinnedMessages(data.pinnedMessages || []);
       }
     } catch (error) {
       console.error('Error loading pinned messages:', error);
     }
   };
 
-  // ============================================
-  // Pusher Real-time Setup
-  // ============================================
+  const joinGroup = async () => {
+    try {
+      await fetch(`/api/groups/${group.id}/join`, { method: 'POST' });
+    } catch (error) {
+      console.error('Error joining group:', error);
+    }
+  };
 
   const initializePusher = () => {
-    if (typeof window !== 'undefined') {
-      pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
-        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
-      });
+    if (pusherRef.current) return;
 
-      const channel = pusherRef.current.subscribe(`group-${group.id}`);
+    pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    });
 
-      channel.bind('new-message', (data: any) => {
-        setMessages((prev) => [...prev, data.message]);
-        scrollToBottom();
-      });
+    const channel = pusherRef.current.subscribe(`group-${group.id}`);
 
-      channel.bind('delete-message', (data: any) => {
-        setMessages((prev) => prev.filter(m => m.id !== data.messageId));
-      });
+    channel.bind('new-message', (data: any) => {
+      setMessages((prev) => [...prev, data]);
+    });
 
-      channel.bind('pusher:subscription_succeeded', (members: any) => {
-        setOnlineMembersCount(members.count || 0);
-      });
+    channel.bind('message-deleted', (data: any) => {
+      setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
+    });
 
-      channel.bind('pusher:member_added', () => {
-        setOnlineMembersCount((prev) => prev + 1);
-      });
-
-      channel.bind('pusher:member_removed', () => {
-        setOnlineMembersCount((prev) => Math.max(0, prev - 1));
-      });
-    }
+    channel.bind('presence-update', (data: any) => {
+      loadGroupStats();
+    });
   };
 
   // ============================================
-  // Message Operations
+  // Message Functions
   // ============================================
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const sendMessage = async () => {
-    if ((!newMessage.trim() && !selectedImage) || isSending) return;
+    if (!newMessage.trim() && !selectedImage) return;
 
     setIsSending(true);
     try {
-      let mediaUrl = null;
-
+      const formData = new FormData();
+      formData.append('content', newMessage);
+      formData.append('groupId', group.id.toString());
       if (selectedImage) {
-        const formData = new FormData();
-        formData.append('file', selectedImage);
-
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          mediaUrl = uploadData.url;
-        }
+        formData.append('image', selectedImage);
       }
 
-      const response = await fetch(`/api/groups/${group.id}/messages`, {
+      const response = await fetch('/api/messages/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: newMessage.trim() || (mediaUrl ? 'Sent an image' : ''),
-          messageType: mediaUrl ? 'image' : 'text',
-          mediaUrl: mediaUrl,
-        }),
+        body: formData,
       });
 
       if (response.ok) {
         setNewMessage('');
         setSelectedImage(null);
         setImagePreview(null);
+        loadMessages();
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      toast?.showError('Failed to send message');
     } finally {
       setIsSending(false);
     }
   };
 
   const deleteMessage = async (messageId: number) => {
-    const confirmed = await toast.confirm({
-      title: t('community.deleteMessage'),
-      message: t('community.deleteMessageConfirm'),
-      confirmText: t('common.delete'),
-      cancelText: t('common.cancel'),
-      type: 'danger',
-    });
-
-    if (!confirmed) return;
-
     try {
-      const response = await fetch(`/api/groups/${group.id}/messages/${messageId}`, {
+      const response = await fetch(`/api/messages/${messageId}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        setMessages((prev) => prev.filter(m => m.id !== messageId));
+        setMessages((prev) => prev.filter((m) => m.id !== messageId));
+        toast?.showSuccess('Message deleted');
       }
     } catch (error) {
       console.error('Error deleting message:', error);
+      toast?.showError('Failed to delete message');
     }
   };
 
   const pinMessage = async (messageId: number) => {
     try {
-      const response = await fetch(`/api/groups/${group.id}/features`, {
+      const response = await fetch(`/api/groups/${group.id}/pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'pin',
-          messageId,
-          userId: currentUser.id,
-        }),
+        body: JSON.stringify({ messageId }),
       });
 
       if (response.ok) {
         loadPinnedMessages();
-        toast.success('Message pinned successfully');
+        toast?.showSuccess('Message pinned');
       }
     } catch (error) {
       console.error('Error pinning message:', error);
+      toast?.showError('Failed to pin message');
     }
   };
 
   const starMessage = async (messageId: number) => {
     try {
-      const response = await fetch(`/api/groups/${group.id}/features`, {
+      const response = await fetch(`/api/groups/${group.id}/star`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'star',
-          messageId,
-          userId: currentUser.id,
-        }),
+        body: JSON.stringify({ messageId }),
       });
 
       if (response.ok) {
-        toast.success('Message starred successfully');
+        toast?.showSuccess('Message starred');
       }
     } catch (error) {
       console.error('Error starring message:', error);
+      toast?.showError('Failed to star message');
     }
   };
 
   const searchMessages = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
     try {
-      const response = await fetch(`/api/groups/${group.id}/features`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'search',
-          query: searchQuery,
-        }),
-      });
-
+      const response = await fetch(
+        `/api/groups/${group.id}/search?q=${encodeURIComponent(searchQuery)}`
+      );
       if (response.ok) {
         const data = await response.json();
         setSearchResults(data.results || []);
       }
     } catch (error) {
       console.error('Error searching messages:', error);
+      toast?.showError('Failed to search messages');
     }
-  };
-
-  // ============================================
-  // Utility Functions
-  // ============================================
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const getAvatarUrl = (avatar?: string) => {
-    if (!avatar) return '/default-avatar.png';
-    if (avatar.startsWith('data:')) return avatar;
-    if (avatar.startsWith('http')) return avatar;
-    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
-  };
-
-  const formatTime = (date: string) => {
-    const messageDate = new Date(date);
-    return messageDate.toLocaleTimeString('ar-SA', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
   };
 
   const handleReportMessage = (message: any) => {
@@ -376,7 +283,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   const submitReport = async () => {
-    if (!reportReason.trim() || !reportingMessage) return;
+    if (!reportReason.trim()) {
+      toast?.showError('Please provide a reason');
+      return;
+    }
 
     try {
       const response = await fetch('/api/reports', {
@@ -384,21 +294,51 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messageId: reportingMessage.id,
-          reportedUserId: reportingMessage.user_id,
           groupId: group.id,
           reason: reportReason,
         }),
       });
 
       if (response.ok) {
-        toast.success('Report submitted successfully');
         setShowReportModal(false);
-        setReportingMessage(null);
         setReportReason('');
+        setReportingMessage(null);
+        toast?.showSuccess('Report submitted');
       }
     } catch (error) {
       console.error('Error submitting report:', error);
+      toast?.showError('Failed to submit report');
     }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImagePreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const formatTime = (date: string) => {
+    return new Date(date).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getAvatarUrl = (avatar?: string) => {
+    if (!avatar) return '/default-avatar.png';
+    if (avatar.startsWith('data:')) return avatar;
+    if (avatar.startsWith('http')) return avatar;
+    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
   if (isLoading) {
@@ -410,39 +350,39 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white">
-      {/* Header */}
+    <div className="flex flex-col h-screen bg-white md:flex-row">
+      {/* Header - Mobile Optimized */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <div className="px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="px-3 md:px-4 py-3 md:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
             <button
               onClick={onBack}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-700" />
+              <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-gray-700" />
             </button>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">{group.name}</h2>
-              <p className="text-sm text-gray-500">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base md:text-lg font-bold text-gray-900 truncate">{group.name}</h2>
+              <p className="text-xs md:text-sm text-gray-500 truncate">
                 {onlineMembersCount} {t('community.online')} • {totalMembers} {t('community.members')}
               </p>
             </div>
           </div>
 
-          {/* Header Actions */}
-          <div className="flex items-center gap-2">
+          {/* Header Actions - Mobile Optimized */}
+          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             <button
               onClick={() => setShowSearch(!showSearch)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <Search className="w-5 h-5 text-gray-700" />
+              <Search className="w-4 h-4 md:w-5 md:h-5 text-gray-700" />
             </button>
 
             <button
               onClick={() => setShowPinned(!showPinned)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
             >
-              <Pin className="w-5 h-5 text-gray-700" />
+              <Pin className="w-4 h-4 md:w-5 md:h-5 text-gray-700" />
               {pinnedMessages.length > 0 && (
                 <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {pinnedMessages.length}
@@ -454,25 +394,25 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
               onClick={() => setShowOnlineMembers(!showOnlineMembers)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <Users className="w-5 h-5 text-gray-700" />
+              <Users className="w-4 h-4 md:w-5 md:h-5 text-gray-700" />
             </button>
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar - Mobile Optimized */}
         {showSearch && (
-          <div className="px-4 pb-4 flex gap-2">
+          <div className="px-3 md:px-4 pb-3 md:pb-4 flex gap-2">
             <input
               type="text"
               placeholder={t('community.searchMessages')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && searchMessages()}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="flex-1 px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
             />
             <button
               onClick={searchMessages}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-3 md:px-4 py-2 bg-purple-600 text-white text-sm md:text-base rounded-lg hover:bg-purple-700 transition-colors flex-shrink-0"
             >
               {t('common.search')}
             </button>
@@ -480,21 +420,21 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         )}
       </header>
 
-      {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Main Content Area - Mobile Optimized */}
+      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
         {/* Messages Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Messages List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Messages List - Mobile Optimized */}
+          <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4">
             {(showSearch && searchResults.length > 0 ? searchResults : messages).map((message) => (
               <div
                 key={message.id}
-                className="flex gap-3 group"
+                className="flex gap-2 md:gap-3 group"
                 onMouseEnter={() => setSelectedMessage(message.id)}
                 onMouseLeave={() => setSelectedMessage(null)}
               >
                 <div className="flex-shrink-0">
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200">
                     {message.user?.avatar ? (
                       <Image
                         src={getAvatarUrl(message.user.avatar)}
@@ -505,16 +445,16 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                         unoptimized
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-sm font-bold">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-xs md:text-sm font-bold">
                         {message.user?.name?.charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">{message.user?.name}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-gray-900 text-sm md:text-base">{message.user?.name}</span>
                     <span className="text-xs text-gray-500">{formatTime(message.created_at)}</span>
                   </div>
 
@@ -530,12 +470,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                       />
                     </div>
                   ) : (
-                    <p className="text-gray-700 mt-1">{message.content}</p>
+                    <p className="text-gray-900 mt-1 text-sm md:text-base break-words">{message.content}</p>
                   )}
 
-                  {/* Message Actions */}
+                  {/* Message Actions - Mobile Optimized */}
                   {selectedMessage === message.id && (
-                    <div className="flex gap-1 mt-2">
+                    <div className="flex gap-1 mt-2 flex-wrap">
                       <button
                         onClick={() => starMessage(message.id)}
                         className="p-1 hover:bg-gray-100 rounded transition-colors"
@@ -574,8 +514,8 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Message Input */}
-          <div className="border-t border-gray-200 p-4 bg-white">
+          {/* Message Input - Mobile Optimized */}
+          <div className="border-t border-gray-200 p-3 md:p-4 bg-white">
             {imagePreview && (
               <div className="mb-3 relative inline-block">
                 <img
@@ -606,7 +546,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
               >
                 <ImageIcon className="w-5 h-5 text-gray-700" />
               </button>
@@ -617,13 +557,13 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                 placeholder={t('community.typeMessage')}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="flex-1 px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               />
 
               <button
                 onClick={sendMessage}
                 disabled={isSending}
-                className="p-2 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-50"
+                className="p-2 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 <Send className="w-5 h-5 text-purple-600" />
               </button>
@@ -631,14 +571,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
           </div>
         </div>
 
-        {/* Sidebar - Online Members or Pinned Messages */}
+        {/* Sidebar - Online Members or Pinned Messages - Mobile Optimized */}
         {showOnlineMembers && (
-          <div className="w-64 border-l border-gray-200 overflow-y-auto p-4 bg-gray-50">
-            <h3 className="font-bold text-gray-900 mb-4">{t('community.onlineMembers')}</h3>
-            <div className="space-y-3">
+          <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-gray-200 overflow-y-auto p-3 md:p-4 bg-gray-50 max-h-64 md:max-h-none">
+            <h3 className="font-bold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">{t('community.onlineMembers')}</h3>
+            <div className="space-y-2 md:space-y-3">
               {onlineMembers.map((member) => (
                 <div key={member.user_id} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg transition-colors">
-                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 relative">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 relative flex-shrink-0">
                     {member.user?.avatar ? (
                       <Image
                         src={getAvatarUrl(member.user.avatar)}
@@ -655,7 +595,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                     )}
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                   </div>
-                  <span className="text-sm text-gray-900">{member.user?.name}</span>
+                  <span className="text-xs md:text-sm text-gray-900 truncate">{member.user?.name}</span>
                 </div>
               ))}
             </div>
@@ -663,16 +603,16 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         )}
 
         {showPinned && (
-          <div className="w-64 border-l border-gray-200 overflow-y-auto p-4 bg-gray-50">
-            <h3 className="font-bold text-gray-900 mb-4">{t('community.pinnedMessages')}</h3>
-            <div className="space-y-3">
+          <div className="w-full md:w-64 border-t md:border-t-0 md:border-l border-gray-200 overflow-y-auto p-3 md:p-4 bg-gray-50 max-h-64 md:max-h-none">
+            <h3 className="font-bold text-gray-900 mb-3 md:mb-4 text-sm md:text-base">{t('community.pinnedMessages')}</h3>
+            <div className="space-y-2 md:space-y-3">
               {pinnedMessages.length === 0 ? (
-                <p className="text-sm text-gray-500">{t('community.noPinnedMessages')}</p>
+                <p className="text-xs md:text-sm text-gray-500">{t('community.noPinnedMessages')}</p>
               ) : (
                 pinnedMessages.map((pinned) => (
-                  <div key={pinned.id} className="p-3 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                  <div key={pinned.id} className="p-2 md:p-3 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
                     <p className="text-xs font-semibold text-gray-900">{pinned.message?.user?.name}</p>
-                    <p className="text-sm text-gray-700 mt-1 line-clamp-3">{pinned.message?.content}</p>
+                    <p className="text-xs md:text-sm text-gray-900 mt-1 line-clamp-3">{pinned.message?.content}</p>
                   </div>
                 ))
               )}
@@ -681,28 +621,28 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         )}
       </div>
 
-      {/* Report Modal */}
+      {/* Report Modal - Mobile Optimized */}
       {showReportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 md:p-6 max-w-md w-full">
             <h3 className="text-lg font-bold text-gray-900 mb-4">{t('community.reportMessage')}</h3>
             <textarea
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
               placeholder={t('community.reportReason')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4"
+              className="w-full px-3 md:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 text-gray-900 text-sm md:text-base"
               rows={4}
             />
             <div className="flex gap-2">
               <button
                 onClick={() => setShowReportModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-3 md:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm md:text-base text-gray-900"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={submitReport}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="flex-1 px-3 md:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm md:text-base"
               >
                 {t('common.report')}
               </button>
