@@ -98,8 +98,9 @@ export async function GET(
   } catch (error: any) {
     console.error('Error fetching messages:', error);
     return NextResponse.json({ 
-      error: 'Internal server error', 
-      details: error.message 
+      error: 'DEBUG_ERROR: ' + error.message, 
+      full_error: error,
+      stack: error.stack
     }, { status: 500 });
   }
 }
@@ -235,8 +236,9 @@ export async function POST(
   } catch (error: any) {
     console.error('Error sending message:', error);
     return NextResponse.json({ 
-      error: 'Internal server error', 
-      details: error.message 
+      error: 'DEBUG_ERROR: ' + error.message, 
+      full_error: error,
+      stack: error.stack
     }, { status: 500 });
   }
 }
