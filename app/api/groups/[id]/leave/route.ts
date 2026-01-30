@@ -3,9 +3,9 @@ import { db } from '@/lib/db';
 import { groupMembers, communityGroups } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/verify';
-import Pusher from 'pusher-js';
+import Pusher from 'pusher';
 
-const pusher = new (require('pusher')).default({
+const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID!,
   key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
   secret: process.env.PUSHER_SECRET!,

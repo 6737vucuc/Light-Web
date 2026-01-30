@@ -18,30 +18,38 @@ export async function GET(
     const groupId = parseInt(params.id);
 
     // Get all members
-    const allMembers = await db.query.groupMembers.findMany({
+    const members = await db.query.groupMembers.findMany({
       where: eq(groupMembers.groupId, groupId),
       with: {
         user: true,
       },
+      orderBy: (members, { desc }) => [desc(members.joinedAt)],
     });
 
-    // Calculate online members (active in last 5 minutes)
-    const now = new Date();
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-
-    const onlineMembers = allMembers.filter(m => {
+    // Separate online and offline members
+    const onlineMembers = members.filter(m => {
       if (!m.lastActive) return false;
-      return new Date(m.lastActive) > fiveMinutesAgo;
+      const lastActiveTime = new Date(m.lastActive).getTime();
+      const now = new Date().getTime();
+      return (now - lastActiveTime) < 5 * 60 * 1000; // 5 minutes
+    });
+
+    const offlineMembers = members.filter(m => {
+      if (!m.lastActive) return true;
+      const lastActiveTime = new Date(m.lastActive).getTime();
+      const now = new Date().getTime();
+      return (now - lastActiveTime) >= 5 * 60 * 1000;
     });
 
     return NextResponse.json({
-      totalMembers: allMembers.length,
-      onlineMembers: onlineMembers.length,
-      members: onlineMembers,
-      allMembers: allMembers,
+      members,
+      onlineMembers,
+      offlineMembers,
+      totalMembers: members.length,
+      onlineCount: onlineMembers.length,
     });
   } catch (error) {
-    console.error('Error fetching group stats:', error);
+    console.error('Error fetching members:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
