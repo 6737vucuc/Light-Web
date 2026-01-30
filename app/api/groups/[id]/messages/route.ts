@@ -106,15 +106,67 @@ export async function POST(
       return NextResponse.json({ error: 'Not a member' }, { status: 403 });
     }
 
-    let body;
-    try {
-      body = await request.json();
-    } catch (parseError) {
-      console.error('Failed to parse request body:', parseError);
-      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-    }
+    // Check content type to determine if it's JSON or FormData
+    const contentType = request.headers.get('content-type') || '';
+    let content: string | null = null;
+    let messageType: string = 'text';
+    let mediaUrl: string | null = null;
+    let replyToId: number | null = null;
 
-    const { content, messageType, mediaUrl, replyToId } = body;
+    if (contentType.includes('multipart/form-data')) {
+      // Handle FormData (image upload)
+      try {
+        const formData = await request.formData();
+        content = formData.get('content') as string || null;
+        const imageFile = formData.get('image') as File | null;
+        const replyToIdStr = formData.get('replyToId') as string | null;
+        
+        if (replyToIdStr) {
+          replyToId = parseInt(replyToIdStr);
+        }
+
+        // Upload image to Cloudinary if present
+        if (imageFile) {
+          const cloudinary = require('cloudinary').v2;
+          cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET,
+          });
+
+          const bytes = await imageFile.arrayBuffer();
+          const buffer = Buffer.from(bytes);
+
+          const uploadResult = await new Promise<any>((resolve, reject) => {
+            cloudinary.uploader.upload_stream(
+              { folder: 'group-messages' },
+              (error: any, result: any) => {
+                if (error) reject(error);
+                else resolve(result);
+              }
+            ).end(buffer);
+          });
+
+          mediaUrl = uploadResult.secure_url;
+          messageType = 'image';
+        }
+      } catch (formError) {
+        console.error('Failed to parse FormData:', formError);
+        return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
+      }
+    } else {
+      // Handle JSON (text message)
+      try {
+        const body = await request.json();
+        content = body.content || null;
+        messageType = body.messageType || 'text';
+        mediaUrl = body.mediaUrl || null;
+        replyToId = body.replyToId || null;
+      } catch (parseError) {
+        console.error('Failed to parse JSON:', parseError);
+        return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+      }
+    }
 
     if (!content && !mediaUrl) {
       return NextResponse.json({ error: 'Message content is required' }, { status: 400 });

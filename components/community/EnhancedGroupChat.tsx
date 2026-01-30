@@ -231,8 +231,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
           setImagePreview(null);
           setReplyingTo(null);
           loadMessages();
+          toast?.success('Message sent successfully');
         } else {
           const error = await response.json();
+          console.error('Failed to send message with image:', error);
           toast?.error(error.error || 'Failed to send message');
         }
       } else {
@@ -253,8 +255,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
           setNewMessage('');
           setReplyingTo(null);
           loadMessages();
+          toast?.success('Message sent successfully');
         } else {
           const error = await response.json();
+          console.error('Failed to send text message:', error);
           toast?.error(error.error || 'Failed to send message');
         }
       }
