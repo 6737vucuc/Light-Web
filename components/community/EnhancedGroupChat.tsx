@@ -364,10 +364,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getAvatarUrl = (avatar: string | null) => {
-    if (!avatar) return null;
+  const getAvatarUrl = (avatar: string | null): string => {
+    if (!avatar) return '/default-avatar.png';
+    if (avatar.startsWith('data:')) return avatar;
     if (avatar.startsWith('http')) return avatar;
-    return `/uploads/avatars/${avatar}`;
+    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
   return (

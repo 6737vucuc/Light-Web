@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
       groupId: parseInt(groupId),
       userId: user.userId,
       content: content || '',
-      messageType: mediaUrl ? 'image' : 'text',
-      mediaUrl: mediaUrl || null,
+      type: mediaUrl ? 'image' : 'text',
+      imageUrl: mediaUrl || null,
       replyToId: replyToId ? parseInt(replyToId) : null,
       createdAt: new Date(),
     }).returning();
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       where: (msg, { eq }) => eq(msg.id, message[0].id),
       with: {
         user: true,
-        replyTo: {
+        parentMessage: {
           with: {
             user: true,
           },

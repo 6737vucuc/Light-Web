@@ -435,5 +435,71 @@ export const testimonies = pgTable('testimonies', {
   content: text('content').notNull(),
   religion: varchar('religion', { length: 50 }).notNull(),
   isApproved: boolean('is_approved').default(false),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ========================================
+// VPN LOGS SYSTEM
+// ========================================
+
+// VPN Logs table
+export const vpnLogs = pgTable('vpn_logs', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id),
+  ipAddress: varchar('ip_address', { length: 45 }).notNull(),
+  country: varchar('country', { length: 100 }),
+  countryCode: varchar('country_code', { length: 10 }),
+  city: varchar('city', { length: 100 }),
+  region: varchar('region', { length: 100 }),
+  isp: varchar('isp', { length: 255 }),
+  organization: varchar('organization', { length: 255 }),
+  asn: varchar('asn', { length: 50 }),
+  isVPN: boolean('is_vpn').default(false),
+  isTor: boolean('is_tor').default(false),
+  isProxy: boolean('is_proxy').default(false),
+  isHosting: boolean('is_hosting').default(false),
+  isAnonymous: boolean('is_anonymous').default(false),
+  riskScore: integer('risk_score').default(0),
+  threatLevel: varchar('threat_level', { length: 20 }).default('low'),
+  detectionService: varchar('detection_service', { length: 50 }),
+  detectionData: text('detection_data'),
+  isBlocked: boolean('is_blocked').default(false),
+  blockReason: text('block_reason'),
+  userAgent: text('user_agent'),
+  requestPath: varchar('request_path', { length: 500 }),
+  requestMethod: varchar('request_method', { length: 10 }),
+  detectedAt: timestamp('detected_at').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+// ========================================
+// GROUP MESSAGE PINNED (ALIAS)
+// ========================================
+
+// Group Message Pinned table (alias for pinnedMessages for compatibility)
+export const groupMessagePinned = pgTable('group_message_pinned', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => communityGroups.id).notNull(),
+  messageId: integer('message_id').references(() => groupMessages.id).notNull(),
+  pinnedBy: integer('pinned_by').references(() => users.id),
+  pinnedAt: timestamp('pinned_at').defaultNow(),
+});
+
+// Relations for groupMessagePinned
+export const groupMessagePinnedRelations = relations(groupMessagePinned, ({ one }) => ({
+  group: one(communityGroups, {
+    fields: [groupMessagePinned.groupId],
+    references: [communityGroups.id],
+  }),
+  message: one(groupMessages, {
+    fields: [groupMessagePinned.messageId],
+    references: [groupMessages.id],
+  }),
+  pinnedByUser: one(users, {
+    fields: [groupMessagePinned.pinnedBy],
+    references: [users.id],
+  }),
+}));
