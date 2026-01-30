@@ -146,10 +146,30 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   const joinGroup = async () => {
+    setIsLoading(true);
     try {
-      await fetch(`/api/groups/${group.id}/join`, { method: 'POST' });
-    } catch (error) {
+      const response = await fetch(`/api/groups/${group.id}/join`, { method: 'POST' });
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast?.success(t('joined_successfully') || 'Joined successfully');
+        // Reload messages and stats to enter the chat
+        await Promise.all([
+          loadMessages(),
+          loadGroupStats(),
+          loadPinnedMessages()
+        ]);
+        // Force a small delay to ensure state is updated
+        setTimeout(() => setIsLoading(false), 500);
+      } else {
+        console.error('Join failed:', data);
+        toast?.error(data.error || 'Failed to join group');
+        setIsLoading(false);
+      }
+    } catch (error: any) {
       console.error('Error joining group:', error);
+      toast?.error('Connection error');
+      setIsLoading(true);
     }
   };
 
