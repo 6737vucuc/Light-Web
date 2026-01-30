@@ -93,6 +93,10 @@ export function usePresence(groupId: number, userId: number) {
   const setupPusherListeners = () => {
     try {
       const pusher = getPusherClient();
+      if (!pusher) {
+        console.warn('Pusher client not available');
+        return;
+      }
       const channelName = `group-${groupId}`;
       const channel = pusher.subscribe(channelName);
 
@@ -183,6 +187,10 @@ export function usePresenceListener(groupId: number, onPresenceChange?: (members
 
   useEffect(() => {
     const pusher = getPusherClient();
+    if (!pusher) {
+      console.warn('Pusher client not available');
+      return;
+    }
     const channel = pusher.subscribe(`group-${groupId}`);
 
     const handlePresenceUpdate = (data: any) => {
