@@ -406,9 +406,9 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] md:h-[calc(100vh-120px)] bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+    <div className="flex flex-col h-[calc(100vh-180px)] md:h-[calc(100vh-120px)] bg-gradient-to-br from-purple-50 via-white to-pink-50 rounded-2xl shadow-lg overflow-hidden border border-purple-100">
       {/* Header - Mobile Optimized */}
-      <div className="bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 p-3 md:p-4 flex items-center justify-between sticky top-0 z-10 shadow-md">
+      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 p-3 md:p-4 flex items-center justify-between sticky top-0 z-10 shadow-md">
         <div className="flex items-center gap-2 md:gap-3">
           <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-full transition-colors">
             <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
@@ -671,7 +671,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
               <button
                 onClick={sendMessage}
                 disabled={isSending || (!newMessage.trim() && !selectedImage)}
-                className="p-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-all disabled:opacity-50 disabled:bg-gray-300 flex-shrink-0 shadow-md active:scale-95"
+                className="p-2.5 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white rounded-xl transition-all disabled:opacity-50 disabled:bg-gray-300 flex-shrink-0 shadow-md active:scale-95"
               >
                 <Send className="w-5 h-5" />
               </button>

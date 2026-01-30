@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { groupMembers, communityGroups } from '@/lib/db/schema';
+import { groupMembers, communityGroups, users } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/verify';
+import Pusher from 'pusher';
+
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID!,
+  key: process.env.PUSHER_KEY!,
+  secret: process.env.PUSHER_SECRET!,
+  cluster: process.env.PUSHER_CLUSTER!,
+  useTLS: true,
+});
 
 export async function POST(
   request: NextRequest,
@@ -48,7 +57,20 @@ export async function POST(
       .set({ membersCount: count })
       .where(eq(communityGroups.id, groupId));
 
-    return NextResponse.json({ message: 'Joined successfully' });
+    // Get user info for notification
+    const userInfo = await db.query.users.findFirst({
+      where: eq(users.id, user.userId),
+      columns: { id: true, name: true, avatar: true }
+    });
+
+    // Broadcast member count update to all users in the group
+    await pusher.trigger(`group-${groupId}`, 'member-update', {
+      type: 'join',
+      membersCount: count,
+      user: userInfo
+    });
+
+    return NextResponse.json({ message: 'Joined successfully', membersCount: count });
   } catch (error) {
     console.error('Error joining group:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -58,10 +58,10 @@ export async function POST(
 
     // Trigger real-time update via Pusher
     try {
-      await pusher.trigger(`group-${groupId}`, 'member-left', {
+      await pusher.trigger(`group-${groupId}`, 'member-update', {
+        type: 'leave',
+        membersCount: count,
         userId: user.userId,
-        totalMembers: count,
-        timestamp: new Date().toISOString(),
       });
     } catch (pusherError) {
       console.error('Pusher trigger error:', pusherError);
