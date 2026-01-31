@@ -25,8 +25,8 @@ export async function GET(
         name: true,
         username: true,
         avatar: true,
-        last_seen: true,
-        is_online: true,
+        lastSeen: true,
+        isOnline: true,
       }
     });
 
