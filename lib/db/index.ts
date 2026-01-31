@@ -14,12 +14,15 @@ if (!databaseUrl) {
 }
 
 // Create connection pool for Drizzle ORM with timeout settings
+// Optimized for Vercel serverless environment
 const pool = new Pool({ 
   connectionString: databaseUrl || 'postgresql://dummy:dummy@localhost:5432/dummy',
   connectionTimeoutMillis: 10000, // 10 seconds timeout
   idleTimeoutMillis: 30000, // 30 seconds idle timeout
-  max: 10, // Maximum 10 connections
+  max: 1, // Maximum 1 connection per serverless function (critical for Vercel)
   ssl: databaseUrl ? { rejectUnauthorized: false } : false,
+  // Allow graceful shutdown
+  allowExitOnIdle: true,
 });
 
 // Drizzle ORM instance
