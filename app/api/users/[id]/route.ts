@@ -26,7 +26,7 @@ export async function GET(
         username: true,
         avatar: true,
         lastSeen: true,
-        isOnline: true,
+        hideOnlineStatus: true,
       }
     });
 
