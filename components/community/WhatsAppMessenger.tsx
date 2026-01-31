@@ -242,6 +242,40 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     }
   }, [selectedConversation]);
 
+  // Handle initialUserId to start a new conversation
+  useEffect(() => {
+    if (initialUserId && conversations.length > 0 && !selectedConversation) {
+      const existingConv = conversations.find(c => c.other_user_id === initialUserId);
+      if (existingConv) {
+        setSelectedConversation(existingConv);
+      } else {
+        // Create a temporary conversation object for a new user
+        const fetchNewUser = async () => {
+          try {
+            const response = await fetch(`/api/users/${initialUserId}`);
+            if (response.ok) {
+              const userData = await response.json();
+              const newConv = {
+                other_user_id: initialUserId,
+                name: userData.user.name,
+                avatar: userData.user.avatar,
+                last_message: null,
+                last_message_time: null,
+                unread_count: 0
+              };
+              setSelectedConversation(newConv);
+              // Load messages for this new user immediately
+              loadMessages(initialUserId);
+            }
+          } catch (error) {
+            console.error('Error fetching new user for chat:', error);
+          }
+        };
+        fetchNewUser();
+      }
+    }
+  }, [initialUserId, conversations, selectedConversation]);
+
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
