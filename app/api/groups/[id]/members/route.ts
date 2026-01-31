@@ -6,7 +6,7 @@ import { verifyAuth } from '@/lib/auth/verify';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const groupId = parseInt(params.id);
+    const groupId = parseInt((await params).id);
 
     // Get all members
     const members = await db.query.groupMembers.findMany({

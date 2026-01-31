@@ -18,9 +18,10 @@ import {
 // Pinned Messages
 // ============================================
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const groupId = parseInt(params.id);
+    const { id } = await params;
+    const groupId = parseInt(id);
     const { action, messageId, userId } = await request.json();
 
     // Verify user is authenticated

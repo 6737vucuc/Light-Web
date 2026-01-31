@@ -8,10 +8,10 @@ import { PresenceService } from '@/lib/services/presenceService';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = parseInt(params.id);
+    const groupId = parseInt((await params).id);
     const { action, userId, isOnline, sessionId } = await request.json();
 
     // Verify user is authenticated
@@ -77,10 +77,10 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = parseInt(params.id);
+    const groupId = parseInt((await params).id);
 
     // Verify user is authenticated
     const authResponse = await fetch(new URL('/api/auth/me', request.url), {

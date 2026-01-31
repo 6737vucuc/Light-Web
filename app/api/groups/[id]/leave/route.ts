@@ -15,7 +15,7 @@ const pusher = new Pusher({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
@@ -24,7 +24,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const groupId = parseInt(params.id);
+    const groupId = parseInt((await params).id);
 
     // Check if user is a member
     const member = await db.query.groupMembers.findFirst({
