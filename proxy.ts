@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import createIntlMiddleware from 'next-intl/middleware';
+import { locales, defaultLocale } from './i18n';
 import { applySecurityHeaders } from './lib/security/headers';
 import { WAF, createWAFBlockResponse } from './lib/security/waf';
 import { securityMonitor } from './lib/security/monitoring';
+
+// Create the i18n middleware
+const intlMiddleware = createIntlMiddleware({
+  locales,
+  defaultLocale,
+  localePrefix: 'always'
+});
 
 // Rate limiting storage (in-memory, use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -45,7 +54,7 @@ if (typeof setInterval !== 'undefined') {
   }, 60 * 1000); // Clean every minute
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const startTime = Date.now();
 
   // Get client IP
@@ -80,29 +89,29 @@ export function proxy(request: NextRequest) {
     return createWAFBlockResponse(wafResult.reason || 'Access Denied');
   }
 
-  // 3. Create response
-  const response = NextResponse.next();
-
+  // 3. Apply i18n middleware (internationalization)
+  const intlResponse = await intlMiddleware(request);
+  
   // 4. Apply comprehensive security headers
-  applySecurityHeaders(response);
+  applySecurityHeaders(intlResponse);
 
   // 5. Add custom security headers
-  response.headers.set('X-Powered-By', 'Light of Life');
-  response.headers.set('X-Request-ID', crypto.randomUUID());
-  response.headers.set('X-Security-Level', 'MILITARY-GRADE');
-  response.headers.set('X-WAF-Status', 'ACTIVE');
-  response.headers.set('X-Encryption', 'AES-256-GCM');
+  intlResponse.headers.set('X-Powered-By', 'Light of Life');
+  intlResponse.headers.set('X-Request-ID', crypto.randomUUID());
+  intlResponse.headers.set('X-Security-Level', 'MILITARY-GRADE');
+  intlResponse.headers.set('X-WAF-Status', 'ACTIVE');
+  intlResponse.headers.set('X-Encryption', 'AES-256-GCM');
   
   // Prevent caching of sensitive data
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
+    intlResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    intlResponse.headers.set('Pragma', 'no-cache');
+    intlResponse.headers.set('Expires', '0');
   }
 
   // 6. Track request performance
   const responseTime = Date.now() - startTime;
-  response.headers.set('X-Response-Time', `${responseTime}ms`);
+  intlResponse.headers.set('X-Response-Time', `${responseTime}ms`);
 
   // 7. Track request in monitoring system
   securityMonitor.trackRequest(
@@ -114,19 +123,15 @@ export function proxy(request: NextRequest) {
     true
   );
 
-  return response;
+  return intlResponse;
 }
 
 // Configure which routes use this middleware
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Match all pathnames except for
+    // - … if they start with `/api`, `/_next` or `/_vercel`
+    // - … static files (images, fonts, etc.)
+    '/((?!api|_next|_vercel|.*\\..*).*)',
   ],
 };
