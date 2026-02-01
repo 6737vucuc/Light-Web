@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       imageUrl: imageUrl || null,
       videoUrl: videoUrl || null,
       religion,
-      createdBy: user.id,
+      createdBy: user.userId,
     }).returning();
 
     return NextResponse.json({
