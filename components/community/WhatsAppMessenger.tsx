@@ -274,7 +274,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         fetchNewUser();
       }
     }
-  }, [initialUserId, conversations, selectedConversation]);
+  }, [initialUserId, conversations, selectedConversation, isLoading]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
