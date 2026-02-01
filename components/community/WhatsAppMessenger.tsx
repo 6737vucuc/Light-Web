@@ -244,7 +244,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   // Handle initialUserId to start a new conversation
   useEffect(() => {
-    if (initialUserId && conversations.length > 0 && !selectedConversation) {
+    if (initialUserId && !selectedConversation && !isLoading) {
       const existingConv = conversations.find(c => c.other_user_id === initialUserId);
       if (existingConv) {
         setSelectedConversation(existingConv);
