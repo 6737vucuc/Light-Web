@@ -244,12 +244,26 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   // Handle initialUserId to start a new conversation
   useEffect(() => {
-    if (initialUserId && !selectedConversation && !isLoading) {
+    // If we have an initialUserId, we want to try to select the conversation
+    // regardless of whether isLoading is true or false initially, but we need conversations list to be loaded OR check if it is not in the list.
+    // The previous logic required !isLoading which might be too restrictive if loadConversations finishes late.
+    // Instead, we will check if conversations are loaded (or if we can proceed).
+    
+    // We should allow this to run if initialUserId is present.
+    if (initialUserId && !selectedConversation) {
+      // Check if conversation exists in the loaded list
       const existingConv = conversations.find(c => c.other_user_id === initialUserId);
+      
       if (existingConv) {
         setSelectedConversation(existingConv);
-      } else {
-        // Create a temporary conversation object for a new user
+      } else if (!isLoading) { 
+        // Only try to fetch new user if we have finished loading conversations and still haven't found it
+        // This prevents fetching a user that might be in the conversations list but list hasn't loaded yet.
+        // Wait... if isLoading is true, we should probably wait.
+        
+        // But if isLoading is true, this effect will re-run when isLoading becomes false.
+        
+        // Let's create a temporary conversation object for a new user
         const fetchNewUser = async () => {
           try {
             const response = await fetch(`/api/users/${initialUserId}`);

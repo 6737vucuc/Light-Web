@@ -46,6 +46,17 @@ export default function UserAvatarMenu({
     onClose();
   };
 
+  const handleSendMessage = () => {
+    // Navigate to messages with the userId parameter
+    // The locale will be handled by next-intl or explicit locale prefix if needed
+    // But since we are in a client component, standard router.push works
+    // However, we should ensure we preserve the current locale if possible
+    // or let middleware handle it. 
+    // Given the issues, let's try to be robust.
+    router.push(`/messages?userId=${userId}`);
+    onClose();
+  };
+
   const handleReport = async () => {
     if (!reportReason.trim()) {
       alert('يرجى إدخال سبب الإبلاغ');
@@ -96,6 +107,14 @@ export default function UserAvatarMenu({
         <div className="px-4 py-2 border-b border-gray-100">
           <p className="text-sm font-semibold text-gray-900">{userName}</p>
         </div>
+
+        <button
+          onClick={handleSendMessage}
+          className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors text-right"
+        >
+          <User className="w-4 h-4 text-gray-600" />
+          <span className="text-sm text-gray-700">Send Message</span>
+        </button>
 
         <button
           onClick={handleViewProfile}
