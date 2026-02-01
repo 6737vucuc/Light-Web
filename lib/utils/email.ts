@@ -104,7 +104,7 @@ export async function sendVerificationCode(email: string, code: string, userName
               <p>If you didn't request this code, please ignore this message.</p>
             </div>
             <div class="footer">
-              <p>© 2025 Light of Life</p>
+              <p>© 2026 Light of Life</p>
               <p>May Christ's love and peace be with you always 🕊️</p>
             </div>
           </div>
