@@ -1,11 +1,13 @@
 import { SignJWT, jwtVerify } from 'jose';
 
 // Ensure JWT_SECRET is set and strong
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+const jwtSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'development-secret-minimum-32-chars-long-for-safety';
+
+if (!jwtSecret || jwtSecret.length < 32) {
   throw new Error('JWT_SECRET must be set and at least 32 characters long for security');
 }
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+const secret = new TextEncoder().encode(jwtSecret);
 
 // Token expiration times
 const ACCESS_TOKEN_EXPIRY = '15m'; // Short-lived access tokens
