@@ -265,11 +265,14 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(users.id, user.id));
 
-    // Create JWT token with minimal payload
+    // Create JWT token with necessary payload for verifyAuth
     const token = await createToken({
       userId: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
+      name: user.name,
+      avatar: user.avatar,
+      username: user.email.split('@')[0], // Fallback username
     });
 
     // Create response with minimal user data
