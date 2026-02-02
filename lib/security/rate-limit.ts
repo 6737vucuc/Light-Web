@@ -31,8 +31,8 @@ export interface RateLimitConfig {
 export const RateLimitConfigs = {
   // Very strict for authentication endpoints
   AUTH: {
-    maxRequests: 5,
-    windowMs: 15 * 60 * 1000, // 5 requests per 15 minutes
+    maxRequests: 10,
+    windowMs: 5 * 60 * 1000, // 10 requests per 5 minutes (more lenient)
   },
   // Strict for registration
   REGISTER: {

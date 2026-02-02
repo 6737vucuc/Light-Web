@@ -287,12 +287,20 @@ export async function POST(request: NextRequest) {
     console.log(`Successful login for: ${email} from IP: ${clientId}`);
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
+    
+    // Check for specific database errors
+    const errorMessage = error?.message || 'Unknown error';
+    const isDbError = errorMessage.toLowerCase().includes('database') || 
+                      errorMessage.toLowerCase().includes('connection') ||
+                      errorMessage.toLowerCase().includes('pool');
+
     return NextResponse.json(
       { 
-        error: 'An error occurred during login',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        error: isDbError ? 'Database connection error' : 'An error occurred during login',
+        message: errorMessage,
+        code: isDbError ? 'DB_ERROR' : 'AUTH_ERROR'
       },
       { 
         status: 500,

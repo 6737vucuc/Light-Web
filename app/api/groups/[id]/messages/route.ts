@@ -189,19 +189,28 @@ export async function POST(
     }
 
     // Insert message using raw SQL to match actual database schema
-    const result = await rawSql`
-      INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
-      VALUES (${groupId}, ${user.userId}, ${content}, ${messageType}, ${mediaUrl}, ${replyToId})
-      RETURNING *
-    `;
-    const newMessage = result[0];
+    let newMessage;
+    try {
+      const result = await rawSql`
+        INSERT INTO group_messages (group_id, user_id, content, message_type, media_url, reply_to_id)
+        VALUES (${groupId}, ${user.userId}, ${content}, ${messageType}, ${mediaUrl}, ${replyToId})
+        RETURNING *
+      `;
+      newMessage = result[0];
 
-    // Update messages count
-    await rawSql`
-      UPDATE community_groups 
-      SET messages_count = COALESCE(messages_count, 0) + 1
-      WHERE id = ${groupId}
-    `;
+      // Update messages count (don't let this fail the whole request)
+      rawSql`
+        UPDATE community_groups 
+        SET messages_count = COALESCE(messages_count, 0) + 1
+        WHERE id = ${groupId}
+      `.catch(e => console.error('Failed to update message count:', e));
+    } catch (dbError: any) {
+      console.error('Database insertion failed:', dbError);
+      return NextResponse.json({ 
+        error: 'Failed to save message to database', 
+        details: dbError.message 
+      }, { status: 500 });
+    }
 
     // Get user info
     const userInfo = await db.query.users.findFirst({

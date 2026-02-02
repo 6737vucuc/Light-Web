@@ -7,11 +7,9 @@ if (!jwtSecret || jwtSecret.length < 32) {
   throw new Error('JWT_SECRET must be set and at least 32 characters long for security');
 }
 
-const secret = new TextEncoder().encode(jwtSecret);
-
-// Token expiration times
-const ACCESS_TOKEN_EXPIRY = '15m'; // Short-lived access tokens
-const REFRESH_TOKEN_EXPIRY = '7d'; // Longer refresh tokens
+const secret = new TextEncoder().encode(jwtSecret);// Token expiration times
+const ACCESS_TOKEN_EXPIRY = '7d'; // Increased for stability
+const REFRESH_TOKEN_EXPIRY = '30d'; // Longer refresh tokens
 
 export async function createToken(payload: any, type: 'access' | 'refresh' = 'access') {
   const expirationTime = type === 'access' ? ACCESS_TOKEN_EXPIRY : REFRESH_TOKEN_EXPIRY;
