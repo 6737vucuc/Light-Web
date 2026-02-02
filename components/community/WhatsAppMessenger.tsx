@@ -120,12 +120,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       return () => { 
         // Clear PeerID from database on disconnect
         if (currentUser?.id) {
-          supabase
-            .from('users')
-            .update({ current_peer_id: null })
-            .eq('id', currentUser.id)
-            .then(() => console.log('PeerID cleared from database'))
-            .catch(err => console.error('Failed to clear PeerID:', err));
+          const clearPeerId = async () => {
+            try {
+              await supabase
+                .from('users')
+                .update({ current_peer_id: null })
+                .eq('id', currentUser.id);
+              console.log('PeerID cleared from database');
+            } catch (err) {
+              console.error('Failed to clear PeerID:', err);
+            }
+          };
+          clearPeerId();
         }
         if (peer) peer.destroy(); 
       };
