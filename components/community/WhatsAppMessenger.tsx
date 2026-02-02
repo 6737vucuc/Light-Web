@@ -15,9 +15,10 @@ interface WhatsAppMessengerProps {
   currentUser: any;
   initialUserId?: number;
   fullPage?: boolean;
+  onBack?: () => void;
 }
 
-export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage = false }: WhatsAppMessengerProps) {
+export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage = false, onBack }: WhatsAppMessengerProps) {
   const router = useRouter();
   const params = useParams();
   const locale = params?.locale as string || 'ar';
@@ -586,10 +587,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         {selectedConversation ? (
           <>
             {/* Chat Header */}
-            <div className="bg-[#f0f2f5] px-4 py-2 flex items-center gap-3 border-b border-gray-200 z-30 min-h-[59px]">
-              <button onClick={() => setSelectedConversation(null)} className="p-2 hover:bg-gray-200 rounded-full md:hidden">
-                <ArrowLeft className="w-6 h-6 text-gray-600" />
-              </button>
+<div className="bg-[#f0f2f5] px-4 py-2 flex items-center gap-3 border-b border-gray-200 z-30 min-h-[59px]">
+            <button onClick={() => onBack ? onBack() : setSelectedConversation(null)} className={`p-2 hover:bg-gray-200 rounded-full ${onBack ? '' : 'md:hidden'}`}>
+              <ArrowLeft className="w-6 h-6 text-gray-600" />
+            </button>
               <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
                 <Image 
                   src={getAvatarUrl(selectedConversation.avatar)} 
