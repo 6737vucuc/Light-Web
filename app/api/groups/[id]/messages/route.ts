@@ -46,7 +46,7 @@ export async function GET(
     const groupId = parseInt(id);
 
     // Check if user is a member
-    const member = await db.query.groupMembers.findFirst({
+    let member = await db.query.groupMembers.findFirst({
       where: and(
         eq(groupMembers.groupId, groupId),
         eq(groupMembers.userId, user.userId)
@@ -54,7 +54,23 @@ export async function GET(
     });
 
     if (!member) {
-      return NextResponse.json({ error: 'Not a member' }, { status: 403 });
+      console.log(`User ${user.userId} is not a member of group ${groupId}. Auto-joining.`);
+      try {
+        await db.insert(groupMembers).values({
+          groupId: groupId,
+          userId: user.userId,
+          role: 'member'
+        });
+        
+        // Update members count
+        await rawSql`
+          UPDATE community_groups 
+          SET members_count = (SELECT count(*) FROM group_members WHERE group_id = ${groupId})
+          WHERE id = ${groupId}
+        `;
+      } catch (joinError) {
+        console.error('Auto-join failed:', joinError);
+      }
     }
 
     // Get messages with user info using raw SQL for complex join
@@ -122,7 +138,7 @@ export async function POST(
     const groupId = parseInt(id);
 
     // Check if user is a member
-    const member = await db.query.groupMembers.findFirst({
+    let member = await db.query.groupMembers.findFirst({
       where: and(
         eq(groupMembers.groupId, groupId),
         eq(groupMembers.userId, user.userId)
@@ -130,7 +146,23 @@ export async function POST(
     });
 
     if (!member) {
-      return NextResponse.json({ error: 'Not a member' }, { status: 403 });
+      console.log(`User ${user.userId} is not a member of group ${groupId}. Auto-joining.`);
+      try {
+        await db.insert(groupMembers).values({
+          groupId: groupId,
+          userId: user.userId,
+          role: 'member'
+        });
+        
+        // Update members count
+        await rawSql`
+          UPDATE community_groups 
+          SET members_count = (SELECT count(*) FROM group_members WHERE group_id = ${groupId})
+          WHERE id = ${groupId}
+        `;
+      } catch (joinError) {
+        console.error('Auto-join failed:', joinError);
+      }
     }
 
     const contentType = request.headers.get('content-type') || '';

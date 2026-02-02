@@ -75,12 +75,28 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     loadGroupStats();
     initializePusher();
 
+    // Mark as online
+    const sessionId = Math.random().toString(36).substring(7);
+    fetch(`/api/groups/${group.id}/presence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'updatePresence', isOnline: true, sessionId }),
+    }).catch(console.error);
+
     const statsInterval = setInterval(loadGroupStats, 30000);
+    
     return () => {
       if (pusherRef.current) {
         pusherRef.current.unsubscribe(`group-${group.id}`);
       }
       clearInterval(statsInterval);
+      
+      // Mark as offline
+      fetch(`/api/groups/${group.id}/presence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'markOffline', sessionId }),
+      }).catch(console.error);
     };
   }, [group.id]);
 
@@ -104,11 +120,20 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
   const loadGroupStats = async () => {
     try {
-      const response = await fetch(`/api/groups/${group.id}/stats`);
+      // Get real-time presence stats
+      const response = await fetch(`/api/groups/${group.id}/presence`);
       if (response.ok) {
         const data = await response.json();
         setTotalMembers(data.totalMembers || 0);
         setOnlineMembersCount(data.onlineMembers || 0);
+      } else {
+        // Fallback to basic stats if presence fails
+        const fallbackResponse = await fetch(`/api/groups/${group.id}/stats`);
+        if (fallbackResponse.ok) {
+          const data = await fallbackResponse.json();
+          setTotalMembers(data.totalMembers || 0);
+          setOnlineMembersCount(data.onlineMembers || 0);
+        }
       }
     } catch (error) {
       console.error('Error loading group stats:', error);
@@ -142,14 +167,23 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
     channel.bind('user-typing', (data: any) => {
       if (data.userId !== currentUser?.id) {
-        setTypingUsers((prev) => {
-          if (prev.find(u => u.userId === data.userId)) return prev;
-          return [...prev, { userId: data.userId, name: data.name }];
-        });
-        setTimeout(() => {
+        if (data.isTyping) {
+          setTypingUsers((prev) => {
+            if (prev.find(u => u.userId === data.userId)) return prev;
+            return [...prev, { userId: data.userId, name: data.name }];
+          });
+        } else {
           setTypingUsers((prev) => prev.filter(u => u.userId !== data.userId));
-        }, 3000);
+        }
       }
+    });
+
+    channel.bind('presence-update', (data: any) => {
+      loadGroupStats();
+    });
+
+    channel.bind('members-online-update', (data: any) => {
+      setOnlineMembersCount(data.totalOnline);
     });
   };
 
@@ -314,7 +348,15 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
             <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600"><Users className="w-6 h-6" /></div>
             <div>
               <h2 className="font-bold text-gray-800 leading-tight">{group.name}</h2>
-              <p className="text-[11px] text-gray-500">{onlineMembersCount} Online • {totalMembers} Members</p>
+              {typingUsers.length > 0 ? (
+                <p className="text-[11px] text-purple-600 font-medium animate-pulse">
+                  {typingUsers.length === 1 
+                    ? `${typingUsers[0].name} is typing...` 
+                    : `${typingUsers.length} people are typing...`}
+                </p>
+              ) : (
+                <p className="text-[11px] text-gray-500">{onlineMembersCount} Online • {totalMembers} Members</p>
+              )}
             </div>
           </div>
         </div>

@@ -33,6 +33,18 @@ export async function POST(
       SELECT id, name, avatar FROM users WHERE id = ${user.userId}
     `;
 
+    // Broadcast typing status via Pusher
+    try {
+      const { pusherServer } = require('@/lib/realtime/chat');
+      await pusherServer.trigger(`group-${groupId}`, 'user-typing', {
+        userId: user.userId,
+        name: userInfo[0]?.name || user.name,
+        isTyping
+      });
+    } catch (pusherError) {
+      console.error('Pusher broadcast failed:', pusherError);
+    }
+
     return NextResponse.json({ 
       success: true,
       user: userInfo[0],
