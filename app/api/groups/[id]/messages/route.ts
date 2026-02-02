@@ -5,10 +5,6 @@ import { verifyAuth } from '@/lib/auth/verify';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/**
- * GET - Fetch group messages
- * Ensures all messages are fetched with sender details
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -18,36 +14,26 @@ export async function GET(
     const groupId = parseInt(id);
     
     const user = await verifyAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 1. Ensure user is a member (Auto-join)
+    // 1. Auto-join using Direct SQL
     await rawSql`
       INSERT INTO group_members (group_id, user_id, role)
       VALUES (${groupId}, ${user.userId}, 'member')
       ON CONFLICT (group_id, user_id) DO NOTHING
     `;
 
-    // 2. Fetch messages with sender info
+    // 2. Fetch messages using Direct SQL with JOIN for user details
     const messages = await rawSql`
       SELECT 
-        gm.id,
-        gm.content,
-        gm.media_url,
-        gm.message_type,
-        gm.created_at,
-        gm.user_id,
-        u.name as sender_name,
-        u.avatar as sender_avatar,
-        u.username as sender_username
+        gm.id, gm.content, gm.media_url, gm.message_type, gm.created_at, gm.user_id,
+        u.name as sender_name, u.avatar as sender_avatar, u.username as sender_username
       FROM group_messages gm
       LEFT JOIN users u ON gm.user_id = u.id
       WHERE gm.group_id = ${groupId}
       ORDER BY gm.created_at ASC
     `;
 
-    // 3. Format for WhatsApp-style frontend
     const formattedMessages = messages.map((msg: any) => ({
       id: msg.id,
       content: msg.content,
@@ -65,15 +51,11 @@ export async function GET(
 
     return NextResponse.json({ messages: formattedMessages });
   } catch (error: any) {
-    console.error('GET Messages Error:', error);
+    console.error('GET Messages SQL Error:', error);
     return NextResponse.json({ error: 'Failed to load messages' }, { status: 500 });
   }
 }
 
-/**
- * POST - Send a new message
- * Broadcasts via Pusher for real-time updates
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -88,11 +70,7 @@ export async function POST(
     const body = await request.json();
     const { content, messageType = 'text', mediaUrl = null } = body;
 
-    if (!content && !mediaUrl) {
-      return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
-    }
-
-    // 1. Insert into DB
+    // 1. Insert message using Direct SQL
     const result = await rawSql`
       INSERT INTO group_messages (group_id, user_id, content, message_type, media_url)
       VALUES (${groupId}, ${user.userId}, ${content}, ${messageType}, ${mediaUrl})
@@ -101,36 +79,30 @@ export async function POST(
     
     const newMessage = result[0];
 
-    // 2. Update group stats
-    rawSql`UPDATE community_groups SET messages_count = COALESCE(messages_count, 0) + 1 WHERE id = ${groupId}`.catch(() => {});
-
-    // 3. Prepare broadcast data
-    const broadcastData = {
-      id: newMessage.id,
-      content: newMessage.content,
-      media_url: newMessage.media_url,
-      type: newMessage.message_type,
-      timestamp: newMessage.created_at,
-      userId: user.userId,
-      user: {
-        id: user.userId,
-        name: user.name,
-        avatar: user.avatar,
-        username: user.username
-      }
-    };
-
-    // 4. Broadcast via Pusher
+    // 2. Broadcast via Pusher
     try {
       const { pusherServer } = require('@/lib/realtime/chat');
-      await pusherServer.trigger(`group-${groupId}`, 'new-message', broadcastData);
+      await pusherServer.trigger(`group-${groupId}`, 'new-message', {
+        id: newMessage.id,
+        content: newMessage.content,
+        media_url: newMessage.media_url,
+        type: newMessage.message_type,
+        timestamp: newMessage.created_at,
+        userId: user.userId,
+        user: {
+          id: user.userId,
+          name: user.name,
+          avatar: user.avatar,
+          username: user.username
+        }
+      });
     } catch (pError) {
       console.error('Pusher Broadcast Error:', pError);
     }
 
-    return NextResponse.json({ success: true, message: broadcastData });
+    return NextResponse.json({ success: true, message: newMessage });
   } catch (error: any) {
-    console.error('POST Message Error:', error);
+    console.error('POST Message SQL Error:', error);
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
   }
 }

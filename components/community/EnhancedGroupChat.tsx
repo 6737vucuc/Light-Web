@@ -11,13 +11,11 @@ import {
   X,
   CheckCheck,
   MessageSquare,
-  Phone,
-  Eye,
-  Ban
+  Phone
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase/client';
+import Pusher from 'pusher-js';
 
 interface EnhancedGroupChatProps {
   group: any;
@@ -37,14 +35,17 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const [showUserProfile, setShowUserProfile] = useState<any>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pusherRef = useRef<Pusher | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadInitialData();
-    setupRealtime();
+    initializePusher();
     
     return () => {
-      supabase.removeAllChannels();
+      if (pusherRef.current) {
+        pusherRef.current.unsubscribe(`group-${group.id}`);
+      }
     };
   }, [group.id]);
 
@@ -55,25 +56,20 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
-      // 1. Load Messages
-      const { data: msgs, error: msgsError } = await supabase
-        .from('group_messages')
-        .select(`
-          *,
-          user:users(id, name, avatar, username)
-        `)
-        .eq('group_id', group.id)
-        .order('created_at', { ascending: true });
-
-      if (msgs) setMessages(msgs);
+      // 1. Load Messages via API (which uses Direct SQL)
+      const res = await fetch(`/api/groups/${group.id}/messages`);
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data.messages || []);
+      }
 
       // 2. Load Stats
-      const { count: membersCount } = await supabase
-        .from('group_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('group_id', group.id);
-      
-      setTotalMembers(membersCount || 0);
+      const statsRes = await fetch(`/api/groups/${group.id}/stats`);
+      if (statsRes.ok) {
+        const stats = await statsRes.json();
+        setTotalMembers(stats.totalMembers || 0);
+        setOnlineMembersCount(stats.onlineMembers || 0);
+      }
     } catch (error) {
       console.error('Error loading initial data:', error);
     } finally {
@@ -81,76 +77,54 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     }
   };
 
-  const setupRealtime = () => {
-    // 1. Listen for new messages
-    const messageChannel = supabase
-      .channel(`group-messages-${group.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'group_messages',
-          filter: `group_id=eq.${group.id}`
-        },
-        async (payload) => {
-          // Fetch user info for the new message
-          const { data: userData } = await supabase
-            .from('users')
-            .select('id, name, avatar, username')
-            .eq('id', payload.new.user_id)
-            .single();
-          
-          const newMessage = { ...payload.new, user: userData };
-          setMessages((prev) => [...prev, newMessage]);
-        }
-      )
-      .subscribe();
+  const initializePusher = () => {
+    if (pusherRef.current) return;
 
-    // 2. Presence & Typing
-    const presenceChannel = supabase.channel(`group-presence-${group.id}`, {
-      config: { presence: { key: currentUser.id.toString() } }
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_APP_KEY || process.env.NEXT_PUBLIC_PUSHER_KEY;
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2';
+
+    if (!pusherKey) return;
+
+    pusherRef.current = new Pusher(pusherKey, { cluster: pusherCluster });
+    const channel = pusherRef.current.subscribe(`group-${group.id}`);
+
+    channel.bind('new-message', (data: any) => {
+      setMessages((prev) => {
+        if (prev.find(m => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
     });
 
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState();
-        const onlineCount = Object.keys(state).length;
-        setOnlineMembersCount(onlineCount);
-        
-        // Update typing users from presence state
-        const typing: any[] = [];
-        Object.values(state).forEach((presences: any) => {
-          presences.forEach((p: any) => {
-            if (p.isTyping && p.userId !== currentUser.id) {
-              typing.push({ userId: p.userId, name: p.name });
-            }
+    channel.bind('user-typing', (data: any) => {
+      if (data.userId !== currentUser?.id) {
+        if (data.isTyping) {
+          setTypingUsers((prev) => {
+            if (prev.find(u => u.userId === data.userId)) return prev;
+            return [...prev, { userId: data.userId, name: data.name }];
           });
-        });
-        setTypingUsers(typing);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({
-            userId: currentUser.id,
-            name: currentUser.name,
-            isTyping: false,
-            online_at: new Date().toISOString(),
-          });
+        } else {
+          setTypingUsers((prev) => prev.filter(u => u.userId !== data.userId));
         }
-      });
+      }
+    });
 
-    return presenceChannel;
+    channel.bind('presence-update', () => {
+      // Refresh stats when presence changes
+      fetch(`/api/groups/${group.id}/stats`)
+        .then(res => res.json())
+        .then(stats => {
+          setTotalMembers(stats.totalMembers || 0);
+          setOnlineMembersCount(stats.onlineMembers || 0);
+        });
+    });
   };
 
   const handleTyping = (isTyping: boolean) => {
-    const channel = supabase.channel(`group-presence-${group.id}`);
-    channel.track({
-      userId: currentUser.id,
-      name: currentUser.name,
-      isTyping: isTyping,
-      online_at: new Date().toISOString(),
-    });
+    fetch(`/api/groups/${group.id}/typing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isTyping }),
+    }).catch(console.error);
 
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -163,16 +137,13 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     setIsSending(true);
     
     try {
-      const { error } = await supabase
-        .from('group_messages')
-        .insert({
-          group_id: group.id,
-          user_id: currentUser.id,
-          content: newMessage.trim(),
-          message_type: 'text'
-        });
+      const res = await fetch(`/api/groups/${group.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newMessage.trim() }),
+      });
 
-      if (!error) {
+      if (res.ok) {
         setNewMessage('');
         handleTyping(false);
       }
@@ -256,7 +227,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
           <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div></div>
         ) : (
           messages.map((msg) => {
-            const isOwn = msg.user_id === currentUser?.id;
+            const isOwn = msg.userId === currentUser?.id || msg.user_id === currentUser?.id;
             return (
               <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2`}>
                 {!isOwn && (
@@ -269,7 +240,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                   <p className="text-[14px] text-gray-900 leading-snug">{msg.content}</p>
                   <div className="flex items-center justify-end gap-1 mt-1">
                     <span className="text-[9px] text-gray-500">
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(msg.timestamp || msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {isOwn && <CheckCheck className="w-3 h-3 text-blue-500" />}
                   </div>
