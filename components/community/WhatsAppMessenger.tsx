@@ -139,99 +139,63 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     }
   }, [currentUser?.id]);
 
-  // Real-time Subscriptions with Supabase
+  // Real-time Subscriptions with Pusher
   useEffect(() => {
-    loadConversations();
-    
-    // Subscribe to messages
-    const messageSub = supabase
-      .channel('direct_messages_channel')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'direct_messages' 
-      }, (payload) => {
-        const newMsg = payload.new;
-        if ((newMsg.sender_id === currentUser.id || newMsg.receiver_id === currentUser.id) &&
-            (selectedConversation && (newMsg.sender_id === selectedConversation.other_user_id || newMsg.receiver_id === selectedConversation.other_user_id))) {
-          setMessages(prev => [...prev, newMsg]);
-          scrollToBottom();
-        }
-        loadConversations();
-      })
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'direct_messages' 
-      }, (payload) => {
-        const updatedMsg = payload.new;
-        setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
-      })
-      .subscribe();
-
-    // Subscribe to calls
-    const callSub = supabase
-      .channel('calls_channel')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'calls',
-        filter: `receiver_id=eq.${currentUser.id}`
-      }, async (payload) => {
-        const newCall = payload.new;
-        if (newCall.status === 'ringing') {
-          console.log('Incoming call record:', newCall);
-          setCurrentCallId(newCall.id);
-          setCallStatus('incoming');
+    const init = async () => {
+      await loadConversations();
+      
+      if (initialUserId && currentUser) {
+        try {
+          const res = await fetch('/api/messages/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipientId: initialUserId }),
+          });
           
-          const { data: callerData } = await supabase
-            .from('users')
-            .select('name, avatar')
-            .eq('id', newCall.caller_id)
-            .single();
-          
-          if (callerData) {
-            setCallOtherUser({ name: callerData.name, avatar: callerData.avatar });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.conversation) {
+              setSelectedConversation(data.conversation);
+              setConversations(prev => {
+                if (prev.find(c => c.other_user_id === data.conversation.other_user_id)) return prev;
+                return [data.conversation, ...prev];
+              });
+            }
           }
+        } catch (error) {
+          console.error('Error starting conversation:', error);
         }
-      })
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'calls' 
-      }, (payload) => {
-        const updatedCall = payload.new;
-        if (updatedCall.id === currentCallId) {
-          if (updatedCall.status === 'rejected' || updatedCall.status === 'ended') {
-            cleanupCall();
-            setCallStatus('ended');
-            setTimeout(() => setCallStatus('idle'), 2000);
-          } else if (updatedCall.status === 'connected') {
-            setCallStatus('connected');
-          }
-        }
-      })
-      .subscribe();
+      }
+    };
 
-    // Subscribe to typing status
-    const typingChannel = supabase.channel(`typing-${selectedConversation?.other_user_id || 'none'}`);
+    init();
+
+    if (!currentUser?.id) return;
+
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_APP_KEY || '';
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || '';
     
-    if (selectedConversation) {
-      typingChannel
-        .on('broadcast', { event: 'typing' }, (payload) => {
-          if (payload.payload.userId === selectedConversation.other_user_id) {
-            setOtherUserTyping(payload.payload.isTyping);
-          }
-        })
-        .subscribe();
-    }
+    if (!pusherKey) return;
+
+    const pusher = new Pusher(pusherKey, { cluster: pusherCluster });
+    const channel = pusher.subscribe(`user-${currentUser.id}`);
+
+    channel.bind('private-message', (data: any) => {
+      const newMsg = data.message;
+      if (selectedConversation && (newMsg.sender_id === selectedConversation.other_user_id || newMsg.receiver_id === selectedConversation.other_user_id)) {
+        setMessages(prev => {
+          if (prev.find(m => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
+        scrollToBottom();
+      }
+      loadConversations();
+    });
 
     return () => {
-      supabase.removeChannel(messageSub);
-      supabase.removeChannel(callSub);
-      supabase.removeChannel(typingChannel);
+      pusher.unsubscribe(`user-${currentUser.id}`);
     };
-  }, [currentUser?.id, selectedConversation, currentCallId]);
+  }, [currentUser?.id, selectedConversation, initialUserId]);
 
   // Handle typing broadcast
   useEffect(() => {

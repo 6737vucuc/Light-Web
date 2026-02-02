@@ -4,9 +4,32 @@ import { users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
 import { eq } from 'drizzle-orm';
 import { encryptMessageMilitary, decryptMessageMilitary } from '@/lib/security/military-encryption';
+import Pusher from 'pusher';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+function getPusher() {
+  try {
+    const appId = process.env.PUSHER_APP_ID;
+    const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
+    const secret = process.env.PUSHER_SECRET;
+    const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+
+    if (appId && key && secret && cluster) {
+      return new Pusher({
+        appId,
+        key,
+        secret,
+        cluster,
+        useTLS: true,
+      });
+    }
+  } catch (e) {
+    console.error('Pusher initialization failed:', e);
+  }
+  return null;
+}
 
 // GET: Fetch all conversations for the current user
 export async function GET(request: NextRequest) {
@@ -126,6 +149,22 @@ export async function POST(request: NextRequest) {
       VALUES (${user.userId}, ${receiverId}, ${encryptedContent}, ${messageType || 'text'}, ${mediaUrl || null}, ${true})
       RETURNING *
     `;
+
+    // Broadcast via Pusher for real-time delivery
+    const pusher = getPusher();
+    if (pusher) {
+      try {
+        await pusher.trigger(`user-${receiverId}`, 'private-message', {
+          message: {
+            ...newMessage,
+            content: content,
+            is_encrypted: true
+          }
+        });
+      } catch (e) {
+        console.error('Pusher trigger error:', e);
+      }
+    }
 
     // Return decrypted message
     return NextResponse.json({ 

@@ -180,7 +180,9 @@
     "members": "Miembros",
     "messages": "Mensajes",
     "deleteMessage": "Eliminar Mensaje",
-    "deleteMessageConfirm": "¿Estás seguro de que quieres eliminar este mensaje? Esta acción no se puede deshacer."
+    "deleteMessageConfirm": "¿Estás seguro de que quieres eliminar este mensaje? Esta acción no se puede deshacer.",
+    "activeNow": "Activo ahora",
+    "typeMessage": "Escribe un mensaje..."
   },
   "profile": {
     "myProfile": "Mi Perfil",

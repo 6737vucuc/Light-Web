@@ -151,7 +151,9 @@
     "members": "Mitglieder",
     "messages": "Nachrichten",
     "deleteMessage": "Nachricht Löschen",
-    "deleteMessageConfirm": "Sind Sie sicher, dass Sie diese Nachricht löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden."
+    "deleteMessageConfirm": "Sind Sie sicher, dass Sie diese Nachricht löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "activeNow": "Gerade aktiv",
+    "typeMessage": "Nachricht schreiben..."
   },
   "profile": {
     "myProfile": "Mein Profil",
