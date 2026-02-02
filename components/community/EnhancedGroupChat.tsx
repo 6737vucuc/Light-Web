@@ -17,7 +17,12 @@ import {
   MoreHorizontal,
   User,
   Phone,
-  MessageSquare
+  MessageSquare,
+  Flag,
+  Ban,
+  BellOff,
+  Eye,
+  Settings
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -36,6 +41,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const router = useRouter();
   const params = useParams();
   const locale = params?.locale as string || 'ar';
+  const isRtl = locale === 'ar';
   const t = useTranslations('messages');
   const toast = useToast();
   
@@ -56,6 +62,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState<any>(null);
+  const [showGroupOptions, setShowGroupOptions] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
@@ -241,45 +248,80 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] bg-[#efeae2] rounded-2xl shadow-xl overflow-hidden border border-gray-200 relative">
-      {/* User Profile Overlay */}
+      {/* User Profile Overlay - FULL FEATURES */}
       {showUserProfile && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in duration-200">
-            <div className="relative h-32 bg-gradient-to-r from-purple-600 to-pink-600">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 transition-all duration-300">
+          <div className="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in duration-300">
+            {/* Header Background */}
+            <div className="relative h-40 bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500">
               <button 
                 onClick={() => setShowUserProfile(null)}
-                className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-colors"
+                className="absolute top-5 right-5 p-2 bg-white/20 hover:bg-white/40 text-white rounded-full transition-all"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="px-6 pb-8 text-center -mt-12">
-              <div className="inline-block p-1 bg-white rounded-full shadow-lg mb-4">
-                <div className="w-24 h-24 rounded-full overflow-hidden">
+            
+            {/* Profile Info */}
+            <div className="px-8 pb-8 text-center -mt-16">
+              <div className="inline-block p-1.5 bg-white rounded-full shadow-2xl mb-4">
+                <div className="w-28 h-28 rounded-full overflow-hidden ring-4 ring-purple-50">
                   <Image 
                     src={getAvatarUrl(showUserProfile.avatar)} 
                     alt={showUserProfile.name} 
-                    width={96} height={96} 
+                    width={112} height={112} 
                     className="object-cover"
                     unoptimized
                   />
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">{showUserProfile.name}</h3>
-              <p className="text-sm text-gray-500 mb-6">@{showUserProfile.username || 'user'}</p>
+              <h3 className="text-2xl font-black text-gray-900 mb-1">{showUserProfile.name}</h3>
+              <p className="text-sm font-medium text-purple-600 mb-6">@{showUserProfile.username || 'user'}</p>
               
-              <div className="grid grid-cols-2 gap-3">
+              {/* Primary Actions */}
+              <div className="grid grid-cols-2 gap-4 mb-8">
                 <button 
                   onClick={() => startPrivateChat(showUserProfile.id)}
-                  className="flex items-center justify-center gap-2 py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors"
+                  className="flex flex-col items-center gap-2 py-4 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-2xl transition-all active:scale-95"
                 >
-                  <MessageSquare className="w-4 h-4" /> Message
+                  <MessageSquare className="w-6 h-6" />
+                  <span className="text-xs font-bold">Message</span>
                 </button>
                 <button 
                   onClick={() => startPrivateChat(showUserProfile.id)}
-                  className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+                  className="flex flex-col items-center gap-2 py-4 bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-2xl transition-all active:scale-95"
                 >
-                  <Phone className="w-4 h-4" /> Call
+                  <Phone className="w-6 h-6" />
+                  <span className="text-xs font-bold">Call</span>
+                </button>
+              </div>
+
+              {/* Secondary Actions - THE REAL FEATURES */}
+              <div className="space-y-2">
+                <button className="w-full flex items-center justify-between px-5 py-4 bg-gray-50 hover:bg-gray-100 rounded-2xl text-gray-700 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <Eye className="w-5 h-5 text-gray-400 group-hover:text-purple-600" />
+                    <span className="text-sm font-semibold">View Profile</span>
+                  </div>
+                  <MoreHorizontal className="w-4 h-4 text-gray-300" />
+                </button>
+                <button className="w-full flex items-center justify-between px-5 py-4 bg-gray-50 hover:bg-gray-100 rounded-2xl text-gray-700 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <BellOff className="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
+                    <span className="text-sm font-semibold">Mute User</span>
+                  </div>
+                </button>
+                <button className="w-full flex items-center justify-between px-5 py-4 bg-red-50 hover:bg-red-100 rounded-2xl text-red-600 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <Ban className="w-5 h-5 text-red-400 group-hover:text-red-600" />
+                    <span className="text-sm font-semibold">Block User</span>
+                  </div>
+                </button>
+                <button className="w-full flex items-center justify-between px-5 py-4 bg-gray-50 hover:bg-gray-100 rounded-2xl text-gray-500 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <Flag className="w-5 h-5 text-gray-400 group-hover:text-gray-700" />
+                    <span className="text-sm font-semibold">Report Content</span>
+                  </div>
                 </button>
               </div>
             </div>
@@ -305,7 +347,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
             </div>
           </div>
         </div>
-        <button className="p-2 hover:bg-gray-200 rounded-full text-gray-600">
+        <button 
+          onClick={() => setShowGroupOptions(!showGroupOptions)}
+          className="p-2 hover:bg-gray-200 rounded-full text-gray-600"
+        >
           <MoreVertical className="w-5 h-5" />
         </button>
       </div>
@@ -329,12 +374,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                 {!isOwn && (
                   <button 
                     onClick={() => setShowUserProfile({ ...msg.user, id: msg.user_id })}
-                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mb-1 hover:ring-2 hover:ring-purple-400 transition-all"
+                    className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 mb-1 hover:ring-2 hover:ring-purple-400 transition-all active:scale-90"
                   >
                     <Image 
                       src={getAvatarUrl(msg.user?.avatar)} 
                       alt={msg.user?.name || 'User'} 
-                      width={32} height={32} 
+                      width={36} height={36} 
                       className="object-cover"
                       unoptimized
                     />
@@ -342,14 +387,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                 )}
                 <div 
                   onClick={() => setSelectedMessageId(selectedMessageId === msg.id ? null : msg.id)}
-                  className={`relative max-w-[75%] p-2 rounded-lg shadow-sm cursor-pointer ${
+                  className={`relative max-w-[75%] p-2 rounded-xl shadow-sm cursor-pointer ${
                     isOwn ? 'bg-[#dcf8c6] rounded-tr-none' : 'bg-white rounded-tl-none'
                   }`}
                 >
                   {!isOwn && (
                     <button 
                       onClick={(e) => { e.stopPropagation(); setShowUserProfile({ ...msg.user, id: msg.user_id }); }}
-                      className="text-[11px] font-bold text-purple-600 mb-0.5 hover:underline"
+                      className="text-[11px] font-bold text-purple-600 mb-0.5 hover:underline block text-left"
                     >
                       {msg.user?.name}
                     </button>
@@ -363,7 +408,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                   )}
 
                   {msg.media_url && (
-                    <div className="mb-1 rounded overflow-hidden">
+                    <div className="mb-1 rounded-lg overflow-hidden">
                       <img src={msg.media_url} alt="Shared" className="max-w-full h-auto max-h-60 object-contain" />
                     </div>
                   )}
@@ -379,19 +424,19 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
                   {/* Message Actions Popup */}
                   {selectedMessageId === msg.id && (
-                    <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} top-full mt-1 z-50 bg-white rounded-lg shadow-xl border border-gray-100 py-1 min-w-[120px]`}>
+                    <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} top-full mt-1 z-50 bg-white rounded-xl shadow-2xl border border-gray-100 py-1.5 min-w-[140px] animate-in slide-in-from-top-2`}>
                       <button 
                         onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); setSelectedMessageId(null); }}
-                        className="w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        className="w-full px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
                       >
-                        <Reply className="w-3 h-3" /> Reply
+                        <Reply className="w-4 h-4 text-purple-500" /> Reply
                       </button>
                       {isOwn && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); deleteMessage(msg.id); }}
-                          className="w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          className="w-full px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
                         >
-                          <Trash2 className="w-3 h-3" /> Delete
+                          <Trash2 className="w-4 h-4" /> Delete
                         </button>
                       )}
                     </div>
@@ -406,30 +451,36 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
       {/* Reply Bar */}
       {replyingTo && (
-        <div className="bg-white border-t border-gray-200 px-4 py-2 flex items-center gap-2 z-20">
-          <div className="flex-1 p-2 bg-gray-100 rounded border-l-4 border-purple-500">
+        <div className="bg-white border-t border-gray-200 px-4 py-2 flex items-center gap-2 z-20 animate-in slide-in-from-bottom-2">
+          <div className="flex-1 p-2 bg-gray-100 rounded-xl border-l-4 border-purple-500">
             <p className="text-[10px] font-bold text-purple-600">Replying to {replyingTo.user?.name}</p>
             <p className="text-xs text-gray-600 truncate">{replyingTo.content}</p>
           </div>
-          <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-gray-200 rounded">
+          <button onClick={() => setReplyingTo(null)} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors">
             <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
       )}
 
-      {/* Input */}
-      <div className="bg-[#f0f2f5] p-2 flex items-center gap-2 z-20">
+      {/* Input Area */}
+      <div className="bg-[#f0f2f5] p-3 flex items-center gap-2 z-20">
         {imagePreview && (
-          <div className="absolute bottom-16 left-4 z-30">
-            <div className="relative">
-              <img src={imagePreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg border-2 border-white shadow-lg" />
-              <button onClick={() => {setSelectedImage(null); setImagePreview(null);}} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
+          <div className="absolute bottom-20 left-4 z-30">
+            <div className="relative group">
+              <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-2xl border-4 border-white shadow-2xl transition-transform group-hover:scale-105" />
+              <button 
+                onClick={() => {setSelectedImage(null); setImagePreview(null);}} 
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition-colors"
+              >
                 <X className="w-3 h-3" />
               </button>
             </div>
           </div>
         )}
-        <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:bg-gray-200 rounded-full">
+        <button 
+          onClick={() => fileInputRef.current?.click()} 
+          className="p-2.5 text-gray-500 hover:bg-gray-200 hover:text-purple-600 rounded-full transition-all"
+        >
           <ImageIcon className="w-6 h-6" />
         </button>
         <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
@@ -439,12 +490,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
           value={newMessage}
           onChange={(e) => {setNewMessage(e.target.value); handleTyping();}}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          className="flex-1 px-4 py-2 bg-white rounded-lg focus:outline-none text-sm"
+          className="flex-1 px-5 py-3 bg-white rounded-2xl focus:outline-none text-sm shadow-sm focus:ring-2 focus:ring-purple-200 transition-all"
         />
         <button 
           onClick={sendMessage}
           disabled={isSending || (!newMessage.trim() && !selectedImage)}
-          className="p-2.5 bg-purple-600 text-white rounded-full disabled:opacity-50"
+          className="p-3 bg-gradient-to-br from-purple-600 to-pink-500 text-white rounded-2xl shadow-lg hover:shadow-purple-200 transition-all disabled:opacity-50 disabled:scale-95 active:scale-90"
         >
           {isSending ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Send className="w-5 h-5" />}
         </button>
