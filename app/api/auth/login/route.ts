@@ -73,18 +73,32 @@ export async function POST(request: NextRequest) {
     };
     
     // Start VPN detection in background (don't await)
-    performVPNDetection().catch(err => console.error('Background VPN detection error:', err));
+    try {
+      performVPNDetection().catch(err => console.error('Background VPN detection error:', err));
+    } catch (e) {
+      console.error('Failed to initiate VPN detection:', e);
+    }
     
     // Apply rate limiting - strict for login attempts
     const clientId = getClientIdentifier(request);
-    const rateLimit = checkRateLimit(clientId, RateLimitConfigs.AUTH);
+    let rateLimit = { allowed: true, remaining: 10, resetTime: Date.now() + 300000 };
     
-    if (!rateLimit.allowed) {
-      console.warn(`Rate limit exceeded for login attempt from: ${clientId}`);
-      return createRateLimitResponse(rateLimit.resetTime);
+    try {
+      rateLimit = checkRateLimit(clientId, RateLimitConfigs.AUTH);
+      if (!rateLimit.allowed) {
+        console.warn(`Rate limit exceeded for login attempt from: ${clientId}`);
+        return createRateLimitResponse(rateLimit.resetTime);
+      }
+    } catch (e) {
+      console.error('Rate limit check failed, continuing anyway:', e);
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
     const { email, password } = body;
 
     // Input validation
@@ -105,9 +119,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const user = await db.query.users.findFirst({
-      where: eq(users.email, email.toLowerCase().trim()),
-    });
+    console.log(`Attempting to find user with email: ${email.toLowerCase().trim()}`);
+    let user;
+    try {
+      user = await db.query.users.findFirst({
+        where: eq(users.email, email.toLowerCase().trim()),
+      });
+    } catch (dbError: any) {
+      console.error('Database query failed during user lookup:', dbError);
+      throw new Error(`Database lookup failed: ${dbError.message}`);
+    }
 
     if (!user) {
       // Use generic error message to prevent user enumeration
@@ -288,20 +309,30 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('CRITICAL LOGIN ERROR:', error);
     
-    // Check for specific database errors
+    // Detailed error for debugging
     const errorMessage = error?.message || 'Unknown error';
+    const errorStack = error?.stack || '';
     const isDbError = errorMessage.toLowerCase().includes('database') || 
                       errorMessage.toLowerCase().includes('connection') ||
-                      errorMessage.toLowerCase().includes('pool');
+                      errorMessage.toLowerCase().includes('pool') ||
+                      errorMessage.toLowerCase().includes('pg');
+
+    // Log more details to server console
+    console.error('Error Details:', {
+      message: errorMessage,
+      stack: errorStack,
+      isDbError
+    });
 
     return NextResponse.json(
       { 
-        error: isDbError ? 'Database connection error' : 'An error occurred during login',
+        error: 'An error occurred during login',
         message: errorMessage,
         code: isDbError ? 'DB_ERROR' : 'AUTH_ERROR',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        // Always include message for now to help user debug
+        details: errorMessage 
       },
       { 
         status: 500,
