@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 import { verifyAuth } from '@/lib/auth/verify';
 
 export const runtime = 'nodejs';
@@ -16,37 +16,28 @@ export async function GET(
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 1. Securely handle membership/auto-join using Supabase SDK
-    const { data: existingMember } = await supabase
+    const supabaseAdmin = getSupabaseAdmin();
+
+    // 1. Ensure membership using Admin Client
+    const { data: existingMember } = await supabaseAdmin
       .from('group_members')
       .select('id')
       .eq('group_id', groupId)
       .eq('user_id', user.userId)
-      .single();
+      .maybeSingle();
 
     if (!existingMember) {
-      await supabase
+      await supabaseAdmin
         .from('group_members')
         .insert({
           group_id: groupId,
           user_id: user.userId,
           role: 'member'
         });
-      
-      // Update members count safely
-      const { count } = await supabase
-        .from('group_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('group_id', groupId);
-        
-      await supabase
-        .from('community_groups')
-        .update({ members_count: count })
-        .eq('id', groupId);
     }
 
-    // 2. Fetch messages securely using Supabase SDK with relational join
-    const { data: messages, error } = await supabase
+    // 2. Fetch messages using Admin Client to bypass RLS
+    const { data: messages, error } = await supabaseAdmin
       .from('group_messages')
       .select(`
         id, content, media_url, message_type, created_at, user_id,
@@ -55,9 +46,12 @@ export async function GET(
       .eq('group_id', groupId)
       .order('created_at', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase Admin Fetch Error:', error);
+      throw error;
+    }
 
-    const formattedMessages = messages.map((msg: any) => ({
+    const formattedMessages = (messages || []).map((msg: any) => ({
       id: msg.id,
       content: msg.content,
       media_url: msg.media_url,
@@ -69,8 +63,8 @@ export async function GET(
 
     return NextResponse.json({ messages: formattedMessages });
   } catch (error: any) {
-    console.error('GET Messages SDK Error:', error);
-    return NextResponse.json({ error: 'Failed to load messages securely' }, { status: 500 });
+    console.error('GET Messages Admin Error:', error);
+    return NextResponse.json({ error: 'Failed to load messages' }, { status: 500 });
   }
 }
 
@@ -88,8 +82,10 @@ export async function POST(
     const body = await request.json();
     const { content, messageType = 'text', mediaUrl = null } = body;
 
-    // 1. Insert message securely using Supabase SDK
-    const { data: newMessage, error } = await supabase
+    const supabaseAdmin = getSupabaseAdmin();
+
+    // 1. Insert message using Admin Client
+    const { data: newMessage, error } = await supabaseAdmin
       .from('group_messages')
       .insert({
         group_id: groupId,
@@ -103,18 +99,7 @@ export async function POST(
 
     if (error) throw error;
 
-    // 2. Update group stats safely
-    const { count } = await supabase
-      .from('group_messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('group_id', groupId);
-
-    await supabase
-      .from('community_groups')
-      .update({ messages_count: count })
-      .eq('id', groupId);
-
-    // 3. Broadcast via Pusher for real-time
+    // 2. Broadcast via Pusher
     try {
       const { pusherServer } = require('@/lib/realtime/chat');
       await pusherServer.trigger(`group-${groupId}`, 'new-message', {
@@ -135,7 +120,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, message: newMessage });
   } catch (error: any) {
-    console.error('POST Message SDK Error:', error);
-    return NextResponse.json({ error: 'Failed to send message securely' }, { status: 500 });
+    console.error('POST Message Admin Error:', error);
+    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
   }
 }
