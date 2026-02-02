@@ -87,11 +87,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: isAdmin 
-        ? `User ${targetUser[0].username} is now an admin` 
-        : `Admin status removed from ${targetUser[0].username}`,
+        ? `User ${targetUser[0].name} is now an admin` 
+        : `Admin status removed from ${targetUser[0].name}`,
       user: {
         id: targetUser[0].id,
-        username: targetUser[0].username,
         name: targetUser[0].name,
         isAdmin
       }
@@ -145,7 +144,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       isAdmin: user[0].isAdmin,
       userId: user[0].id,
-      username: user[0].username
+      name: user[0].name
     });
 
   } catch (error) {

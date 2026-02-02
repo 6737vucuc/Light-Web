@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
         id: users.id,
         name: users.name,
         email: users.email,
-        username: users.username,
         avatar: users.avatar,
         isAdmin: users.isAdmin,
         isBanned: users.isBanned,

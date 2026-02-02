@@ -29,7 +29,6 @@ export default function SettingsPage() {
   
   // Edit Profile States
   const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [avatar, setAvatar] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -65,7 +64,6 @@ export default function SettingsPage() {
         const data = await response.json();
         setCurrentUser(data.user);
         setName(data.user.name || '');
-        setUsername(data.user.username || '');
         setBio(data.user.bio || '');
         setAvatar(data.user.avatar || '');
         setIsPrivate(data.user.isPrivate || false);
@@ -130,7 +128,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/users/update-profile-info', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, username, bio, avatar }),
+        body: JSON.stringify({ name, bio, avatar }),
       });
 
       if (response.ok) {
@@ -263,7 +261,6 @@ export default function SettingsPage() {
             </div>
             <div className="flex-1">
               <div className="font-semibold text-sm">{currentUser?.name}</div>
-              <div className="text-sm text-gray-600">@{currentUser?.username}</div>
             </div>
           </div>
         </div>
@@ -443,16 +440,7 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* Username */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">@username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
-            />
-          </div>
+
 
           {/* Bio */}
           <div>

@@ -128,7 +128,7 @@ export default function NotificationsPage() {
         router.push(`/community?post=${notification.postId}`);
       }
     } else if (notification.type === 'new_follower' || notification.type === 'follow_request') {
-      router.push(`/user-profile/${notification.userId}`);
+      router.push(`/community/profile/${notification.userId}`);
     }
   };
 
