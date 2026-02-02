@@ -45,22 +45,21 @@ export async function GET(
 
     const groupId = parseInt(id);
 
-    // Check if user is a member
-    let member = await db.query.groupMembers.findFirst({
-      where: and(
-        eq(groupMembers.groupId, groupId),
-        eq(groupMembers.userId, user.userId)
-      ),
-    });
+    // Auto-join or verify membership
+    try {
+      const existingMember = await db.query.groupMembers.findFirst({
+        where: and(
+          eq(groupMembers.groupId, groupId),
+          eq(groupMembers.userId, user.userId)
+        ),
+      });
 
-    if (!member) {
-      console.log(`User ${user.userId} is not a member of group ${groupId}. Auto-joining.`);
-      try {
+      if (!existingMember) {
         await db.insert(groupMembers).values({
           groupId: groupId,
           userId: user.userId,
           role: 'member'
-        });
+        }).onConflictDoNothing();
         
         // Update members count
         await rawSql`
@@ -68,9 +67,9 @@ export async function GET(
           SET members_count = (SELECT count(*) FROM group_members WHERE group_id = ${groupId})
           WHERE id = ${groupId}
         `;
-      } catch (joinError) {
-        console.error('Auto-join failed:', joinError);
       }
+    } catch (err) {
+      console.error('Membership handling error:', err);
     }
 
     // Get messages with user info using raw SQL for complex join
@@ -91,7 +90,7 @@ export async function GET(
         u.avatar as user_avatar
       FROM group_messages gm
       JOIN users u ON gm.user_id = u.id
-      WHERE gm.group_id = ${groupId} AND (gm.is_deleted = false OR gm.is_deleted IS NULL)
+      WHERE gm.group_id = ${groupId}
       ORDER BY gm.created_at ASC
     `;
 
@@ -137,22 +136,21 @@ export async function POST(
 
     const groupId = parseInt(id);
 
-    // Check if user is a member
-    let member = await db.query.groupMembers.findFirst({
-      where: and(
-        eq(groupMembers.groupId, groupId),
-        eq(groupMembers.userId, user.userId)
-      ),
-    });
+    // Auto-join or verify membership
+    try {
+      const existingMember = await db.query.groupMembers.findFirst({
+        where: and(
+          eq(groupMembers.groupId, groupId),
+          eq(groupMembers.userId, user.userId)
+        ),
+      });
 
-    if (!member) {
-      console.log(`User ${user.userId} is not a member of group ${groupId}. Auto-joining.`);
-      try {
+      if (!existingMember) {
         await db.insert(groupMembers).values({
           groupId: groupId,
           userId: user.userId,
           role: 'member'
-        });
+        }).onConflictDoNothing();
         
         // Update members count
         await rawSql`
@@ -160,9 +158,9 @@ export async function POST(
           SET members_count = (SELECT count(*) FROM group_members WHERE group_id = ${groupId})
           WHERE id = ${groupId}
         `;
-      } catch (joinError) {
-        console.error('Auto-join failed:', joinError);
       }
+    } catch (err) {
+      console.error('Membership handling error:', err);
     }
 
     const contentType = request.headers.get('content-type') || '';
