@@ -91,7 +91,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     channel.bind('new-message', (data: any) => {
       setMessages((prev) => {
         if (prev.find(m => m.id === data.id)) return prev;
-        return [...prev, data];
+        // Ensure user data is properly formatted
+        const formattedMessage = {
+          ...data,
+          user_id: data.userId || data.user_id,
+          created_at: data.timestamp || data.created_at,
+          user: data.user || null
+        };
+        return [...prev, formattedMessage];
       });
     });
 
@@ -228,15 +235,32 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         ) : (
           messages.map((msg) => {
             const isOwn = msg.userId === currentUser?.id || msg.user_id === currentUser?.id;
+            const userName = msg.user?.name || msg.userName || 'Unknown User';
+            const userAvatar = msg.user?.avatar || msg.userAvatar || null;
+            
             return (
               <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2`}>
                 {!isOwn && (
-                  <button onClick={() => setShowUserProfile(msg.user)} className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mb-1">
-                    <Image src={getAvatarUrl(msg.user?.avatar)} alt={msg.user?.name || 'User'} width={32} height={32} className="object-cover" unoptimized />
+                  <button 
+                    onClick={() => setShowUserProfile(msg.user || { name: userName, avatar: userAvatar })} 
+                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mb-1 bg-purple-100"
+                  >
+                    <Image 
+                      src={getAvatarUrl(userAvatar)} 
+                      alt={userName} 
+                      width={32} 
+                      height={32} 
+                      className="object-cover" 
+                      unoptimized 
+                    />
                   </button>
                 )}
                 <div className={`relative max-w-[75%] p-2.5 rounded-xl shadow-sm ${isOwn ? 'bg-[#dcf8c6] rounded-tr-none' : 'bg-white rounded-tl-none'}`}>
-                  {!isOwn && <span className="text-[11px] font-bold text-purple-600 block mb-0.5">{msg.user?.name}</span>}
+                  {!isOwn && (
+                    <span className="text-[11px] font-bold text-purple-600 block mb-0.5">
+                      {userName}
+                    </span>
+                  )}
                   <p className="text-[14px] text-gray-900 leading-snug">{msg.content}</p>
                   <div className="flex items-center justify-end gap-1 mt-1">
                     <span className="text-[9px] text-gray-500">

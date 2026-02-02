@@ -99,19 +99,28 @@ export async function POST(
 
     if (error) throw error;
 
-    // 2. Broadcast via Pusher
+    // 2. Fetch user data from database to ensure complete info
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('id, name, avatar')
+      .eq('id', user.userId)
+      .single();
+
+    // 3. Broadcast via Pusher with complete user data
     try {
       const { pusherServer } = require('@/lib/realtime/chat');
       await pusherServer.trigger(`group-${groupId}`, 'new-message', {
-        ...newMessage,
-        type: newMessage.message_type,
+        id: newMessage.id,
+        content: newMessage.content,
+        media_url: newMessage.media_url,
+        type: newMessage.message_type || 'text',
         timestamp: newMessage.created_at,
         userId: user.userId,
-        user: {
+        user_id: user.userId,
+        user: userData || {
           id: user.userId,
           name: user.name,
-          avatar: user.avatar,
-          username: user.username
+          avatar: user.avatar
         }
       });
     } catch (pError) {
