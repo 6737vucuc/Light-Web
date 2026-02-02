@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
 import { useToast } from '@/lib/contexts/ToastContext';
+import { supabase } from '@/lib/supabase/client';
 
 interface GroupChatProps {
   group: any;
