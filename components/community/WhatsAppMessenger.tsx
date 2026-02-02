@@ -370,6 +370,16 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
       if (!response.ok) throw new Error('Failed to send message');
       
+      const data = await response.json();
+      // Add message locally for immediate feedback
+      if (data.message) {
+        setMessages(prev => {
+          if (prev.find(m => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
+        scrollToBottom();
+      }
+      
       setReplyingTo(null);
       loadConversations();
     } catch (error) {

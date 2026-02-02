@@ -15,6 +15,7 @@ import {
   Flag
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
 import UserAvatarMenu from './UserAvatarMenu';
@@ -27,6 +28,7 @@ interface EnhancedGroupChatProps {
 
 export default function EnhancedGroupChat({ group, currentUser, onBack }: EnhancedGroupChatProps) {
   const router = useRouter();
+  const t = useTranslations('community');
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -108,6 +110,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         };
         return [...prev, formattedMessage];
       });
+      scrollToBottom();
+    });
+
+    channel.bind('message-deleted', (data: any) => {
+      setMessages((prev) => prev.filter(m => m.id !== data.messageId));
     });
 
     channel.bind('user-typing', (data: any) => {
@@ -170,15 +177,22 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   const deleteMessage = async (messageId: number) => {
-    if (!confirm('هل أنت متأكد من حذف هذه الرسالة؟')) return;
+    const confirmText = t('deleteMessageConfirm');
+    if (!confirm(confirmText)) return;
     
     try {
       const res = await fetch(`/api/groups/${group.id}/messages/${messageId}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteForEveryone: true }),
       });
 
       if (res.ok) {
+        // Message will be removed via Pusher event, but we can also remove it locally for faster UI
         setMessages((prev) => prev.filter(m => m.id !== messageId));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete message');
       }
     } catch (error) {
       console.error('Error deleting message:', error);
@@ -260,10 +274,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
               <h2 className="font-bold text-gray-800 leading-tight">{group.name}</h2>
               {typingUsers.length > 0 ? (
                 <p className="text-[11px] text-green-600 font-medium animate-pulse">
-                  {typingUsers[0].name} is typing...
+                  {typingUsers[0].name} {t('activeNow')}
                 </p>
               ) : (
-                <p className="text-[11px] text-gray-500">{onlineMembersCount} Online • {totalMembers} Members</p>
+                <p className="text-[11px] text-gray-500">{onlineMembersCount} {t('online')} • {totalMembers} {t('members')}</p>
               )}
             </div>
           </div>
@@ -345,7 +359,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         <button className="p-2 text-gray-500 hover:bg-gray-200 rounded-full"><ImageIcon className="w-6 h-6" /></button>
         <input 
           type="text" 
-          placeholder="Type a message..." 
+          placeholder={t('typeMessage')} 
           value={newMessage} 
           onChange={(e) => {
             setNewMessage(e.target.value);
