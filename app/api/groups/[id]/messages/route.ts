@@ -37,11 +37,12 @@ export async function GET(
     }
 
     // 2. Fetch messages using Admin Client to bypass RLS
+    // Explicitly specify the relationship because there are multiple foreign keys to users table
     const { data: messages, error } = await supabaseAdmin
       .from('group_messages')
       .select(`
         id, content, media_url, message_type, created_at, user_id,
-        user:users(id, name, avatar, username)
+        user:users!group_messages_user_id_fkey(id, name, avatar)
       `)
       .eq('group_id', groupId)
       .order('created_at', { ascending: true });
