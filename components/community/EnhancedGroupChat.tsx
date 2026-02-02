@@ -366,7 +366,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
               <h2 className="font-bold text-lg leading-tight">{group.name}</h2>
               <p className="text-xs text-purple-100 flex items-center gap-1">
                 <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                {onlineMembersCount} {t?.online || 'Online'} • {totalMembers} {t?.members || 'Members'}
+                {onlineMembersCount} Online • {totalMembers} Members
               </p>
             </div>
           </div>
@@ -390,7 +390,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2">
             <MessageCircle className="w-12 h-12 opacity-20" />
-            <p>{t?.no_messages || 'No messages yet. Say hello!'}</p>
+            <p>No messages yet. Say hello!</p>
           </div>
         ) : (
           messages.map((msg, index) => {
@@ -444,7 +444,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
               value={newMessage}
               onChange={(e) => {setNewMessage(e.target.value); handleTyping();}}
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder={t?.type_message || "Type a message..."}
+              placeholder="Type a message..."
               className="w-full bg-gray-100 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 transition-all"
             />
           </div>
