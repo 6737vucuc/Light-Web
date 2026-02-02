@@ -234,22 +234,23 @@ export async function POST(
       }
     };
 
-    // Broadcast via Pusher (silent fail)
+    // Broadcast via Pusher (silent fail - DO NOT AWAIT)
     const pusher = getPusher();
     if (pusher) {
-      try {
-        await pusher.trigger(`group-${groupId}`, 'new-message', messageWithUser);
-      } catch (e) {
-        console.error('Pusher error:', e);
-      }
+      pusher.trigger(`group-${groupId}`, 'new-message', messageWithUser)
+        .catch((e: any) => console.error('Pusher error (background):', e));
     }
 
-    return NextResponse.json({ message: messageWithUser }, { status: 201 });
+    return NextResponse.json({ 
+      success: true,
+      message: messageWithUser 
+    }, { status: 201 });
   } catch (error: any) {
-    console.error('Error sending message:', error);
+    console.error('CRITICAL Error sending message:', error);
     return NextResponse.json({ 
       error: 'Failed to send message', 
-      details: error.message 
+      details: error.message,
+      message: 'Please check your connection and try again'
     }, { status: 500 });
   }
 }

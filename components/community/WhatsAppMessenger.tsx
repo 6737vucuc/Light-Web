@@ -91,10 +91,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
       
       peer.on('call', async (call) => { 
-        console.log('Incoming call from:', call.peer);
+        console.log('Incoming PeerJS call from:', call.peer);
+        // Store the call object properly
         currentCallRef.current = call;
         
-        // Get caller info from peer ID
+        // Get caller info from peer ID (e.g., light-user-123-timestamp)
         const callerIdMatch = call.peer.match(/light-user-(\d+)/);
         if (callerIdMatch) {
           const callerId = parseInt(callerIdMatch[1]);
@@ -114,24 +115,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
       
       peer.on('error', (err) => {
-        console.error('PeerJS error:', err);
+        console.error('PeerJS global error:', err);
       });
       
       return () => { 
-        // Clear PeerID from database on disconnect
         if (currentUser?.id) {
-          const clearPeerId = async () => {
-            try {
-              await supabase
-                .from('users')
-                .update({ current_peer_id: null })
-                .eq('id', currentUser.id);
-              console.log('PeerID cleared from database');
-            } catch (err) {
-              console.error('Failed to clear PeerID:', err);
-            }
-          };
-          clearPeerId();
+          supabase.from('users').update({ current_peer_id: null }).eq('id', currentUser.id)
+            .then(() => console.log('PeerID cleared'))
+            .catch(err => console.error('Failed to clear PeerID:', err));
         }
         if (peer) peer.destroy(); 
       };
@@ -158,7 +149,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           setMessages(prev => [...prev, newMsg]);
           scrollToBottom();
         }
-        // Refresh conversations list
         loadConversations();
       })
       .on('postgres_changes', { 
@@ -182,11 +172,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       }, async (payload) => {
         const newCall = payload.new;
         if (newCall.status === 'ringing') {
-          console.log('Incoming call:', newCall);
+          console.log('Incoming call record:', newCall);
           setCurrentCallId(newCall.id);
           setCallStatus('incoming');
           
-          // Fetch caller info
           const { data: callerData } = await supabase
             .from('users')
             .select('name, avatar')
@@ -196,11 +185,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           if (callerData) {
             setCallOtherUser({ name: callerData.name, avatar: callerData.avatar });
           }
-          
-          currentCallRef.current = { 
-            peerId: newCall.caller_peer_id, 
-            callId: newCall.id 
-          };
         }
       })
       .on('postgres_changes', { 
@@ -228,10 +212,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   }, [currentUser?.id, selectedConversation, currentCallId]);
 
   const cleanupCall = () => {
-    if (currentCallRef.current?.close) currentCallRef.current.close();
-    if (localStreamRef.current) localStreamRef.current.getTracks().forEach(track => track.stop());
-    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
+    // Correctly close the call object if it exists
+    if (currentCallRef.current && typeof currentCallRef.current.close === 'function') {
+      currentCallRef.current.close();
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+    }
     localStreamRef.current = null;
+    currentCallRef.current = null;
     setCurrentCallId(null);
   };
 
@@ -270,51 +262,29 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   // Handle initialUserId to start a new conversation
   useEffect(() => {
-    // If we have an initialUserId, we want to try to select the conversation
-    // regardless of whether isLoading is true or false initially, but we need conversations list to be loaded OR check if it is not in the list.
-    // The previous logic required !isLoading which might be too restrictive if loadConversations finishes late.
-    // Instead, we will check if conversations are loaded (or if we can proceed).
-    
-    // We should allow this to run if initialUserId is present.
     if (initialUserId && !selectedConversation) {
-      // Check if conversation exists in the loaded list
       const existingConv = conversations.find(c => c.other_user_id === initialUserId);
-      
       if (existingConv) {
         setSelectedConversation(existingConv);
-      } else if (!isLoading) { 
-        // Only try to fetch new user if we have finished loading conversations and still haven't found it
-        // This prevents fetching a user that might be in the conversations list but list hasn't loaded yet.
-        // Wait... if isLoading is true, we should probably wait.
-        
-        // But if isLoading is true, this effect will re-run when isLoading becomes false.
-        
-        // Let's create a temporary conversation object for a new user
-        const fetchNewUser = async () => {
-          try {
-            const response = await fetch(`/api/users/${initialUserId}`);
-            if (response.ok) {
-              const userData = await response.json();
-              const newConv = {
-                other_user_id: initialUserId,
-                name: userData.user.name,
-                avatar: userData.user.avatar,
-                last_message: null,
-                last_message_time: null,
-                unread_count: 0
-              };
-              setSelectedConversation(newConv);
-              // Load messages for this new user immediately
-              loadMessages(initialUserId);
-            }
-          } catch (error) {
-            console.error('Error fetching new user for chat:', error);
+      } else if (!isLoading) {
+        // Start a new conversation placeholder
+        const fetchUser = async () => {
+          const { data } = await supabase.from('users').select('id, name, avatar').eq('id', initialUserId).single();
+          if (data) {
+            setSelectedConversation({
+              other_user_id: data.id,
+              name: data.name,
+              avatar: data.avatar,
+              last_message: '',
+              last_message_time: null,
+              unread_count: 0
+            });
           }
         };
-        fetchNewUser();
+        fetchUser();
       }
     }
-  }, [initialUserId, conversations, selectedConversation, isLoading]);
+  }, [initialUserId, conversations, isLoading]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -323,10 +293,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const sendMessage = async () => {
-    const content = newMessage.trim();
-    if (!content || !selectedConversation || isSending) return;
-    
+    if (!newMessage.trim() && !selectedImage) return;
+    if (!selectedConversation) return;
+
     setIsSending(true);
+    const content = newMessage;
+    setNewMessage('');
+    
     try {
       const response = await fetch('/api/direct-messages', {
         method: 'POST',
@@ -334,70 +307,45 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         body: JSON.stringify({
           receiverId: selectedConversation.other_user_id,
           content: content,
-          messageType: 'text',
           replyToId: replyingTo?.id
         })
       });
+
+      if (!response.ok) throw new Error('Failed to send message');
       
-      if (response.ok) {
-        setNewMessage('');
-        setReplyingTo(null);
-        loadMessages(selectedConversation.other_user_id);
-      } else {
-        toast.error(t('error'));
-      }
-    } catch (error) { 
-      toast.error(t('error')); 
-    } finally { 
-      setIsSending(false); 
+      setReplyingTo(null);
+      loadConversations();
+    } catch (error) {
+      console.error('Send message error:', error);
+      toast.error(t('sendFailed'));
+      setNewMessage(content);
+    } finally {
+      setIsSending(false);
     }
   };
 
   const deleteForEveryone = async (messageId: number) => {
-    const confirmed = await toast.confirm({
-      title: t('deleteMessage'),
-      message: t('deleteMessageConfirm'),
-      confirmText: t('deleteForEveryone'),
-      cancelText: t('cancel'),
-      type: 'danger'
-    });
-    
-    if (confirmed) {
-      try {
-        const response = await fetch(`/api/direct-messages/${selectedConversation.other_user_id}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messageId })
-        });
-        
-        if (response.ok) {
-          setMessages(prev => prev.map(m => 
-            m.id === messageId 
-              ? { ...m, is_deleted: true, content: t('messageDeleted') }
-              : m
-          ));
-          setSelectedMessageId(null);
-        }
-      } catch (error) {
-        toast.error(t('error'));
+    try {
+      const response = await fetch(`/api/direct-messages/${messageId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_deleted: true } : m));
+        setSelectedMessageId(null);
       }
+    } catch (error) {
+      console.error('Delete message error:', error);
     }
   };
 
   const startCall = async () => {
-    if (!selectedConversation || !peerId) {
-      console.error('[Call] Missing requirements:', { selectedConversation, peerId });
-      toast.error(t('callFailed'));
-      return;
-    }
+    if (!selectedConversation) return;
     
     try {
-      console.log('[Call] Starting call to user:', selectedConversation.other_user_id);
-      
-      // Step 1: Request microphone permission
+      // Step 1: Get user media
+      console.log('[Call] Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
-      console.log('[Call] Got local stream');
       
       setCallStatus('calling');
       setCallOtherUser({ 
@@ -406,7 +354,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
       
       // Step 2: Create call record via API
-      console.log('[Call] Creating call record...');
       const response = await fetch('/api/calls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -419,16 +366,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('[Call] API error:', errorData);
         throw new Error(errorData.error || 'Failed to initiate call');
       }
       
       const data = await response.json();
-      console.log('[Call] Call record created:', data);
       setCurrentCallId(data.call.id);
       
       // Step 3: Get receiver's current PeerID
-      console.log('[Call] Fetching receiver PeerID...');
       const { data: receiverData, error: receiverError } = await supabase
         .from('users')
         .select('id, name, current_peer_id')
@@ -436,36 +380,25 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         .single();
       
       if (receiverError || !receiverData?.current_peer_id) {
-        console.error('[Call] Receiver not online or PeerID not found:', receiverError);
         throw new Error('Receiver is not online');
       }
       
-      console.log('[Call] Receiver PeerID:', receiverData.current_peer_id);
-      
       // Step 4: Make actual PeerJS call
-      if (!peerRef.current) {
-        throw new Error('PeerJS not initialized');
-      }
+      if (!peerRef.current) throw new Error('PeerJS not initialized');
       
-      console.log('[Call] Making PeerJS call...');
       const call = peerRef.current.call(receiverData.current_peer_id, stream);
-      currentCallRef.current = { call, callId: data.call.id };
-      
-      // Setup call event handlers
+      currentCallRef.current = call;
       setupCallEvents(call);
-      
-      console.log('[Call] Call initiated successfully');
       
       // Auto-end call after 30 seconds if no answer
       setTimeout(() => {
         if (callStatus === 'calling') {
-          console.log('[Call] Call timeout - no answer');
           endCall();
         }
       }, 30000);
       
     } catch (err: any) { 
-      console.error('[Call] Call error:', err);
+      console.error('[Call] Start call error:', err);
       toast.error(err.message || t('callFailed')); 
       setCallStatus('idle');
       if (localStreamRef.current) {
@@ -493,12 +426,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       
       setCallStatus('connected');
       
-      // Make PeerJS call to caller
-      const targetPeerId = currentCallRef.current?.peerId;
-      if (peerRef.current && targetPeerId) {
-        const call = peerRef.current.call(targetPeerId, stream);
-        currentCallRef.current = { ...currentCallRef.current, call };
-        setupCallEvents(call);
+      // If we already have the incoming call object, answer it
+      if (currentCallRef.current && typeof currentCallRef.current.answer === 'function') {
+        currentCallRef.current.answer(stream);
+        setupCallEvents(currentCallRef.current);
       }
     } catch (err) { 
       console.error('Accept call error:', err);
@@ -532,6 +463,8 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const setupCallEvents = (call: any) => {
+    if (!call) return;
+
     call.on('stream', (remoteStream: MediaStream) => {
       console.log('Received remote stream');
       if (!remoteAudioRef.current) { 
@@ -543,7 +476,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     });
     
     call.on('close', () => { 
-      console.log('Call closed');
       cleanupCall(); 
       setCallStatus('ended'); 
       setTimeout(() => setCallStatus('idle'), 2000); 
@@ -691,7 +623,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                         isOwn ? 'bg-[#dcf8c6] rounded-tr-none' : 'bg-white rounded-tl-none'
                       }`}
                     >
-                      {/* Reply Preview */}
                       {msg.reply_to && (
                         <div className="mb-1 p-2 bg-gray-100/80 border-l-4 border-purple-400 rounded text-xs">
                           <span className="font-bold text-purple-600">{msg.reply_to.sender_name}</span>
@@ -712,7 +643,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                         )}
                       </div>
                       
-                      {/* Message Actions */}
                       {selectedMessageId === msg.id && isOwn && !isDeleted && (
                         <div className={`absolute ${isRtl ? 'right-0' : 'left-0'} top-full mt-1 z-50 bg-white rounded-lg shadow-xl border border-gray-100 py-1 min-w-[160px]`}>
                           <button 
