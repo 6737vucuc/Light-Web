@@ -16,28 +16,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all groups
-    const groups = await db.query.communityGroups.findMany({
-      orderBy: (communityGroups, { desc }) => [desc(communityGroups.createdAt)],
-    });
+    // Get all groups with real member counts in a single optimized query
+    const groups = await db.execute(sql`
+      SELECT 
+        cg.*,
+        (SELECT COUNT(*)::int FROM group_members gm WHERE gm.group_id = cg.id) as members_count,
+        COALESCE(cg.messages_count, 0) as messages_count
+      FROM community_groups cg
+      ORDER BY cg.created_at DESC
+    `);
 
-    // Get real member counts for each group
-    const groupsWithRealCounts = await Promise.all(
-      groups.map(async (group) => {
-        const [memberCount] = await db
-          .select({ count: count() })
-          .from(groupMembers)
-          .where(eq(groupMembers.groupId, group.id));
-        
-        return {
-          ...group,
-          members_count: memberCount?.count || 0,
-          messages_count: group.messagesCount || 0,
-        };
-      })
-    );
+    // Normalize rows from db.execute result
+    const normalizedGroups = Array.isArray(groups.rows) ? groups.rows : [];
 
-    return NextResponse.json({ groups: groupsWithRealCounts });
+    return NextResponse.json({ groups: normalizedGroups });
   } catch (error) {
     console.error('Error fetching groups:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

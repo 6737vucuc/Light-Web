@@ -62,10 +62,16 @@ export default function CommunityPage() {
 
   const loadGroups = async () => {
     try {
-      const response = await fetch('/api/groups');
+      // Fetch with cache-busting to ensure fresh data
+      const response = await fetch(`/api/groups?t=${Date.now()}`);
       if (response.ok) {
         const data = await response.json();
-        setGroups(data.groups);
+        // Use functional update to avoid race conditions
+        setGroups(prev => {
+          // Only update if data has actually changed or is new
+          if (JSON.stringify(prev) === JSON.stringify(data.groups)) return prev;
+          return data.groups;
+        });
       }
     } catch (error) {
       console.error('Error loading groups:', error);
