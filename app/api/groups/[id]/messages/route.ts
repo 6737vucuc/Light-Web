@@ -212,25 +212,16 @@ export async function POST(
       }, { status: 500 });
     }
 
-    // Get user info
-    const userInfo = await db.query.users.findFirst({
-      where: eq(users.id, user.userId),
-      columns: {
-        name: true,
-        username: true,
-        avatar: true,
-      }
-    });
-
+    // Use the user info already available from verifyAuth to save a DB query
     const messageWithUser = {
       ...newMessage,
       type: newMessage.message_type || 'text',
       imageUrl: newMessage.media_url,
       user: {
         id: user.userId,
-        name: userInfo?.name || 'Unknown',
-        username: userInfo?.username || null,
-        avatar: userInfo?.avatar || null,
+        name: user.name || 'User',
+        username: user.username || null,
+        avatar: user.avatar || null,
       }
     };
 
