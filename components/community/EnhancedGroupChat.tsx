@@ -14,9 +14,12 @@ import {
   Check,
   CheckCheck,
   Reply,
-  MoreHorizontal
+  MoreHorizontal,
+  User,
+  Phone,
+  MessageSquare
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
@@ -30,8 +33,12 @@ interface EnhancedGroupChatProps {
 }
 
 export default function EnhancedGroupChat({ group, currentUser, onBack }: EnhancedGroupChatProps) {
+  const router = useRouter();
+  const params = useParams();
+  const locale = params?.locale as string || 'ar';
   const t = useTranslations('messages');
   const toast = useToast();
+  
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +55,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
@@ -227,8 +235,58 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  const startPrivateChat = (userId: number) => {
+    router.push(`/${locale}/community/chat?userId=${userId}`);
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] bg-[#efeae2] rounded-2xl shadow-xl overflow-hidden border border-gray-200 relative">
+      {/* User Profile Overlay */}
+      {showUserProfile && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in duration-200">
+            <div className="relative h-32 bg-gradient-to-r from-purple-600 to-pink-600">
+              <button 
+                onClick={() => setShowUserProfile(null)}
+                className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 pb-8 text-center -mt-12">
+              <div className="inline-block p-1 bg-white rounded-full shadow-lg mb-4">
+                <div className="w-24 h-24 rounded-full overflow-hidden">
+                  <Image 
+                    src={getAvatarUrl(showUserProfile.avatar)} 
+                    alt={showUserProfile.name} 
+                    width={96} height={96} 
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">{showUserProfile.name}</h3>
+              <p className="text-sm text-gray-500 mb-6">@{showUserProfile.username || 'user'}</p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => startPrivateChat(showUserProfile.id)}
+                  className="flex items-center justify-center gap-2 py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors"
+                >
+                  <MessageSquare className="w-4 h-4" /> Message
+                </button>
+                <button 
+                  onClick={() => startPrivateChat(showUserProfile.id)}
+                  className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+                >
+                  <Phone className="w-4 h-4" /> Call
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-[#f0f2f5] p-3 flex items-center justify-between border-b border-gray-200 z-20">
         <div className="flex items-center gap-3">
@@ -269,7 +327,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
             return (
               <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2`}>
                 {!isOwn && (
-                  <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mb-1">
+                  <button 
+                    onClick={() => setShowUserProfile({ ...msg.user, id: msg.user_id })}
+                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mb-1 hover:ring-2 hover:ring-purple-400 transition-all"
+                  >
                     <Image 
                       src={getAvatarUrl(msg.user?.avatar)} 
                       alt={msg.user?.name || 'User'} 
@@ -277,7 +338,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                       className="object-cover"
                       unoptimized
                     />
-                  </div>
+                  </button>
                 )}
                 <div 
                   onClick={() => setSelectedMessageId(selectedMessageId === msg.id ? null : msg.id)}
@@ -285,7 +346,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                     isOwn ? 'bg-[#dcf8c6] rounded-tr-none' : 'bg-white rounded-tl-none'
                   }`}
                 >
-                  {!isOwn && <p className="text-[11px] font-bold text-purple-600 mb-0.5">{msg.user?.name}</p>}
+                  {!isOwn && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowUserProfile({ ...msg.user, id: msg.user_id }); }}
+                      className="text-[11px] font-bold text-purple-600 mb-0.5 hover:underline"
+                    >
+                      {msg.user?.name}
+                    </button>
+                  )}
                   
                   {msg.reply_to && (
                     <div className="mb-1 p-1.5 bg-black/5 border-l-4 border-purple-500 rounded text-[11px]">
