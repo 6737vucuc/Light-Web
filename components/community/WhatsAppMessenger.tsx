@@ -73,10 +73,21 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         debug: 1
       });
       
-      peer.on('open', (id) => { 
+      peer.on('open', async (id) => { 
         console.log('PeerJS connected with ID:', id);
         setPeerId(id); 
-        peerRef.current = peer; 
+        peerRef.current = peer;
+        
+        // Store PeerID in database for incoming calls
+        try {
+          await supabase
+            .from('users')
+            .update({ current_peer_id: id })
+            .eq('id', currentUser.id);
+          console.log('PeerID stored in database');
+        } catch (err) {
+          console.error('Failed to store PeerID:', err);
+        }
       });
       
       peer.on('call', async (call) => { 
@@ -107,6 +118,15 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       });
       
       return () => { 
+        // Clear PeerID from database on disconnect
+        if (currentUser?.id) {
+          supabase
+            .from('users')
+            .update({ current_peer_id: null })
+            .eq('id', currentUser.id)
+            .then(() => console.log('PeerID cleared from database'))
+            .catch(err => console.error('Failed to clear PeerID:', err));
+        }
         if (peer) peer.destroy(); 
       };
     } catch (error) {
@@ -360,14 +380,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   const startCall = async () => {
     if (!selectedConversation || !peerId) {
+      console.error('[Call] Missing requirements:', { selectedConversation, peerId });
       toast.error(t('callFailed'));
       return;
     }
     
     try {
-      // Request microphone permission
+      console.log('[Call] Starting call to user:', selectedConversation.other_user_id);
+      
+      // Step 1: Request microphone permission
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
+      console.log('[Call] Got local stream');
       
       setCallStatus('calling');
       setCallOtherUser({ 
@@ -375,7 +399,8 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         avatar: selectedConversation.avatar || selectedConversation.other_user_avatar 
       });
       
-      // Create call record via API
+      // Step 2: Create call record via API
+      console.log('[Call] Creating call record...');
       const response = await fetch('/api/calls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -386,18 +411,56 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         })
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentCallId(data.call.id);
-        
-        // Wait for receiver to answer, then make PeerJS call
-        // The actual PeerJS call will be made when receiver accepts
-      } else {
-        throw new Error('Failed to initiate call');
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('[Call] API error:', errorData);
+        throw new Error(errorData.error || 'Failed to initiate call');
       }
-    } catch (err) { 
-      console.error('Call error:', err);
-      toast.error(t('callFailed')); 
+      
+      const data = await response.json();
+      console.log('[Call] Call record created:', data);
+      setCurrentCallId(data.call.id);
+      
+      // Step 3: Get receiver's current PeerID
+      console.log('[Call] Fetching receiver PeerID...');
+      const { data: receiverData, error: receiverError } = await supabase
+        .from('users')
+        .select('id, name, current_peer_id')
+        .eq('id', selectedConversation.other_user_id)
+        .single();
+      
+      if (receiverError || !receiverData?.current_peer_id) {
+        console.error('[Call] Receiver not online or PeerID not found:', receiverError);
+        throw new Error('Receiver is not online');
+      }
+      
+      console.log('[Call] Receiver PeerID:', receiverData.current_peer_id);
+      
+      // Step 4: Make actual PeerJS call
+      if (!peerRef.current) {
+        throw new Error('PeerJS not initialized');
+      }
+      
+      console.log('[Call] Making PeerJS call...');
+      const call = peerRef.current.call(receiverData.current_peer_id, stream);
+      currentCallRef.current = { call, callId: data.call.id };
+      
+      // Setup call event handlers
+      setupCallEvents(call);
+      
+      console.log('[Call] Call initiated successfully');
+      
+      // Auto-end call after 30 seconds if no answer
+      setTimeout(() => {
+        if (callStatus === 'calling') {
+          console.log('[Call] Call timeout - no answer');
+          endCall();
+        }
+      }, 30000);
+      
+    } catch (err: any) { 
+      console.error('[Call] Call error:', err);
+      toast.error(err.message || t('callFailed')); 
       setCallStatus('idle');
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
