@@ -150,6 +150,12 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `;
 
+    // Get sender info for real-time display
+    const sender = await db.query.users.findFirst({
+      where: eq(users.id, user.userId),
+      columns: { name: true, avatar: true, username: true }
+    });
+
     // Broadcast via Pusher for real-time delivery
     const pusher = getPusher();
     if (pusher) {
@@ -158,7 +164,10 @@ export async function POST(request: NextRequest) {
           message: {
             ...newMessage,
             content: content,
-            is_encrypted: true
+            is_encrypted: true,
+            sender_name: sender?.name,
+            sender_avatar: sender?.avatar,
+            sender_username: sender?.username
           }
         });
       } catch (e) {

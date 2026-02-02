@@ -183,13 +183,17 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
     channel.bind('private-message', (data: any) => {
       const newMsg = data.message;
+      
+      // If the message is for the currently selected conversation
       if (selectedConversation && (newMsg.sender_id === selectedConversation.other_user_id || newMsg.receiver_id === selectedConversation.other_user_id)) {
         setMessages(prev => {
           if (prev.find(m => m.id === newMsg.id)) return prev;
           return [...prev, newMsg];
         });
-        scrollToBottom();
+        setTimeout(scrollToBottom, 100);
       }
+      
+      // Always reload conversations to update the last message and unread count
       loadConversations();
     });
 
@@ -385,64 +389,46 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         avatar: selectedConversation.avatar || selectedConversation.other_user_avatar 
       });
       
-      // Step 2: Create call record via API
-      const response = await fetch('/api/calls', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          receiverId: selectedConversation.other_user_id,
-          callerPeerId: peerId,
-          callType: 'audio'
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to initiate call');
-      }
-      
-      const data = await response.json();
-      setCurrentCallId(data.call.id);
-      
-      // Step 3: Get receiver's current PeerID
-      const { data: receiverData, error: receiverError } = await supabase
+      // Step 2: Get receiver's current PeerID
+      const { data: receiverData } = await supabase
         .from('users')
-        .select('id, name, current_peer_id')
+        .select('current_peer_id')
         .eq('id', selectedConversation.other_user_id)
         .single();
       
-      if (receiverError || !receiverData?.current_peer_id) {
-        throw new Error('Receiver is not online');
+      if (!receiverData?.current_peer_id) {
+        throw new Error('User is offline');
       }
-      
-      // Step 4: Make actual PeerJS call
+
+      // Step 3: Make actual PeerJS call
       if (!peerRef.current) throw new Error('PeerJS not initialized');
       
       const call = peerRef.current.call(receiverData.current_peer_id, stream);
       currentCallRef.current = call;
       setupCallEvents(call);
+
+      // Step 4: Notify via Pusher for real-time overlay
+      await fetch('/api/calls/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          receiverId: selectedConversation.other_user_id,
+          offer: { type: 'peerjs', peerId: peerId },
+          callerName: currentUser.name,
+          callerAvatar: currentUser.avatar
+        })
+      });
       
-      // Auto-end call after 30 seconds if no answer
+      // Auto-end call after 45 seconds if no answer
       setTimeout(() => {
         if (callStatus === 'calling') {
           endCall();
         }
-      }, 30000);
+      }, 45000);
       
     } catch (err: any) { 
       console.error('[Call] Start call error:', err);
-      
-      // Better error handling for permission errors
-      let errorMessage = t('callFailed');
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
-      } else if (err.name === 'NotFoundError') {
-        errorMessage = 'No microphone found. Please connect a microphone and try again.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      toast.error(errorMessage); 
+      toast.error(err.message || t('callFailed')); 
       setCallStatus('idle');
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -455,14 +441,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       
-      // Update call status via API
-      if (currentCallId) {
-        await fetch(`/api/calls/${currentCallId}`, {
-          method: 'PATCH',
+      // Notify caller via Pusher
+      if (selectedConversation) {
+        await fetch('/api/calls/accept', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            status: 'connected',
-            receiverPeerId: peerId
+            callerId: selectedConversation.other_user_id,
+            answer: { type: 'peerjs', peerId: peerId }
           })
         });
       }
@@ -476,24 +462,17 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       }
     } catch (err: any) { 
       console.error('Accept call error:', err);
-      
-      // Better error handling for permission errors
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        toast.error('Microphone permission denied. Please allow microphone access in your browser settings.');
-      } else if (err.name === 'NotFoundError') {
-        toast.error('No microphone found. Please connect a microphone and try again.');
-      }
-      
+      toast.error(err.message || 'Failed to accept call');
       rejectCall(); 
     }
   };
 
   const rejectCall = async () => {
-    if (currentCallId) {
-      await fetch(`/api/calls/${currentCallId}`, {
-        method: 'PATCH',
+    if (selectedConversation) {
+      await fetch('/api/calls/end', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'rejected' })
+        body: JSON.stringify({ targetUserId: selectedConversation.other_user_id })
       });
     }
     cleanupCall();
@@ -501,11 +480,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const endCall = async () => {
-    if (currentCallId) {
-      await fetch(`/api/calls/${currentCallId}`, {
-        method: 'PATCH',
+    if (selectedConversation) {
+      await fetch('/api/calls/end', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'ended' })
+        body: JSON.stringify({ targetUserId: selectedConversation.other_user_id })
       });
     }
     cleanupCall();
@@ -669,7 +648,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                 const isDeleted = msg.is_deleted;
                 
                 return (
-                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                  <div key={msg.id} className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {!isOwn && (
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 mb-1">
+                        <Image 
+                          src={getAvatarUrl(msg.sender_avatar || selectedConversation?.avatar)} 
+                          alt="Avatar" 
+                          width={32} 
+                          height={32} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
                     <div 
                       onClick={() => isOwn && !isDeleted && setSelectedMessageId(selectedMessageId === msg.id ? null : msg.id)} 
                       className={`relative max-w-[70%] px-3 py-1.5 rounded-lg shadow-sm cursor-pointer ${
