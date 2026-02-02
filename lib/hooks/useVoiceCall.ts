@@ -242,8 +242,16 @@ export function useVoiceCall({ currentUserId, currentUserName, currentUserAvatar
         }
       }, 30000);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting call:', error);
+      
+      // Better error handling for permission errors
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        console.error('Microphone permission denied');
+      } else if (error.name === 'NotFoundError') {
+        console.error('No microphone found');
+      }
+      
       cleanup();
     }
   }, [currentUserName, currentUserAvatar, createPeerConnection, cleanup]);

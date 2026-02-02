@@ -406,7 +406,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       
     } catch (err: any) { 
       console.error('[Call] Start call error:', err);
-      toast.error(err.message || t('callFailed')); 
+      
+      // Better error handling for permission errors
+      let errorMessage = t('callFailed');
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = 'No microphone found. Please connect a microphone and try again.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      toast.error(errorMessage); 
       setCallStatus('idle');
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -438,8 +449,16 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         currentCallRef.current.answer(stream);
         setupCallEvents(currentCallRef.current);
       }
-    } catch (err) { 
+    } catch (err: any) { 
       console.error('Accept call error:', err);
+      
+      // Better error handling for permission errors
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        toast.error('Microphone permission denied. Please allow microphone access in your browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        toast.error('No microphone found. Please connect a microphone and try again.');
+      }
+      
       rejectCall(); 
     }
   };
