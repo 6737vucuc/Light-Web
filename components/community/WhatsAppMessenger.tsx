@@ -10,6 +10,7 @@ import CallOverlay from './CallOverlay';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabase/client';
+import Pusher from 'pusher-js';
 
 interface WhatsAppMessengerProps {
   currentUser: any;
