@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql as rawSql } from '@/lib/db';
+import { supabase } from '@/lib/supabase/client';
 import { verifyAuth } from '@/lib/auth/verify';
 
 export const runtime = 'nodejs';
@@ -16,23 +16,46 @@ export async function GET(
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 1. Auto-join using Direct SQL
-    await rawSql`
-      INSERT INTO group_members (group_id, user_id, role)
-      VALUES (${groupId}, ${user.userId}, 'member')
-      ON CONFLICT (group_id, user_id) DO NOTHING
-    `;
+    // 1. Securely handle membership/auto-join using Supabase SDK
+    const { data: existingMember } = await supabase
+      .from('group_members')
+      .select('id')
+      .eq('group_id', groupId)
+      .eq('user_id', user.userId)
+      .single();
 
-    // 2. Fetch messages using Direct SQL with JOIN for user details
-    const messages = await rawSql`
-      SELECT 
-        gm.id, gm.content, gm.media_url, gm.message_type, gm.created_at, gm.user_id,
-        u.name as sender_name, u.avatar as sender_avatar, u.username as sender_username
-      FROM group_messages gm
-      LEFT JOIN users u ON gm.user_id = u.id
-      WHERE gm.group_id = ${groupId}
-      ORDER BY gm.created_at ASC
-    `;
+    if (!existingMember) {
+      await supabase
+        .from('group_members')
+        .insert({
+          group_id: groupId,
+          user_id: user.userId,
+          role: 'member'
+        });
+      
+      // Update members count safely
+      const { count } = await supabase
+        .from('group_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId);
+        
+      await supabase
+        .from('community_groups')
+        .update({ members_count: count })
+        .eq('id', groupId);
+    }
+
+    // 2. Fetch messages securely using Supabase SDK with relational join
+    const { data: messages, error } = await supabase
+      .from('group_messages')
+      .select(`
+        id, content, media_url, message_type, created_at, user_id,
+        user:users(id, name, avatar, username)
+      `)
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
 
     const formattedMessages = messages.map((msg: any) => ({
       id: msg.id,
@@ -41,18 +64,13 @@ export async function GET(
       type: msg.message_type || 'text',
       timestamp: msg.created_at,
       userId: msg.user_id,
-      user: {
-        id: msg.user_id,
-        name: msg.sender_name || 'User',
-        avatar: msg.sender_avatar,
-        username: msg.sender_username
-      }
+      user: msg.user
     }));
 
     return NextResponse.json({ messages: formattedMessages });
   } catch (error: any) {
-    console.error('GET Messages SQL Error:', error);
-    return NextResponse.json({ error: 'Failed to load messages' }, { status: 500 });
+    console.error('GET Messages SDK Error:', error);
+    return NextResponse.json({ error: 'Failed to load messages securely' }, { status: 500 });
   }
 }
 
@@ -70,22 +88,37 @@ export async function POST(
     const body = await request.json();
     const { content, messageType = 'text', mediaUrl = null } = body;
 
-    // 1. Insert message using Direct SQL
-    const result = await rawSql`
-      INSERT INTO group_messages (group_id, user_id, content, message_type, media_url)
-      VALUES (${groupId}, ${user.userId}, ${content}, ${messageType}, ${mediaUrl})
-      RETURNING *
-    `;
-    
-    const newMessage = result[0];
+    // 1. Insert message securely using Supabase SDK
+    const { data: newMessage, error } = await supabase
+      .from('group_messages')
+      .insert({
+        group_id: groupId,
+        user_id: user.userId,
+        content,
+        message_type: messageType,
+        media_url: mediaUrl
+      })
+      .select()
+      .single();
 
-    // 2. Broadcast via Pusher
+    if (error) throw error;
+
+    // 2. Update group stats safely
+    const { count } = await supabase
+      .from('group_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', groupId);
+
+    await supabase
+      .from('community_groups')
+      .update({ messages_count: count })
+      .eq('id', groupId);
+
+    // 3. Broadcast via Pusher for real-time
     try {
       const { pusherServer } = require('@/lib/realtime/chat');
       await pusherServer.trigger(`group-${groupId}`, 'new-message', {
-        id: newMessage.id,
-        content: newMessage.content,
-        media_url: newMessage.media_url,
+        ...newMessage,
         type: newMessage.message_type,
         timestamp: newMessage.created_at,
         userId: user.userId,
@@ -102,7 +135,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, message: newMessage });
   } catch (error: any) {
-    console.error('POST Message SQL Error:', error);
-    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
+    console.error('POST Message SDK Error:', error);
+    return NextResponse.json({ error: 'Failed to send message securely' }, { status: 500 });
   }
 }

@@ -56,14 +56,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
-      // 1. Load Messages via API (which uses Direct SQL)
+      // 1. Load Messages via Secure API
       const res = await fetch(`/api/groups/${group.id}/messages`);
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
       }
 
-      // 2. Load Stats
+      // 2. Load Stats via Secure API
       const statsRes = await fetch(`/api/groups/${group.id}/stats`);
       if (statsRes.ok) {
         const stats = await statsRes.json();
@@ -109,7 +109,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     });
 
     channel.bind('presence-update', () => {
-      // Refresh stats when presence changes
+      // Refresh stats securely
       fetch(`/api/groups/${group.id}/stats`)
         .then(res => res.json())
         .then(stats => {
