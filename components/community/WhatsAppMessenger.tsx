@@ -41,6 +41,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [replyingTo, setReplyingTo] = useState<any>(null);
   
   // Call States
@@ -212,11 +213,60 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       })
       .subscribe();
 
+    // Subscribe to typing status
+    const typingChannel = supabase.channel(`typing-${selectedConversation?.other_user_id || 'none'}`);
+    
+    if (selectedConversation) {
+      typingChannel
+        .on('broadcast', { event: 'typing' }, (payload) => {
+          if (payload.payload.userId === selectedConversation.other_user_id) {
+            setOtherUserTyping(payload.payload.isTyping);
+          }
+        })
+        .subscribe();
+    }
+
     return () => {
       supabase.removeChannel(messageSub);
       supabase.removeChannel(callSub);
+      supabase.removeChannel(typingChannel);
     };
   }, [currentUser?.id, selectedConversation, currentCallId]);
+
+  // Handle typing broadcast
+  useEffect(() => {
+    if (!selectedConversation || !currentUser) return;
+    
+    const channel = supabase.channel(`typing-${currentUser.id}`);
+    
+    const sendTypingStatus = (typing: boolean) => {
+      channel.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: currentUser.id, isTyping: typing },
+      });
+    };
+
+    if (isTyping) {
+      sendTypingStatus(true);
+    } else {
+      sendTypingStatus(false);
+    }
+  }, [isTyping, selectedConversation, currentUser]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    
+    if (!isTyping) {
+      setIsTyping(true);
+    }
+    
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 3000);
+  };
 
   const cleanupCall = () => {
     // Correctly close the call object if it exists
@@ -622,7 +672,9 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               </div>
               <div className={`flex-1 min-w-0 ${isRtl ? 'text-right' : 'text-left'}`}>
                 <h3 className="font-semibold text-gray-900 truncate">{selectedConversation.name}</h3>
-                <p className="text-xs text-green-600 font-medium">{t('online')}</p>
+                <p className="text-xs text-green-600 font-medium">
+                  {otherUserTyping ? (locale === 'ar' ? 'يكتب الآن...' : 'typing...') : t('online')}
+                </p>
               </div>
               <div className="flex items-center gap-2 text-gray-600">
                 <button 
@@ -707,14 +759,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             
             {/* Input Area */}
             <div className="bg-[#f0f2f5] p-2 flex items-center gap-2 z-30">
-              <input 
-                type="text" 
-                placeholder={t('typeMessage')} 
-                value={newMessage} 
-                onChange={(e) => setNewMessage(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()} 
-                className="flex-1 px-4 py-2.5 bg-white rounded-lg focus:outline-none text-gray-900" 
-              />
+	              <input 
+	                type="text" 
+	                placeholder={t('typeMessage')} 
+	                value={newMessage} 
+	                onChange={handleInputChange} 
+	                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()} 
+	                className="flex-1 px-4 py-2.5 bg-white rounded-lg focus:outline-none text-gray-900" 
+	              />
               <button 
                 onClick={sendMessage} 
                 disabled={isSending || !newMessage.trim()} 

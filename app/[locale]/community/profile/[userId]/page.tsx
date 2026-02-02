@@ -181,10 +181,9 @@ export default function CommunityProfilePage() {
                   </div>
                 )}
               </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
-                <p className="text-gray-600">@{user.username}</p>
-              </div>
+	              <div className="flex-1">
+	                <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
+	              </div>
             </div>
           </div>
         </main>
@@ -221,10 +220,9 @@ export default function CommunityProfilePage() {
                 </div>
               )}
             </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
-              <p className="text-gray-600">@{user.username}</p>
-            </div>
+	            <div className="flex-1">
+	              <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
+	            </div>
           </div>
 
           {/* User Details - Read Only */}

@@ -23,8 +23,10 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   const [isSending, setIsSending] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  const [onlineMembers, setOnlineMembers] = useState<number>(0);
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<{[key: number]: string}>({});
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [onlineMembers, setOnlineMembers] = useState<number>(0);;
   const [totalMembers, setTotalMembers] = useState<number>(0);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportingMessage, setReportingMessage] = useState<any>(null);
@@ -58,6 +60,29 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
       channel.bind('delete-message', (data: any) => {
         setMessages((prev) => prev.filter(m => m.id !== data.messageId));
       });
+      
+      // Real-time typing status using Supabase Broadcast
+      const typingChannel = supabase.channel(`group-typing-${group.id}`);
+      
+      typingChannel
+        .on('broadcast', { event: 'typing' }, (payload) => {
+          const { userId, userName, isTyping } = payload.payload;
+          if (userId !== currentUser.id) {
+            setTypingUsers(prev => {
+              const newState = { ...prev };
+              if (isTyping) {
+                newState[userId] = userName;
+              } else {
+                delete newState[userId];
+              }
+              return newState;
+            });
+          }
+        })
+        .subscribe();
+
+      // Store channel for cleanup
+      (window as any).groupTypingChannel = typingChannel;
 
       // Listen for member presence updates
       channel.bind('pusher:subscription_succeeded', (members: any) => {
@@ -74,13 +99,52 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
     }
 
     return () => {
-      if (pusherRef.current) {
-        pusherRef.current.unsubscribe(`group-${group.id}`);
-        pusherRef.current.disconnect();
-      }
-      clearInterval(statsInterval);
-    };
-  }, [group.id]);
+    if (pusherRef.current) {
+      pusherRef.current.unsubscribe(`group-${group.id}`);
+      pusherRef.current.disconnect();
+    }
+    if ((window as any).groupTypingChannel) {
+      supabase.removeChannel((window as any).groupTypingChannel);
+    }
+    clearInterval(statsInterval);
+  };
+}, [group.id, currentUser.id]);
+
+// Handle typing broadcast
+useEffect(() => {
+  if (!group || !currentUser) return;
+  
+  const channel = (window as any).groupTypingChannel;
+  if (!channel) return;
+  
+  const sendTypingStatus = (typing: boolean) => {
+    channel.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: currentUser.id, userName: currentUser.name, isTyping: typing },
+    });
+  };
+
+  if (isTyping) {
+    sendTypingStatus(true);
+  } else {
+    sendTypingStatus(false);
+  }
+}, [isTyping, group, currentUser]);
+
+const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  setNewMessage(e.target.value);
+  
+  if (!isTyping) {
+    setIsTyping(true);
+  }
+  
+  if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  
+  typingTimeoutRef.current = setTimeout(() => {
+    setIsTyping(false);
+  }, 3000);
+};
 
   useEffect(() => {
     scrollToBottom();
@@ -281,7 +345,11 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
             <span className="text-white/60">•</span>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <p className="text-sm text-white/80">{onlineMembers} متصل الآن</p>
+              <p className="text-sm text-white/80">
+                {Object.values(typingUsers).length > 0 
+                  ? `${Object.values(typingUsers).join(', ')} يكتب الآن...`
+                  : `${onlineMembers} متصل الآن`}
+              </p>
             </div>
           </div>
         </div>
@@ -436,7 +504,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
           <input
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             placeholder="Type a message..."
             className="flex-1 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
