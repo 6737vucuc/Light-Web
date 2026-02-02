@@ -370,7 +370,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         )}
         <button onClick={() => fileInputRef.current?.click()} className="p-2.5 text-gray-500 hover:bg-gray-200 hover:text-purple-600 rounded-full transition-all"><ImageIcon className="w-6 h-6" /></button>
         <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
-        <input type="text" placeholder="Type a message..." value={newMessage} onChange={(e) => {setNewMessage(e.target.value); handleTyping();}} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} className="flex-1 px-5 py-3 bg-white rounded-2xl focus:outline-none text-sm shadow-sm focus:ring-2 focus:ring-purple-200 transition-all" />
+        <input type="text" placeholder="Type a message..." value={newMessage} onChange={(e) => {setNewMessage(e.target.value); handleTyping();}} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} className="flex-1 px-5 py-3 bg-white rounded-2xl focus:outline-none text-sm text-gray-900 placeholder:text-gray-400 shadow-sm focus:ring-2 focus:ring-purple-200 transition-all" />
         <button onClick={sendMessage} disabled={isSending || (!newMessage.trim() && !selectedImage)} className="p-3 bg-gradient-to-br from-purple-600 to-pink-500 text-white rounded-2xl shadow-lg hover:shadow-purple-200 transition-all disabled:opacity-50 disabled:scale-95 active:scale-90">{isSending ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Send className="w-5 h-5" />}</button>
       </div>
     </div>

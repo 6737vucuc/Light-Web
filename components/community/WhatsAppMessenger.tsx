@@ -765,7 +765,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 	                value={newMessage} 
 	                onChange={handleInputChange} 
 	                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()} 
-	                className="flex-1 px-4 py-2.5 bg-white rounded-lg focus:outline-none text-gray-900" 
+		                className="flex-1 px-4 py-2.5 bg-white rounded-lg focus:outline-none text-gray-900 placeholder:text-gray-400"
 	              />
               <button 
                 onClick={sendMessage} 
