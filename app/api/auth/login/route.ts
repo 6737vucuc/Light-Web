@@ -300,7 +300,8 @@ export async function POST(request: NextRequest) {
       { 
         error: isDbError ? 'Database connection error' : 'An error occurred during login',
         message: errorMessage,
-        code: isDbError ? 'DB_ERROR' : 'AUTH_ERROR'
+        code: isDbError ? 'DB_ERROR' : 'AUTH_ERROR',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
       },
       { 
         status: 500,

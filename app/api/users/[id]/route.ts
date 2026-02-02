@@ -23,10 +23,8 @@ export async function GET(
       columns: {
         id: true,
         name: true,
-        username: true,
         avatar: true,
         lastSeen: true,
-        hideOnlineStatus: true,
       }
     });
 
