@@ -11,11 +11,13 @@ import {
   X,
   CheckCheck,
   MessageSquare,
-  Phone
+  Phone,
+  Flag
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
+import UserAvatarMenu from './UserAvatarMenu';
 
 interface EnhancedGroupChatProps {
   group: any;
@@ -33,6 +35,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const [totalMembers, setTotalMembers] = useState(0);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const [showUserProfile, setShowUserProfile] = useState<any>(null);
+  const [avatarMenu, setAvatarMenu] = useState<{ isOpen: boolean; userId: number; userName: string; position: { x: number; y: number } }>({
+    isOpen: false,
+    userId: 0,
+    userName: '',
+    position: { x: 0, y: 0 }
+  });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pusherRef = useRef<Pusher | null>(null);
@@ -161,6 +169,32 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     }
   };
 
+  const deleteMessage = async (messageId: number) => {
+    if (!confirm('هل أنت متأكد من حذف هذه الرسالة؟')) return;
+    
+    try {
+      const res = await fetch(`/api/groups/${group.id}/messages/${messageId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setMessages((prev) => prev.filter(m => m.id !== messageId));
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+    }
+  };
+
+  const handleAvatarClick = (e: React.MouseEvent, userId: number, userName: string) => {
+    e.preventDefault();
+    setAvatarMenu({
+      isOpen: true,
+      userId,
+      userName,
+      position: { x: e.clientX, y: e.clientY }
+    });
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -173,6 +207,15 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] bg-[#efeae2] rounded-2xl shadow-xl overflow-hidden border border-gray-200 relative">
+      {/* Avatar Menu */}
+      <UserAvatarMenu 
+        isOpen={avatarMenu.isOpen}
+        userId={avatarMenu.userId}
+        userName={avatarMenu.userName}
+        position={avatarMenu.position}
+        onClose={() => setAvatarMenu(prev => ({ ...prev, isOpen: false }))}
+      />
+
       {/* User Profile Overlay */}
       {showUserProfile && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
@@ -239,11 +282,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
             const userAvatar = msg.user?.avatar || msg.userAvatar || null;
             
             return (
-              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2`}>
+              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2 group/msg`}>
                 {!isOwn && (
                   <button 
-                    onClick={() => setShowUserProfile(msg.user || { name: userName, avatar: userAvatar })} 
-                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mb-1 bg-purple-100"
+                    onClick={(e) => handleAvatarClick(e, msg.userId || msg.user_id, userName)} 
+                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 mb-1 bg-purple-100 hover:ring-2 ring-purple-400 transition-all"
                   >
                     <Image 
                       src={getAvatarUrl(userAvatar)} 
@@ -261,12 +304,33 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                       {userName}
                     </span>
                   )}
+                  
+                  {msg.media_url && msg.type === 'image' && (
+                    <div className="mb-2 rounded-lg overflow-hidden">
+                      <Image src={msg.media_url} alt="Shared image" width={300} height={200} className="object-cover" unoptimized />
+                    </div>
+                  )}
+                  
                   <p className="text-[14px] text-gray-900 leading-snug">{msg.content}</p>
+                  
                   <div className="flex items-center justify-end gap-1 mt-1">
                     <span className="text-[9px] text-gray-500">
                       {new Date(msg.timestamp || msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {isOwn && <CheckCheck className="w-3 h-3 text-blue-500" />}
+                  </div>
+
+                  {/* Message Actions */}
+                  <div className={`absolute top-0 ${isOwn ? '-left-10' : '-right-10'} opacity-0 group-hover/msg:opacity-100 transition-opacity flex flex-col gap-1`}>
+                    {isOwn ? (
+                      <button onClick={() => deleteMessage(msg.id)} className="p-1.5 bg-white rounded-full shadow-md text-red-500 hover:bg-red-50">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <button className="p-1.5 bg-white rounded-full shadow-md text-gray-500 hover:bg-gray-50">
+                        <Flag className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
