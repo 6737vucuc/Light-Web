@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
+    // Fetch all lessons ordered by creation date
     const allLessons = await db.select().from(lessons).orderBy(desc(lessons.createdAt));
 
     return NextResponse.json({ lessons: allLessons });
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, content, imageUrl, videoUrl, religion } = body;
 
+    // Basic validation
     if (!title || !content || !religion) {
       return NextResponse.json(
         { error: 'Title, content, and religion are required' },
@@ -45,7 +47,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Using Drizzle to insert - this handles column mapping correctly (image_url vs imageurl)
+    // Using Drizzle to insert - this correctly maps camelCase to snake_case as defined in schema.ts
+    // imageUrl maps to image_url, videoUrl maps to video_url
     const [newLesson] = await db.insert(lessons).values({
       title,
       content,
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
     }).returning();
 
     if (!newLesson) {
-      throw new Error('Failed to insert lesson into database');
+      throw new Error('Database failed to return the created lesson');
     }
 
     return NextResponse.json({
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Create lesson error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create lesson' },
+      { error: 'Failed to create lesson: ' + (error.message || 'Unknown error') },
       { status: 500 }
     );
   }
