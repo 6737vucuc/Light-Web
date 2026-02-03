@@ -154,7 +154,7 @@ function LessonsManager() {
         body: JSON.stringify({
           ...formData,
           // Ensure ID is handled correctly for PUT
-          id: formData.id ? parseInt(formData.id.toString()) : null
+          id: formData.id ? parseInt((formData.id as any).toString()) : null
         }),
       });
 
