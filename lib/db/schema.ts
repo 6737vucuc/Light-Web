@@ -372,9 +372,11 @@ export const lessonProgress = pgTable('lesson_progress', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   lessonId: integer('lesson_id').references(() => lessons.id).notNull(),
-  status: varchar('status', { length: 20 }).default('in-progress'), // 'in-progress', 'completed'
-  completedAt: timestamp('completed_at'),
+  completed: boolean('completed').default(false),
+  progress: integer('progress').default(0),
   lastAccessedAt: timestamp('last_accessed_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // Lesson Ratings table
