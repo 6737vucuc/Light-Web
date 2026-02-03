@@ -182,25 +182,53 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     const channel = pusher.subscribe(`user-${currentUser.id}`);
 
     channel.bind('private-message', (data: any) => {
-      const newMsg = data.message;
-      
-      // If the message is for the currently selected conversation
-      if (selectedConversation && (newMsg.sender_id === selectedConversation.other_user_id || newMsg.receiver_id === selectedConversation.other_user_id)) {
-        setMessages(prev => {
-          if (prev.find(m => m.id === newMsg.id)) return prev;
-          return [...prev, newMsg];
-        });
-        setTimeout(scrollToBottom, 100);
-      }
-      
-      // Always reload conversations to update the last message and unread count
-      loadConversations();
-    });
+	      const newMsg = data.message;
+	      console.log('[Pusher] New private message:', newMsg);
+	      
+	      // If the message is for the currently selected conversation
+	      if (selectedConversation && (newMsg.sender_id === selectedConversation.other_user_id || newMsg.receiver_id === selectedConversation.other_user_id)) {
+	        setMessages(prev => {
+	          if (prev.find(m => m.id === newMsg.id)) return prev;
+	          return [...prev, newMsg];
+	        });
+	        setTimeout(scrollToBottom, 100);
+	      }
+	      
+	      // Always reload conversations to update the last message and unread count
+	      loadConversations();
+	    });
+
+	    // Call Events via Pusher
+	    const callChannel = pusher.subscribe(`private-calls-${currentUser.id}`);
+	    
+	    callChannel.bind('incoming-call', async (data: any) => {
+	      console.log('[Call] Incoming call from Pusher:', data);
+	      setCallOtherUser({ name: data.callerName, avatar: data.callerAvatar });
+	      setCallStatus('incoming');
+	      
+	      // Handle PeerJS call if it arrives
+	      (window as any).incomingCallData = data;
+	    });
+
+	    callChannel.bind('call-accepted', async (data: any) => {
+	      console.log('[Call] Call accepted by receiver:', data);
+	      if (callStatus === 'calling') {
+	        setCallStatus('connected');
+	      }
+	    });
+
+	    callChannel.bind('call-ended', () => {
+	      console.log('[Call] Call ended by other party');
+	      cleanupCall();
+	      setCallStatus('ended');
+	      setTimeout(() => setCallStatus('idle'), 2000);
+	    });
 
     return () => {
-      pusher.unsubscribe(`user-${currentUser.id}`);
-    };
-  }, [currentUser?.id, selectedConversation, initialUserId]);
+	      pusher.unsubscribe(`user-${currentUser.id}`);
+	      pusher.unsubscribe(`private-calls-${currentUser.id}`);
+	    };
+	  }, [currentUser?.id, selectedConversation, initialUserId, callStatus]);
 
   // Handle typing broadcast
   useEffect(() => {
@@ -497,6 +525,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
     call.on('stream', (remoteStream: MediaStream) => {
       console.log('Received remote stream');
+      setCallStatus('connected'); // Ensure status is connected to start timer
       if (!remoteAudioRef.current) { 
         remoteAudioRef.current = document.createElement('audio'); 
         remoteAudioRef.current.autoplay = true; 
@@ -651,13 +680,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                   <div key={msg.id} className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                     {!isOwn && (
                       <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 mb-1">
-                        <Image 
-                          src={getAvatarUrl(msg.sender_avatar || selectedConversation?.avatar)} 
-                          alt="Avatar" 
-                          width={32} 
-                          height={32} 
-                          className="w-full h-full object-cover"
-                        />
+	                        <Image 
+	                          src={getAvatarUrl(msg.sender_avatar || selectedConversation?.avatar)} 
+	                          alt="Avatar" 
+	                          width={32} 
+	                          height={32} 
+	                          className="w-full h-full object-cover"
+	                          unoptimized
+	                        />
                       </div>
                     )}
                     <div 
