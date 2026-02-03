@@ -35,7 +35,7 @@ export async function PATCH(
       .set({ 
         status, 
         adminNotes: adminNotes || null
-      })
+      } as any)
       .where(eq(reports.id, reportId));
 
     return NextResponse.json({
