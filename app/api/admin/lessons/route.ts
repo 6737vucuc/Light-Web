@@ -38,7 +38,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, content, imageUrl, videoUrl, religion } = body;
 
-    // Strict validation for required fields
     if (!title || !content || !religion) {
       return NextResponse.json(
         { error: 'Title, content, and religion are required' },
@@ -46,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert with explicit handling for optional fields
+    // Insert into database with corrected column names via schema mapping
     const [newLesson] = await db.insert(lessons).values({
       title: title.trim(),
       content: content.trim(),
@@ -69,7 +68,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Create lesson error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create lesson' },
+      { error: 'Failed to create lesson: ' + (error.message || 'Unknown error') },
       { status: 500 }
     );
   }

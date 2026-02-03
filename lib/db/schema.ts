@@ -348,12 +348,12 @@ export const lessons = pgTable('lessons', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(),
   content: text('content').notNull(),
-  imageUrl: text('image_url'),
-  videoUrl: text('video_url'),
+  imageUrl: text('imageurl'),
+  videoUrl: text('videourl'),
   religion: varchar('religion', { length: 50 }).notNull(), // islam, christianity, etc.
-  createdBy: integer('created_by').references(() => users.id),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  createdBy: integer('createdby').references(() => users.id),
+  createdAt: timestamp('createdat').defaultNow(),
+  updatedAt: timestamp('updatedat').defaultNow(),
 });
 
 // ========================================
