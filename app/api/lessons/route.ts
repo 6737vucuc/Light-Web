@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { lessons, users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq, or, desc } from 'drizzle-orm';
+import { eq, or, and, desc } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,17 +16,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's religion from database directly to ensure we have the latest info
+    // 1. Get user's religion from database
     const userDetails = await db.query.users.findFirst({
       where: eq(users.id, user.userId),
     });
 
-    // If user has no religion set, we can still show "all" religions lessons
-    // or return a message. Based on user request, let's be more inclusive.
-    const userReligion = userDetails?.religion || 'none';
+    if (!userDetails || !userDetails.religion) {
+      // If user hasn't set a religion, we only show "all" religions lessons
+      const publicLessons = await db.select().from(lessons)
+        .where(eq(lessons.religion, 'all'))
+        .orderBy(desc(lessons.createdAt));
+        
+      return NextResponse.json({ 
+        lessons: publicLessons,
+        userReligion: 'none'
+      });
+    }
 
-    // Fetch lessons that match user's religion OR are for "all" religions
-    const userLessons = await db.select().from(lessons).where(
+    const userReligion = userDetails.religion;
+
+    // 2. Fetch lessons:
+    // - That match the user's specific religion (islam, christianity, or judaism)
+    // - OR that are set for "all" religions
+    const filteredLessons = await db.select().from(lessons).where(
       or(
         eq(lessons.religion, userReligion),
         eq(lessons.religion, 'all')
@@ -34,13 +46,13 @@ export async function GET(request: NextRequest) {
     ).orderBy(desc(lessons.createdAt));
 
     return NextResponse.json({ 
-      lessons: userLessons,
+      lessons: filteredLessons,
       userReligion: userReligion
     });
   } catch (error: any) {
     console.error('Get lessons error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch lessons: ' + (error.message || 'Unknown error') },
+      { error: 'Failed to fetch lessons' },
       { status: 500 }
     );
   }
