@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       // If user hasn't set a religion, we only show "all" religions lessons
       const publicLessons = await db.select().from(lessons)
         .where(eq(lessons.religion, 'all'))
-        .orderBy(desc(lessons.createdAt));
+        .orderBy(desc(lessons.createdat));
         
       return NextResponse.json({ 
         lessons: publicLessons,
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         eq(lessons.religion, userReligion),
         eq(lessons.religion, 'all')
       )
-    ).orderBy(desc(lessons.createdAt));
+    ).orderBy(desc(lessons.createdat));
 
     return NextResponse.json({ 
       lessons: filteredLessons,

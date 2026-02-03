@@ -1,0 +1,25 @@
+                                           Table "public.reports"
+      Column      |            Type             | Collation | Nullable |               Default               
+------------------+-----------------------------+-----------+----------+-------------------------------------
+ id               | integer                     |           | not null | nextval('reports_id_seq'::regclass)
+ reporter_id      | integer                     |           | not null | 
+ reported_user_id | integer                     |           | not null | 
+ message_id       | integer                     |           |          | 
+ group_id         | integer                     |           |          | 
+ reason           | text                        |           | not null | 
+ status           | character varying(20)       |           |          | 'pending'::character varying
+ admin_notes      | text                        |           |          | 
+ reviewed_by      | integer                     |           |          | 
+ reviewed_at      | timestamp without time zone |           |          | 
+ created_at       | timestamp without time zone |           |          | now()
+Indexes:
+    "reports_pkey" PRIMARY KEY, btree (id)
+    "idx_reports_created_at" btree (created_at)
+    "idx_reports_status" btree (status)
+Foreign-key constraints:
+    "reports_group_id_fkey" FOREIGN KEY (group_id) REFERENCES community_groups(id)
+    "reports_message_id_fkey" FOREIGN KEY (message_id) REFERENCES group_messages(id)
+    "reports_reported_user_id_fkey" FOREIGN KEY (reported_user_id) REFERENCES users(id)
+    "reports_reporter_id_fkey" FOREIGN KEY (reporter_id) REFERENCES users(id)
+    "reports_reviewed_by_fkey" FOREIGN KEY (reviewed_by) REFERENCES users(id)
+

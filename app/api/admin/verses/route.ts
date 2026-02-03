@@ -50,9 +50,10 @@ export async function POST(request: NextRequest) {
     }
 
     const [verseRecord] = await db.insert(dailyVerses).values({
-      content: verse,
-      reference: reference,
+      verseText: verse,
+      verseReference: reference,
       religion: 'all',
+      displayDate: (scheduledDate ? new Date(scheduledDate) : new Date()).toISOString().split('T')[0],
     }).returning();
 
     return NextResponse.json({
@@ -90,8 +91,9 @@ export async function PUT(request: NextRequest) {
     const [verseRecord] = await db
       .update(dailyVerses)
       .set({
-        content: verse,
-        reference: reference,
+        verseText: verse,
+        verseReference: reference,
+        displayDate: (scheduledDate ? new Date(scheduledDate) : new Date()).toISOString().split('T')[0],
       })
       .where(eq(dailyVerses.id, id))
       .returning();

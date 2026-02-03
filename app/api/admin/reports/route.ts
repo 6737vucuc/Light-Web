@@ -20,8 +20,9 @@ export async function GET(request: NextRequest) {
       .select({
         id: reports.id,
         reporterId: reports.reporterId,
-        targetId: reports.targetId,
-        targetType: reports.targetType,
+        reportedUserId: reports.reportedUserId,
+        messageId: reports.messageId,
+        groupId: reports.groupId,
         reason: reports.reason,
         status: reports.status,
         createdAt: reports.createdAt,
@@ -36,9 +37,9 @@ export async function GET(request: NextRequest) {
     // Get reported user info and message content for each report
     const reportsWithDetails = await Promise.all(
       allReports.map(async (report) => {
-        // Get reported user info (if target is user)
+        // Get reported user info
         let reportedUser = null;
-        if (report.targetType === 'user') {
+        if (report.reportedUserId) {
           const [user] = await db
             .select({
               name: users.name,
@@ -46,19 +47,19 @@ export async function GET(request: NextRequest) {
               avatar: users.avatar,
             })
             .from(users)
-            .where(eq(users.id, report.targetId));
+            .where(eq(users.id, report.reportedUserId));
           reportedUser = user;
         }
 
         // Get message content if target is message
         let messageContent = null;
-        if (report.targetType === 'message') {
+        if (report.messageId) {
           const [message] = await db
             .select({
               content: groupMessages.content,
             })
             .from(groupMessages)
-            .where(eq(groupMessages.id, report.targetId));
+            .where(eq(groupMessages.id, report.messageId));
           messageContent = message?.content;
         }
 

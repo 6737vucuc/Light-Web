@@ -47,8 +47,12 @@ export const supportTickets = pgTable('support_tickets', {
   userId: integer('user_id').references(() => users.id).notNull(),
   subject: varchar('subject', { length: 255 }).notNull(),
   message: text('message').notNull(),
+  category: varchar('category', { length: 50 }).notNull(),
   status: varchar('status', { length: 20 }).default('open'), // 'open', 'in-progress', 'resolved', 'closed'
-  priority: varchar('priority', { length: 20 }).default('medium'), // 'low', 'medium', 'high'
+  priority: varchar('priority', { length: 20 }).default('normal'), // 'low', 'normal', 'high'
+  assignedTo: integer('assigned_to'),
+  adminResponse: text('admin_response'),
+  respondedAt: timestamp('responded_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -75,11 +79,14 @@ export const passwordResets = pgTable('password_resets', {
 // Daily Verses table (using name from API imports)
 export const dailyVerses = pgTable('daily_verses', {
   id: serial('id').primaryKey(),
-  content: text('content').notNull(),
-  reference: varchar('reference', { length: 255 }),
-  religion: varchar('religion', { length: 50 }).default('all'),
+  verseText: text('verse_text').notNull(),
+  verseReference: varchar('verse_reference', { length: 255 }).notNull(),
+  language: varchar('language', { length: 10 }).default('ar'),
+  religion: varchar('religion', { length: 50 }).notNull(),
+  displayDate: date('display_date').notNull(),
+  isActive: boolean('is_active').default(true),
+  createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ========================================
@@ -343,10 +350,14 @@ export const supportRepliesRelations = relations(supportReplies, ({ one }) => ({
 export const reports = pgTable('reports', {
   id: serial('id').primaryKey(),
   reporterId: integer('reporter_id').references(() => users.id).notNull(),
-  targetId: integer('target_id').notNull(),
-  targetType: varchar('target_type', { length: 20 }).notNull(), // 'message' or 'user'
+  reportedUserId: integer('reported_user_id').references(() => users.id).notNull(),
+  messageId: integer('message_id').references(() => groupMessages.id),
+  groupId: integer('group_id').references(() => communityGroups.id),
   reason: text('reason').notNull(),
   status: varchar('status', { length: 20 }).default('pending'), // 'pending', 'resolved', 'dismissed'
+  adminNotes: text('admin_notes'),
+  reviewedBy: integer('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -387,6 +398,7 @@ export const lessonRatings = pgTable('lesson_ratings', {
   rating: integer('rating').notNull(), // 1 to 5
   comment: text('comment'),
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ========================================
