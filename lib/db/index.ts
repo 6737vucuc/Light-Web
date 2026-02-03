@@ -18,9 +18,9 @@ const globalForPg = global as unknown as { pool: Pool };
 
 const pool = globalForPg.pool || new Pool({ 
   connectionString: databaseUrl || 'postgresql://dummy:dummy@localhost:5432/dummy',
-  connectionTimeoutMillis: 10000, // Increased to 10s
-  idleTimeoutMillis: 30000, // Increased to 30s
-  max: 10, // Increased to 10 for better concurrency
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 10000,
+  max: 3, // Reduced to 3 to stay within Supabase Session mode limits
   ssl: databaseUrl ? { rejectUnauthorized: false } : false,
 });
 
