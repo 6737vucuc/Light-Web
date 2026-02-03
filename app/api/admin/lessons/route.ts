@@ -15,14 +15,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
-    // Fetch all lessons ordered by creation date
     const allLessons = await db.select().from(lessons).orderBy(desc(lessons.createdAt));
 
     return NextResponse.json({ lessons: allLessons });
   } catch (error: any) {
     console.error('Get lessons error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch lessons: ' + (error.message || 'Unknown error') },
+      { error: 'Failed to fetch lessons' },
       { status: 500 }
     );
   }
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, content, imageUrl, videoUrl, religion } = body;
 
-    // Basic validation
+    // Strict validation for required fields
     if (!title || !content || !religion) {
       return NextResponse.json(
         { error: 'Title, content, and religion are required' },
@@ -47,21 +46,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Using Drizzle to insert - this correctly maps camelCase to snake_case as defined in schema.ts
-    // imageUrl maps to image_url, videoUrl maps to video_url
+    // Insert with explicit handling for optional fields
     const [newLesson] = await db.insert(lessons).values({
-      title,
-      content,
-      imageUrl: imageUrl || null,
-      videoUrl: videoUrl || null,
-      religion,
+      title: title.trim(),
+      content: content.trim(),
+      imageUrl: imageUrl && imageUrl.trim() !== '' ? imageUrl : null,
+      videoUrl: videoUrl && videoUrl.trim() !== '' ? videoUrl : null,
+      religion: religion,
       createdBy: authResult.user.id,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).returning();
 
     if (!newLesson) {
-      throw new Error('Database failed to return the created lesson');
+      return NextResponse.json({ error: 'Failed to save lesson to database' }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -71,7 +69,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Create lesson error:', error);
     return NextResponse.json(
-      { error: 'Failed to create lesson: ' + (error.message || 'Unknown error') },
+      { error: error.message || 'Failed to create lesson' },
       { status: 500 }
     );
   }
@@ -90,25 +88,25 @@ export async function PUT(request: NextRequest) {
 
     if (!id || !title || !content || !religion) {
       return NextResponse.json(
-        { error: 'ID, title, content, and religion are required' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
     const [updatedLesson] = await db.update(lessons)
       .set({
-        title,
-        content,
-        imageUrl: imageUrl || null,
-        videoUrl: videoUrl || null,
-        religion,
+        title: title.trim(),
+        content: content.trim(),
+        imageUrl: imageUrl && imageUrl.trim() !== '' ? imageUrl : null,
+        videoUrl: videoUrl && videoUrl.trim() !== '' ? videoUrl : null,
+        religion: religion,
         updatedAt: new Date(),
       })
       .where(eq(lessons.id, id))
       .returning();
 
     if (!updatedLesson) {
-      return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Lesson not found or update failed' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -118,7 +116,7 @@ export async function PUT(request: NextRequest) {
   } catch (error: any) {
     console.error('Update lesson error:', error);
     return NextResponse.json(
-      { error: 'Failed to update lesson: ' + (error.message || 'Unknown error') },
+      { error: 'Failed to update lesson' },
       { status: 500 }
     );
   }
@@ -136,17 +134,10 @@ export async function DELETE(request: NextRequest) {
     const idStr = searchParams.get('id');
 
     if (!idStr) {
-      return NextResponse.json(
-        { error: 'Lesson ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
     const id = parseInt(idStr);
-    if (isNaN(id)) {
-      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
-    }
-
     await db.delete(lessons).where(eq(lessons.id, id));
 
     return NextResponse.json({
@@ -155,7 +146,7 @@ export async function DELETE(request: NextRequest) {
   } catch (error: any) {
     console.error('Delete lesson error:', error);
     return NextResponse.json(
-      { error: 'Failed to delete lesson: ' + (error.message || 'Unknown error') },
+      { error: 'Failed to delete lesson' },
       { status: 500 }
     );
   }
