@@ -217,31 +217,45 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 	      }
 	    });
 
-	    callChannel.bind('call-ended', () => {
-	      console.log('[Call] Call ended by other party');
-	      cleanupCall();
-	      setCallStatus('ended');
-	      setTimeout(() => setCallStatus('idle'), 2000);
-	    });
+    callChannel.bind('call-ended', () => {
+      console.log('[Call] Call ended by other party');
+      cleanupCall();
+      setCallStatus('ended');
+      setTimeout(() => setCallStatus('idle'), 2000);
+    });
+
+    // Typing Events via Pusher
+    const typingChannel = pusher.subscribe(`typing-${currentUser.id}`);
+    typingChannel.bind('typing-event', (data: any) => {
+      if (selectedConversation && data.senderId === selectedConversation.other_user_id) {
+        setOtherUserTyping(data.isTyping);
+      }
+    });
 
     return () => {
-	      pusher.unsubscribe(`user-${currentUser.id}`);
-	      pusher.unsubscribe(`private-calls-${currentUser.id}`);
-	    };
+      pusher.unsubscribe(`user-${currentUser.id}`);
+      pusher.unsubscribe(`private-calls-${currentUser.id}`);
+      pusher.unsubscribe(`typing-${currentUser.id}`);
+    };
 	  }, [currentUser?.id, selectedConversation, initialUserId, callStatus]);
 
-  // Handle typing broadcast
+  // Handle typing broadcast via Pusher
   useEffect(() => {
     if (!selectedConversation || !currentUser) return;
     
-    const channel = supabase.channel(`typing-${currentUser.id}`);
-    
-    const sendTypingStatus = (typing: boolean) => {
-      channel.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: { userId: currentUser.id, isTyping: typing },
-      });
+    const sendTypingStatus = async (typing: boolean) => {
+      try {
+        await fetch('/api/messages/typing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            receiverId: selectedConversation.other_user_id, 
+            isTyping: typing 
+          }),
+        });
+      } catch (error) {
+        console.error('Error sending typing status:', error);
+      }
     };
 
     if (isTyping) {
@@ -681,7 +695,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                     {!isOwn && (
                       <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 mb-1">
 	                        <Image 
-	                          src={getAvatarUrl(msg.sender_avatar || selectedConversation?.avatar)} 
+	                          src={getAvatarUrl(msg.sender_avatar || (msg.sender_id === selectedConversation?.other_user_id ? selectedConversation?.avatar : null))} 
 	                          alt="Avatar" 
 	                          width={32} 
 	                          height={32} 

@@ -1,37 +1,43 @@
-import { NextResponse } from 'next/server';
-import { RealtimeChatService } from '@/lib/realtime/chat';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAuth } from '@/lib/auth/verify';
+import Pusher from 'pusher';
 
-export async function POST(req: Request) {
+export const runtime = 'nodejs';
+
+function getPusher() {
+  const appId = process.env.PUSHER_APP_ID;
+  const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
+  const secret = process.env.PUSHER_SECRET;
+  const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+
+  if (appId && key && secret && cluster) {
+    return new Pusher({ appId, key, secret, cluster, useTLS: true });
+  }
+  return null;
+}
+
+export async function POST(request: NextRequest) {
   try {
-    // Basic auth check if needed, though typing is lightweight
-    const body = await req.json();
-    const { recipientId, isTyping } = body;
-    
-    // Get current user from cookies/auth if possible to get sender ID
-    // For now we'll assume the client sends its own ID or we extract it
-    const authResponse = await fetch(`${new URL(req.url).origin}/api/auth/me`, {
-      headers: { Cookie: cookies().toString() }
-    });
-    
-    if (!authResponse.ok) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    const { user } = await authResponse.json();
-    const senderId = user.id;
+    const user = await verifyAuth(request);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const channelId = `conversation-${Math.min(senderId, recipientId)}-${Math.max(senderId, recipientId)}`;
-    
-    await RealtimeChatService.sendTypingIndicator(channelId, {
-      userId: senderId,
-      userName: user.name,
-      isTyping: isTyping
-    });
+    const body = await request.json();
+    const { receiverId, recipientId, isTyping } = body;
+    const targetId = receiverId || recipientId;
+
+    if (!targetId) return NextResponse.json({ error: 'Target ID required' }, { status: 400 });
+
+    const pusher = getPusher();
+    if (pusher) {
+      await pusher.trigger(`typing-${targetId}`, 'typing-event', {
+        senderId: user.userId,
+        isTyping
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Typing indicator error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
