@@ -366,7 +366,15 @@ function LessonsManager() {
                 <div className="flex space-x-2 ml-4">
                   <button
                     onClick={() => {
-                      setFormData(lesson);
+                      // Correctly map database fields to form data
+                      setFormData({
+                        id: lesson.id,
+                        title: lesson.title,
+                        content: lesson.content,
+                        imageUrl: lesson.imageUrl || '',
+                        videoUrl: lesson.videoUrl || '',
+                        religion: lesson.religion
+                      });
                       setShowForm(true);
                     }}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded"

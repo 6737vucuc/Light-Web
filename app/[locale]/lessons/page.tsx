@@ -31,6 +31,7 @@ export default function LessonsPage() {
       const response = await fetch('/api/lessons');
       if (response.ok) {
         const data = await response.json();
+        // Drizzle will return fields as defined in schema, but we ensure mapping here if needed
         setLessons(data.lessons || []);
       }
     } catch (error) {
