@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
     // Update database
     await db.update(users)
       .set({ 
-        is_online: isOnline,
-        last_seen: new Date()
+        isOnline: isOnline,
+        lastSeen: new Date()
       })
-      .eq(users.id, user.userId);
+      .where(eq(users.id, user.userId));
 
     // Broadcast status change via Pusher
     try {
