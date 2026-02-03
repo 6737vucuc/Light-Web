@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     await db
       .update(users)
       .set({ password: hashedPassword })
-      .where(eq(users.id, resetRecord.userId));
+      .where(eq(users.email, resetRecord.email));
 
     // Delete used reset token
     await db
