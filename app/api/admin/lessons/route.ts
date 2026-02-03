@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
-    const allLessons = await db.select().from(lessons).orderBy(desc(lessons.createdAt));
+    // Using lowercase 'createdat' as defined in schema.ts for the lessons table
+    const allLessons = await db.select().from(lessons).orderBy(desc(lessons.createdat));
 
     return NextResponse.json({ lessons: allLessons });
   } catch (error: any) {
@@ -45,16 +46,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert into database with corrected column names via schema mapping
+    // Insert into database with lowercase column names as defined in schema.ts
     const [newLesson] = await db.insert(lessons).values({
       title: title.trim(),
       content: content.trim(),
-      imageUrl: imageUrl && imageUrl.trim() !== '' ? imageUrl : null,
-      videoUrl: videoUrl && videoUrl.trim() !== '' ? videoUrl : null,
+      imageurl: imageUrl && imageUrl.trim() !== '' ? imageUrl : null,
+      videourl: videoUrl && videoUrl.trim() !== '' ? videoUrl : null,
       religion: religion,
-      createdBy: authResult.user.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdby: authResult.user.id,
+      createdat: new Date(),
+      updatedat: new Date(),
     }).returning();
 
     if (!newLesson) {
@@ -96,10 +97,10 @@ export async function PUT(request: NextRequest) {
       .set({
         title: title.trim(),
         content: content.trim(),
-        imageUrl: imageUrl && imageUrl.trim() !== '' ? imageUrl : null,
-        videoUrl: videoUrl && videoUrl.trim() !== '' ? videoUrl : null,
+        imageurl: imageUrl && imageUrl.trim() !== '' ? imageUrl : null,
+        videourl: videoUrl && videoUrl.trim() !== '' ? videoUrl : null,
         religion: religion,
-        updatedAt: new Date(),
+        updatedat: new Date(),
       })
       .where(eq(lessons.id, id))
       .returning();
