@@ -60,13 +60,23 @@ export async function DELETE(request: NextRequest) {
 
     // Delete all related data in correct order
     try {
-      // Delete group messages
+      // 1. Delete group related data
       await db.delete(groupMessages).where(eq(groupMessages.userId, userIdNum));
-      
-      // Delete group members
       await db.delete(groupMembers).where(eq(groupMembers.userId, userIdNum));
       
-      // Finally delete the user
+      // 2. Delete direct messages (both sent and received)
+      await rawSql`DELETE FROM direct_messages WHERE sender_id = ${userIdNum} OR receiver_id = ${userIdNum}`;
+      
+      // 3. Delete other related data
+      await rawSql`DELETE FROM vpn_logs WHERE user_id = ${userIdNum}`;
+      await rawSql`DELETE FROM support_replies WHERE user_id = ${userIdNum}`;
+      await rawSql`DELETE FROM support_tickets WHERE user_id = ${userIdNum}`;
+      await rawSql`DELETE FROM testimonies WHERE user_id = ${userIdNum}`;
+      await rawSql`DELETE FROM lesson_progress WHERE user_id = ${userIdNum}`;
+      await rawSql`DELETE FROM daily_verses WHERE created_by = ${userIdNum}`;
+      await rawSql`DELETE FROM reports WHERE reporter_id = ${userIdNum} OR reported_user_id = ${userIdNum}`;
+      
+      // 4. Finally delete the user
       await db.delete(users).where(eq(users.id, userIdNum));
 
       return NextResponse.json({ message: 'User deleted successfully' });

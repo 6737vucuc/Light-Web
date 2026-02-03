@@ -155,12 +155,17 @@ function LessonsManager() {
       });
 
       if (response.ok) {
+        toast.success(formData.id ? 'Lesson updated successfully' : 'Lesson created successfully');
         setShowForm(false);
         setFormData({ id: null, title: '', content: '', imageUrl: '', videoUrl: '', religion: 'christianity' });
         fetchLessons();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to save lesson');
       }
     } catch (error) {
       console.error('Submit lesson error:', error);
+      toast.error('An error occurred while saving the lesson');
     } finally {
       setLoading(false);
     }
@@ -1147,15 +1152,18 @@ function UsersManager() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`/api/admin/users?id=${userId}`, {
+      const response = await fetch(`/api/admin/users`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
       });
 
       if (response.ok) {
         toast.success('User deleted successfully');
         fetchUsers();
       } else {
-        toast.error('Failed to delete user');
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to delete user');
       }
     } catch (error) {
       console.error('Delete user error:', error);

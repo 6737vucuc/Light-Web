@@ -404,15 +404,22 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   const deleteForEveryone = async (messageId: number) => {
     try {
-      const response = await fetch(`/api/direct-messages/${messageId}`, {
-        method: 'DELETE'
+      const response = await fetch(`/api/direct-messages/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId })
       });
       if (response.ok) {
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_deleted: true } : m));
         setSelectedMessageId(null);
+        toast.success(locale === 'ar' ? 'تم حذف الرسالة لدى الجميع' : 'Message deleted for everyone');
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to delete message');
       }
     } catch (error) {
       console.error('Delete message error:', error);
+      toast.error('Failed to delete message');
     }
   };
 
@@ -668,7 +675,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                 />
               </div>
               <div className={`flex-1 min-w-0 ${isRtl ? 'text-right' : 'text-left'}`}>
-                <h3 className="font-semibold text-gray-900 truncate">{selectedConversation.name}</h3>
+                <h3 className="font-semibold text-gray-900 truncate">{selectedConversation.name || selectedConversation.other_user_name}</h3>
                 <p className="text-xs text-green-600 font-medium">
                   {otherUserTyping ? (locale === 'ar' ? 'يكتب الآن...' : 'typing...') : t('online')}
                 </p>
