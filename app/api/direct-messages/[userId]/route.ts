@@ -24,20 +24,18 @@ export async function GET(
     // Get messages between the two users
     const messages = await rawSql`
       SELECT 
-        dm.*,
-        sender.name as sender_name,
-        sender.username as sender_username,
-        sender.avatar as sender_avatar,
-        receiver.name as receiver_name,
-        receiver.username as receiver_username,
-        receiver.avatar as receiver_avatar
-      FROM direct_messages dm
-      JOIN users sender ON dm.sender_id = sender.id
-      JOIN users receiver ON dm.receiver_id = receiver.id
-      WHERE (dm.sender_id = ${currentUserId} AND dm.receiver_id = ${otherUserId})
-         OR (dm.sender_id = ${otherUserId} AND dm.receiver_id = ${currentUserId})
-      ORDER BY dm.created_at ASC
-    `;
+  dm.*,
+  sender.name as sender_name,
+  sender.avatar as sender_avatar,
+  receiver.name as receiver_name,
+  receiver.avatar as receiver_avatar
+FROM direct_messages dm
+JOIN users sender ON dm.sender_id = sender.id
+JOIN users receiver ON dm.receiver_id = receiver.id
+WHERE (dm.sender_id = ${currentUserId} AND dm.receiver_id = ${otherUserId})
+   OR (dm.sender_id = ${otherUserId} AND dm.receiver_id = ${currentUserId})
+ORDER BY dm.created_at ASC
+`;
 
     // Mark messages as read
     await rawSql`
