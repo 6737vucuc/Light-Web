@@ -20,9 +20,8 @@ export async function GET(request: NextRequest) {
       .select({
         id: reports.id,
         reporterId: reports.reporterId,
-        reportedUserId: reports.reportedUserId,
-        messageId: reports.messageId,
-        groupId: reports.groupId,
+        targetId: reports.targetId,
+        targetType: reports.targetType,
         reason: reports.reason,
         status: reports.status,
         createdAt: reports.createdAt,
@@ -37,25 +36,29 @@ export async function GET(request: NextRequest) {
     // Get reported user info and message content for each report
     const reportsWithDetails = await Promise.all(
       allReports.map(async (report) => {
-        // Get reported user info
-        const [reportedUser] = await db
-          .select({
-            name: users.name,
-            email: users.email,
-            avatar: users.avatar,
-          })
-          .from(users)
-          .where(eq(users.id, report.reportedUserId));
+        // Get reported user info (if target is user)
+        let reportedUser = null;
+        if (report.targetType === 'user') {
+          const [user] = await db
+            .select({
+              name: users.name,
+              email: users.email,
+              avatar: users.avatar,
+            })
+            .from(users)
+            .where(eq(users.id, report.targetId));
+          reportedUser = user;
+        }
 
-        // Get message content if messageId exists
+        // Get message content if target is message
         let messageContent = null;
-        if (report.messageId) {
+        if (report.targetType === 'message') {
           const [message] = await db
             .select({
               content: groupMessages.content,
             })
             .from(groupMessages)
-            .where(eq(groupMessages.id, report.messageId));
+            .where(eq(groupMessages.id, report.targetId));
           messageContent = message?.content;
         }
 

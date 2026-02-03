@@ -21,7 +21,7 @@ export async function PATCH(
     const { id } = await params;
     const reportId = parseInt(id);
     const body = await request.json();
-    const { status, adminNotes } = body;
+    const { status } = body;
 
     if (!status) {
       return NextResponse.json(
@@ -33,9 +33,8 @@ export async function PATCH(
     await db
       .update(reports)
       .set({ 
-        status, 
-        adminNotes: adminNotes || null
-      } as any)
+        status
+      })
       .where(eq(reports.id, reportId));
 
     return NextResponse.json({
