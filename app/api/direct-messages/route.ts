@@ -50,7 +50,6 @@ export async function GET(request: NextRequest) {
           ELSE dm.sender_id
         END as other_user_id,
         u.name,
-        u.username,
         u.avatar,
         u.last_seen,
         u.is_online,
