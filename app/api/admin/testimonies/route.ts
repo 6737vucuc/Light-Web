@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { testimonies } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,30 +15,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const allTestimonies = await db.query.testimonies.findMany({
-      with: {
-        user: {
-          columns: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-      },
-      orderBy: (testimonies, { desc }) => [desc(testimonies.createdAt)],
-    });
+    const allTestimonies = await db
+      .select({
+        id: testimonies.id,
+        userId: testimonies.userId,
+        content: testimonies.content,
+        isApproved: testimonies.isApproved,
+        createdAt: testimonies.createdAt,
+        updatedAt: testimonies.updatedAt,
+        userName: users.name,
+        userEmail: users.email,
+        userAvatar: users.avatar,
+      })
+      .from(testimonies)
+      .leftJoin(users, eq(testimonies.userId, users.id))
+      .orderBy(desc(testimonies.createdAt));
 
     // Format the response to match the expected structure
     const formattedTestimonies = allTestimonies.map((testimony: any) => ({
-      id: testimony.id,
-      userId: testimony.userId,
-      userName: testimony.user?.name || 'Unknown User',
-      userEmail: testimony.user?.email || '',
-      content: testimony.content,
-      isApproved: testimony.isApproved,
-      createdAt: testimony.createdAt,
-      updatedAt: testimony.updatedAt,
+      ...testimony,
+      userName: testimony.userName || 'Unknown User',
+      userEmail: testimony.userEmail || '',
     }));
 
     return NextResponse.json({ testimonies: formattedTestimonies });

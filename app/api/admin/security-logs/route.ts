@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Add time range filter
-    conditions.push(gte(users.lastFailedLogin, timeThreshold));
+    conditions.push(gte(users.createdAt, timeThreshold));
 
     // Fetch users with failed login attempts
     const securityLogs = await db
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       })
       .from(users)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(users.lastFailedLogin))
+      .orderBy(desc(users.createdAt))
       .limit(100);
 
     // Get statistics
@@ -104,10 +104,10 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           sql`${users.lockedUntil} > NOW()`,
-          gte(users.lastFailedLogin, new Date(Date.now() - 24 * 60 * 60 * 1000))
+          gte(users.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000))
         )
       )
-      .orderBy(desc(users.lastFailedLogin))
+      .orderBy(desc(users.createdAt))
       .limit(10);
 
     return NextResponse.json({
@@ -169,7 +169,6 @@ export async function POST(request: NextRequest) {
       .set({
         failedLoginAttempts: 0,
         lockedUntil: null,
-        lastFailedLogin: null,
       })
       .where(sql`${users.id} = ${userId}`);
 
