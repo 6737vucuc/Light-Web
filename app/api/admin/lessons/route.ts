@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, sql as rawSql } from '@/lib/db';
 import { lessons } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
 import { eq } from 'drizzle-orm';
@@ -49,14 +49,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const [lesson] = await db.insert(lessons).values({
-      title,
-      content,
-      imageUrl: imageUrl || null,
-      videoUrl: videoUrl || null,
-      religion,
-      createdBy: user.userId,
-    }).returning();
+    const result = await rawSql`
+      INSERT INTO lessons (title, content, image_url, video_url, religion, created_by, created_at, updated_at)
+      VALUES (${title}, ${content}, ${imageUrl || null}, ${videoUrl || null}, ${religion}, ${user.userId}, NOW(), NOW())
+      RETURNING *
+    `;
+
+    const lesson = result[0];
 
     if (!lesson) {
       throw new Error('Failed to insert lesson into database');
