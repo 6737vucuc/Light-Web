@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     const allVerses = await db.query.dailyVerses.findMany({
-      orderBy: (dailyVerses, { desc }) => [desc(dailyVerses.displayDate)],
+      orderBy: (dailyVerses, { desc }) => [desc(dailyVerses.createdAt)],
     });
 
     return NextResponse.json({ verses: allVerses });
@@ -50,13 +50,9 @@ export async function POST(request: NextRequest) {
     }
 
     const [verseRecord] = await db.insert(dailyVerses).values({
-      verseText: verse,
-      verseReference: reference,
-      displayDate: scheduledDate,
+      content: verse,
+      reference: reference,
       religion: 'all',
-      language: 'en',
-      isActive: true,
-      createdBy: user.userId,
     }).returning();
 
     return NextResponse.json({
@@ -94,9 +90,8 @@ export async function PUT(request: NextRequest) {
     const [verseRecord] = await db
       .update(dailyVerses)
       .set({
-        verseText: verse,
-        verseReference: reference,
-        displayDate: scheduledDate,
+        content: verse,
+        reference: reference,
       })
       .where(eq(dailyVerses.id, id))
       .returning();
