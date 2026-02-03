@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, sql as rawSql } from '@/lib/db';
+import { db } from '@/lib/db';
 import { lessons } from '@/lib/db/schema';
-import { verifyAuth } from '@/lib/auth/verify';
-import { eq } from 'drizzle-orm';
+import { requireAdmin } from '@/lib/auth/middleware';
+import { desc, eq } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,23 +10,18 @@ export const dynamic = 'force-dynamic';
 // Get all lessons (admin only)
 export async function GET(request: NextRequest) {
   try {
-    const user = await verifyAuth(request);
-    
-    if (!user || !user.isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authResult = await requireAdmin(request);
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
-    const allLessons = await rawSql`
-      SELECT id, title, content, imageurl as "imageUrl", videourl as "videoUrl", religion, createdby as "createdBy", createdat as "createdAt", updatedat as "updatedAt"
-      FROM lessons
-      ORDER BY createdat DESC
-    `;
+    const allLessons = await db.select().from(lessons).orderBy(desc(lessons.createdAt));
 
     return NextResponse.json({ lessons: allLessons });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get lessons error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch lessons' },
+      { error: 'Failed to fetch lessons: ' + (error.message || 'Unknown error') },
       { status: 500 }
     );
   }
@@ -35,10 +30,9 @@ export async function GET(request: NextRequest) {
 // Create new lesson (admin only)
 export async function POST(request: NextRequest) {
   try {
-    const user = await verifyAuth(request);
-    
-    if (!user || !user.isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authResult = await requireAdmin(request);
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const body = await request.json();
@@ -51,21 +45,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await rawSql`
-      INSERT INTO lessons (title, content, imageurl, videourl, religion, createdby, createdat)
-      VALUES (${title}, ${content}, ${imageUrl || null}, ${videoUrl || null}, ${religion}, ${user.userId}, NOW())
-      RETURNING *
-    `;
+    // Using Drizzle to insert - this handles column mapping correctly (image_url vs imageurl)
+    const [newLesson] = await db.insert(lessons).values({
+      title,
+      content,
+      imageUrl: imageUrl || null,
+      videoUrl: videoUrl || null,
+      religion,
+      createdBy: authResult.user.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
 
-    const lesson = result[0];
-
-    if (!lesson) {
+    if (!newLesson) {
       throw new Error('Failed to insert lesson into database');
     }
 
     return NextResponse.json({
       message: 'Lesson created successfully',
-      lesson,
+      lesson: newLesson,
     });
   } catch (error: any) {
     console.error('Create lesson error:', error);
@@ -79,10 +77,9 @@ export async function POST(request: NextRequest) {
 // Update lesson (admin only)
 export async function PUT(request: NextRequest) {
   try {
-    const user = await verifyAuth(request);
-    
-    if (!user || !user.isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authResult = await requireAdmin(request);
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const body = await request.json();
@@ -95,22 +92,30 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const result = await rawSql`
-      UPDATE lessons
-      SET title = ${title}, content = ${content}, imageurl = ${imageUrl || null}, videourl = ${videoUrl || null}, religion = ${religion}, updatedat = NOW()
-      WHERE id = ${id}
-      RETURNING *
-    `;
-    const lesson = result[0];
+    const [updatedLesson] = await db.update(lessons)
+      .set({
+        title,
+        content,
+        imageUrl: imageUrl || null,
+        videoUrl: videoUrl || null,
+        religion,
+        updatedAt: new Date(),
+      })
+      .where(eq(lessons.id, id))
+      .returning();
+
+    if (!updatedLesson) {
+      return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+    }
 
     return NextResponse.json({
       message: 'Lesson updated successfully',
-      lesson,
+      lesson: updatedLesson,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Update lesson error:', error);
     return NextResponse.json(
-      { error: 'Failed to update lesson' },
+      { error: 'Failed to update lesson: ' + (error.message || 'Unknown error') },
       { status: 500 }
     );
   }
@@ -119,31 +124,35 @@ export async function PUT(request: NextRequest) {
 // Delete lesson (admin only)
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await verifyAuth(request);
-    
-    if (!user || !user.isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authResult = await requireAdmin(request);
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const idStr = searchParams.get('id');
 
-    if (!id) {
+    if (!idStr) {
       return NextResponse.json(
         { error: 'Lesson ID is required' },
         { status: 400 }
       );
     }
 
-    await rawSql`DELETE FROM lessons WHERE id = ${parseInt(id)}`;
+    const id = parseInt(idStr);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
+
+    await db.delete(lessons).where(eq(lessons.id, id));
 
     return NextResponse.json({
       message: 'Lesson deleted successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete lesson error:', error);
     return NextResponse.json(
-      { error: 'Failed to delete lesson' },
+      { error: 'Failed to delete lesson: ' + (error.message || 'Unknown error') },
       { status: 500 }
     );
   }
