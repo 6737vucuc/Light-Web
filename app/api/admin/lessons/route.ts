@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await rawSql`
-      INSERT INTO lessons (title, content, imageurl, videourl, religion, createdby, createdat, updatedat)
-      VALUES (${title}, ${content}, ${imageUrl || null}, ${videoUrl || null}, ${religion}, ${user.userId}, NOW(), NOW())
+      INSERT INTO lessons (title, content, imageurl, videourl, religion, createdby, createdat)
+      VALUES (${title}, ${content}, ${imageUrl || null}, ${videoUrl || null}, ${religion}, ${user.userId}, NOW())
       RETURNING *
     `;
 

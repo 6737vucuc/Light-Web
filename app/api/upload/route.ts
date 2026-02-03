@@ -34,10 +34,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate file size (50MB max)
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    // Validate file size (500MB max for videos)
+    const maxSize = 500 * 1024 * 1024; // 500MB
     if (file.size > maxSize) {
-      return NextResponse.json({ error: 'File too large. Maximum size: 50MB' }, { status: 400 });
+      return NextResponse.json({ error: 'File too large. Maximum size: 500MB' }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     
     // Determine bucket and path
     const isVideo = file.type.startsWith('video/');
-    const bucketName = 'uploads'; // Using a single bucket named 'uploads'
+    const bucketName = 'uploads';
     
     // Generate unique filename
     const timestamp = Date.now();
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Supabase storage upload error:', error);
-      return NextResponse.json({ error: 'Failed to upload to storage' }, { status: 500 });
+      return NextResponse.json({ error: `Failed to upload to storage: ${error.message}` }, { status: 500 });
     }
 
     // Get Public URL
@@ -83,8 +83,8 @@ export async function POST(request: NextRequest) {
       size: file.size,
       storage: 'supabase'
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 });
   }
 }
