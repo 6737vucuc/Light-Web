@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { X, BookOpen } from 'lucide-react';
-import Image from 'next/image';
 
 interface DailyVerseProps {
   onClose?: () => void;
@@ -10,12 +9,9 @@ interface DailyVerseProps {
 
 interface Verse {
   id?: number;
-  verseText: string;
-  verseReference: string;
-  imageUrl?: string;
-  displayDate?: string;
+  content: string;
+  reference: string;
   religion?: string;
-  language?: string;
 }
 
 export default function DailyVerse({ onClose }: DailyVerseProps) {
@@ -30,13 +26,12 @@ export default function DailyVerse({ onClose }: DailyVerseProps) {
   const fetchDailyVerse = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/verses/daily');
+      const response = await fetch('/api/verses/random');
       if (response.ok) {
         const data = await response.json();
         if (data.verse) {
           setVerse(data.verse);
           
-          // Check if user has seen today's verse
           const lastSeenDate = localStorage.getItem('lastSeenVerseDate');
           const today = new Date().toDateString();
           
@@ -53,7 +48,6 @@ export default function DailyVerse({ onClose }: DailyVerseProps) {
   };
 
   const handleClose = () => {
-    // Mark verse as seen for today
     const today = new Date().toDateString();
     localStorage.setItem('lastSeenVerseDate', today);
     setIsVisible(false);
@@ -64,140 +58,42 @@ export default function DailyVerse({ onClose }: DailyVerseProps) {
     return null;
   }
 
-  const getImageUrl = (imageUrl?: string) => {
-    if (!imageUrl) return null;
-    if (imageUrl.startsWith('data:')) return imageUrl;
-    if (imageUrl.startsWith('http')) return imageUrl;
-    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${imageUrl}`;
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4 animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-scaleIn">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-80 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden p-8 md:p-12 text-center border-4 border-purple-100">
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 z-10 p-2 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full shadow-lg transition-all"
+          className="absolute top-6 right-6 p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
         >
-          <X className="w-6 h-6 text-gray-800" />
+          <X className="w-6 h-6 text-gray-900" />
         </button>
 
-        {/* Content */}
-        <div className="relative">
-          {verse.imageUrl ? (
-            // Verse with Image - Text Overlay
-            <div className="relative w-full h-[500px] md:h-[600px]">
-              <Image
-                src={getImageUrl(verse.imageUrl)!}
-                alt="Daily Verse Background"
-                fill
-                className="object-cover"
-                unoptimized
-              />
-              {/* Dark Overlay for better text readability */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/60"></div>
-              
-              {/* Text Content Overlay */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 md:p-12">
-                <div className="text-center space-y-6 max-w-xl">
-                  {/* Icon */}
-                  <div className="flex justify-center">
-                    <div className="p-4 bg-white/20 backdrop-blur-sm rounded-full">
-                      <BookOpen className="w-8 h-8 text-white" />
-                    </div>
-                  </div>
-                  
-                  {/* Title */}
-                  <h2 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">
-                    Daily Verse
-                  </h2>
-                  
-                  {/* Verse Text */}
-                  <p className="text-lg md:text-2xl font-serif text-white leading-relaxed drop-shadow-lg italic">
-                    "{verse.verseText}"
-                  </p>
-                  
-                  {/* Reference */}
-                  <p className="text-base md:text-xl font-semibold text-white/90 drop-shadow-md">
-                    — {verse.verseReference}
-                  </p>
-                  
-                  {/* Close Button (Alternative) */}
-                  <button
-                    onClick={handleClose}
-                    className="mt-6 px-8 py-3 bg-white text-purple-600 font-semibold rounded-full hover:bg-purple-50 transition-colors shadow-lg"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            // Verse without Image - Gradient Background
-            <div className="relative w-full min-h-[500px] bg-gradient-to-br from-purple-600 via-blue-500 to-purple-700 p-8 md:p-12">
-              <div className="flex flex-col items-center justify-center min-h-[450px] text-center space-y-6">
-                {/* Icon */}
-                <div className="p-4 bg-white/20 backdrop-blur-sm rounded-full">
-                  <BookOpen className="w-10 h-10 text-white" />
-                </div>
-                
-                {/* Title */}
-                <h2 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg">
-                  Daily Verse
-                </h2>
-                
-                {/* Verse Text */}
-                <p className="text-xl md:text-3xl font-serif text-white leading-relaxed max-w-2xl italic">
-                  "{verse.verseText}"
-                </p>
-                
-                {/* Reference */}
-                <p className="text-lg md:text-2xl font-semibold text-white/90">
-                  — {verse.verseReference}
-                </p>
-                
-                {/* Close Button */}
-                <button
-                  onClick={handleClose}
-                  className="mt-8 px-8 py-3 bg-white text-purple-600 font-semibold rounded-full hover:bg-purple-50 transition-colors shadow-lg"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          )}
+        <div className="flex flex-col items-center space-y-6">
+          <div className="p-4 bg-purple-600 rounded-2xl shadow-lg">
+            <BookOpen className="w-8 h-8 text-white" />
+          </div>
+
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">DAILY VERSE</h2>
+          
+          <div className="h-1 w-16 bg-purple-600 rounded-full"></div>
+
+          <p className="text-xl md:text-2xl font-bold text-gray-900 leading-relaxed italic">
+            "{verse.content}"
+          </p>
+
+          <p className="text-lg font-black text-purple-700 bg-purple-50 px-6 py-2 rounded-full">
+            — {verse.reference}
+          </p>
+
+          <button
+            onClick={handleClose}
+            className="mt-4 w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-black text-lg rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all"
+          >
+            CONTINUE
+          </button>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes scaleIn {
-          from {
-            transform: scale(0.9);
-            opacity: 0;
-          }
-          to {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-
-        .animate-scaleIn {
-          animation: scaleIn 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 }

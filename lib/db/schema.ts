@@ -496,3 +496,13 @@ export const groupMessagePinnedRelations = relations(groupMessagePinned, ({ one 
     references: [users.id],
   }),
 }));
+
+// Verses table for Daily Verses
+export const verses = pgTable('verses', {
+  id: serial('id').primaryKey(),
+  content: text('content').notNull(),
+  reference: varchar('reference', { length: 255 }), // e.g., "John 3:16" or "Surah Al-Baqarah 2:255"
+  religion: varchar('religion', { length: 50 }).default('all'), // To match user's religion
+  createdAt: timestamp('createdat').defaultNow(),
+  updatedAt: timestamp('updatedat').defaultNow(),
+});

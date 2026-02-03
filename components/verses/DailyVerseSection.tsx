@@ -1,16 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Sparkles } from 'lucide-react';
-import Image from 'next/image';
+import { BookOpen, Sparkles } from 'lucide-center';
+import { BookOpen as BookIcon, Sparkles as SparkleIcon } from 'lucide-react';
 
 interface Verse {
   id?: number;
-  verseText: string;
-  verseReference: string;
-  imageUrl?: string;
-  displayDate?: string;
-  language?: string;
+  content: string;
+  reference: string;
+  religion?: string;
 }
 
 export default function DailyVerseSection() {
@@ -24,7 +22,8 @@ export default function DailyVerseSection() {
   const fetchDailyVerse = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/verses/daily');
+      // Using the new dynamic random verse API
+      const response = await fetch('/api/verses/random');
       if (response.ok) {
         const data = await response.json();
         if (data.verse) {
@@ -38,88 +37,57 @@ export default function DailyVerseSection() {
     }
   };
 
-  const getImageUrl = (imageUrl?: string) => {
-    if (!imageUrl) return null;
-    if (imageUrl.startsWith('data:')) return imageUrl;
-    if (imageUrl.startsWith('http')) return imageUrl;
-    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${imageUrl}`;
-  };
-
   if (isLoading || !verse) {
     return null;
   }
 
   return (
     <section className="w-full py-12 px-4 bg-gradient-to-br from-purple-50 via-white to-blue-50">
-      <div className="max-w-6xl mx-auto">
-        {verse.imageUrl ? (
-          // Verse with Image - Text Overlay
-          <div className="relative w-full h-[300px] md:h-[350px] rounded-2xl overflow-hidden shadow-xl">
-            <Image
-              src={getImageUrl(verse.imageUrl)!}
-              alt="Daily Verse"
-              fill
-              className="object-cover"
-              unoptimized
-            />
-            {/* Dark Overlay for better text readability */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/60"></div>
+      <div className="max-w-4xl mx-auto">
+        <div className="relative w-full bg-white border-2 border-purple-100 rounded-3xl shadow-xl p-8 md:p-12 overflow-hidden">
+          {/* Decorative background element */}
+          <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-purple-100 rounded-full blur-3xl opacity-50"></div>
+          <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-32 h-32 bg-blue-100 rounded-full blur-3xl opacity-50"></div>
+
+          <div className="relative flex flex-col items-center justify-center text-center space-y-6">
+            {/* Icon */}
+            <div className="p-4 bg-purple-600 rounded-2xl shadow-lg transform -rotate-3">
+              <SparkleIcon className="w-8 h-8 text-white" />
+            </div>
             
-            {/* Text Content Overlay */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 md:p-8">
-              <div className="text-center space-y-4 max-w-3xl">
-                {/* Icon */}
-                <div className="flex justify-center">
-                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-full">
-                    <Sparkles className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-                
-                {/* Title */}
-                <h3 className="text-xl md:text-2xl font-bold text-white drop-shadow-lg flex items-center justify-center gap-2">
-                  <BookOpen className="w-5 h-5" />
-                  Daily Verse
-                </h3>
-                
-                {/* Verse Text */}
-                <p className="text-base md:text-xl font-serif text-white leading-relaxed drop-shadow-lg italic">
-                  "{verse.verseText}"
-                </p>
-                
-                {/* Reference */}
-                <p className="text-sm md:text-base font-semibold text-white/90 drop-shadow-md">
-                  — {verse.verseReference}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          // Verse without Image - Gradient Card
-          <div className="relative w-full bg-gradient-to-br from-purple-600 via-blue-500 to-purple-700 rounded-2xl shadow-xl p-8 md:p-10">
-            <div className="flex flex-col items-center justify-center text-center space-y-4">
-              {/* Icon */}
-              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-full">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              
-              {/* Title */}
-              <h3 className="text-xl md:text-2xl font-bold text-white drop-shadow-lg flex items-center justify-center gap-2">
-                <BookOpen className="w-5 h-5" />
-                Daily Verse
+            {/* Title */}
+            <div className="space-y-1">
+              <h3 className="text-2xl md:text-3xl font-black text-gray-900 flex items-center justify-center gap-3">
+                <BookIcon className="w-6 h-6 text-purple-600" />
+                DAILY VERSE
               </h3>
-              
-              {/* Verse Text */}
-              <p className="text-base md:text-xl font-serif text-white leading-relaxed max-w-3xl italic">
-                "{verse.verseText}"
+              <div className="h-1 w-24 bg-gradient-to-r from-purple-600 to-blue-500 mx-auto rounded-full"></div>
+            </div>
+            
+            {/* Verse Text */}
+            <div className="relative">
+              <span className="absolute -top-6 -left-4 text-6xl text-purple-200 font-serif opacity-50">"</span>
+              <p className="text-xl md:text-2xl font-bold text-gray-900 leading-relaxed italic relative z-10">
+                {verse.content}
               </p>
-              
-              {/* Reference */}
-              <p className="text-sm md:text-base font-semibold text-white/90">
-                — {verse.verseReference}
+              <span className="absolute -bottom-10 -right-4 text-6xl text-purple-200 font-serif opacity-50">"</span>
+            </div>
+            
+            {/* Reference */}
+            <div className="pt-4">
+              <p className="text-lg md:text-xl font-black text-purple-700 bg-purple-50 px-6 py-2 rounded-full border border-purple-100 shadow-sm">
+                — {verse.reference}
               </p>
             </div>
+            
+            {/* Religion Tag */}
+            {verse.religion && verse.religion !== 'all' && (
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                Messege for {verse.religion} community
+              </span>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </section>
   );
