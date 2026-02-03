@@ -27,6 +27,7 @@ export const users = pgTable('users', {
   lockedUntil: timestamp('locked_until'),
   lastFailedLogin: timestamp('last_failed_login'),
   lastSeen: timestamp('last_seen').defaultNow(),
+  isOnline: boolean('is_online').default(false),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -281,66 +282,15 @@ export const groupMessageReadReceiptsRelations = relations(groupMessageReadRecei
 export const reports = pgTable('reports', {
   id: serial('id').primaryKey(),
   reporterId: integer('reporter_id').references(() => users.id).notNull(),
-  reportedUserId: integer('reported_user_id').references(() => users.id).notNull(),
-  messageId: integer('message_id').references(() => groupMessages.id),
-  groupId: integer('group_id').references(() => communityGroups.id),
+  targetId: integer('target_id').notNull(),
+  targetType: varchar('target_type', { length: 20 }).notNull(), // 'message' or 'user'
   reason: text('reason').notNull(),
-  status: varchar('status', { length: 20 }).default('pending'), // pending, reviewed, resolved
-  adminNotes: text('admin_notes'),
-  reviewedBy: integer('reviewed_by').references(() => users.id),
-  reviewedAt: timestamp('reviewed_at'),
+  status: varchar('status', { length: 20 }).default('pending'), // 'pending', 'resolved', 'dismissed'
   createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ========================================
-// SUPPORT SYSTEM
-// ========================================
-
-// Support tickets table
-export const supportTickets = pgTable('support_tickets', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  subject: varchar('subject', { length: 255 }).notNull(),
-  message: text('message').notNull(),
-  category: varchar('category', { length: 50 }).notNull(), // technical, account, content, other
-  status: varchar('status', { length: 20 }).default('open'), // open, in_progress, resolved, closed
-  priority: varchar('priority', { length: 20 }).default('normal'), // low, normal, high, urgent
-  assignedTo: integer('assigned_to').references(() => users.id),
-  adminResponse: text('admin_response'),
-  respondedAt: timestamp('responded_at'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// Support ticket replies
-export const supportReplies = pgTable('support_replies', {
-  id: serial('id').primaryKey(),
-  ticketId: integer('ticket_id').references(() => supportTickets.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  message: text('message').notNull(),
-  isAdmin: boolean('is_admin').default(false),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// ========================================
-// DAILY VERSES SYSTEM
-// ========================================
-
-// Daily verses table
-export const dailyVerses = pgTable('daily_verses', {
-  id: serial('id').primaryKey(),
-  verseText: text('verse_text').notNull(),
-  verseReference: varchar('verse_reference', { length: 255 }).notNull(), // e.g., "القرآن الكريم - سورة البقرة: 255"
-  language: varchar('language', { length: 10 }).default('ar'),
-  religion: varchar('religion', { length: 50 }).notNull(), // islam, christianity, etc.
-  displayDate: date('display_date').notNull(),
-  isActive: boolean('is_active').default(true),
-  createdBy: integer('created_by').references(() => users.id),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
-// ========================================
-// LESSON SYSTEM
+// LESSONS SYSTEM
 // ========================================
 
 // Lessons table
@@ -348,54 +298,33 @@ export const lessons = pgTable('lessons', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(),
   content: text('content').notNull(),
-  imageUrl: text('imageurl'),
-  videoUrl: text('videourl'),
-  religion: varchar('religion', { length: 50 }).notNull(), // islam, christianity, etc.
-  createdBy: integer('createdby').references(() => users.id),
-  createdAt: timestamp('createdat').defaultNow(),
-  updatedAt: timestamp('updatedat').defaultNow(),
+  imageurl: text('imageurl'),
+  videourl: text('videourl'),
+  religion: varchar('religion', { length: 50 }).notNull(), // 'christianity', 'islam', 'judaism', 'all'
+  createdby: integer('createdby').references(() => users.id).notNull(),
+  createdat: timestamp('createdat').defaultNow(),
+  updatedat: timestamp('updatedat').defaultNow(),
 });
 
-// ========================================
-// LESSON PROGRESS TRACKING
-// ========================================
-
-// Lesson progress table
+// Lesson Progress table
 export const lessonProgress = pgTable('lesson_progress', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   lessonId: integer('lesson_id').references(() => lessons.id).notNull(),
-  completed: boolean('completed').default(false),
-  progress: integer('progress').default(0), // percentage 0-100
-  lastAccessedAt: timestamp('last_accessed_at').defaultNow(),
+  status: varchar('status', { length: 20 }).default('in-progress'), // 'in-progress', 'completed'
   completedAt: timestamp('completed_at'),
-  createdAt: timestamp('created_at').defaultNow(),
+  lastAccessedAt: timestamp('last_accessed_at').defaultNow(),
 });
 
-// Lesson ratings table
+// Lesson Ratings table
 export const lessonRatings = pgTable('lesson_ratings', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   lessonId: integer('lesson_id').references(() => lessons.id).notNull(),
-  rating: integer('rating').notNull(), // 1-5 stars
+  rating: integer('rating').notNull(), // 1 to 5
   comment: text('comment'),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
 });
-
-
-// ========================================
-// PASSWORD RESET
-// ========================================
-// Password resets table
-export const passwordResets = pgTable('password_resets', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  token: varchar('token', { length: 255 }).notNull().unique(),
-  expiresAt: timestamp('expires_at').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
 
 // ========================================
 // DIRECT MESSAGES SYSTEM

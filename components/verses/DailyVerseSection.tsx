@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Sparkles } from 'lucide-center';
 import { BookOpen as BookIcon, Sparkles as SparkleIcon } from 'lucide-react';
 
 interface Verse {
