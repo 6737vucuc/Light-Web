@@ -174,12 +174,27 @@ function LessonsManager() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this lesson?')) return;
+    const confirmed = await toast.confirm({
+      title: 'Delete Lesson',
+      message: 'Are you sure you want to permanently delete this lesson? This action cannot be undone.',
+      confirmText: 'Delete Now',
+      type: 'danger'
+    });
+    
+    if (!confirmed) return;
+
+    // Optimistic UI update: Remove from state immediately
+    const previousLessons = [...lessons];
+    setLessons(lessons.filter(l => l.id !== id));
+    
     try {
-      await fetch(`/api/admin/lessons?id=${id}`, { method: 'DELETE' });
-      toast.success('Lesson deleted');
-      fetchLessons();
-    } catch (error) { toast.error('Delete failed'); }
+      const response = await fetch(`/api/admin/lessons?id=${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete');
+      toast.success('Lesson deleted successfully');
+    } catch (error) { 
+      toast.error('Delete failed. Restoring lesson...');
+      setLessons(previousLessons); // Restore on failure
+    }
   };
 
   return (
@@ -320,10 +335,23 @@ function VersesManager() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this verse?')) return;
-    await fetch(`/api/admin/verses?id=${id}`, { method: 'DELETE' });
-    toast.success('Verse deleted');
-    fetchVerses();
+    const confirmed = await toast.confirm({
+      title: 'Delete Verse',
+      message: 'Are you sure you want to delete this scheduled verse?',
+      confirmText: 'Delete',
+      type: 'danger'
+    });
+    
+    if (!confirmed) return;
+
+    setVerses(verses.filter(v => v.id !== id));
+    try {
+      await fetch(`/api/admin/verses?id=${id}`, { method: 'DELETE' });
+      toast.success('Verse deleted');
+    } catch (error) {
+      toast.error('Failed to delete verse');
+      fetchVerses();
+    }
   };
 
   return (
@@ -446,10 +474,23 @@ function GroupsManager() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete group and all messages?')) return;
-    await fetch(`/api/admin/groups?id=${id}`, { method: 'DELETE' });
-    fetchGroups();
-    toast.success('Group deleted');
+    const confirmed = await toast.confirm({
+      title: 'Delete Group',
+      message: 'This will permanently delete the group and all its messages. Continue?',
+      confirmText: 'Delete Group',
+      type: 'danger'
+    });
+    
+    if (!confirmed) return;
+
+    setGroups(groups.filter(g => g.id !== id));
+    try {
+      await fetch(`/api/admin/groups?id=${id}`, { method: 'DELETE' });
+      toast.success('Group deleted');
+    } catch (error) {
+      toast.error('Failed to delete group');
+      fetchGroups();
+    }
   };
 
   return (
@@ -777,7 +818,14 @@ function UsersManager() {
   };
 
   const handleUnban = async (userId: number) => {
-    if (!confirm('Are you sure you want to restore access for this user?')) return;
+    const confirmed = await toast.confirm({
+      title: 'Restore Access',
+      message: 'Are you sure you want to restore access for this user?',
+      confirmText: 'Unban User',
+      type: 'success'
+    });
+    
+    if (!confirmed) return;
     
     setLoading(true);
     try {
@@ -794,7 +842,15 @@ function UsersManager() {
   };
 
   const toggleAdmin = async (userId: number, currentAdmin: boolean) => {
-    if (!confirm(`Are you sure you want to ${currentAdmin ? 'remove' : 'grant'} admin privileges?`)) return;
+    const confirmed = await toast.confirm({
+      title: 'Change Privileges',
+      message: `Are you sure you want to ${currentAdmin ? 'remove' : 'grant'} admin privileges for this user?`,
+      confirmText: 'Update Status',
+      type: 'info'
+    });
+    
+    if (!confirmed) return;
+
     const response = await fetch('/api/admin/make-admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
