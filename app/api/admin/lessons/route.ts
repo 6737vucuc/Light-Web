@@ -58,14 +58,18 @@ export async function POST(request: NextRequest) {
       createdBy: user.userId,
     }).returning();
 
+    if (!lesson) {
+      throw new Error('Failed to insert lesson into database');
+    }
+
     return NextResponse.json({
       message: 'Lesson created successfully',
       lesson,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create lesson error:', error);
     return NextResponse.json(
-      { error: 'Failed to create lesson' },
+      { error: error.message || 'Failed to create lesson' },
       { status: 500 }
     );
   }

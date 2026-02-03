@@ -151,8 +151,14 @@ function LessonsManager() {
       const response = await fetch('/api/admin/lessons', {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          // Ensure ID is handled correctly for PUT
+          id: formData.id ? parseInt(formData.id.toString()) : null
+        }),
       });
+
+      const data = await response.json();
 
       if (response.ok) {
         toast.success(formData.id ? 'Lesson updated successfully' : 'Lesson created successfully');
@@ -160,8 +166,7 @@ function LessonsManager() {
         setFormData({ id: null, title: '', content: '', imageUrl: '', videoUrl: '', religion: 'christianity' });
         fetchLessons();
       } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || 'Failed to save lesson');
+        toast.error(data.error || 'Failed to save lesson');
       }
     } catch (error) {
       console.error('Submit lesson error:', error);

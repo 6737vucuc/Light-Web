@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
-import { uploadToCloudinary, uploadVideoToCloudinary } from '@/lib/cloudinary/config';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
@@ -43,80 +43,48 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Check if Cloudinary is configured
-    const useCloudinary = process.env.CLOUDINARY_CLOUD_NAME && 
-                          process.env.CLOUDINARY_API_KEY && 
-                          process.env.CLOUDINARY_API_SECRET;
+    // Initialize Supabase Admin Client
+    const supabase = getSupabaseAdmin();
+    
+    // Determine bucket and path
+    const isVideo = file.type.startsWith('video/');
+    const bucketName = 'uploads'; // Using a single bucket named 'uploads'
+    
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(7);
+    const extension = file.name.split('.').pop();
+    const folder = isVideo ? 'videos' : 'images';
+    const fileName = `${folder}/${timestamp}-${randomString}.${extension}`;
 
-    let url: string;
-    let publicId: string | undefined;
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        upsert: true
+      });
 
-    if (useCloudinary) {
-      // Upload to Cloudinary
-      try {
-        const isVideo = file.type.startsWith('video/');
-        
-        // Convert buffer to base64 data URI
-        const base64 = buffer.toString('base64');
-        const dataUri = `data:${file.type};base64,${base64}`;
-        
-        if (isVideo) {
-          const result = await uploadVideoToCloudinary(dataUri, 'light-of-life/videos');
-          url = result.url;
-          publicId = result.publicId;
-        } else {
-          const result = await uploadToCloudinary(dataUri, 'light-of-life/images');
-          url = result.url;
-          publicId = result.publicId;
-        }
-      } catch (cloudinaryError) {
-        console.error('Cloudinary upload failed, falling back to local storage:', cloudinaryError);
-        // Fallback to local storage if Cloudinary fails
-        url = await saveLocally(buffer, file.name);
-      }
-    } else {
-      // Fallback to local storage if Cloudinary is not configured
-      url = await saveLocally(buffer, file.name);
+    if (error) {
+      console.error('Supabase storage upload error:', error);
+      return NextResponse.json({ error: 'Failed to upload to storage' }, { status: 500 });
     }
+
+    // Get Public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(fileName);
 
     return NextResponse.json({ 
       success: true, 
-      url,
-      publicId,
+      url: publicUrl,
       filename: file.name,
       type: file.type,
       size: file.size,
-      storage: useCloudinary ? 'cloudinary' : 'local'
+      storage: 'supabase'
     });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
-}
-
-// Helper function to save file locally
-async function saveLocally(buffer: Buffer, originalName: string): Promise<string> {
-  const { writeFile, mkdir } = await import('fs/promises');
-  const { join } = await import('path');
-  
-  // Create uploads directory if it doesn't exist
-  const uploadsDir = join(process.cwd(), 'public', 'uploads');
-  try {
-    await mkdir(uploadsDir, { recursive: true });
-  } catch (error) {
-    // Directory might already exist
-  }
-
-  // Generate unique filename
-  const timestamp = Date.now();
-  const randomString = Math.random().toString(36).substring(7);
-  const extension = originalName.split('.').pop();
-  const filename = `${timestamp}-${randomString}.${extension}`;
-  const filepath = join(uploadsDir, filename);
-
-  // Save file
-  await writeFile(filepath, buffer);
-
-  // Return public URL
-  return `/uploads/${filename}`;
 }
