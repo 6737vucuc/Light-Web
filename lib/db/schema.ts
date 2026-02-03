@@ -41,6 +41,47 @@ export const verificationCodes = pgTable('verification_codes', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// Support Tickets table
+export const supportTickets = pgTable('support_tickets', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  subject: varchar('subject', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  status: varchar('status', { length: 20 }).default('open'), // 'open', 'in-progress', 'resolved', 'closed'
+  priority: varchar('priority', { length: 20 }).default('medium'), // 'low', 'medium', 'high'
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Support Replies table
+export const supportReplies = pgTable('support_replies', {
+  id: serial('id').primaryKey(),
+  ticketId: integer('ticket_id').references(() => supportTickets.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  message: text('message').notNull(),
+  isAdmin: boolean('is_admin').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Password Resets table
+export const passwordResets = pgTable('password_resets', {
+  id: serial('id').primaryKey(),
+  email: varchar('email', { length: 255 }).notNull(),
+  token: varchar('token', { length: 255 }).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Daily Verses table (using name from API imports)
+export const dailyVerses = pgTable('daily_verses', {
+  id: serial('id').primaryKey(),
+  content: text('content').notNull(),
+  reference: varchar('reference', { length: 255 }),
+  religion: varchar('religion', { length: 50 }).default('all'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // ========================================
 // COMMUNITY GROUPS (NEW SYSTEM)
 // ========================================
@@ -160,6 +201,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   presence: many(memberPresence),
   activityLogs: many(groupActivityLog),
   readReceipts: many(groupMessageReadReceipts),
+  supportTickets: many(supportTickets),
 }));
 
 export const communityGroupsRelations = relations(communityGroups, ({ many }) => ({
@@ -270,6 +312,25 @@ export const groupMessageReadReceiptsRelations = relations(groupMessageReadRecei
   }),
   user: one(users, {
     fields: [groupMessageReadReceipts.userId],
+    references: [users.id],
+  }),
+}));
+
+export const supportTicketsRelations = relations(supportTickets, ({ one, many }) => ({
+  user: one(users, {
+    fields: [supportTickets.userId],
+    references: [users.id],
+  }),
+  replies: many(supportReplies),
+}));
+
+export const supportRepliesRelations = relations(supportReplies, ({ one }) => ({
+  ticket: one(supportTickets, {
+    fields: [supportReplies.ticketId],
+    references: [supportTickets.id],
+  }),
+  user: one(users, {
+    fields: [supportReplies.userId],
     references: [users.id],
   }),
 }));
@@ -426,12 +487,12 @@ export const groupMessagePinnedRelations = relations(groupMessagePinned, ({ one 
   }),
 }));
 
-// Verses table for Daily Verses
+// Verses table for Daily Verses (compatibility alias)
 export const verses = pgTable('verses', {
   id: serial('id').primaryKey(),
   content: text('content').notNull(),
-  reference: varchar('reference', { length: 255 }), // e.g., "John 3:16" or "Surah Al-Baqarah 2:255"
-  religion: varchar('religion', { length: 50 }).default('all'), // To match user's religion
+  reference: varchar('reference', { length: 255 }),
+  religion: varchar('religion', { length: 50 }).default('all'),
   createdAt: timestamp('createdat').defaultNow(),
   updatedAt: timestamp('updatedat').defaultNow(),
 });
