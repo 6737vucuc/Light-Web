@@ -16,9 +16,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const allLessons = await db.query.lessons.findMany({
-      orderBy: (lessons, { desc }) => [desc(lessons.createdAt)],
-    });
+    const allLessons = await rawSql`
+      SELECT id, title, content, imageurl as "imageUrl", videourl as "videoUrl", religion, createdby as "createdBy", createdat as "createdAt", updatedat as "updatedAt"
+      FROM lessons
+      ORDER BY createdat DESC
+    `;
 
     return NextResponse.json({ lessons: allLessons });
   } catch (error) {
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await rawSql`
-      INSERT INTO lessons (title, content, image_url, video_url, religion, created_by, created_at, updated_at)
+      INSERT INTO lessons (title, content, imageurl, videourl, religion, createdby, createdat, updatedat)
       VALUES (${title}, ${content}, ${imageUrl || null}, ${videoUrl || null}, ${religion}, ${user.userId}, NOW(), NOW())
       RETURNING *
     `;
@@ -93,18 +95,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const [lesson] = await db
-      .update(lessons)
-      .set({
-        title,
-        content,
-        imageUrl: imageUrl || null,
-        videoUrl: videoUrl || null,
-        religion,
-        updatedAt: new Date(),
-      })
-      .where(eq(lessons.id, id))
-      .returning();
+    const result = await rawSql`
+      UPDATE lessons
+      SET title = ${title}, content = ${content}, imageurl = ${imageUrl || null}, videourl = ${videoUrl || null}, religion = ${religion}, updatedat = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
+    const lesson = result[0];
 
     return NextResponse.json({
       message: 'Lesson updated successfully',
@@ -138,7 +135,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await db.delete(lessons).where(eq(lessons.id, parseInt(id)));
+    await rawSql`DELETE FROM lessons WHERE id = ${parseInt(id)}`;
 
     return NextResponse.json({
       message: 'Lesson deleted successfully',
