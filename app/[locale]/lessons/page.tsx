@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { BookOpen, Calendar, User, Info } from 'lucide-react';
+import { BookOpen, Calendar, User, Info, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface Lesson {
@@ -84,13 +84,15 @@ export default function LessonsPage() {
                 className="bg-white rounded-2xl shadow-sm overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100 flex flex-col"
                 onClick={() => setSelectedLesson(lesson)}
               >
-                <div className="relative h-52 w-full bg-gray-200">
+                <div className="relative h-52 w-full bg-gray-100">
                   {lesson.imageUrl ? (
-                    <Image
+                    <img
                       src={lesson.imageUrl}
                       alt={lesson.title}
-                      fill
-                      className="object-cover"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=No+Image';
+                      }}
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-gray-400">
@@ -160,12 +162,11 @@ export default function LessonsPage() {
                   />
                 </div>
               ) : selectedLesson.imageUrl && (
-                <div className="relative h-80 w-full">
-                  <Image
+                <div className="relative w-full">
+                  <img
                     src={selectedLesson.imageUrl}
                     alt={selectedLesson.title}
-                    fill
-                    className="object-cover"
+                    className="w-full h-auto max-h-96 object-cover"
                   />
                 </div>
               )}
@@ -202,26 +203,5 @@ export default function LessonsPage() {
         )}
       </div>
     </div>
-  );
-}
-
-// Helper X component since it's used but not imported
-function X({ className, ...props }: any) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-      {...props}
-    >
-      <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-    </svg>
   );
 }
