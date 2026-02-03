@@ -18,10 +18,22 @@ const globalForPg = global as unknown as { pool: Pool };
 
 const pool = globalForPg.pool || new Pool({ 
   connectionString: databaseUrl || 'postgresql://dummy:dummy@localhost:5432/dummy',
-  connectionTimeoutMillis: 5000,
-  idleTimeoutMillis: 10000,
-  max: 3, // Reduced to 3 to stay within Supabase Session mode limits
+  connectionTimeoutMillis: 10000, // Increased timeout
+  idleTimeoutMillis: 30000, // Increased idle timeout
+  max: 2, // Reduced to 2 for Supabase Session mode (conservative limit)
+  min: 0, // No minimum connections
+  allowExitOnIdle: true, // Allow pool to exit when idle
   ssl: databaseUrl ? { rejectUnauthorized: false } : false,
+});
+
+// Handle pool errors to prevent crashes
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  await pool.end();
 });
 
 if (process.env.NODE_ENV !== 'production') globalForPg.pool = pool;
