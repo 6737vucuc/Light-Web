@@ -364,13 +364,23 @@ export const lessons = pgTable('lessons', {
 export const lessonProgress = pgTable('lesson_progress', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  lessonId: varchar('lesson_id', { length: 100 }).notNull(), // lesson identifier
-  lessonTitle: varchar('lesson_title', { length: 255 }).notNull(),
+  lessonId: integer('lesson_id').references(() => lessons.id).notNull(),
   completed: boolean('completed').default(false),
   progress: integer('progress').default(0), // percentage 0-100
   lastAccessedAt: timestamp('last_accessed_at').defaultNow(),
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Lesson ratings table
+export const lessonRatings = pgTable('lesson_ratings', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  lessonId: integer('lesson_id').references(() => lessons.id).notNull(),
+  rating: integer('rating').notNull(), // 1-5 stars
+  comment: text('comment'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 

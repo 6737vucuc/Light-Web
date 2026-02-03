@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { lessonProgress } from '@/lib/db/schema';
+import { lessonProgress, lessons, users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, desc } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Get user's lesson progress
+// Get user's lesson progress and stats
 export async function GET(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
@@ -15,13 +15,56 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const progress = await db.query.lessonProgress.findMany({
-      where: eq(lessonProgress.userId, user.userId),
-      orderBy: (lessonProgress, { desc }) => [desc(lessonProgress.lastAccessedAt)],
+    // 1. Get user details for religion filtering
+    const userDetails = await db.query.users.findFirst({
+      where: eq(users.id, user.userId),
     });
+    const userReligion = userDetails?.religion || 'none';
 
-    return NextResponse.json({ progress });
-  } catch (error) {
+    // 2. Get all applicable lessons for this user
+    const userLessons = await db.select().from(lessons).where(
+      or(
+        eq(lessons.religion, userReligion),
+        eq(lessons.religion, 'all')
+      )
+    );
+
+    // 3. Get progress records
+    const progressRecords = await db.select().from(lessonProgress)
+      .where(eq(lessonProgress.userId, user.userId));
+
+    // 4. Calculate Stats
+    const totalLessons = userLessons.length;
+    const completedCount = progressRecords.filter(p => p.completed).length;
+    const inProgressCount = progressRecords.filter(p => !p.completed).length;
+    const completionRate = totalLessons > 0 
+      ? Math.round((completedCount / totalLessons) * 100) 
+      : 0;
+
+    // 5. Get recent activity with lesson titles
+    const recentActivity = await db.select({
+      id: lessonProgress.id,
+      lessonId: lessonProgress.lessonId,
+      completed: lessonProgress.completed,
+      lastAccessedAt: lessonProgress.lastAccessedAt,
+      lessonTitle: lessons.title
+    })
+    .from(lessonProgress)
+    .innerJoin(lessons, eq(lessonProgress.lessonId, lessons.id))
+    .where(eq(lessonProgress.userId, user.userId))
+    .orderBy(desc(lessonProgress.lastAccessedAt))
+    .limit(5);
+
+    return NextResponse.json({ 
+      stats: {
+        totalLessons,
+        completed: completedCount,
+        inProgress: inProgressCount,
+        completionRate
+      },
+      recentProgress: recentActivity 
+    });
+  } catch (error: any) {
     console.error('Get lesson progress error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch lesson progress' },
@@ -39,11 +82,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { lessonId, lessonTitle, progress: progressValue, completed } = body;
+    const { lessonId, progress: progressValue, completed } = body;
 
-    if (!lessonId || !lessonTitle) {
+    if (!lessonId) {
       return NextResponse.json(
-        { error: 'Lesson ID and title are required' },
+        { error: 'Lesson ID is required' },
         { status: 400 }
       );
     }
@@ -59,16 +102,14 @@ export async function POST(request: NextRequest) {
     let result;
 
     if (existingProgress) {
-      // Update existing progress
       const updateData: any = {
-        progress: progressValue !== undefined ? progressValue : existingProgress.progress,
+        progress: progressValue !== undefined ? progressValue : (completed ? 100 : existingProgress.progress),
         lastAccessedAt: new Date(),
       };
 
       if (completed) {
         updateData.completed = true;
         updateData.completedAt = new Date();
-        updateData.progress = 100;
       }
 
       [result] = await db
@@ -77,12 +118,10 @@ export async function POST(request: NextRequest) {
         .where(eq(lessonProgress.id, existingProgress.id))
         .returning();
     } else {
-      // Create new progress entry
       [result] = await db.insert(lessonProgress).values({
         userId: user.userId,
-        lessonId,
-        lessonTitle,
-        progress: progressValue || 0,
+        lessonId: parseInt(lessonId.toString()),
+        progress: progressValue || (completed ? 100 : 0),
         completed: completed || false,
         completedAt: completed ? new Date() : null,
       }).returning();
@@ -92,7 +131,7 @@ export async function POST(request: NextRequest) {
       message: 'Lesson progress updated successfully',
       progress: result,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Update lesson progress error:', error);
     return NextResponse.json(
       { error: 'Failed to update lesson progress' },
