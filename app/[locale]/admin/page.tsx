@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { 
   BookOpen, Heart, Users, MessageCircle, Calendar, Shield,
   Plus, Edit, Trash2, Check, X, Loader2, Ban, UserX, Upload, Image as ImageIcon, Video, AlertTriangle, Quote,
-  TrendingUp, Globe, Flag, MessageSquare, Search, Filter, MoreVertical, RefreshCw, Star
+  TrendingUp, Globe, Flag, MessageSquare, Search, Filter, MoreVertical, RefreshCw, Star, Clock
 } from 'lucide-react';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
@@ -221,24 +221,18 @@ function LessonsManager() {
                   </select>
                 </div>
                 <div className="flex items-end gap-3">
-                  <label className="flex-1 cursor-pointer bg-blue-50 hover:bg-blue-100 p-4 rounded-2xl text-blue-700 font-bold flex flex-col items-center justify-center gap-2 border-2 border-blue-100 transition-all">
+                  <label className="flex-1_cursor-pointer bg-blue-50 hover:bg-blue-100 p-4 rounded-2xl text-blue-700 font-bold flex flex-col items-center justify-center gap-2 border-2 border-blue-100 transition-all">
                     <ImageIcon size={24} />
                     <span className="text-xs uppercase">{formData.imageUrl ? 'Change Image' : 'Add Image'}</span>
                     <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'image')} />
                   </label>
-                  <label className="flex-1 cursor-pointer bg-purple-50 hover:bg-purple-100 p-4 rounded-2xl text-purple-700 font-bold flex flex-col items-center justify-center gap-2 border-2 border-purple-100 transition-all">
+                  <label className="flex-1_cursor-pointer bg-purple-50 hover:bg-purple-100 p-4 rounded-2xl text-purple-700 font-bold flex flex-col items-center justify-center gap-2 border-2 border-purple-100 transition-all">
                     <Video size={24} />
                     <span className="text-xs uppercase">{formData.videoUrl ? 'Change Video' : 'Add Video'}</span>
                     <input type="file" className="hidden" accept="video/*" onChange={e => handleFileUpload(e, 'video')} />
                   </label>
                 </div>
               </div>
-              {(formData.imageUrl || formData.videoUrl) && (
-                <div className="p-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex gap-4 overflow-x-auto">
-                  {formData.imageUrl && <div className="relative group"><img src={formData.imageUrl} className="h-20 w-20 object-cover rounded-xl"/><button type="button" onClick={()=>setFormData({...formData, imageUrl:''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12}/></button></div>}
-                  {formData.videoUrl && <div className="relative group flex items-center justify-center h-20 w-20 bg-black rounded-xl text-white"><Video size={24}/><button type="button" onClick={()=>setFormData({...formData, videoUrl:''})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12}/></button></div>}
-                </div>
-              )}
             </div>
             <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-4">
               <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold hover:bg-gray-200 rounded-2xl transition-all">Cancel</button>
@@ -279,10 +273,6 @@ function LessonsManager() {
                 <p className="text-gray-500 text-sm line-clamp-3 leading-relaxed font-medium">{lesson.content}</p>
                 <div className="mt-6 pt-6 border-t border-gray-50 flex items-center justify-between text-xs font-bold text-gray-400">
                   <span className="flex items-center gap-1"><Calendar size={14}/> {new Date(lesson.createdAt).toLocaleDateString()}</span>
-                  <div className="flex gap-2">
-                    {lesson.videoUrl && <Video size={16} className="text-purple-400"/>}
-                    {lesson.imageUrl && <ImageIcon size={16} className="text-blue-400"/>}
-                  </div>
                 </div>
               </div>
             </div>
@@ -562,7 +552,6 @@ function ReportsManager() {
   };
 
   const handleResolve = async (id: number) => {
-    // API for resolving reports could be added here
     toast.info('Feature coming soon: Resolve Report');
   };
 
@@ -607,13 +596,6 @@ function ReportsManager() {
                   </div>
                 </div>
               </div>
-              {report.messageContent && (
-                <div className="p-6 bg-gray-900 rounded-2xl text-white relative">
-                  <MessageSquare className="absolute top-4 right-4 text-white/10" size={40}/>
-                  <p className="text-[10px] font-black text-white/40 uppercase mb-2 tracking-widest">Flagged Message</p>
-                  <p className="text-lg font-medium italic">" {report.messageContent} "</p>
-                </div>
-              )}
               <div className="flex justify-end gap-3">
                 <button className="px-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all">Dismiss</button>
                 <button onClick={() => handleResolve(report.id)} className="px-6 py-3 bg-red-600 text-white rounded-xl font-black hover:bg-red-700 shadow-lg shadow-red-100 transition-all">Take Action</button>
@@ -688,26 +670,6 @@ function StatisticsManager() {
             ))}
           </div>
         </div>
-        <div className="p-8 border-2 border-gray-100 rounded-3xl bg-white shadow-sm">
-          <h3 className="font-black text-2xl text-gray-900 mb-8 flex items-center gap-3"><Users size={28} className="text-purple-500"/> Community Diversity</h3>
-          <div className="space-y-8">
-            {Object.entries(stats.genderStats || {}).map(([gender, count]: any) => (
-              <div key={gender} className="p-4 rounded-2xl bg-gray-50/50">
-                <div className="flex justify-between items-end mb-3">
-                  <div>
-                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">{gender} Users</span>
-                    <p className="text-3xl font-black text-gray-900 capitalize">{gender}</p>
-                  </div>
-                  <span className="font-black text-2xl text-purple-600">{Math.round((count / stats.total) * 100)}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                  <div className="bg-purple-600 h-full rounded-full transition-all duration-1000" style={{ width: `${(count / stats.total) * 100}%` }}></div>
-                </div>
-                <p className="mt-2 text-right text-sm font-bold text-gray-500">{count} members total</p>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -744,10 +706,6 @@ function SupportManager() {
                     <h3 className="mt-1 text-2xl font-black text-gray-900">{ticket.subject}</h3>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${ticket.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{ticket.priority} Priority</span>
-                  <p className="mt-2 text-xs font-bold text-gray-400">{new Date(ticket.createdAt).toLocaleDateString()}</p>
-                </div>
               </div>
               <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 mb-6">
                 <p className="text-gray-700 font-medium leading-relaxed italic">" {ticket.message} "</p>
@@ -778,6 +736,10 @@ function UsersManager() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showBanModal, setShowBanModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [banDuration, setBanDuration] = useState('7');
+  const [banReason, setBanReason] = useState('Violation of Community Guidelines');
   const toast = useToast();
 
   useEffect(() => { fetchUsers(); }, []);
@@ -790,17 +752,45 @@ function UsersManager() {
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
-  const handleBan = async (userId: number, currentBan: boolean) => {
-    if (!confirm(`${currentBan ? 'Unban' : 'Ban'} this user?`)) return;
-    const response = await fetch('/api/admin/ban-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, ban: !currentBan, reason: 'Admin Action' }),
-    });
-    if (response.ok) {
-      toast.success(currentBan ? 'User unbanned' : 'User banned');
-      fetchUsers();
-    }
+  const handleBanSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/ban-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: selectedUser.id, 
+          ban: true, 
+          reason: banReason, 
+          duration: parseInt(banDuration) 
+        }),
+      });
+      if (response.ok) {
+        toast.success(`User ${selectedUser.name} has been banned for ${banDuration} days`);
+        setShowBanModal(false);
+        fetchUsers();
+      }
+    } catch (error) { toast.error('Failed to ban user'); } finally { setLoading(false); }
+  };
+
+  const handleUnban = async (userId: number) => {
+    if (!confirm('Are you sure you want to restore access for this user?')) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/ban-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ban: false }),
+      });
+      if (response.ok) {
+        toast.success('User access has been restored');
+        fetchUsers();
+      }
+    } catch (error) { toast.error('Failed to unban user'); } finally { setLoading(false); }
   };
 
   const toggleAdmin = async (userId: number, currentAdmin: boolean) => {
@@ -834,6 +824,53 @@ function UsersManager() {
         }
       />
 
+      {showBanModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleBanSubmit} className="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200 overflow-hidden">
+            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-red-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 rounded-xl text-red-600"><UserX size={24}/></div>
+                <h3 className="text-2xl font-black text-gray-900">Ban User</h3>
+              </div>
+              <button type="button" onClick={() => setShowBanModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={24}/></button>
+            </div>
+            <div className="p-8 space-y-6">
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center font-black text-purple-700 text-xl">{selectedUser?.name.charAt(0)}</div>
+                <div>
+                  <p className="font-black text-gray-900">{selectedUser?.name}</p>
+                  <p className="text-xs text-gray-500 font-bold">{selectedUser?.email}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Ban Duration (Days)</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[1, 7, 30, 365].map(d => (
+                    <button key={d} type="button" onClick={() => setBanDuration(d.toString())} className={`py-3 rounded-xl font-black text-sm transition-all border-2 ${banDuration === d.toString() ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-gray-100 text-gray-600 hover:border-red-200'}`}>
+                      {d === 365 ? '1 Year' : `${d}d`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Reason for Ban</label>
+                <textarea value={banReason} onChange={e => setBanReason(e.target.value)} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-red-500 focus:ring-0 transition-all text-gray-900 font-medium" rows={3} required />
+              </div>
+              <div className="p-4 bg-red-50 rounded-2xl border border-red-100 flex items-start gap-3">
+                <AlertTriangle className="text-red-600 flex-shrink-0" size={20}/>
+                <p className="text-xs text-red-700 font-bold leading-relaxed">The user will receive an automated email notification about this ban and its duration.</p>
+              </div>
+            </div>
+            <div className="p-8 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
+              <button type="button" onClick={() => setShowBanModal(false)} className="px-8 py-4 text-gray-600 font-bold hover:bg-gray-200 rounded-2xl transition-all">Cancel</button>
+              <button type="submit" disabled={loading} className="px-12 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 shadow-xl shadow-red-100 transition-all">
+                {loading ? <Loader2 className="animate-spin"/> : 'Confirm Ban'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="bg-white border-2 border-gray-100 rounded-3xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -843,16 +880,16 @@ function UsersManager() {
                 <th className="p-6">Access Level</th>
                 <th className="p-6">Status</th>
                 <th className="p-6">Joined Date</th>
-                <th className="p-6 text-right">Administrative Actions</th>
+                <th className="p-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {loading ? (
+              {loading && users.length === 0 ? (
                 <tr><td colSpan={5} className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-purple-600"/></td></tr>
               ) : filteredUsers.length === 0 ? (
                 <tr><td colSpan={5} className="p-20 text-center font-bold text-gray-400">No users found matching your search.</td></tr>
               ) : filteredUsers.map(user => (
-                <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
                   <td className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-700 font-black text-lg shadow-sm">
@@ -875,9 +912,14 @@ function UsersManager() {
                   </td>
                   <td className="p-6">
                     {user.isBanned ? (
-                      <span className="flex items-center gap-1.5 text-red-600 font-black text-[10px] uppercase tracking-wider bg-red-50 px-3 py-1 rounded-full border border-red-100">
-                        <Ban size={12}/> Restricted
-                      </span>
+                      <div className="space-y-1">
+                        <span className="flex items-center gap-1.5 text-red-600 font-black text-[10px] uppercase tracking-wider bg-red-50 px-3 py-1 rounded-full border border-red-100 w-fit">
+                          <Ban size={12}/> Restricted
+                        </span>
+                        {user.bannedUntil && (
+                          <p className="text-[9px] text-gray-400 font-bold flex items-center gap-1"><Clock size={10}/> Until {new Date(user.bannedUntil).toLocaleDateString()}</p>
+                        )}
+                      </div>
                     ) : (
                       <span className="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
                         <Check size={12}/> Active
@@ -886,9 +928,13 @@ function UsersManager() {
                   </td>
                   <td className="p-6 text-sm text-gray-500 font-bold">{new Date(user.createdAt).toLocaleDateString()}</td>
                   <td className="p-6 text-right">
-                    <div className="flex justify-end gap-3">
-                      <button onClick={() => toggleAdmin(user.id, user.isAdmin)} className={`p-3 rounded-2xl transition-all ${user.isAdmin ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`} title="Grant/Revoke Admin"><Shield size={20}/></button>
-                      <button onClick={() => handleBan(user.id, user.isBanned)} className={`p-3 rounded-2xl transition-all ${user.isBanned ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white'}`} title="Ban/Unban User"><UserX size={20}/></button>
+                    <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => toggleAdmin(user.id, user.isAdmin)} className={`p-3 rounded-2xl transition-all ${user.isAdmin ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`} title="Toggle Admin"><Shield size={20}/></button>
+                      {user.isBanned ? (
+                        <button onClick={() => handleUnban(user.id)} className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-lg shadow-emerald-50" title="Restore Access"><Check size={20}/></button>
+                      ) : (
+                        <button onClick={() => { setSelectedUser(user); setShowBanModal(true); }} className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-red-50" title="Ban User"><UserX size={20}/></button>
+                      )}
                     </div>
                   </td>
                 </tr>

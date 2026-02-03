@@ -540,3 +540,57 @@ export async function sendAccountBannedAlert(
   
   console.log(`Account ban email sent to: ${userEmail} (${isPermanent ? 'permanent' : `${duration} days`})`);
 }
+
+// Send Account Unbanned Alert
+export async function sendAccountUnbannedAlert(
+  userName: string,
+  userEmail: string
+) {
+  const transporter = createSecurityTransporter();
+  
+  const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <p style="color: #166534; margin: 0; font-size: 16px; line-height: 1.6;">
+        <strong>Good news! Your account access has been fully restored.</strong>
+      </p>
+    </div>
+
+    <h2 style="color: #1f2937; font-size: 20px; margin: 30px 0 15px 0;">✅ Account Reactivated:</h2>
+    
+    <p style="color: #4b5563; line-height: 1.8; margin-bottom: 25px;">
+      An administrator has reviewed your account and removed the suspension. You can now log in and use all the features of <strong>Light of Life</strong> as normal.
+    </p>
+
+    <div style="background-color: #f9fafb; border-radius: 12px; padding: 25px; border: 1px solid #e5e7eb; margin-bottom: 30px;">
+      <h3 style="color: #1f2937; font-size: 18px; margin: 0 0 10px 0;">🚀 Ready to go?</h3>
+      <p style="color: #6b7280; margin: 0; line-height: 1.6;">
+        We're happy to have you back in our community! Please make sure to follow our community guidelines to ensure a safe and positive experience for everyone.
+      </p>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://light-of-life.com'}/login" 
+         style="display: inline-block; background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%); color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+        Log In Now
+      </a>
+    </div>
+  `;
+  
+  const emailHtml = createSecurityEmailTemplate(
+    'Account Access Restored',
+    '🔓',
+    content,
+    '#16a34a'
+  );
+  
+  await transporter.sendMail({
+    from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+    to: userEmail,
+    subject: '🔓 Account Access Restored - Welcome Back!',
+    html: emailHtml,
+  });
+  
+  console.log(`Account unban email sent to: ${userEmail}`);
+}

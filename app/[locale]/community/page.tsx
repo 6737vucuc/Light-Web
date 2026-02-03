@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, MessageCircle, Home, User } from 'lucide-react';
+import { Users, MessageCircle, Home, User, Sparkles, BookOpen, Heart, Shield, ArrowLeft, Loader2, Info, Search, Filter } from 'lucide-react';
 import Image from 'next/image';
 import EnhancedGroupChat from '@/components/community/EnhancedGroupChat';
 import { useTranslations } from 'next-intl';
@@ -62,16 +62,10 @@ export default function CommunityPage() {
 
   const loadGroups = async () => {
     try {
-      // Fetch with cache-busting to ensure fresh data
       const response = await fetch(`/api/groups?t=${Date.now()}`);
       if (response.ok) {
         const data = await response.json();
-        // Use functional update to avoid race conditions
-        setGroups(prev => {
-          // Only update if data has actually changed or is new
-          if (JSON.stringify(prev) === JSON.stringify(data.groups)) return prev;
-          return data.groups;
-        });
+        setGroups(data.groups || []);
       }
     } catch (error) {
       console.error('Error loading groups:', error);
@@ -87,110 +81,166 @@ export default function CommunityPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-purple-600 w-12 h-12 mb-4" />
+        <p className="text-gray-500 font-bold animate-pulse">Entering Community...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 pb-16 md:pb-0">
-      {/* Top Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      {/* Dynamic Header based on selection */}
+      <header className={`sticky top-0 z-50 transition-all duration-300 ${selectedGroup ? 'bg-white shadow-md' : 'bg-gradient-to-r from-purple-700 via-purple-600 to-blue-600 shadow-lg py-6'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  {t('title')}
-                </h1>
-                <p className="text-xs text-gray-500">{t('groupChat')}</p>
-              </div>
-            </div>
-
-            {/* User Avatar */}
-            <button
-              onClick={() => router.push('/profile')}
-              className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 border-2 border-purple-600 hover:scale-105 transition-transform"
-            >
-              {currentUser?.avatar ? (
-                <Image
-                  src={getAvatarUrl(currentUser.avatar)}
-                  alt={currentUser.name}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-sm font-bold">
-                  {currentUser?.name?.charAt(0).toUpperCase()}
+            {selectedGroup ? (
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => {
+                    setSelectedGroup(null);
+                    localStorage.removeItem('selectedGroupId');
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
+                >
+                  <ArrowLeft size={24} />
+                </button>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black" style={{ backgroundColor: selectedGroup.color }}>
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-black text-gray-900 leading-none">{selectedGroup.name}</h1>
+                    <p className="text-xs text-emerald-500 font-bold mt-1 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                      {selectedGroup.members_count || 0} Members Online
+                    </p>
+                  </div>
                 </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black text-white tracking-tight">{t('title')}</h1>
+                  <p className="text-purple-100 text-xs font-medium opacity-90">{t('groupChat')}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              {!selectedGroup && (
+                <button onClick={() => router.push('/')} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white hidden md:flex">
+                  <Home size={20} />
+                </button>
               )}
-            </button>
+              <button
+                onClick={() => router.push('/profile')}
+                className={`relative w-10 h-10 rounded-xl overflow-hidden border-2 transition-all hover:scale-105 ${selectedGroup ? 'border-purple-600 shadow-lg shadow-purple-100' : 'border-white/30 shadow-xl'}`}
+              >
+                {currentUser?.avatar ? (
+                  <Image src={getAvatarUrl(currentUser.avatar)} alt={currentUser.name} fill className="object-cover" unoptimized />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400 text-white text-sm font-black">
+                    {currentUser?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {selectedGroup ? (
-          /* Group Chat View */
-          <EnhancedGroupChat
-            group={selectedGroup}
-            currentUser={currentUser}
-            onBack={() => {
-              setSelectedGroup(null);
-              localStorage.removeItem('selectedGroupId');
-            }}
-          />
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 h-[calc(100vh-180px)] md:h-[calc(100vh-140px)]">
+            <EnhancedGroupChat
+              group={selectedGroup}
+              currentUser={currentUser}
+              onBack={() => {
+                setSelectedGroup(null);
+                localStorage.removeItem('selectedGroupId');
+              }}
+            />
+          </div>
         ) : (
-          /* Groups List */
-          <div>
-            {/* Welcome Banner */}
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 mb-6 text-white shadow-lg">
-              <h2 className="text-2xl font-bold mb-2">{t('welcome')} {currentUser?.name}! 👋</h2>
-              <p className="text-purple-100">
-                {t('joinGroups')}
-              </p>
-              <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-lg p-3 text-sm">
-                <p className="flex items-center gap-2">
-                  <span className="text-yellow-300">⚠️</span>
-                  {t('messagesDeleted')}
+          <div className="space-y-8 animate-in fade-in duration-700">
+            {/* Redesigned Welcome Banner */}
+            <div className="relative bg-white rounded-[2rem] p-8 md:p-12 shadow-xl shadow-purple-100/50 border border-gray-100 overflow-hidden group">
+              <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-purple-50 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
+              <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-blue-50 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
+              
+              <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                <div className="p-6 bg-gradient-to-br from-purple-600 to-blue-600 rounded-[2rem] shadow-2xl shadow-purple-200 transform -rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                  <Sparkles className="w-12 h-12 text-white animate-pulse" />
+                </div>
+                <div className="text-center md:text-start flex-1">
+                  <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3 tracking-tight">
+                    {t('welcome')} {currentUser?.name?.split(' ')[0]}! 👋
+                  </h2>
+                  <p className="text-gray-500 text-lg font-medium max-w-2xl leading-relaxed">
+                    {t('joinGroups')}
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-3 justify-center md:justify-start">
+                    <span className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-xs font-black uppercase tracking-wider border border-emerald-100">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                      Live Discussions
+                    </span>
+                    <span className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-xs font-black uppercase tracking-wider border border-purple-100">
+                      <Shield size={14}/>
+                      Safe Community
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Alert Info */}
+              <div className="mt-10 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-3 relative z-10">
+                <div className="p-2 bg-yellow-100 rounded-xl text-yellow-600"><Info size={20}/></div>
+                <p className="text-sm text-gray-600 font-bold leading-relaxed">
+                  <span className="text-yellow-700">Notice:</span> {t('messagesDeleted')}
                 </p>
               </div>
             </div>
 
-            {/* Groups Grid */}
+            {/* Section Header */}
+            <div className="flex justify-between items-end">
+              <div>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Active Circles</h3>
+                <p className="text-gray-500 font-bold text-sm">Join a group to start sharing</p>
+              </div>
+              <div className="flex gap-2">
+                <div className="p-2 bg-white border border-gray-100 rounded-xl text-gray-400"><Filter size={20}/></div>
+                <div className="p-2 bg-white border border-gray-100 rounded-xl text-gray-400"><Search size={20}/></div>
+              </div>
+            </div>
+
+            {/* Redesigned Groups Grid */}
             {groups.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-12 h-12 text-gray-400" />
+              <div className="bg-white rounded-[2rem] p-20 text-center border-2 border-dashed border-gray-100">
+                <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Users className="w-12 h-12 text-gray-300" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('noGroups')}</h3>
-                <p className="text-gray-500">{t('groupsComingSoon')}</p>
+                <h3 className="text-2xl font-black text-gray-900 mb-2">{t('noGroups')}</h3>
+                <p className="text-gray-500 font-bold max-w-xs mx-auto leading-relaxed">{t('groupsComingSoon')}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {groups.map((group) => (
                   <button
                     key={group.id}
                     onClick={async () => {
                       setIsLoading(true);
                       try {
-                        const response = await fetch(`/api/groups/${group.id}/join`, {
-                          method: 'POST',
-                        });
-                        const data = await response.json();
-                        
+                        const response = await fetch(`/api/groups/${group.id}/join`, { method: 'POST' });
                         if (response.ok) {
                           setSelectedGroup(group);
                           localStorage.setItem('selectedGroupId', group.id.toString());
                         } else {
-                          alert(data.error || data.details || 'Failed to join group');
+                          const data = await response.json();
+                          alert(data.error || 'Failed to join group');
                         }
                       } catch (error) {
                         console.error('Error joining group:', error);
@@ -199,47 +249,37 @@ export default function CommunityPage() {
                         setIsLoading(false);
                       }
                     }}
-                    className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group"
+                    className="group bg-white rounded-[2rem] shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 overflow-hidden flex flex-col text-start"
                   >
-                    {/* Group Header with Color */}
-                    <div
-                      className="h-32 flex items-center justify-center relative overflow-hidden"
-                      style={{
-                        background: `linear-gradient(135deg, ${group.color} 0%, ${group.color}dd 100%)`,
-                      }}
-                    >
-                      <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all"></div>
-                      <Users className="w-16 h-16 text-white relative z-10 group-hover:scale-110 transition-transform" />
+                    {/* Modern Group Header */}
+                    <div className="h-40 flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: group.color }}>
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent opacity-60"></div>
+                      <div className="relative z-10 p-6 bg-white/20 backdrop-blur-md rounded-3xl border border-white/30 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                        <Users className="w-12 h-12 text-white" />
+                      </div>
+                      <div className="absolute bottom-4 left-6 z-10">
+                        <span className="px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[10px] font-black uppercase text-gray-900 shadow-sm">
+                          {group.members_count || 0} Members
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Group Info */}
-                    <div className="p-5">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2 text-start">
+                    {/* Modern Group Content */}
+                    <div className="p-8 flex-1 flex flex-col">
+                      <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">
                         {group.name}
                       </h3>
-                      {group.description && (
-                        <p className="text-gray-600 text-sm mb-4 text-start line-clamp-2">
-                          {group.description}
-                        </p>
-                      )}
+                      <p className="text-gray-500 text-sm font-medium mb-8 line-clamp-2 leading-relaxed flex-1">
+                        {group.description || 'Join this circle to connect with others and share your spiritual journey.'}
+                      </p>
 
-                      {/* Stats */}
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <Users className="w-4 h-4" />
-                          <span>{group.members_count || 0} {t('members')}</span>
+                      <div className="pt-6 border-t border-gray-50 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <MessageCircle size={18} />
+                          <span className="text-sm font-black tracking-tight">{group.messages_count || 0} Chats</span>
                         </div>
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <MessageCircle className="w-4 h-4" />
-                          <span>{group.messages_count || 0} {t('messages')}</span>
-                        </div>
-                      </div>
-
-                      {/* Join Button */}
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <div className="flex items-center justify-center gap-2 text-purple-600 font-medium group-hover:text-pink-600 transition-colors">
-                          <MessageCircle className="w-5 h-5" />
-                          <span>{t('openChat')}</span>
+                        <div className="px-6 py-3 bg-purple-50 text-purple-700 rounded-2xl font-black text-sm group-hover:bg-purple-600 group-hover:text-white transition-all shadow-sm group-hover:shadow-xl group-hover:shadow-purple-100">
+                          {t('openChat')}
                         </div>
                       </div>
                     </div>
@@ -251,26 +291,25 @@ export default function CommunityPage() {
         )}
       </main>
 
-      {/* Bottom Navigation - Mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-200 z-40 shadow-lg">
-        <div className="flex items-center justify-around h-16">
-          <button
-            onClick={() => router.push('/community')}
-            className="flex flex-col items-center justify-center flex-1 h-full"
-          >
-            <Home className="w-6 h-6 text-purple-600" strokeWidth={2} />
-            <span className="text-xs text-purple-600 font-medium mt-1">{tCommon('community')}</span>
-          </button>
-
-          <button
-            onClick={() => router.push('/profile')}
-            className="flex flex-col items-center justify-center flex-1 h-full"
-          >
-            <User className="w-6 h-6 text-gray-600" strokeWidth={2} />
-            <span className="text-xs text-gray-600 mt-1">{tCommon('profile')}</span>
-          </button>
-        </div>
-      </nav>
+      {/* Modern Bottom Navigation */}
+      {!selectedGroup && (
+        <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl border border-gray-100 z-50 shadow-2xl rounded-3xl overflow-hidden">
+          <div className="flex items-center justify-around h-20">
+            <button onClick={() => router.push('/community')} className="flex flex-col items-center justify-center flex-1 h-full relative">
+              <div className="p-2 bg-purple-100 rounded-xl text-purple-600 mb-1"><Users size={24} /></div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">{tCommon('community')}</span>
+              <div className="absolute bottom-0 w-8 h-1 bg-purple-600 rounded-t-full"></div>
+            </button>
+            <button onClick={() => router.push('/')} className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl text-white shadow-xl shadow-purple-200 -mt-8 border-4 border-gray-50">
+              <Home size={28} />
+            </button>
+            <button onClick={() => router.push('/profile')} className="flex flex-col items-center justify-center flex-1 h-full">
+              <div className="p-2 text-gray-400 mb-1"><User size={24} /></div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{tCommon('profile')}</span>
+            </button>
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
