@@ -657,13 +657,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             <button onClick={() => onBack ? onBack() : setSelectedConversation(null)} className={`p-2 hover:bg-gray-200 rounded-full ${onBack ? '' : 'md:hidden'}`}>
               <ArrowLeft className="w-6 h-6 text-gray-600" />
             </button>
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                 <Image 
-                  src={getAvatarUrl(selectedConversation.avatar)} 
-                  alt={selectedConversation.name || 'User'} 
+                  src={getAvatarUrl(selectedConversation.avatar || selectedConversation.other_user_avatar)} 
+                  alt={selectedConversation.name || selectedConversation.other_user_name || 'User'} 
                   width={40} 
                   height={40} 
-                  className="object-cover" 
+                  className="w-full h-full object-cover" 
                   unoptimized 
                 />
               </div>

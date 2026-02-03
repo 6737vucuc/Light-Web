@@ -144,11 +144,11 @@ export default function Messenger({ currentUser, recipient, onClose }: Messenger
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-              {recipient?.avatar ? (
+            <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+              {recipient?.avatar || recipient?.other_user_avatar ? (
                 <Image
-                  src={getAvatarUrl(recipient.avatar)}
-                  alt={recipient.name}
+                  src={getAvatarUrl(recipient.avatar || recipient.other_user_avatar)}
+                  alt={recipient.name || recipient.other_user_name}
                   fill
                   className="object-cover"
                   unoptimized
