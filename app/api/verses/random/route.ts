@@ -20,8 +20,11 @@ export async function GET(request: NextRequest) {
     }
 
     const today = new Date().toISOString().split('T')[0];
+    
+    // Create a numeric seed based on the date (YYYYMMDD)
+    const dateSeed = parseInt(today.replace(/-/g, ''));
 
-    // 1. Try to fetch verse scheduled for today matching user religion or 'all'
+    // 1. Try to fetch verse explicitly scheduled for today
     let targetVerse = await db.select()
       .from(dailyVerses)
       .where(
@@ -35,22 +38,27 @@ export async function GET(request: NextRequest) {
       )
       .limit(1);
 
-    // 2. If no verse for today, get a random one from dailyVerses
+    // 2. If no verse scheduled for today, pick one deterministically based on the date seed
     if (targetVerse.length === 0) {
-      targetVerse = await db.select()
+      // Get all available verses for this religion
+      const allVerses = await db.select()
         .from(dailyVerses)
         .where(
           or(
             eq(dailyVerses.religion, userReligion),
             eq(dailyVerses.religion, 'all')
           )
-        )
-        .orderBy(sql`RANDOM()`)
-        .limit(1);
+        );
+
+      if (allVerses.length > 0) {
+        // Use the date seed to pick the same verse for everyone all day
+        const index = dateSeed % allVerses.length;
+        targetVerse = [allVerses[index]];
+      }
     }
 
     if (targetVerse.length === 0) {
-      // Fallback if no verses found in dailyVerses
+      // Fallback if no verses found in database at all
       return NextResponse.json({
         verse: {
           content: "Let your light shine before others.",
@@ -60,7 +68,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Map daily_verses fields to what the frontend expects (content, reference)
     const verse = targetVerse[0];
     return NextResponse.json({ 
       verse: {
@@ -68,11 +75,11 @@ export async function GET(request: NextRequest) {
         content: verse.verseText,
         reference: verse.verseReference,
         religion: verse.religion,
-        displayDate: verse.displayDate
+        displayDate: verse.displayDate || today
       } 
     });
   } catch (error) {
-    console.error('Random verse error:', error);
+    console.error('Daily verse error:', error);
     return NextResponse.json({ error: 'Failed to fetch daily verse' }, { status: 500 });
   }
 }
