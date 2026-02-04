@@ -169,6 +169,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           setupCallEvents(call);
         }
       })
+      .on('broadcast', { event: 'messages-read' }, ({ payload }) => {
+        console.log('Messages read by other user:', payload);
+        if (selectedConversation && payload.readerId === selectedConversation.other_user_id) {
+          setMessages(prev => prev.map(msg => ({ ...msg, is_read: true })));
+        }
+      })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('Supabase Realtime Subscribed!');
@@ -480,6 +486,13 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         const data = await res.json();
         setMessages(data.messages || []);
         setTimeout(scrollToBottom, 100);
+        
+        // Mark messages as read in DB and notify sender
+        fetch('/api/direct-messages/mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ senderId: otherUserId })
+        });
       }
     } catch (error) { console.error(error); }
   };
