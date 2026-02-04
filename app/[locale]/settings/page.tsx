@@ -92,7 +92,12 @@ export default function SettingsPage() {
   };
 
   const handleUnblock = async (userId: number) => {
-    if (!confirm(tCommon('confirm'))) return;
+    const confirmed = await toast.confirm({
+      title: t('unblockUser') || 'Unblock User',
+      message: tCommon('confirm'),
+      type: 'warning'
+    });
+    if (!confirmed) return;
     
     try {
       const response = await fetch(`/api/block/${userId}`, { method: 'DELETE' });
@@ -203,7 +208,12 @@ export default function SettingsPage() {
   };
 
   const handleLogout = async () => {
-    if (confirm(tCommon('confirm'))) {
+    const confirmed = await toast.confirm({
+      title: t('logout') || 'Logout',
+      message: tCommon('confirm'),
+      type: 'danger'
+    });
+    if (confirmed) {
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
         router.push('/auth/login');

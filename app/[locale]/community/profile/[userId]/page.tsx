@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Lock, User, Shield, Trash2, Eye, EyeOff, Calendar, Mail } from 'lucide-react';
 import Image from 'next/image';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 export default function CommunityProfilePage() {
+  const toast = useToast();
   const router = useRouter();
   const params = useParams();
   const userId = params.userId as string;
@@ -68,12 +70,12 @@ export default function CommunityProfilePage() {
 
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('كلمة المرور الجديدة غير متطابقة');
+      toast.error('كلمة المرور الجديدة غير متطابقة');
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      toast.error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
       return;
     }
 
@@ -88,23 +90,26 @@ export default function CommunityProfilePage() {
       });
 
       if (response.ok) {
-        alert('تم تغيير كلمة المرور بنجاح');
+        toast.success('تم تغيير كلمة المرور بنجاح');
         setShowPasswordModal(false);
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       } else {
         const data = await response.json();
-        alert(data.error || 'حدث خطأ أثناء تغيير كلمة المرور');
+        toast.error(data.error || 'حدث خطأ أثناء تغيير كلمة المرور');
       }
     } catch (error) {
       console.error('Error changing password:', error);
-      alert('حدث خطأ أثناء تغيير كلمة المرور');
+      toast.error('حدث خطأ أثناء تغيير كلمة المرور');
     }
   };
 
   const handleDeleteAccount = async () => {
-    if (!confirm('هل أنت متأكد من حذف حسابك؟ هذا الإجراء لا يمكن التراجع عنه!')) {
-      return;
-    }
+    const confirmed = await toast.confirm({
+      title: 'حذف الحساب',
+      message: 'هل أنت متأكد من حذف حسابك؟ هذا الإجراء لا يمكن التراجع عنه!',
+      type: 'danger'
+    });
+    if (!confirmed) return;
 
     try {
       const response = await fetch('/api/users/delete', {
@@ -112,14 +117,14 @@ export default function CommunityProfilePage() {
       });
 
       if (response.ok) {
-        alert('تم حذف الحساب بنجاح');
+        toast.success('تم حذف الحساب بنجاح');
         router.push('/auth/login');
       } else {
-        alert('حدث خطأ أثناء حذف الحساب');
+        toast.error('حدث خطأ أثناء حذف الحساب');
       }
     } catch (error) {
       console.error('Error deleting account:', error);
-      alert('حدث خطأ أثناء حذف الحساب');
+      toast.error('حدث خطأ أثناء حذف الحساب');
     }
   };
 

@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Plus, Trash2, Edit, MessageSquare, Calendar } from 'lucide-react';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 export default function AdminGroupsPage() {
   const router = useRouter();
+  const toast = useToast();
   const [groups, setGroups] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -53,7 +55,7 @@ export default function AdminGroupsPage() {
 
   const handleCreateGroup = async () => {
     if (!newGroup.name.trim()) {
-      alert('يرجى إدخال اسم المجموعة');
+      toast.error('يرجى إدخال اسم المجموعة');
       return;
     }
 
@@ -75,9 +77,12 @@ export default function AdminGroupsPage() {
   };
 
   const handleDeleteGroup = async (groupId: number) => {
-    if (!confirm('هل أنت متأكد من حذف هذه المجموعة؟ سيتم حذف جميع الرسائل والأعضاء.')) {
-      return;
-    }
+    const confirmed = await toast.confirm({
+      title: 'حذف المجموعة',
+      message: 'هل أنت متأكد من حذف هذه المجموعة؟ سيتم حذف جميع الرسائل والأعضاء.',
+      type: 'danger'
+    });
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/groups?id=${groupId}`, {

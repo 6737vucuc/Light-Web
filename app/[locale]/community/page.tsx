@@ -6,8 +6,10 @@ import { Users, MessageCircle, Home, User, Sparkles, BookOpen, Heart, Shield, Ar
 import Image from 'next/image';
 import EnhancedGroupChat from '@/components/community/EnhancedGroupChat';
 import { useTranslations } from 'next-intl';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 export default function CommunityPage() {
+  const toast = useToast();
   const t = useTranslations('community');
   const tCommon = useTranslations('common');
   const router = useRouter();
@@ -240,11 +242,11 @@ export default function CommunityPage() {
                           localStorage.setItem('selectedGroupId', group.id.toString());
                         } else {
                           const data = await response.json();
-                          alert(data.error || 'Failed to join group');
+                          toast.error(data.error || 'Failed to join group');
                         }
                       } catch (error) {
                         console.error('Error joining group:', error);
-                        alert('Connection error');
+                        toast.error('Connection error');
                       } finally {
                         setIsLoading(false);
                       }

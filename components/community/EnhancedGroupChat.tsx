@@ -18,6 +18,7 @@ import {
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import { useToast } from '@/lib/contexts/ToastContext';
 import Pusher from 'pusher-js';
 import UserAvatarMenu from './UserAvatarMenu';
 
@@ -30,6 +31,7 @@ interface EnhancedGroupChatProps {
 export default function EnhancedGroupChat({ group, currentUser, onBack }: EnhancedGroupChatProps) {
   const router = useRouter();
   const params = useParams();
+  const toast = useToast();
   const locale = params?.locale as string || 'ar';
   const t = useTranslations('community');
   const tCommon = useTranslations('common');
@@ -197,7 +199,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   const deleteMessage = async (messageId: number) => {
-    if (!confirm(t('deleteMessageConfirm'))) return;
+    const confirmed = await toast.confirm({
+      title: t('deleteMessage'),
+      message: t('deleteMessageConfirm'),
+      type: 'danger'
+    });
+    if (!confirmed) return;
     
     try {
       const res = await fetch(`/api/groups/${group.id}/messages/${messageId}`, {
@@ -215,7 +222,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   const handleLeaveGroup = async () => {
-    if (!confirm(t('leaveGroupConfirm'))) return;
+    const confirmed = await toast.confirm({
+      title: t('leaveGroup'),
+      message: t('leaveGroupConfirm'),
+      type: 'danger'
+    });
+    if (!confirmed) return;
     
     try {
       const res = await fetch(`/api/groups/${group.id}/leave`, {

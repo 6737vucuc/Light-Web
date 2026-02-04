@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, AlertTriangle, Lock, Unlock, RefreshCw, Clock, Users, TrendingUp, Search, Filter } from 'lucide-react';
 import Image from 'next/image';
+import { useToast } from '@/lib/contexts/ToastContext';
 
 interface SecurityLog {
   id: number;
@@ -25,6 +26,7 @@ interface Stats {
 
 export default function SecurityDashboard() {
   const router = useRouter();
+  const toast = useToast();
   const [logs, setLogs] = useState<SecurityLog[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
@@ -86,7 +88,12 @@ export default function SecurityDashboard() {
   };
 
   const unlockAccount = async (userId: number) => {
-    if (!confirm('Are you sure you want to unlock this account?')) return;
+    const confirmed = await toast.confirm({
+      title: 'Unlock Account',
+      message: 'Are you sure you want to unlock this account?',
+      type: 'warning'
+    });
+    if (!confirmed) return;
 
     try {
       const response = await fetch('/api/admin/security-logs', {
@@ -96,14 +103,14 @@ export default function SecurityDashboard() {
       });
 
       if (response.ok) {
-        alert('Account unlocked successfully');
+        toast.success('Account unlocked successfully');
         loadSecurityLogs();
       } else {
-        alert('Failed to unlock account');
+        toast.error('Failed to unlock account');
       }
     } catch (error) {
       console.error('Error unlocking account:', error);
-      alert('Error unlocking account');
+      toast.error('Error unlocking account');
     }
   };
 
