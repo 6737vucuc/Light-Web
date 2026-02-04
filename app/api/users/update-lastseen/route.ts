@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
     `);
 
     // Notify each contact
-    const contactIds = (conversations as any).map((c: any) => c.other_user_id).filter(Boolean);
+    // Ensure conversations is an array before mapping (db.execute might return different structures depending on driver)
+    const results = Array.isArray(conversations) ? conversations : (conversations as any).rows || [];
+    const contactIds = results.map((c: any) => c.other_user_id).filter(Boolean);
     
     if (contactIds.length > 0) {
       for (const contactId of contactIds) {
