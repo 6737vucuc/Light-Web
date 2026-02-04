@@ -307,7 +307,122 @@ function LessonsManager() {
 
 // --- Verses Manager ---
 function VersesManager() {
-  return <EmptyState icon={Quote} title="Verses Manager" description="Daily verses management coming soon." />;
+  const toast = useToast();
+  const [verses, setVerses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ id: null, content: '', reference: '', religion: 'all' });
+
+  useEffect(() => { fetchVerses(); }, []);
+
+  const fetchVerses = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/verses');
+      const data = await response.json();
+      setVerses(data.verses || []);
+    } catch (error) { console.error(error); } finally { setLoading(false); }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/verses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (response.ok) {
+        toast.success(formData.id ? 'Verse updated' : 'Verse created');
+        setShowForm(false);
+        fetchVerses();
+      }
+    } catch (error) { toast.error('Error saving verse'); } finally { setLoading(false); }
+  };
+
+  const handleDelete = async (id: number) => {
+    const confirmed = await toast.confirm({
+      title: 'Delete Verse',
+      message: 'Are you sure you want to delete this verse?',
+      confirmText: 'Delete',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    try {
+      await fetch(`/api/admin/verses?id=${id}`, { method: 'DELETE' });
+      toast.success('Verse deleted');
+      fetchVerses();
+    } catch (error) { toast.error('Delete failed'); }
+  };
+
+  return (
+    <div>
+      <SectionHeader 
+        title="Daily Verses" 
+        subtitle="Manage inspirational quotes and verses"
+        action={
+          <button onClick={() => { setFormData({ id: null, content: '', reference: '', religion: 'all' }); setShowForm(true); }} className="flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg transition-all">
+            <Plus className="w-5 h-5 mr-2" /> New Verse
+          </button>
+        }
+      />
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl md:text-2xl font-black text-gray-900">{formData.id ? 'Edit Verse' : 'New Verse'}</h3>
+              <button type="button" onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24}/></button>
+            </div>
+            <div className="p-6 md:p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 uppercase">Verse Content</label>
+                <textarea value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 font-medium" rows={4} required />
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700 uppercase">Reference</label>
+                  <input type="text" value={formData.reference} onChange={e => setFormData({...formData, reference: e.target.value})} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 font-bold" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700 uppercase">Religion</label>
+                  <select value={formData.religion} onChange={e => setFormData({...formData, religion: e.target.value})} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 font-bold">
+                    <option value="all">All</option>
+                    <option value="christianity">Christianity</option>
+                    <option value="islam">Islam</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 md:p-8 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
+              <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold">Cancel</button>
+              <button type="submit" className="px-12 py-4 bg-purple-600 text-white rounded-2xl font-black hover:bg-purple-700 shadow-xl transition-all">Save Verse</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {verses.map(v => (
+          <div key={v.id} className="p-6 bg-white border-2 border-gray-100 rounded-3xl hover:border-purple-200 transition-all group">
+            <Quote className="text-purple-200 mb-4" size={32} />
+            <p className="text-gray-800 font-medium mb-4 italic">"{v.content}"</p>
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="font-black text-gray-900">{v.reference}</p>
+                <p className="text-xs text-gray-400 font-bold uppercase">{v.religion}</p>
+              </div>
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => { setFormData({ id: v.id, content: v.content, reference: v.reference, religion: v.religion }); setShowForm(true); }} className="p-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-purple-50 hover:text-purple-600 transition-all"><Edit size={18}/></button>
+                <button onClick={() => handleDelete(v.id)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all"><Trash2 size={18}/></button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // --- Groups Manager ---
@@ -351,7 +466,7 @@ function GroupsManager() {
         body: JSON.stringify(formData),
       });
       if (response.ok) {
-        toast.success('Group created');
+        toast.success(formData.id ? 'Group updated' : 'Group created');
         setShowForm(false);
         fetchGroups();
       }
@@ -426,7 +541,7 @@ function GroupsManager() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl animate-in fade-in zoom-in duration-200 overflow-hidden max-h-[90vh] flex flex-col">
             <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-xl md:text-2xl font-black text-gray-900">Create Group</h3>
+              <h3 className="text-xl md:text-2xl font-black text-gray-900">{formData.id ? 'Edit Group' : 'Create Group'}</h3>
               <button type="button" onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24}/></button>
             </div>
             <div className="p-6 md:p-8 space-y-6 overflow-y-auto">
@@ -486,7 +601,7 @@ function GroupsManager() {
             <div className="p-6 md:p-8 bg-gray-50 border-t border-gray-100 flex flex-col md:flex-row justify-end gap-4">
               <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold order-2 md:order-1">Cancel</button>
               <button type="submit" disabled={loading} className="px-12 py-4 bg-purple-600 text-white rounded-2xl font-black hover:bg-purple-700 shadow-xl transition-all order-1 md:order-2">
-                {loading ? <Loader2 className="animate-spin"/> : 'Create Group'}
+                {loading ? <Loader2 className="animate-spin"/> : formData.id ? 'Update Group' : 'Create Group'}
               </button>
             </div>
           </form>
@@ -524,9 +639,10 @@ function GroupsManager() {
                       <span className="text-lg font-black text-gray-900">{group.messages_count || 0}</span>
                     </div>
                   </div>
-                  <button onClick={() => handleDelete(group.id)} className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setFormData({ id: group.id, name: group.name, description: group.description, color: group.color, icon: group.icon }); setShowForm(true); }} className="p-3 bg-gray-50 text-gray-600 rounded-2xl hover:bg-purple-50 hover:text-purple-600 transition-all shadow-sm"><Edit size={18}/></button>
+                    <button onClick={() => handleDelete(group.id)} className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm"><Trash2 size={18} /></button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -539,17 +655,131 @@ function GroupsManager() {
 
 // --- Reports Manager ---
 function ReportsManager() {
-  return <EmptyState icon={AlertTriangle} title="Reports Manager" description="User reports management coming soon." />;
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/reports').then(r => r.json()).then(data => {
+      setReports(data.reports || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  return (
+    <div>
+      <SectionHeader title="User Reports" subtitle="Review and handle community violations" />
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-purple-600 w-12 h-12" /></div>
+      ) : reports.length === 0 ? (
+        <EmptyState icon={AlertTriangle} title="All clear!" description="No active reports to review at the moment." />
+      ) : (
+        <div className="bg-white border-2 border-gray-100 rounded-3xl overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50/50 border-b border-gray-100">
+              <tr className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                <th className="p-6">Reporter</th>
+                <th className="p-6">Target</th>
+                <th className="p-6">Reason</th>
+                <th className="p-6">Status</th>
+                <th className="p-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {reports.map(report => (
+                <tr key={report.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="p-6 font-bold text-gray-900">{report.reporter_name}</td>
+                  <td className="p-6 font-bold text-red-600">{report.target_name}</td>
+                  <td className="p-6 text-sm text-gray-500">{report.reason}</td>
+                  <td className="p-6">
+                    <span className="px-3 py-1 bg-orange-50 text-orange-600 text-[10px] font-black uppercase rounded-full border border-orange-100">Pending</span>
+                  </td>
+                  <td className="p-6 text-right">
+                    <button className="p-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-600 hover:text-white transition-all"><MoreVertical size={18}/></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // --- Statistics Manager ---
 function StatisticsManager() {
-  return <EmptyState icon={TrendingUp} title="Statistics" description="Platform statistics coming soon." />;
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/statistics').then(r => r.json()).then(data => {
+      setStats(data.stats);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-purple-600 w-12 h-12" /></div>;
+
+  return (
+    <div className="space-y-8">
+      <SectionHeader title="Platform Statistics" subtitle="Real-time overview of your community growth" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Total Users', value: stats?.totalUsers || 0, icon: Users, color: 'blue' },
+          { label: 'Active Groups', value: stats?.totalGroups || 0, icon: Hash, color: 'purple' },
+          { label: 'Messages Sent', value: stats?.totalMessages || 0, icon: MessageSquare, color: 'emerald' },
+          { label: 'Daily Verses', value: stats?.totalVerses || 0, icon: Quote, color: 'orange' },
+        ].map((s, i) => (
+          <div key={i} className="p-8 bg-white border-2 border-gray-100 rounded-3xl shadow-sm hover:border-purple-200 transition-all group">
+            <div className={`p-3 bg-${s.color}-50 text-${s.color}-600 rounded-2xl w-fit mb-4 group-hover:scale-110 transition-transform`}>
+              <s.icon size={24} />
+            </div>
+            <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">{s.label}</p>
+            <p className="text-4xl font-black text-gray-900">{s.value.toLocaleString()}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // --- Support Manager ---
 function SupportManager() {
-  return <EmptyState icon={MessageCircle} title="Support Requests" description="Support tickets management coming soon." />;
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/support').then(r => r.json()).then(data => {
+      setTickets(data.tickets || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  return (
+    <div>
+      <SectionHeader title="Support Tickets" subtitle="Help users with their inquiries and issues" />
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-purple-600 w-12 h-12" /></div>
+      ) : tickets.length === 0 ? (
+        <EmptyState icon={MessageCircle} title="No tickets" description="Your support queue is currently empty." />
+      ) : (
+        <div className="space-y-4">
+          {tickets.map(ticket => (
+            <div key={ticket.id} className="p-6 bg-white border-2 border-gray-100 rounded-3xl hover:border-purple-200 transition-all flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl"><MessageCircle size={24}/></div>
+                <div>
+                  <h4 className="font-black text-gray-900">{ticket.subject}</h4>
+                  <p className="text-sm text-gray-500 font-medium">From: {ticket.user_name} • {new Date(ticket.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <button className="px-6 py-3 bg-gray-50 text-gray-700 rounded-xl font-bold hover:bg-purple-600 hover:text-white transition-all">Reply</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // --- Users Manager ---
@@ -713,7 +943,7 @@ function UsersManager() {
               </div>
             </div>
             <div className="p-6 md:p-8 bg-gray-50 border-t border-gray-100 flex flex-col md:flex-row justify-end gap-4">
-              <button type="button" onClick={() => setShowBanModal(false)} className="px-8 py-4 text-gray-600 font-bold hover:bg-gray-200 rounded-2xl transition-all order-2 md:order-1">Cancel</button>
+              <button type="button" onClick={() => setShowBanModal(false)} className="px-8 py-4 text-gray-600 font-bold order-2 md:order-1">Cancel</button>
               <button type="submit" disabled={loading} className="px-12 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 shadow-xl shadow-red-100 transition-all order-1 md:order-2">
                 {loading ? <Loader2 className="animate-spin"/> : 'Confirm Ban'}
               </button>

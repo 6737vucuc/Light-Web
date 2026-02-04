@@ -1,36 +1,31 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { users, communityGroups, groupMessages, verses } from '@/lib/db/schema';
+import { verifyAuth } from '@/lib/auth/verify';
+import { eq, sql } from 'drizzle-orm';
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { users } from '@/lib/db/schema';
-import { requireAuth } from '@/lib/auth/middleware';
-import { sql } from 'drizzle-orm';
-
 export async function GET(request: NextRequest) {
-  const authResult = await requireAuth(request);
-  
-  if ('error' in authResult) {
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
-
-  // Check if user is admin
-  if (!authResult.user.isAdmin) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 403 }
-    );
-  }
-
   try {
-    // Get total users count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(users);
-    const total = Number(totalResult[0]?.count || 0);
+    const user = await verifyAuth(request);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.userId),
+      columns: { isAdmin: true }
+    });
+
+    if (!dbUser || !dbUser.isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Get counts
+    const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
+    const [groupCount] = await db.select({ count: sql<number>`count(*)` }).from(communityGroups);
+    const [messageCount] = await db.select({ count: sql<number>`count(*)` }).from(groupMessages);
+    const [verseCount] = await db.select({ count: sql<number>`count(*)` }).from(verses);
 
     // Get gender statistics
     const genderResult = await db
@@ -48,33 +43,18 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Get country statistics
-    const countryResult = await db
-      .select({
-        country: users.country,
-        count: sql<number>`count(*)`
-      })
-      .from(users)
-      .groupBy(users.country);
-
-    const countryStats: Record<string, number> = {};
-    countryResult.forEach((row) => {
-      if (row.country) {
-        countryStats[row.country] = Number(row.count);
-      }
-    });
-
     return NextResponse.json({
-      total,
-      genderStats,
-      countryStats,
+      stats: {
+        totalUsers: Number(userCount.count),
+        totalGroups: Number(groupCount.count),
+        totalMessages: Number(messageCount.count),
+        totalVerses: Number(verseCount.count)
+      },
+      total: Number(userCount.count),
+      genderStats
     });
   } catch (error) {
-    console.error('Statistics error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch statistics' },
-      { status: 500 }
-    );
+    console.error('Error fetching statistics:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-
