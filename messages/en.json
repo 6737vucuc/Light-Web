@@ -180,7 +180,12 @@
     "members": "Members",
     "messages": "Messages",
     "deleteMessage": "Delete Message",
-    "deleteMessageConfirm": "Are you sure you want to delete this message? This action cannot be undone."
+    "deleteMessageConfirm": "Are you sure you want to delete this message? This action cannot be undone.",
+    "leaveGroup": "Leave Group",
+    "leaveGroupConfirm": "Are you sure you want to leave this group?",
+    "groupInfo": "Group Info",
+    "viewProfile": "View Profile",
+    "sendMessage": "Send Message"
   },
   "profile": {
     "myProfile": "My Profile",

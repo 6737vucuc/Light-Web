@@ -49,13 +49,38 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const currentCallRef = useRef<any>(null);
 
   // Load Conversations
-  const loadConversations = async () => {
+  const loadConversations = async (targetUserId?: number) => {
     try {
       const res = await fetch('/api/direct-messages');
       if (res.ok) {
         const data = await res.json();
-        setConversations(data.conversations || []);
+        const convs = data.conversations || [];
+        setConversations(convs);
         setIsLoading(false);
+
+        // If initialUserId is provided, try to select that conversation
+        if (targetUserId) {
+          const existingConv = convs.find((c: any) => c.other_user_id === targetUserId);
+          if (existingConv) {
+            setSelectedConversation(existingConv);
+          } else {
+            // Create a temporary conversation object for a new chat
+            try {
+              const userRes = await fetch(`/api/users/${targetUserId}`);
+              if (userRes.ok) {
+                const userData = await userRes.json();
+                setSelectedConversation({
+                  other_user_id: targetUserId,
+                  name: userData.user.name,
+                  avatar: userData.user.avatar,
+                  is_online: false,
+                  last_message: null,
+                  last_message_time: null
+                });
+              }
+            } catch (err) { console.error('Error fetching target user:', err); }
+          }
+        }
       }
     } catch (error) { console.error(error); }
   };
@@ -64,7 +89,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    loadConversations();
+    loadConversations(initialUserId);
 
     // 1. Supabase Presence (Online Status)
     const channel = supabase.channel(`online-users`, {
@@ -109,7 +134,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         if (selectedConversation && newMsg.sender_id === selectedConversation.other_user_id) {
           setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), newMsg]);
           setTimeout(scrollToBottom, 100);
-          // Mark as read
           fetch(`/api/messages/read?messageId=${newMsg.id}`, { method: 'POST' });
         }
         loadConversations();
@@ -131,7 +155,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(typingChannel);
     };
-  }, [currentUser?.id, selectedConversation]);
+  }, [currentUser?.id, selectedConversation, initialUserId]);
 
   // PeerJS Call Logic (Kept as requested)
   useEffect(() => {
@@ -277,25 +301,35 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 shadow-sm">
                 <Image src={getAvatarUrl(selectedConversation.avatar)} alt={selectedConversation.name} width={48} height={48} className="object-cover" unoptimized />
               </div>
-              <div className="flex-1 text-left">
-                <h3 className="font-black text-gray-900 text-lg">{selectedConversation.name}</h3>
-                <p className={`text-xs font-black ${otherUserOnline ? 'text-green-600' : 'text-gray-500'}`}>
-                  {otherUserTyping ? (locale === 'ar' ? 'جاري الكتابة...' : 'typing...') : (otherUserOnline ? t('online') : (otherUserLastSeen ? `${t('lastSeen')} ${formatTime(otherUserLastSeen)}` : ''))}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-black text-gray-900 truncate">{selectedConversation.name}</h3>
+                <p className="text-[11px] font-bold text-gray-500">
+                  {otherUserTyping ? (
+                    <span className="text-green-600 animate-pulse">{t('typing')}</span>
+                  ) : otherUserOnline ? (
+                    <span className="text-green-600">{t('online')}</span>
+                  ) : otherUserLastSeen ? (
+                    `${t('lastSeen')} ${new Date(otherUserLastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                  ) : t('offline')}
                 </p>
               </div>
-              <Phone className="w-6 h-6 text-gray-600 cursor-pointer hover:text-purple-600 transition-colors" />
+              <div className="flex items-center gap-3">
+                <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"><Phone className="w-6 h-6" /></button>
+                <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"><MoreVertical className="w-6 h-6" /></button>
+              </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 relative z-10 bg-[url('/chat-bg.png')] bg-repeat">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 relative">
+              <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://w0.peakpx.com/wallpaper/508/606/HD-wallpaper-whatsapp-background-whatsapp-patterns.jpg')] bg-repeat"></div>
               {messages.map((msg) => {
                 const isOwn = msg.sender_id === currentUser.id;
                 return (
-                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`relative max-w-[80%] px-4 py-2 rounded-2xl shadow-md ${isOwn ? 'bg-[#dcf8c6] rounded-tr-none' : 'bg-white rounded-tl-none'}`}>
-                      <p className="text-[16px] text-gray-900 font-black leading-relaxed">{msg.content}</p>
+                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                    <div className={`max-w-[70%] relative px-4 py-2.5 rounded-2xl shadow-md ${isOwn ? 'bg-[#dcf8c6] text-gray-800 rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none'}`}>
+                      <p className="text-sm font-bold whitespace-pre-wrap break-words">{msg.content}</p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         <span className="text-[9px] text-gray-500 font-black">{formatTime(msg.created_at)}</span>
-                        {isOwn && (msg.is_read ? <CheckCheck className="w-3 h-3 text-blue-500" /> : <Check className="w-3 h-3 text-gray-400" />)}
+                        {isOwn && (msg.is_read ? <CheckCheck className="w-3.5 h-3.5 text-blue-500" /> : <Check className="w-3.5 h-3.5 text-gray-400" />)}
                       </div>
                     </div>
                   </div>
@@ -305,12 +339,22 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             </div>
             
             <div className="bg-[#f0f2f5] p-4 flex items-center gap-3 z-30">
-              <Smile className="w-7 h-7 text-gray-600 cursor-pointer" />
-              <Paperclip className="w-7 h-7 text-gray-600 cursor-pointer" />
+              <Smile className="w-7 h-7 text-gray-600 cursor-pointer hover:text-purple-600 transition-colors" />
+              <Paperclip className="w-7 h-7 text-gray-600 cursor-pointer hover:text-purple-600 transition-colors" />
               <form onSubmit={handleSendMessage} className="flex-1">
-                <input type="text" value={newMessage} onChange={handleTyping} placeholder={t('typeMessage')} className="w-full px-6 py-3 rounded-full bg-white text-gray-900 font-black focus:outline-none shadow-inner" />
+                <input 
+                  type="text" 
+                  value={newMessage} 
+                  onChange={handleTyping} 
+                  placeholder={t('typeMessage')} 
+                  className="w-full px-6 py-3 rounded-full bg-white text-gray-900 font-black focus:outline-none shadow-inner border-none ring-0" 
+                />
               </form>
-              <button onClick={handleSendMessage} className="p-4 bg-green-500 text-white rounded-full hover:bg-green-600 shadow-lg transform active:scale-95 transition-all">
+              <button 
+                onClick={handleSendMessage} 
+                disabled={!newMessage.trim() || isSending}
+                className={`p-4 rounded-full shadow-lg transform active:scale-95 transition-all ${newMessage.trim() && !isSending ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+              >
                 <Send className="w-6 h-6" />
               </button>
             </div>

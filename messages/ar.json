@@ -181,7 +181,12 @@
     "members": "الأعضاء",
     "messages": "الرسائل",
     "deleteMessage": "حذف الرسالة",
-    "deleteMessageConfirm": "هل أنت متأكد من حذف هذه الرسالة؟ لا يمكن التراجع عن هذا الإجراء."
+    "deleteMessageConfirm": "هل أنت متأكد من حذف هذه الرسالة؟ لا يمكن التراجع عن هذا الإجراء.",
+    "leaveGroup": "مغادرة المجموعة",
+    "leaveGroupConfirm": "هل أنت متأكد من رغبتك في مغادرة هذه المجموعة؟",
+    "groupInfo": "معلومات المجموعة",
+    "viewProfile": "عرض الملف الشخصي",
+    "sendMessage": "إرسال رسالة"
   },
   "profile": {
     "myProfile": "ملفي الشخصي",
