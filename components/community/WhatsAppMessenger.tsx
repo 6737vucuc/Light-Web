@@ -156,9 +156,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         setCallStatus('ended');
         setTimeout(() => setCallStatus('idle'), 2000);
       })
-      .on('broadcast', { event: 'call-accepted' }, () => {
-        console.log('Call accepted by receiver');
+      .on('broadcast', { event: 'call-accepted' }, ({ payload }) => {
+        console.log('Call accepted by receiver:', payload);
         setCallStatus('connected');
+        
+        // When the receiver accepts, the caller should initiate the PeerJS call
+        // if it hasn't been established yet via the 'call' event
+        if (peerRef.current && localStreamRef.current && payload.receiverPeerId) {
+          console.log('Caller initiating PeerJS call to:', payload.receiverPeerId);
+          const call = peerRef.current.call(payload.receiverPeerId, localStreamRef.current);
+          currentCallRef.current = call;
+          setupCallEvents(call);
+        }
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -234,8 +243,17 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       console.log('Receiving WebRTC call from:', call.peer);
       currentCallRef.current = call;
       
-      // If we are already in 'incoming' or 'calling' state, we might need to answer
-      // But we wait for the user to click "Accept" which calls handleAcceptCall
+      // If we already have a local stream (meaning we accepted the call via UI)
+      // we should answer it immediately to establish the audio link
+      if (localStreamRef.current) {
+        console.log('Answering incoming PeerJS call with existing local stream');
+        call.answer(localStreamRef.current);
+        setupCallEvents(call);
+      } else {
+        // If we don't have a stream yet, the handleAcceptCall will handle it
+        // when the user clicks the accept button
+        console.log('PeerJS call received but waiting for user to accept via UI');
+      }
     });
 
     peer.on('error', (err) => {
@@ -321,7 +339,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       await fetch('/api/calls/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receiverId: callerId })
+        body: JSON.stringify({ 
+          receiverId: callerId,
+          receiverPeerId: peerId // Send our peerId so caller can connect
+        })
       });
       
       setCallStatus('connected');

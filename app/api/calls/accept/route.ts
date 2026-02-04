@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { receiverId } = await request.json();
+    const { receiverId, receiverPeerId } = await request.json();
 
     if (!receiverId) {
       return NextResponse.json({ error: 'Missing receiverId' }, { status: 400 });
@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
       type: 'broadcast',
       event: 'call-accepted',
       payload: {
-        acceptorId: user.userId
+        acceptorId: user.userId,
+        receiverPeerId: receiverPeerId || null
       }
     });
 
