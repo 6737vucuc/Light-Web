@@ -906,10 +906,10 @@ function UsersManager() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Ban Duration (Days)</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[1, 7, 30, 365].map(d => (
-                    <button key={d} type="button" onClick={() => setBanDuration(d.toString())} className={`py-3 rounded-xl font-black text-sm transition-all border-2 ${banDuration === d.toString() ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-gray-100 text-gray-600 hover:border-red-200'}`}>
-                      {d === 365 ? '1y' : `${d}d`}
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                  {[1, 3, 7, 30, 90, 365].map(d => (
+                    <button key={d} type="button" onClick={() => setBanDuration(d.toString())} className={`py-3 rounded-xl font-black text-[10px] md:text-xs transition-all border-2 ${banDuration === d.toString() ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border-gray-100 text-gray-600 hover:border-red-200'}`}>
+                      {d === 365 ? '1 Year' : d >= 30 ? `${d/30} Month` : `${d} Day`}
                     </button>
                   ))}
                 </div>

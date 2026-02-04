@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Camera, Settings, BookOpen, Lock, User, Mail, Calendar, 
   Users, Heart, CheckCircle, Clock, Award, Eye, EyeOff, ArrowLeft
@@ -38,20 +38,14 @@ interface Stats {
 export default function ProfilePage() {
   const toast = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [lessonProgress, setLessonProgress] = useState<LessonProgress[]>([]);
   const [stats, setStats] = useState<Stats>({ totalLessons: 0, completed: 0, inProgress: 0, completionRate: 0 });
   const [loading, setLoading] = useState(true);
-  const [fromCommunity, setFromCommunity] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'lessons' | 'settings'>('profile');
 
-  useEffect(() => {
-    // Check if we came from the community page
-    const referrer = document.referrer;
-    if (referrer && referrer.includes('/community')) {
-      setFromCommunity(true);
-    }
-  }, []);
+  const fromCommunity = searchParams.get('from') === 'community';
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
   // Password change states

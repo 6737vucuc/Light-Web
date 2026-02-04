@@ -137,7 +137,7 @@ export default function CommunityPage() {
                 </button>
               )}
               <button
-                onClick={() => router.push('/profile')}
+                onClick={() => router.push('/profile?from=community')}
                 className={`relative w-10 h-10 rounded-xl overflow-hidden border-2 transition-all hover:scale-105 ${selectedGroup ? 'border-purple-600 shadow-lg shadow-purple-100' : 'border-white/30 shadow-xl'}`}
               >
                 {currentUser?.avatar ? (
