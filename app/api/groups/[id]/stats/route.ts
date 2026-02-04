@@ -25,7 +25,7 @@ export async function GET(
     const allMembers = await rawSql`
       SELECT 
         gm.id, gm.user_id, gm.role, gm.joined_at, gm.last_active,
-        u.name, u.username, u.avatar
+        u.name, u.avatar
       FROM group_members gm
       JOIN users u ON gm.user_id = u.id
       WHERE gm.group_id = ${groupId}
@@ -46,7 +46,6 @@ export async function GET(
       members: onlineMembers.map((m: any) => ({
         id: m.user_id,
         name: m.name,
-        username: m.username,
         avatar: m.avatar,
         role: m.role,
         joinedAt: m.joined_at,

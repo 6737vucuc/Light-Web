@@ -9,6 +9,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { isRtlLocale, Locale } from '@/i18n';
 import { notFound } from 'next/navigation';
+import ConditionalFooter from '@/components/ConditionalFooter';
 
 // Force dynamic rendering for all pages using next-intl
 export const dynamic = 'force-dynamic';
@@ -56,7 +57,7 @@ export default async function LocaleLayout({
               <main className="flex-1 bg-gray-50 w-full">
                 {children}
               </main>
-              <Footer />
+              <ConditionalFooter />
             </div>
             <ToastContainer />
           </ToastProvider>

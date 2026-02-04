@@ -44,11 +44,17 @@ export async function GET(request: NextRequest) {
 
     // Get all conversations (unique users the current user has messaged with)
     const conversations = await rawSql`
-      SELECT DISTINCT
-        CASE 
-          WHEN dm.sender_id = ${userId} THEN dm.receiver_id
-          ELSE dm.sender_id
-        END as other_user_id,
+      WITH conversation_users AS (
+        SELECT DISTINCT
+          CASE 
+            WHEN dm.sender_id = ${userId} THEN dm.receiver_id
+            ELSE dm.sender_id
+          END as other_user_id
+        FROM direct_messages dm
+        WHERE dm.sender_id = ${userId} OR dm.receiver_id = ${userId}
+      )
+      SELECT 
+        cu.other_user_id,
         u.name,
         u.avatar,
         u.last_seen,
@@ -56,32 +62,28 @@ export async function GET(request: NextRequest) {
         (
           SELECT content 
           FROM direct_messages 
-          WHERE (sender_id = ${userId} AND receiver_id = other_user_id)
-             OR (sender_id = other_user_id AND receiver_id = ${userId})
+          WHERE (sender_id = ${userId} AND receiver_id = cu.other_user_id)
+             OR (sender_id = cu.other_user_id AND receiver_id = ${userId})
           ORDER BY created_at DESC 
           LIMIT 1
         ) as last_message,
         (
           SELECT created_at 
           FROM direct_messages 
-          WHERE (sender_id = ${userId} AND receiver_id = other_user_id)
-             OR (sender_id = other_user_id AND receiver_id = ${userId})
+          WHERE (sender_id = ${userId} AND receiver_id = cu.other_user_id)
+             OR (sender_id = cu.other_user_id AND receiver_id = ${userId})
           ORDER BY created_at DESC 
           LIMIT 1
         ) as last_message_time,
         (
           SELECT COUNT(*) 
           FROM direct_messages 
-          WHERE sender_id = other_user_id 
+          WHERE sender_id = cu.other_user_id 
             AND receiver_id = ${userId} 
             AND is_read = false
         ) as unread_count
-      FROM direct_messages dm
-      JOIN users u ON u.id = CASE 
-        WHEN dm.sender_id = ${userId} THEN dm.receiver_id
-        ELSE dm.sender_id
-      END
-      WHERE dm.sender_id = ${userId} OR dm.receiver_id = ${userId}
+      FROM conversation_users cu
+      JOIN users u ON u.id = cu.other_user_id
       ORDER BY last_message_time DESC
     `;
 
