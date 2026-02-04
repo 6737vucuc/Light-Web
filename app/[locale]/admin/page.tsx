@@ -69,7 +69,7 @@ export default function AdminPage() {
             </nav>
           </div>
           
-          <div className="p-8 min-h-[500px]">
+          <div className="p-4 md:p-8 min-h-[500px]">
             {activeTab === 'lessons' && <LessonsManager />}
             {activeTab === 'verses' && <VersesManager />}
             {activeTab === 'groups' && <GroupsManager />}
@@ -90,10 +90,10 @@ function SectionHeader({ title, subtitle, action }: { title: string; subtitle?: 
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
       <div>
-        <h2 className="text-3xl font-black text-gray-900 tracking-tight">{title}</h2>
-        {subtitle && <p className="text-gray-500 font-medium mt-1">{subtitle}</p>}
+        <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">{title}</h2>
+        {subtitle && <p className="text-gray-500 font-medium mt-1 text-sm md:text-base">{subtitle}</p>}
       </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
+      {action && <div className="flex-shrink-0 w-full md:w-auto">{action}</div>}
     </div>
   );
 }
@@ -183,7 +183,6 @@ function LessonsManager() {
     
     if (!confirmed) return;
 
-    // Optimistic UI update: Remove from state immediately
     const previousLessons = [...lessons];
     setLessons(lessons.filter(l => l.id !== id));
     
@@ -193,7 +192,7 @@ function LessonsManager() {
       toast.success('Lesson deleted successfully');
     } catch (error) { 
       toast.error('Delete failed. Restoring lesson...');
-      setLessons(previousLessons); // Restore on failure
+      setLessons(previousLessons);
     }
   };
 
@@ -203,7 +202,7 @@ function LessonsManager() {
         title={t('manageLessons')} 
         subtitle="Create and organize your ministry curriculum"
         action={
-          <button onClick={() => { setFormData({ id: null, title: '', content: '', imageUrl: '', videoUrl: '', religion: 'christianity' }); setShowForm(true); }} className="flex items-center px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg shadow-purple-200 transition-all">
+          <button onClick={() => { setFormData({ id: null, title: '', content: '', imageUrl: '', videoUrl: '', religion: 'christianity' }); setShowForm(true); }} className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg shadow-purple-200 transition-all">
             <Plus className="w-5 h-5 mr-2" /> {t('createNewLesson')}
           </button>
         }
@@ -212,11 +211,11 @@ function LessonsManager() {
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-2xl font-black text-gray-900">{formData.id ? 'Edit Lesson' : 'New Lesson'}</h3>
+            <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-xl md:text-2xl font-black text-gray-900">{formData.id ? 'Edit Lesson' : 'New Lesson'}</h3>
               <button type="button" onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={24}/></button>
             </div>
-            <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+            <div className="p-6 md:p-8 space-y-6 max-h-[70vh] overflow-y-auto">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">{t('title')}</label>
                 <input type="text" placeholder="Enter lesson title..." value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 font-medium" required />
@@ -236,22 +235,22 @@ function LessonsManager() {
                   </select>
                 </div>
                 <div className="flex items-end gap-3">
-                  <label className="flex-1_cursor-pointer bg-blue-50 hover:bg-blue-100 p-4 rounded-2xl text-blue-700 font-bold flex flex-col items-center justify-center gap-2 border-2 border-blue-100 transition-all">
+                  <label className="flex-1 cursor-pointer bg-blue-50 hover:bg-blue-100 p-4 rounded-2xl text-blue-700 font-bold flex flex-col items-center justify-center gap-2 border-2 border-blue-100 transition-all">
                     <ImageIcon size={24} />
-                    <span className="text-xs uppercase">{formData.imageUrl ? 'Change Image' : 'Add Image'}</span>
+                    <span className="text-[10px] uppercase">{formData.imageUrl ? 'Change' : 'Image'}</span>
                     <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'image')} />
                   </label>
-                  <label className="flex-1_cursor-pointer bg-purple-50 hover:bg-purple-100 p-4 rounded-2xl text-purple-700 font-bold flex flex-col items-center justify-center gap-2 border-2 border-purple-100 transition-all">
+                  <label className="flex-1 cursor-pointer bg-purple-50 hover:bg-purple-100 p-4 rounded-2xl text-purple-700 font-bold flex flex-col items-center justify-center gap-2 border-2 border-purple-100 transition-all">
                     <Video size={24} />
-                    <span className="text-xs uppercase">{formData.videoUrl ? 'Change Video' : 'Add Video'}</span>
+                    <span className="text-[10px] uppercase">{formData.videoUrl ? 'Change' : 'Video'}</span>
                     <input type="file" className="hidden" accept="video/*" onChange={e => handleFileUpload(e, 'video')} />
                   </label>
                 </div>
               </div>
             </div>
-            <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-4">
-              <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold hover:bg-gray-200 rounded-2xl transition-all">Cancel</button>
-              <button type="submit" disabled={loading || uploading} className="px-12 py-4 bg-purple-600 text-white rounded-2xl font-black hover:bg-purple-700 shadow-xl shadow-purple-100 transition-all disabled:opacity-50">
+            <div className="p-6 md:p-8 bg-gray-50/50 border-t border-gray-100 flex flex-col md:flex-row justify-end gap-4">
+              <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold hover:bg-gray-200 rounded-2xl transition-all order-2 md:order-1">Cancel</button>
+              <button type="submit" disabled={loading || uploading} className="px-12 py-4 bg-purple-600 text-white rounded-2xl font-black hover:bg-purple-700 shadow-xl shadow-purple-100 transition-all disabled:opacity-50 order-1 md:order-2">
                 {loading ? <Loader2 className="animate-spin"/> : 'Save Lesson'}
               </button>
             </div>
@@ -268,8 +267,8 @@ function LessonsManager() {
           {lessons.map(lesson => (
             <div key={lesson.id} className="group border-2 border-gray-100 rounded-3xl overflow-hidden bg-white hover:border-purple-200 hover:shadow-2xl transition-all duration-300">
               <div className="relative h-56 w-full bg-gray-100">
-                {lesson.imageUrl ? (
-                  <img src={lesson.imageUrl} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                {lesson.imageurl ? (
+                  <img src={lesson.imageurl} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
                 ) : (
                   <div className="h-full w-full flex items-center justify-center text-gray-300 bg-gray-50">
                     <BookOpen size={64} />
@@ -278,8 +277,15 @@ function LessonsManager() {
                 <div className="absolute top-4 left-4">
                   <span className="bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-black uppercase text-purple-600 shadow-sm border border-purple-100">{lesson.religion}</span>
                 </div>
-                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
-                  <button onClick={() => { setFormData(lesson); setShowForm(true); }} className="p-3 bg-white text-blue-600 rounded-2xl shadow-xl hover:bg-blue-600 hover:text-white transition-all"><Edit size={18}/></button>
+                <div className="absolute top-4 right-4 flex gap-2 md:opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                  <button onClick={() => { setFormData({
+                    id: lesson.id,
+                    title: lesson.title,
+                    content: lesson.content,
+                    imageUrl: lesson.imageurl,
+                    videoUrl: lesson.videourl,
+                    religion: lesson.religion
+                  }); setShowForm(true); }} className="p-3 bg-white text-blue-600 rounded-2xl shadow-xl hover:bg-blue-600 hover:text-white transition-all"><Edit size={18}/></button>
                   <button onClick={() => handleDelete(lesson.id)} className="p-3 bg-white text-red-600 rounded-2xl shadow-xl hover:bg-red-600 hover:text-white transition-all"><Trash2 size={18}/></button>
                 </div>
               </div>
@@ -287,7 +293,7 @@ function LessonsManager() {
                 <h3 className="font-black text-xl text-gray-900 mb-2 line-clamp-1">{lesson.title}</h3>
                 <p className="text-gray-500 text-sm line-clamp-3 leading-relaxed font-medium">{lesson.content}</p>
                 <div className="mt-6 pt-6 border-t border-gray-50 flex items-center justify-between text-xs font-bold text-gray-400">
-                  <span className="flex items-center gap-1"><Calendar size={14}/> {new Date(lesson.createdAt).toLocaleDateString()}</span>
+                  <span className="flex items-center gap-1"><Calendar size={14}/> {new Date(lesson.createdat).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
@@ -360,7 +366,7 @@ function VersesManager() {
         title="Daily Verses" 
         subtitle="Manage scheduled inspirational messages"
         action={
-          <button onClick={() => { setFormData({ id: null, content: '', reference: '', religion: 'all', scheduledDate: new Date().toISOString().split('T')[0] }); setShowForm(true); }} className="flex items-center px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg transition-all">
+          <button onClick={() => { setFormData({ id: null, content: '', reference: '', religion: 'all', scheduledDate: new Date().toISOString().split('T')[0] }); setShowForm(true); }} className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg transition-all">
             <Plus className="w-5 h-5 mr-2" /> Add New Verse
           </button>
         }
@@ -369,16 +375,16 @@ function VersesManager() {
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-2xl w-full max-w-xl animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-2xl font-black text-gray-900">{formData.id ? 'Edit Verse' : 'Schedule Verse'}</h3>
+            <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl md:text-2xl font-black text-gray-900">{formData.id ? 'Edit Verse' : 'Schedule Verse'}</h3>
               <button type="button" onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24}/></button>
             </div>
-            <div className="p-8 space-y-6">
+            <div className="p-6 md:p-8 space-y-6">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase">Verse Content</label>
                 <textarea placeholder="Type the verse text..." value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 font-medium italic" rows={4} required />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-700 uppercase">Reference</label>
                   <input type="text" placeholder="e.g. John 3:16" value={formData.reference} onChange={e => setFormData({...formData, reference: e.target.value})} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 font-bold" required />
@@ -398,9 +404,9 @@ function VersesManager() {
                 <input type="date" value={formData.scheduledDate} onChange={e => setFormData({...formData, scheduledDate: e.target.value})} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 font-bold" required />
               </div>
             </div>
-            <div className="p-8 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
-              <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold">Cancel</button>
-              <button type="submit" disabled={loading} className="px-12 py-4 bg-purple-600 text-white rounded-2xl font-black hover:bg-purple-700 shadow-xl shadow-purple-100 transition-all">
+            <div className="p-6 md:p-8 bg-gray-50 border-t border-gray-100 flex flex-col md:flex-row justify-end gap-4">
+              <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold order-2 md:order-1">Cancel</button>
+              <button type="submit" disabled={loading} className="px-12 py-4 bg-purple-600 text-white rounded-2xl font-black hover:bg-purple-700 shadow-xl shadow-purple-100 transition-all order-1 md:order-2">
                 {loading ? <Loader2 className="animate-spin"/> : 'Save Verse'}
               </button>
             </div>
@@ -499,7 +505,7 @@ function GroupsManager() {
         title="Community Groups" 
         subtitle="Manage discussion circles and chat rooms"
         action={
-          <button onClick={() => { setFormData({ id: null, name: '', description: '', color: '#8B5CF6', icon: 'users' }); setShowForm(true); }} className="flex items-center px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg transition-all">
+          <button onClick={() => { setFormData({ id: null, name: '', description: '', color: '#8B5CF6', icon: 'users' }); setShowForm(true); }} className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg transition-all">
             <Plus className="w-5 h-5 mr-2" /> New Group
           </button>
         }
@@ -507,12 +513,12 @@ function GroupsManager() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-2xl font-black text-gray-900">Create Group</h3>
+          <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200 overflow-hidden">
+            <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl md:text-2xl font-black text-gray-900">Create Group</h3>
               <button type="button" onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24}/></button>
             </div>
-            <div className="p-8 space-y-6">
+            <div className="p-6 md:p-8 space-y-6">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase">Group Name</label>
                 <input type="text" placeholder="e.g. Morning Prayer" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 font-bold" required />
@@ -523,16 +529,16 @@ function GroupsManager() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase">Theme Color</label>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   {['#8B5CF6', '#3B82F6', '#10B981', '#EF4444', '#F59E0B', '#EC4899'].map(c => (
                     <button key={c} type="button" onClick={()=>setFormData({...formData, color: c})} className={`w-10 h-10 rounded-full border-4 transition-all ${formData.color === c ? 'border-gray-900 scale-110' : 'border-transparent hover:scale-105'}`} style={{backgroundColor: c}} />
                   ))}
                 </div>
               </div>
             </div>
-            <div className="p-8 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
-              <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold">Cancel</button>
-              <button type="submit" disabled={loading} className="px-12 py-4 bg-purple-600 text-white rounded-2xl font-black hover:bg-purple-700 shadow-xl transition-all">
+            <div className="p-6 md:p-8 bg-gray-50 border-t border-gray-100 flex flex-col md:flex-row justify-end gap-4">
+              <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold order-2 md:order-1">Cancel</button>
+              <button type="submit" disabled={loading} className="px-12 py-4 bg-purple-600 text-white rounded-2xl font-black hover:bg-purple-700 shadow-xl transition-all order-1 md:order-2">
                 {loading ? <Loader2 className="animate-spin"/> : 'Create Group'}
               </button>
             </div>
@@ -550,7 +556,7 @@ function GroupsManager() {
             <div key={group.id} className="group border-2 border-gray-100 rounded-3xl overflow-hidden bg-white hover:border-purple-200 hover:shadow-2xl transition-all duration-300">
               <div className="h-32 flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: group.color }}>
                 <Users className="w-16 h-16 text-white/30" />
-                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <div className="p-6">
                 <h3 className="font-black text-xl text-gray-900 mb-2">{group.name}</h3>
@@ -604,8 +610,8 @@ function ReportsManager() {
       ) : (
         <div className="space-y-6">
           {reports.map(report => (
-            <div key={report.id} className="p-8 border-2 border-gray-100 rounded-3xl bg-white shadow-sm flex flex-col gap-6 hover:border-red-100 transition-all">
-              <div className="flex justify-between items-start">
+            <div key={report.id} className="p-6 md:p-8 border-2 border-gray-100 rounded-3xl bg-white shadow-sm flex flex-col gap-6 hover:border-red-100 transition-all">
+              <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-red-50 rounded-2xl"><AlertTriangle className="text-red-600" size={24}/></div>
                   <div>
@@ -620,9 +626,9 @@ function ReportsManager() {
                   <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest">Reporter</p>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center font-black text-gray-900">{report.reporterName?.charAt(0)}</div>
-                    <div>
-                      <p className="font-bold text-gray-900">{report.reporterName}</p>
-                      <p className="text-xs text-gray-500">{report.reporterEmail}</p>
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-900 truncate">{report.reporterName}</p>
+                      <p className="text-xs text-gray-500 truncate">{report.reporterEmail}</p>
                     </div>
                   </div>
                 </div>
@@ -630,9 +636,9 @@ function ReportsManager() {
                   <p className="text-[10px] font-black text-red-400 uppercase mb-3 tracking-widest">Reported User</p>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-white border-2 border-red-200 flex items-center justify-center font-black text-red-900">{report.reportedUserName?.charAt(0)}</div>
-                    <div>
-                      <p className="font-bold text-gray-900">{report.reportedUserName}</p>
-                      <p className="text-xs text-gray-500">{report.reportedUserEmail}</p>
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-900 truncate">{report.reportedUserName}</p>
+                      <p className="text-xs text-gray-500 truncate">{report.reportedUserEmail}</p>
                     </div>
                   </div>
                 </div>
@@ -668,44 +674,44 @@ function StatisticsManager() {
     <div className="space-y-12 animate-in fade-in duration-500">
       <SectionHeader title="Platform Analytics" subtitle="Growth and engagement overview" />
       
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="p-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
-          <Users className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10" />
-          <p className="text-blue-100 font-bold text-sm uppercase tracking-widest mb-1">Total Users</p>
-          <p className="text-5xl font-black">{stats.total}</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div className="p-6 md:p-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl text-white shadow-xl shadow-blue-100 relative overflow-hidden">
+          <Users className="absolute -bottom-4 -right-4 w-20 md:w-24 h-20 md:h-24 text-white/10" />
+          <p className="text-blue-100 font-bold text-[10px] md:text-sm uppercase tracking-widest mb-1">Total Users</p>
+          <p className="text-3xl md:text-5xl font-black">{stats.total}</p>
         </div>
-        <div className="p-8 bg-gradient-to-br from-purple-600 to-purple-700 rounded-3xl text-white shadow-xl shadow-purple-100 relative overflow-hidden">
-          <Globe className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10" />
-          <p className="text-purple-100 font-bold text-sm uppercase tracking-widest mb-1">Countries</p>
-          <p className="text-5xl font-black">{Object.keys(stats.countryStats || {}).length}</p>
+        <div className="p-6 md:p-8 bg-gradient-to-br from-purple-600 to-purple-700 rounded-3xl text-white shadow-xl shadow-purple-100 relative overflow-hidden">
+          <Globe className="absolute -bottom-4 -right-4 w-20 md:w-24 h-20 md:h-24 text-white/10" />
+          <p className="text-purple-100 font-bold text-[10px] md:text-sm uppercase tracking-widest mb-1">Countries</p>
+          <p className="text-3xl md:text-5xl font-black">{Object.keys(stats.countryStats || {}).length}</p>
         </div>
-        <div className="p-8 bg-gradient-to-br from-pink-600 to-pink-700 rounded-3xl text-white shadow-xl shadow-pink-100 relative overflow-hidden">
-          <MessageCircle className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10" />
-          <p className="text-pink-100 font-bold text-sm uppercase tracking-widest mb-1">Status</p>
-          <p className="text-5xl font-black uppercase">Live</p>
+        <div className="p-6 md:p-8 bg-gradient-to-br from-pink-600 to-pink-700 rounded-3xl text-white shadow-xl shadow-pink-100 relative overflow-hidden">
+          <MessageCircle className="absolute -bottom-4 -right-4 w-20 md:w-24 h-20 md:h-24 text-white/10" />
+          <p className="text-pink-100 font-bold text-[10px] md:text-sm uppercase tracking-widest mb-1">Status</p>
+          <p className="text-2xl md:text-4xl font-black uppercase">Live</p>
         </div>
-        <div className="p-8 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-3xl text-white shadow-xl shadow-emerald-100 relative overflow-hidden">
-          <Shield className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10" />
-          <p className="text-emerald-100 font-bold text-sm uppercase tracking-widest mb-1">Security</p>
-          <p className="text-5xl font-black uppercase">Active</p>
+        <div className="p-6 md:p-8 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-3xl text-white shadow-xl shadow-emerald-100 relative overflow-hidden">
+          <Shield className="absolute -bottom-4 -right-4 w-20 md:w-24 h-20 md:h-24 text-white/10" />
+          <p className="text-emerald-100 font-bold text-[10px] md:text-sm uppercase tracking-widest mb-1">Security</p>
+          <p className="text-2xl md:text-4xl font-black uppercase">Active</p>
         </div>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <div className="p-8 border-2 border-gray-100 rounded-3xl bg-white shadow-sm">
-          <h3 className="font-black text-2xl text-gray-900 mb-8 flex items-center gap-3"><Globe size={28} className="text-blue-500"/> Global Reach</h3>
+        <div className="p-6 md:p-8 border-2 border-gray-100 rounded-3xl bg-white shadow-sm">
+          <h3 className="font-black text-xl md:text-2xl text-gray-900 mb-8 flex items-center gap-3"><Globe size={28} className="text-blue-500"/> Global Reach</h3>
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {Object.entries(stats.countryStats || {}).sort((a:any, b:any) => b[1] - a[1]).map(([country, count]: any) => (
               <div key={country} className="flex justify-between items-center p-4 hover:bg-blue-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 font-black">{country.charAt(0)}</div>
-                  <span className="text-gray-900 font-bold text-lg">{country}</span>
+                  <span className="text-gray-900 font-bold text-base md:text-lg">{country}</span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="h-2 w-24 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-2 w-16 md:w-24 bg-gray-100 rounded-full overflow-hidden hidden sm:block">
                     <div className="h-full bg-blue-500" style={{width: `${(count/stats.total)*100}%`}} />
                   </div>
-                  <span className="font-black text-xl text-gray-900">{count}</span>
+                  <span className="font-black text-lg md:text-xl text-gray-900">{count}</span>
                 </div>
               </div>
             ))}
@@ -736,15 +742,15 @@ function SupportManager() {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           {tickets.map(ticket => (
-            <div key={ticket.id} className="p-8 border-2 border-gray-100 rounded-3xl bg-white hover:border-blue-200 hover:shadow-xl transition-all duration-300">
-              <div className="flex justify-between items-start mb-6">
+            <div key={ticket.id} className="p-6 md:p-8 border-2 border-gray-100 rounded-3xl bg-white hover:border-blue-200 hover:shadow-xl transition-all duration-300">
+              <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-2xl ${ticket.status === 'open' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
                     {ticket.status === 'open' ? <RefreshCw className="animate-spin-slow" size={24}/> : <Check size={24}/>}
                   </div>
                   <div>
                     <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${ticket.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{ticket.status}</span>
-                    <h3 className="mt-1 text-2xl font-black text-gray-900">{ticket.subject}</h3>
+                    <h3 className="mt-1 text-xl md:text-2xl font-black text-gray-900">{ticket.subject}</h3>
                   </div>
                 </div>
               </div>
@@ -752,7 +758,7 @@ function SupportManager() {
                 <p className="text-gray-700 font-medium leading-relaxed italic">" {ticket.message} "</p>
               </div>
               <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-6 border-t border-gray-50">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 self-start">
                   <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center font-black text-purple-700">{ticket.userName?.charAt(0)}</div>
                   <div>
                     <p className="font-bold text-gray-900">{ticket.userName}</p>
@@ -760,8 +766,8 @@ function SupportManager() {
                   </div>
                 </div>
                 <div className="flex gap-3 w-full md:w-auto">
-                  <button className="flex-1 md:flex-none px-8 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all">Close Ticket</button>
-                  <button className="flex-1 md:flex-none px-8 py-3 bg-purple-600 text-white rounded-xl font-black hover:bg-purple-700 shadow-lg shadow-purple-100 transition-all">Reply</button>
+                  <button className="flex-1 md:flex-none px-6 md:px-8 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all">Close</button>
+                  <button className="flex-1 md:flex-none px-6 md:px-8 py-3 bg-purple-600 text-white rounded-xl font-black hover:bg-purple-700 shadow-lg shadow-purple-100 transition-all">Reply</button>
                 </div>
               </div>
             </div>
@@ -873,9 +879,9 @@ function UsersManager() {
         title="User Management" 
         subtitle="Control accounts and access levels"
         action={
-          <div className="relative">
+          <div className="relative w-full md:w-64">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
-            <input type="text" placeholder="Search users..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-12 pr-6 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all w-full md:w-64 font-medium" />
+            <input type="text" placeholder="Search users..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-12 pr-6 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all w-full font-medium" />
           </div>
         }
       />
@@ -883,19 +889,19 @@ function UsersManager() {
       {showBanModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleBanSubmit} className="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200 overflow-hidden">
-            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-red-50/50">
+            <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center bg-red-50/50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-100 rounded-xl text-red-600"><UserX size={24}/></div>
-                <h3 className="text-2xl font-black text-gray-900">Ban User</h3>
+                <h3 className="text-xl md:text-2xl font-black text-gray-900">Ban User</h3>
               </div>
               <button type="button" onClick={() => setShowBanModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={24}/></button>
             </div>
-            <div className="p-8 space-y-6">
+            <div className="p-6 md:p-8 space-y-6">
               <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center font-black text-purple-700 text-xl">{selectedUser?.name.charAt(0)}</div>
-                <div>
-                  <p className="font-black text-gray-900">{selectedUser?.name}</p>
-                  <p className="text-xs text-gray-500 font-bold">{selectedUser?.email}</p>
+                <div className="min-w-0">
+                  <p className="font-black text-gray-900 truncate">{selectedUser?.name}</p>
+                  <p className="text-xs text-gray-500 font-bold truncate">{selectedUser?.email}</p>
                 </div>
               </div>
               <div className="space-y-2">
@@ -903,7 +909,7 @@ function UsersManager() {
                 <div className="grid grid-cols-4 gap-2">
                   {[1, 7, 30, 365].map(d => (
                     <button key={d} type="button" onClick={() => setBanDuration(d.toString())} className={`py-3 rounded-xl font-black text-sm transition-all border-2 ${banDuration === d.toString() ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-gray-100 text-gray-600 hover:border-red-200'}`}>
-                      {d === 365 ? '1 Year' : `${d}d`}
+                      {d === 365 ? '1y' : `${d}d`}
                     </button>
                   ))}
                 </div>
@@ -914,12 +920,12 @@ function UsersManager() {
               </div>
               <div className="p-4 bg-red-50 rounded-2xl border border-red-100 flex items-start gap-3">
                 <AlertTriangle className="text-red-600 flex-shrink-0" size={20}/>
-                <p className="text-xs text-red-700 font-bold leading-relaxed">The user will receive an automated email notification about this ban and its duration.</p>
+                <p className="text-xs text-red-700 font-bold leading-relaxed">The user will receive an automated email notification about this ban.</p>
               </div>
             </div>
-            <div className="p-8 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
-              <button type="button" onClick={() => setShowBanModal(false)} className="px-8 py-4 text-gray-600 font-bold hover:bg-gray-200 rounded-2xl transition-all">Cancel</button>
-              <button type="submit" disabled={loading} className="px-12 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 shadow-xl shadow-red-100 transition-all">
+            <div className="p-6 md:p-8 bg-gray-50 border-t border-gray-100 flex flex-col md:flex-row justify-end gap-4">
+              <button type="button" onClick={() => setShowBanModal(false)} className="px-8 py-4 text-gray-600 font-bold hover:bg-gray-200 rounded-2xl transition-all order-2 md:order-1">Cancel</button>
+              <button type="submit" disabled={loading} className="px-12 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 shadow-xl shadow-red-100 transition-all order-1 md:order-2">
                 {loading ? <Loader2 className="animate-spin"/> : 'Confirm Ban'}
               </button>
             </div>
@@ -932,11 +938,11 @@ function UsersManager() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-gray-50/50 border-b border-gray-100 text-gray-400 text-[10px] font-black uppercase tracking-widest">
-                <th className="p-6">Member</th>
-                <th className="p-6">Access Level</th>
-                <th className="p-6">Status</th>
-                <th className="p-6">Joined Date</th>
-                <th className="p-6 text-right">Actions</th>
+                <th className="p-6 min-w-[200px]">Member</th>
+                <th className="p-6 min-w-[150px]">Access Level</th>
+                <th className="p-6 min-w-[150px]">Status</th>
+                <th className="p-6 min-w-[150px]">Joined Date</th>
+                <th className="p-6 text-right min-w-[120px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -951,19 +957,19 @@ function UsersManager() {
                       <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-700 font-black text-lg shadow-sm">
                         {user.name.charAt(0)}
                       </div>
-                      <div>
-                        <p className="font-black text-gray-900">{user.name}</p>
-                        <p className="text-xs text-gray-500 font-medium">{user.email}</p>
+                      <div className="min-w-0">
+                        <p className="font-black text-gray-900 truncate">{user.name}</p>
+                        <p className="text-xs text-gray-500 font-medium truncate">{user.email}</p>
                       </div>
                     </div>
                   </td>
                   <td className="p-6">
                     {user.isAdmin ? (
-                      <span className="flex items-center gap-1.5 text-blue-600 font-black text-[10px] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                      <span className="flex items-center gap-1.5 text-blue-600 font-black text-[10px] uppercase tracking-wider bg-blue-50 px-3 py-1 rounded-full border border-blue-100 w-fit">
                         <Shield size={12}/> Administrator
                       </span>
                     ) : (
-                      <span className="text-gray-400 font-black text-[10px] uppercase tracking-wider bg-gray-100 px-3 py-1 rounded-full">Member</span>
+                      <span className="text-gray-400 font-black text-[10px] uppercase tracking-wider bg-gray-100 px-3 py-1 rounded-full w-fit">Member</span>
                     )}
                   </td>
                   <td className="p-6">
@@ -977,19 +983,19 @@ function UsersManager() {
                         )}
                       </div>
                     ) : (
-                      <span className="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                      <span className="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 w-fit">
                         <Check size={12}/> Active
                       </span>
                     )}
                   </td>
                   <td className="p-6 text-sm text-gray-500 font-bold">{new Date(user.createdAt).toLocaleDateString()}</td>
                   <td className="p-6 text-right">
-                    <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => toggleAdmin(user.id, user.isAdmin)} className={`p-3 rounded-2xl transition-all ${user.isAdmin ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`} title="Toggle Admin"><Shield size={20}/></button>
+                    <div className="flex justify-end gap-3 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => toggleAdmin(user.id, user.isAdmin)} className={`p-2.5 md:p-3 rounded-xl md:rounded-2xl transition-all ${user.isAdmin ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'}`} title="Toggle Admin"><Shield size={18} className="md:w-5 md:h-5"/></button>
                       {user.isBanned ? (
-                        <button onClick={() => handleUnban(user.id)} className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-lg shadow-emerald-50" title="Restore Access"><Check size={20}/></button>
+                        <button onClick={() => handleUnban(user.id)} className="p-2.5 md:p-3 bg-emerald-50 text-emerald-600 rounded-xl md:rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-lg shadow-emerald-50" title="Restore Access"><Check size={18} className="md:w-5 md:h-5"/></button>
                       ) : (
-                        <button onClick={() => { setSelectedUser(user); setShowBanModal(true); }} className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-red-50" title="Ban User"><UserX size={20}/></button>
+                        <button onClick={() => { setSelectedUser(user); setShowBanModal(true); }} className="p-2.5 md:p-3 bg-red-50 text-red-600 rounded-xl md:rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-red-50" title="Ban User"><UserX size={18} className="md:w-5 md:h-5"/></button>
                       )}
                     </div>
                   </td>
@@ -1022,26 +1028,26 @@ function VPNDetectionManager() {
       <SectionHeader title="Security Logs" subtitle="Monitor network activity and threat detection" />
       
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="p-8 bg-white border-2 border-gray-100 rounded-3xl shadow-sm relative overflow-hidden group hover:border-red-200 transition-all">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          <div className="p-6 md:p-8 bg-white border-2 border-gray-100 rounded-3xl shadow-sm relative overflow-hidden group hover:border-red-200 transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><AlertTriangle size={60} className="text-red-600"/></div>
-            <p className="text-xs text-red-600 font-black uppercase tracking-widest mb-1">VPN Detected</p>
-            <p className="text-4xl font-black text-gray-900">{stats.totalVPN}</p>
+            <p className="text-[10px] md:text-xs text-red-600 font-black uppercase tracking-widest mb-1">VPN Detected</p>
+            <p className="text-2xl md:text-4xl font-black text-gray-900">{stats.totalVPN}</p>
           </div>
-          <div className="p-8 bg-white border-2 border-gray-100 rounded-3xl shadow-sm relative overflow-hidden group hover:border-orange-200 transition-all">
+          <div className="p-6 md:p-8 bg-white border-2 border-gray-100 rounded-3xl shadow-sm relative overflow-hidden group hover:border-orange-200 transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Globe size={60} className="text-orange-600"/></div>
-            <p className="text-xs text-orange-600 font-black uppercase tracking-widest mb-1">Proxy / Tor</p>
-            <p className="text-4xl font-black text-gray-900">{stats.totalTor + stats.totalProxy}</p>
+            <p className="text-[10px] md:text-xs text-orange-600 font-black uppercase tracking-widest mb-1">Proxy / Tor</p>
+            <p className="text-2xl md:text-4xl font-black text-gray-900">{stats.totalTor + stats.totalProxy}</p>
           </div>
-          <div className="p-8 bg-white border-2 border-gray-100 rounded-3xl shadow-sm relative overflow-hidden group hover:border-gray-300 transition-all">
+          <div className="p-6 md:p-8 bg-white border-2 border-gray-100 rounded-3xl shadow-sm relative overflow-hidden group hover:border-gray-300 transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Shield size={60} className="text-gray-600"/></div>
-            <p className="text-xs text-gray-600 font-black uppercase tracking-widest mb-1">Blocked</p>
-            <p className="text-4xl font-black text-gray-900">{stats.totalBlocked}</p>
+            <p className="text-[10px] md:text-xs text-gray-600 font-black uppercase tracking-widest mb-1">Blocked</p>
+            <p className="text-2xl md:text-4xl font-black text-gray-900">{stats.totalBlocked}</p>
           </div>
-          <div className="p-8 bg-white border-2 border-gray-100 rounded-3xl shadow-sm relative overflow-hidden group hover:border-blue-200 transition-all">
+          <div className="p-6 md:p-8 bg-white border-2 border-gray-100 rounded-3xl shadow-sm relative overflow-hidden group hover:border-blue-200 transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Star size={60} className="text-blue-600"/></div>
-            <p className="text-xs text-blue-600 font-black uppercase tracking-widest mb-1">Avg Risk</p>
-            <p className="text-4xl font-black text-gray-900">{Math.round(stats.avgRiskScore)}%</p>
+            <p className="text-[10px] md:text-xs text-blue-600 font-black uppercase tracking-widest mb-1">Avg Risk</p>
+            <p className="text-2xl md:text-4xl font-black text-gray-900">{Math.round(stats.avgRiskScore)}%</p>
           </div>
         </div>
       )}
@@ -1051,11 +1057,11 @@ function VPNDetectionManager() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-gray-50/50 border-b border-gray-100 text-gray-400 text-[10px] font-black uppercase tracking-widest">
-                <th className="p-6">Identity / IP Address</th>
-                <th className="p-6">Network Details</th>
-                <th className="p-6">Risk Assessment</th>
-                <th className="p-6">Threat Type</th>
-                <th className="p-6 text-right">Detection Time</th>
+                <th className="p-6 min-w-[200px]">Identity / IP Address</th>
+                <th className="p-6 min-w-[200px]">Network Details</th>
+                <th className="p-6 min-w-[150px]">Risk Assessment</th>
+                <th className="p-6 min-w-[150px]">Threat Type</th>
+                <th className="p-6 text-right min-w-[150px]">Detection Time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -1070,16 +1076,16 @@ function VPNDetectionManager() {
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${log.riskScore > 50 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
                         {log.userName ? log.userName.charAt(0) : 'G'}
                       </div>
-                      <div>
-                        <p className="font-black text-gray-900">{log.userName || 'Guest User'}</p>
-                        <p className="text-xs text-gray-500 font-bold tracking-tighter">{log.ipAddress}</p>
+                      <div className="min-w-0">
+                        <p className="font-black text-gray-900 truncate">{log.userName || 'Guest User'}</p>
+                        <p className="text-xs text-gray-500 font-bold tracking-tighter truncate">{log.ipAddress}</p>
                       </div>
                     </div>
                   </td>
                   <td className="p-6">
                     <div className="flex items-center gap-2">
                       <Flag size={14} className="text-gray-400"/>
-                      <p className="text-gray-900 font-bold">{log.country} <span className="text-gray-400 font-medium text-xs">{log.city}</span></p>
+                      <p className="text-gray-900 font-bold text-sm">{log.country} <span className="text-gray-400 font-medium text-xs">{log.city}</span></p>
                     </div>
                     <p className="text-[10px] text-gray-400 font-black uppercase mt-1 truncate max-w-[150px]">{log.isp}</p>
                   </td>

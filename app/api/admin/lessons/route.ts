@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { lessons } from '@/lib/db/schema';
+import { lessons, lessonProgress, lessonRatings } from '@/lib/db/schema';
 import { requireAdmin } from '@/lib/auth/middleware';
 import { desc, eq } from 'drizzle-orm';
 
@@ -138,6 +138,13 @@ export async function DELETE(request: NextRequest) {
     }
 
     const id = parseInt(idStr);
+    
+    // First, delete related data in lesson_progress and lesson_ratings
+    // to avoid foreign key constraint violations
+    await db.delete(lessonProgress).where(eq(lessonProgress.lessonId, id));
+    await db.delete(lessonRatings).where(eq(lessonRatings.lessonId, id));
+    
+    // Now delete the lesson itself
     await db.delete(lessons).where(eq(lessons.id, id));
 
     return NextResponse.json({

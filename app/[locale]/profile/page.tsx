@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Camera, Settings, BookOpen, Lock, User, Mail, Calendar, 
-  Users, Heart, CheckCircle, Clock, Award, Eye, EyeOff
+  Users, Heart, CheckCircle, Clock, Award, Eye, EyeOff, ArrowLeft
 } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/lib/contexts/ToastContext';
@@ -42,7 +42,16 @@ export default function ProfilePage() {
   const [lessonProgress, setLessonProgress] = useState<LessonProgress[]>([]);
   const [stats, setStats] = useState<Stats>({ totalLessons: 0, completed: 0, inProgress: 0, completionRate: 0 });
   const [loading, setLoading] = useState(true);
+  const [fromCommunity, setFromCommunity] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'lessons' | 'settings'>('profile');
+
+  useEffect(() => {
+    // Check if we came from the community page
+    const referrer = document.referrer;
+    if (referrer && referrer.includes('/community')) {
+      setFromCommunity(true);
+    }
+  }, []);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
   // Password change states
@@ -201,8 +210,17 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 pb-8">
       {/* Header */}
       <div className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
+          {fromCommunity && (
+            <button 
+              onClick={() => router.push('/community')}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-xl font-bold hover:bg-purple-200 transition-all text-sm"
+            >
+              <ArrowLeft size={18} />
+              Back to Community
+            </button>
+          )}
         </div>
       </div>
 
