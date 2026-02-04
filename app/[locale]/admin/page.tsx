@@ -847,6 +847,33 @@ function UsersManager() {
     } catch (error) { toast.error('Failed to unban user'); } finally { setLoading(false); }
   };
 
+  const handleDeleteUser = async (userId: number, userName: string) => {
+    const confirmed = await toast.confirm({
+      title: 'Delete User Account',
+      message: `Are you sure you want to permanently delete ${userName}'s account? This will remove all their messages, progress, and activity. This action CANNOT be undone.`,
+      confirmText: 'Delete Permanently',
+      type: 'danger'
+    });
+    
+    if (!confirmed) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (response.ok) {
+        toast.success('User and all related data deleted successfully');
+        fetchUsers();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to delete user');
+      }
+    } catch (error) { toast.error('Connection error'); } finally { setLoading(false); }
+  };
+
   const toggleAdmin = async (userId: number, currentAdmin: boolean) => {
     const confirmed = await toast.confirm({
       title: 'Change Privileges',
@@ -997,6 +1024,7 @@ function UsersManager() {
                       ) : (
                         <button onClick={() => { setSelectedUser(user); setShowBanModal(true); }} className="p-2.5 md:p-3 bg-red-50 text-red-600 rounded-xl md:rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-red-50" title="Ban User"><UserX size={18} className="md:w-5 md:h-5"/></button>
                       )}
+                      <button onClick={() => handleDeleteUser(user.id, user.name)} className="p-2.5 md:p-3 bg-gray-50 text-gray-400 rounded-xl md:rounded-2xl hover:bg-red-600 hover:text-white transition-all hover:shadow-lg hover:shadow-red-100" title="Delete User"><Trash2 size={18} className="md:w-5 md:h-5"/></button>
                     </div>
                   </td>
                 </tr>
