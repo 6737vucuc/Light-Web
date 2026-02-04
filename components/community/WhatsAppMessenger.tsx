@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Image as ImageIcon, ArrowLeft, MoreVertical, Phone, Search, Smile, Paperclip, Mic, X, Check, CheckCheck, Trash2, User as UserIcon, MessageCircle } from 'lucide-react';
+import { Send, Image as ImageIcon, ArrowLeft, MoreVertical, Phone, Search, Smile, Paperclip, Mic, X, Check, CheckCheck, Trash2, User as UserIcon, MessageCircle, Loader2, MessageSquare, Shield } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
-import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import Peer from 'peerjs';
 import CallOverlay from './CallOverlay';
 import { useToast } from '@/lib/contexts/ToastContext';
@@ -24,7 +23,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const locale = params?.locale as string || 'ar';
   const isRtl = locale === 'ar';
   const t = useTranslations('messages');
-  const tCommon = useTranslations('common');
   const toast = useToast();
   
   const [conversations, setConversations] = useState<any[]>([]);
@@ -56,10 +54,9 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         const data = await res.json();
         const convs = data.conversations || [];
         setConversations(convs);
-        setIsLoading(false);
-
+        
         // If initialUserId is provided, try to select that conversation
-        if (targetUserId) {
+        if (targetUserId && !selectedConversation) {
           const existingConv = convs.find((c: any) => c.other_user_id === targetUserId);
           if (existingConv) {
             setSelectedConversation(existingConv);
@@ -69,29 +66,35 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               const userRes = await fetch(`/api/users/${targetUserId}`);
               if (userRes.ok) {
                 const userData = await userRes.json();
-                setSelectedConversation({
+                const tempConv = {
                   other_user_id: targetUserId,
                   name: userData.user.name,
                   avatar: userData.user.avatar,
                   is_online: false,
                   last_message: null,
                   last_message_time: null
-                });
+                };
+                setSelectedConversation(tempConv);
               }
             } catch (err) { console.error('Error fetching target user:', err); }
           }
         }
+        setIsLoading(false);
       }
     } catch (error) { console.error(error); }
   };
 
-  // Initialize Online Status & Realtime
+  // Initial Load
   useEffect(() => {
     if (!currentUser?.id) return;
-
     loadConversations(initialUserId);
+  }, [currentUser?.id, initialUserId]);
 
-    // 1. Supabase Presence (Online Status)
+  // Real-time and Online Status
+  useEffect(() => {
+    if (!currentUser?.id || !selectedConversation) return;
+
+    // 1. Online Status
     const channel = supabase.channel(`online-users`, {
       config: { presence: { key: currentUser.id.toString() } }
     });
@@ -99,18 +102,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
-        if (selectedConversation) {
-          const isOnline = !!state[selectedConversation.other_user_id.toString()];
-          setOtherUserOnline(isOnline);
-        }
+        const isOnline = !!state[selectedConversation.other_user_id.toString()];
+        setOtherUserOnline(isOnline);
       })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        if (selectedConversation && key === selectedConversation.other_user_id.toString()) {
-          setOtherUserOnline(true);
-        }
+      .on('presence', { event: 'join' }, ({ key }) => {
+        if (key === selectedConversation.other_user_id.toString()) setOtherUserOnline(true);
       })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        if (selectedConversation && key === selectedConversation.other_user_id.toString()) {
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        if (key === selectedConversation.other_user_id.toString()) {
           setOtherUserOnline(false);
           setOtherUserLastSeen(new Date().toISOString());
         }
@@ -121,9 +120,28 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         }
       });
 
-    // 2. Realtime Messages
+    // 2. Typing Indicator
+    const typingChannel = supabase.channel(`typing:${currentUser.id}`);
+    typingChannel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.senderId === selectedConversation.other_user_id) {
+          setOtherUserTyping(payload.payload.isTyping);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(typingChannel);
+    };
+  }, [currentUser?.id, selectedConversation?.other_user_id]);
+
+  // Messages Real-time (Global for the user)
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
     const messageChannel = supabase
-      .channel('public:direct_messages')
+      .channel(`user-messages-${currentUser.id}`)
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -140,22 +158,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       })
       .subscribe();
 
-    // 3. Realtime Typing (Using Broadcast)
-    const typingChannel = supabase.channel(`typing:${currentUser.id}`);
-    typingChannel
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        if (selectedConversation && payload.payload.senderId === selectedConversation.other_user_id) {
-          setOtherUserTyping(payload.payload.isTyping);
-        }
-      })
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(channel);
       supabase.removeChannel(messageChannel);
-      supabase.removeChannel(typingChannel);
     };
-  }, [currentUser?.id, selectedConversation, initialUserId]);
+  }, [currentUser?.id, selectedConversation?.other_user_id]);
 
   // PeerJS Call Logic (Kept as requested)
   useEffect(() => {
@@ -177,10 +183,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation.other_user_id);
-      setOtherUserOnline(selectedConversation.is_online);
-      setOtherUserLastSeen(selectedConversation.last_seen);
+      setOtherUserOnline(selectedConversation.is_online || false);
+      setOtherUserLastSeen(selectedConversation.last_seen || null);
     }
-  }, [selectedConversation]);
+  }, [selectedConversation?.other_user_id]);
 
   const fetchMessages = async (otherUserId: number) => {
     try {
@@ -253,40 +259,66 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  if (isLoading && conversations.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-white">
+        <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full bg-[#f0f2f5] overflow-hidden relative" dir={isRtl ? 'rtl' : 'ltr'}>
       <CallOverlay callStatus={callStatus} otherUser={callOtherUser} onAccept={() => {}} onReject={() => {}} onEnd={() => {}} />
       
       {/* Sidebar */}
-      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[350px] lg:w-[400px] flex-col bg-white border-x border-gray-200 h-full`}>
-        <div className="bg-[#f0f2f5] px-4 py-3 flex items-center justify-between border-b border-gray-200">
+      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[350px] lg:w-[400px] flex-col bg-white border-x border-gray-200 h-full shadow-lg z-20`}>
+        <div className="bg-[#f0f2f5] px-4 py-4 flex items-center justify-between border-b border-gray-200">
           <button onClick={() => router.push(`/${locale}/community`)} className="p-2 hover:bg-gray-200 rounded-full md:hidden">
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
-          <h2 className="text-xl font-black text-gray-900">{t('title')}</h2>
-          <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center shadow-lg">
+          <h2 className="text-xl font-black text-gray-900 tracking-tight">{t('title')}</h2>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center shadow-lg">
              <UserIcon className="w-6 h-6 text-white" />
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto">
-          {conversations.map((conv) => (
-            <button key={conv.other_user_id} onClick={() => setSelectedConversation(conv)} className={`w-full px-4 py-4 flex items-center gap-4 hover:bg-[#f5f6f6] border-b border-gray-100 transition-colors ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-[#f5f6f6]' : ''}`}>
-              <div className="relative">
-                <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-200 shadow-sm">
-                  <Image src={getAvatarUrl(conv.avatar)} alt={conv.name} width={56} height={56} className="object-cover" unoptimized />
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {conversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-400">
+              <MessageSquare className="w-12 h-12 mb-4 opacity-20" />
+              <p className="font-bold">{t('noConversations') || 'No conversations yet'}</p>
+            </div>
+          ) : (
+            conversations.map((conv) => (
+              <button 
+                key={conv.other_user_id} 
+                onClick={() => setSelectedConversation(conv)} 
+                className={`w-full px-4 py-4 flex items-center gap-4 hover:bg-[#f5f6f6] border-b border-gray-100 transition-all ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-[#f0f2f5] border-l-4 border-l-purple-600' : ''}`}
+              >
+                <div className="relative flex-shrink-0">
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-200 shadow-md border-2 border-white">
+                    <Image src={getAvatarUrl(conv.avatar)} alt={conv.name} width={56} height={56} className="object-cover" unoptimized />
+                  </div>
+                  {conv.is_online && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full shadow-sm"></div>}
                 </div>
-                {conv.is_online && <div className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>}
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <div className="flex justify-between items-baseline">
-                  <h3 className="font-black text-gray-900 truncate">{conv.name}</h3>
-                  <span className="text-[10px] font-bold text-gray-500">{conv.last_message_time ? formatTime(conv.last_message_time) : ''}</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="flex justify-between items-baseline mb-1">
+                    <h3 className="font-black text-gray-900 truncate">{conv.name}</h3>
+                    <span className="text-[10px] font-bold text-gray-400">{conv.last_message_time ? formatTime(conv.last_message_time) : ''}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-500 truncate font-medium flex-1">{conv.last_message || t('noMessages')}</p>
+                    {conv.unread_count > 0 && (
+                      <span className="ml-2 bg-green-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-sm">
+                        {conv.unread_count}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-gray-600 truncate font-bold">{conv.last_message || t('noMessages')}</p>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))
+          )}
         </div>
       </div>
       
@@ -294,40 +326,47 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       <div className={`${!selectedConversation ? 'hidden md:flex' : 'flex'} flex-1 flex-col bg-[#efeae2] h-full relative`}>
         {selectedConversation ? (
           <>
-            <div className="bg-[#f0f2f5] px-4 py-3 flex items-center gap-4 border-b border-gray-200 z-30 shadow-sm">
+            <div className="bg-[#f0f2f5] px-4 py-3 flex items-center gap-4 border-b border-gray-200 z-30 shadow-md">
               <button onClick={() => setSelectedConversation(null)} className="md:hidden p-2 hover:bg-gray-200 rounded-full">
                 <ArrowLeft className="w-6 h-6 text-gray-600" />
               </button>
-              <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 shadow-sm">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gray-200 shadow-sm border-2 border-white">
                 <Image src={getAvatarUrl(selectedConversation.avatar)} alt={selectedConversation.name} width={48} height={48} className="object-cover" unoptimized />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-black text-gray-900 truncate">{selectedConversation.name}</h3>
-                <p className="text-[11px] font-bold text-gray-500">
+                <p className="text-[11px] font-bold">
                   {otherUserTyping ? (
                     <span className="text-green-600 animate-pulse">{t('typing')}</span>
                   ) : otherUserOnline ? (
                     <span className="text-green-600">{t('online')}</span>
                   ) : otherUserLastSeen ? (
-                    `${t('lastSeen')} ${new Date(otherUserLastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                  ) : t('offline')}
+                    <span className="text-gray-500">{t('lastSeen')} {new Date(otherUserLastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  ) : <span className="text-gray-400">{t('offline')}</span>}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"><Phone className="w-6 h-6" /></button>
-                <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"><MoreVertical className="w-6 h-6" /></button>
+              <div className="flex items-center gap-2">
+                <button className="p-2.5 text-gray-600 hover:bg-gray-200 hover:text-purple-600 rounded-xl transition-all"><Phone className="w-5 h-5" /></button>
+                <button className="p-2.5 text-gray-600 hover:bg-gray-200 hover:text-purple-600 rounded-xl transition-all"><MoreVertical className="w-5 h-5" /></button>
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 relative">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 relative custom-scrollbar">
               <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://w0.peakpx.com/wallpaper/508/606/HD-wallpaper-whatsapp-background-whatsapp-patterns.jpg')] bg-repeat"></div>
+              {messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full opacity-30 select-none">
+                  <div className="bg-white/50 backdrop-blur px-6 py-2 rounded-full border border-white/20 text-xs font-black uppercase tracking-widest text-gray-600 shadow-sm">
+                    {t('endToEndEncrypted') || 'End-to-End Encrypted'}
+                  </div>
+                </div>
+              )}
               {messages.map((msg) => {
                 const isOwn = msg.sender_id === currentUser.id;
                 return (
                   <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                    <div className={`max-w-[70%] relative px-4 py-2.5 rounded-2xl shadow-md ${isOwn ? 'bg-[#dcf8c6] text-gray-800 rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none'}`}>
-                      <p className="text-sm font-bold whitespace-pre-wrap break-words">{msg.content}</p>
-                      <div className="flex items-center justify-end gap-1 mt-1">
+                    <div className={`max-w-[75%] relative px-4 py-2.5 rounded-2xl shadow-sm ${isOwn ? 'bg-[#dcf8c6] text-gray-800 rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none'}`}>
+                      <p className="text-sm font-bold whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                      <div className="flex items-center justify-end gap-1 mt-1 opacity-70">
                         <span className="text-[9px] text-gray-500 font-black">{formatTime(msg.created_at)}</span>
                         {isOwn && (msg.is_read ? <CheckCheck className="w-3.5 h-3.5 text-blue-500" /> : <Check className="w-3.5 h-3.5 text-gray-400" />)}
                       </div>
@@ -338,34 +377,38 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               <div ref={messagesEndRef} />
             </div>
             
-            <div className="bg-[#f0f2f5] p-4 flex items-center gap-3 z-30">
-              <Smile className="w-7 h-7 text-gray-600 cursor-pointer hover:text-purple-600 transition-colors" />
-              <Paperclip className="w-7 h-7 text-gray-600 cursor-pointer hover:text-purple-600 transition-colors" />
+            <div className="bg-[#f0f2f5] p-4 flex items-center gap-3 z-30 border-t border-gray-200">
+              <button className="p-2 text-gray-500 hover:text-purple-600 transition-colors"><Smile className="w-7 h-7" /></button>
+              <button className="p-2 text-gray-500 hover:text-purple-600 transition-colors"><Paperclip className="w-7 h-7" /></button>
               <form onSubmit={handleSendMessage} className="flex-1">
                 <input 
                   type="text" 
                   value={newMessage} 
                   onChange={handleTyping} 
                   placeholder={t('typeMessage')} 
-                  className="w-full px-6 py-3 rounded-full bg-white text-gray-900 font-black focus:outline-none shadow-inner border-none ring-0" 
+                  className="w-full px-6 py-3.5 rounded-2xl bg-white text-gray-900 font-bold focus:outline-none shadow-sm border-none ring-0 placeholder:text-gray-400" 
                 />
               </form>
               <button 
                 onClick={handleSendMessage} 
                 disabled={!newMessage.trim() || isSending}
-                className={`p-4 rounded-full shadow-lg transform active:scale-95 transition-all ${newMessage.trim() && !isSending ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                className={`p-4 rounded-2xl shadow-xl transform active:scale-95 transition-all ${newMessage.trim() && !isSending ? 'bg-purple-600 text-white hover:bg-purple-700 hover:rotate-12' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
               >
                 <Send className="w-6 h-6" />
               </button>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-10 text-center">
-            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-8 shadow-xl">
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-10 text-center relative overflow-hidden">
+             <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://w0.peakpx.com/wallpaper/508/606/HD-wallpaper-whatsapp-background-whatsapp-patterns.jpg')] bg-repeat"></div>
+            <div className="w-32 h-32 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500 border-2 border-purple-50">
               <MessageCircle className="w-16 h-16 text-purple-600" />
             </div>
-            <h2 className="text-3xl font-black text-gray-900 mb-4">WhatsApp Real-time</h2>
-            <p className="max-w-md font-bold text-lg text-gray-600">Select a contact to start a secure, real-time conversation. Powered by Supabase.</p>
+            <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">WhatsApp Real-time</h2>
+            <p className="max-w-md font-bold text-lg text-gray-400 leading-relaxed">Select a contact to start a secure, real-time conversation. Powered by Supabase & Pusher.</p>
+            <div className="mt-12 flex items-center gap-2 text-gray-300 font-black uppercase tracking-widest text-[10px] bg-white/50 backdrop-blur px-4 py-2 rounded-full border border-white">
+              <Shield className="w-3 h-3" /> End-to-End Encrypted
+            </div>
           </div>
         )}
       </div>

@@ -505,9 +505,36 @@ function GroupsManager() {
         title="Community Groups" 
         subtitle="Manage discussion circles and chat rooms"
         action={
-          <button onClick={() => { setFormData({ id: null, name: '', description: '', color: '#8B5CF6', icon: 'users' }); setShowForm(true); }} className="flex items-center justify-center w-full md:w-auto px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg transition-all">
-            <Plus className="w-5 h-5 mr-2" /> New Group
-          </button>
+          <div className="flex flex-col md:flex-row gap-3">
+            <button 
+              onClick={async () => {
+                const confirmed = await toast.confirm({
+                  title: 'Clear All Groups',
+                  message: 'Are you sure you want to delete ALL community groups and their messages? This action is permanent.',
+                  confirmText: 'Delete All',
+                  type: 'danger'
+                });
+                if (!confirmed) return;
+                try {
+                  const res = await fetch('/api/admin/groups', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'clearAll' })
+                  });
+                  if (res.ok) {
+                    toast.success('All groups cleared');
+                    fetchGroups();
+                  }
+                } catch (err) { toast.error('Failed to clear groups'); }
+              }}
+              className="flex items-center justify-center px-6 py-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 border-2 border-red-100 transition-all"
+            >
+              <Trash2 className="w-5 h-5 mr-2" /> Clear All
+            </button>
+            <button onClick={() => { setFormData({ id: null, name: '', description: '', color: '#8B5CF6', icon: 'users' }); setShowForm(true); }} className="flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg transition-all">
+              <Plus className="w-5 h-5 mr-2" /> New Group
+            </button>
+          </div>
         }
       />
 

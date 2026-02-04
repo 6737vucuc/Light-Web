@@ -123,3 +123,34 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await verifyAuth(request);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.userId),
+      columns: { isAdmin: true }
+    });
+
+    if (!dbUser || !dbUser.isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { action } = await request.json();
+
+    if (action === 'clearAll') {
+      await rawSql`DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM group_messages)`;
+      await rawSql`DELETE FROM group_messages`;
+      await rawSql`DELETE FROM group_members`;
+      await rawSql`DELETE FROM community_groups`;
+      return NextResponse.json({ message: 'All groups cleared successfully' });
+    }
+
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+  } catch (error) {
+    console.error('Error clearing groups:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
