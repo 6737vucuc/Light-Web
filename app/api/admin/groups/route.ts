@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, sql as rawSql } from '@/lib/db';
+import { db } from '@/lib/db';
 import { communityGroups, groupMembers, groupMessages, users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq, sql, count } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,19 +25,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get all groups with member counts using raw SQL
-    const groups = await rawSql`
-      SELECT 
-        cg.*,
-        COUNT(DISTINCT gm.id) as actual_members_count,
-        u.name as creator_name,
-        u.username as creator_username
-      FROM community_groups cg
-      LEFT JOIN group_members gm ON cg.id = gm.group_id
-      LEFT JOIN users u ON cg.created_by = u.id
-      GROUP BY cg.id, u.name, u.username
-      ORDER BY cg.created_at DESC
-    `;
+    // Get all groups using Drizzle with relations or manual join for counts
+    const groups = await db.select({
+      id: communityGroups.id,
+      name: communityGroups.name,
+      description: communityGroups.description,
+      color: communityGroups.color,
+      icon: communityGroups.icon,
+      avatar: communityGroups.avatar,
+      createdBy: communityGroups.createdBy,
+      createdAt: communityGroups.createdAt,
+      updatedAt: communityGroups.updatedAt,
+      actual_members_count: sql<number>`(SELECT count(*) FROM ${groupMembers} WHERE ${groupMembers.groupId} = ${communityGroups.id})`,
+      messages_count: sql<number>`(SELECT count(*) FROM ${groupMessages} WHERE ${groupMessages.groupId} = ${communityGroups.id})`,
+    })
+    .from(communityGroups)
+    .orderBy(desc(communityGroups.createdAt));
 
     return NextResponse.json({ groups });
   } catch (error) {
@@ -70,12 +73,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
     }
 
-    // Create new group using raw SQL to handle nullable created_by
-    const [newGroup] = await rawSql`
-      INSERT INTO community_groups (name, description, color, icon, avatar, created_by)
-      VALUES (${name}, ${description || null}, ${color || '#8B5CF6'}, ${icon || 'users'}, ${avatar || null}, ${user.userId})
-      RETURNING *
-    `;
+    // Create new group using Drizzle
+    const [newGroup] = await db.insert(communityGroups).values({
+      name,
+      description: description || null,
+      color: color || '#8B5CF6',
+      icon: icon || 'users',
+      avatar: avatar || null,
+      createdBy: user.userId,
+    }).returning();
 
     return NextResponse.json({ group: newGroup }, { status: 201 });
   } catch (error) {
@@ -111,11 +117,10 @@ export async function DELETE(request: NextRequest) {
 
     const gId = parseInt(groupId);
 
-    // Delete related data using raw SQL
-    await rawSql`DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM group_messages WHERE group_id = ${gId})`;
-    await rawSql`DELETE FROM group_messages WHERE group_id = ${gId}`;
-    await rawSql`DELETE FROM group_members WHERE group_id = ${gId}`;
-    await rawSql`DELETE FROM community_groups WHERE id = ${gId}`;
+    // Delete related data using Drizzle
+    await db.delete(groupMessages).where(eq(groupMessages.groupId, gId));
+    await db.delete(groupMembers).where(eq(groupMembers.groupId, gId));
+    await db.delete(communityGroups).where(eq(communityGroups.id, gId));
 
     return NextResponse.json({ message: 'Group deleted successfully' });
   } catch (error) {
@@ -141,10 +146,9 @@ export async function PUT(request: NextRequest) {
     const { action } = await request.json();
 
     if (action === 'clearAll') {
-      await rawSql`DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM group_messages)`;
-      await rawSql`DELETE FROM group_messages`;
-      await rawSql`DELETE FROM group_members`;
-      await rawSql`DELETE FROM community_groups`;
+      await db.delete(groupMessages);
+      await db.delete(groupMembers);
+      await db.delete(communityGroups);
       return NextResponse.json({ message: 'All groups cleared successfully' });
     }
 
