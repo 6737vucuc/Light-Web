@@ -206,12 +206,22 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     if (typeof window === 'undefined' || !currentUser?.id) return;
     
-    // Initialize PeerJS with a consistent ID
+    // Initialize PeerJS with a consistent ID and reliable ICE servers
     const peer = new Peer(`light-user-${currentUser.id}`, {
       host: '0.peerjs.com',
       port: 443,
       secure: true,
-      debug: 1
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' },
+        ],
+        sdpSemantics: 'unified-plan'
+      }
     });
 
     peer.on('open', (id) => {
@@ -250,7 +260,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     setCallStatus('calling');
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Improved constraints for better audio quality
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
       localStreamRef.current = stream;
 
       // Notify recipient via Supabase Realtime
@@ -279,7 +296,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     if (!callerPeerId || !peerRef.current) return;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Improved constraints for better audio quality
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
       localStreamRef.current = stream;
       
       // 1. Answer the incoming call if it exists
@@ -344,14 +368,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const handleRejectCall = async () => {
-    const confirmed = await toast.confirm({
-      title: t('rejectCall') || 'Reject Call',
-      message: t('rejectCallConfirm') || 'Reject this incoming call?',
-      type: 'danger'
-    });
-    
-    if (!confirmed) return;
-
     const callerId = (window as any).incomingCallerId;
     const targetId = callerId || selectedConversation?.other_user_id;
     
@@ -381,14 +397,6 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const handleEndCall = async () => {
-    const confirmed = await toast.confirm({
-      title: t('endCall') || 'End Call',
-      message: t('endCallConfirm') || 'Are you sure you want to end this call?',
-      type: 'danger'
-    });
-    
-    if (!confirmed && callStatus === 'connected') return;
-
     if (currentCallRef.current) currentCallRef.current.close();
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
