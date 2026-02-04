@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, MessageCircle, Home, User, Sparkles, BookOpen, Heart, Shield, ArrowLeft, Loader2, Info, Search, Filter } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import Image from 'next/image';
 import EnhancedGroupChat from '@/components/community/EnhancedGroupChat';
 import { useTranslations } from 'next-intl';
@@ -81,6 +82,11 @@ export default function CommunityPage() {
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  const DynamicIcon = ({ name, className, size = 24 }: { name: string, className?: string, size?: number }) => {
+    const IconComponent = (LucideIcons as any)[name] || LucideIcons.Users;
+    return <IconComponent className={className} size={size} />;
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
@@ -109,7 +115,7 @@ export default function CommunityPage() {
                 </button>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black" style={{ backgroundColor: selectedGroup.color }}>
-                    <Users size={20} />
+                    <DynamicIcon name={selectedGroup.icon} size={20} />
                   </div>
                   <div>
                     <h1 className="text-lg font-black text-gray-900 leading-none">{selectedGroup.name}</h1>
@@ -257,7 +263,7 @@ export default function CommunityPage() {
                     <div className="h-40 flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: group.color }}>
                       <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent opacity-60"></div>
                       <div className="relative z-10 p-6 bg-white/20 backdrop-blur-md rounded-3xl border border-white/30 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
-                        <Users className="w-12 h-12 text-white" />
+                        <DynamicIcon name={group.icon} className="w-12 h-12 text-white" size={48} />
                       </div>
                       <div className="absolute bottom-4 left-6 z-10">
                         <span className="px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[10px] font-black uppercase text-gray-900 shadow-sm">
