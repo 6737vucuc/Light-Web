@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const { receiverId, offer, callerName, callerAvatar } = await request.json();
+    const { receiverId, callerPeerId, offer, callerName, callerAvatar } = await request.json();
 
     if (!receiverId || !offer) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
