@@ -421,6 +421,21 @@ export const directMessages = pgTable('direct_messages', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// Calls table
+export const calls = pgTable('calls', {
+  id: serial('id').primaryKey(),
+  callerId: integer('caller_id').references(() => users.id).notNull(),
+  receiverId: integer('receiver_id').references(() => users.id).notNull(),
+  callerPeerId: varchar('caller_peer_id', { length: 255 }),
+  receiverPeerId: varchar('receiver_peer_id', { length: 255 }),
+  status: varchar('status', { length: 50 }).default('ringing'), // 'ringing', 'connected', 'ended', 'rejected'
+  callType: varchar('call_type', { length: 20 }).default('voice'),
+  startedAt: timestamp('started_at'),
+  endedAt: timestamp('ended_at'),
+  duration: integer('duration').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // ========================================
 // TESTIMONIES SYSTEM
 // ========================================
