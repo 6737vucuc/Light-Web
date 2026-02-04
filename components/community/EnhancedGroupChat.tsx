@@ -15,7 +15,7 @@ import {
   LogOut,
   Info
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Pusher from 'pusher-js';
@@ -29,6 +29,8 @@ interface EnhancedGroupChatProps {
 
 export default function EnhancedGroupChat({ group, currentUser, onBack }: EnhancedGroupChatProps) {
   const router = useRouter();
+  const params = useParams();
+  const locale = params?.locale as string || 'ar';
   const t = useTranslations('community');
   const tCommon = useTranslations('common');
   const [messages, setMessages] = useState<any[]>([]);
@@ -249,8 +251,19 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  const formatTime = (date: any) => {
+    if (!date) return '';
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString(locale === 'ar' ? 'ar-SA' : 'en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true 
+    });
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] bg-[#efeae2] rounded-2xl shadow-xl overflow-hidden border border-gray-200 relative">
+    <div className="flex flex-col h-full md:h-[calc(100vh-8rem)] bg-[#efeae2] md:rounded-2xl shadow-xl overflow-hidden border border-gray-200 relative">
       {/* Avatar Menu */}
       <UserAvatarMenu 
         isOpen={avatarMenu.isOpen}
@@ -261,54 +274,63 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
       />
 
       {/* Header */}
-      <div className="bg-[#f0f2f5] p-3 flex items-center justify-between border-b border-gray-200 z-20">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+      <div className="bg-[#f0f2f5] p-3 flex items-center justify-between border-b border-gray-200 z-20 shadow-sm">
+        <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0">
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 shadow-sm">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0">
               <Users className="w-6 h-6" />
             </div>
-            <div>
-              <h2 className="font-black text-gray-800 leading-tight">{group.name}</h2>
+            <div className="min-w-0">
+              <h2 className="font-black text-gray-900 leading-tight truncate">{group.name}</h2>
               {typingUsers.length > 0 ? (
-                <p className="text-[11px] text-green-600 font-bold animate-pulse">
+                <p className="text-[11px] text-green-600 font-black animate-pulse truncate">
                   {typingUsers[0].name} {tCommon('loading')}
                 </p>
               ) : (
-                <p className="text-[11px] text-gray-500 font-medium">
-                  {onlineMembersCount} {t('online')} • {totalMembers} {t('members')}
+                <p className="text-[11px] text-gray-500 font-black truncate">
+                  <span className="text-green-600">●</span> {onlineMembersCount} {t('online')} • {totalMembers} {t('members')}
                 </p>
               )}
             </div>
           </div>
         </div>
         
-        <div className="relative">
+        <div className="flex items-center gap-1">
           <button 
-            onClick={() => setShowGroupMenu(!showGroupMenu)}
-            className="p-2 hover:bg-gray-200 rounded-full text-gray-600 transition-colors"
+            onClick={handleLeaveGroup}
+            className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-all md:hidden"
+            title={t('leaveGroup')}
           >
-            <MoreVertical className="w-5 h-5" />
+            <LogOut className="w-5 h-5" />
           </button>
-          
-          {showGroupMenu && (
-            <div ref={menuRef} className="absolute top-full right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-30 animate-in fade-in zoom-in-95 duration-200">
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-gray-700 transition-colors">
-                <Info className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-bold">{t('groupInfo')}</span>
-              </button>
-              <div className="h-px bg-gray-50 my-1 mx-2" />
-              <button 
-                onClick={handleLeaveGroup}
-                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 text-red-600 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="text-sm font-bold">{t('leaveGroup')}</span>
-              </button>
-            </div>
-          )}
+          <div className="relative">
+            <button 
+              onClick={() => setShowGroupMenu(!showGroupMenu)}
+              className="p-2.5 hover:bg-gray-200 rounded-xl text-gray-600 transition-all"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+            
+            {showGroupMenu && (
+              <div ref={menuRef} className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-30 animate-in fade-in zoom-in-95 duration-200">
+                <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-gray-700 transition-colors">
+                  <Info className="w-5 h-5 text-purple-500" />
+                  <span className="text-sm font-black">{t('groupInfo')}</span>
+                </button>
+                <div className="h-px bg-gray-50 my-1 mx-2" />
+                <button 
+                  onClick={handleLeaveGroup}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600 transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="text-sm font-black">{t('leaveGroup')}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -345,7 +367,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                     <p className="text-sm font-medium whitespace-pre-wrap break-words">{msg.content}</p>
                     <div className="flex items-center justify-end gap-1 mt-1">
                       <span className="text-[9px] text-gray-500 font-bold">
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatTime(msg.created_at)}
                       </span>
                       {isOwn && <CheckCheck className="w-3 h-3 text-blue-500" />}
                     </div>
@@ -382,7 +404,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
             }}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             placeholder={t('typeMessage')}
-            className="w-full bg-white px-4 py-2.5 rounded-full text-sm focus:outline-none shadow-sm font-medium"
+            className="w-full bg-white px-5 py-3 rounded-2xl text-sm focus:outline-none shadow-sm font-black text-gray-900 placeholder:text-gray-400"
           />
         </div>
         <button

@@ -89,7 +89,7 @@ export default function CommunityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+    <div className={`min-h-screen bg-gray-50 ${selectedGroup ? 'h-screen overflow-hidden' : 'pb-20 md:pb-0'}`}>
       {/* Dynamic Header based on selection */}
       <header className={`sticky top-0 z-50 transition-all duration-300 ${selectedGroup ? 'bg-white shadow-md' : 'bg-gradient-to-r from-purple-700 via-purple-600 to-blue-600 shadow-lg py-6'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -153,9 +153,9 @@ export default function CommunityPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={`max-w-7xl mx-auto ${selectedGroup ? 'p-0 h-[calc(100vh-64px)]' : 'px-4 sm:px-6 lg:px-8 py-8'}`}>
         {selectedGroup ? (
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 h-[calc(100vh-180px)] md:h-[calc(100vh-140px)]">
+          <div className="bg-white md:rounded-3xl shadow-2xl border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 h-full">
             <EnhancedGroupChat
               group={selectedGroup}
               currentUser={currentUser}
