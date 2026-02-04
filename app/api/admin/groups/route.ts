@@ -25,14 +25,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get all groups using Drizzle with relations or manual join for counts
+    // Get all groups using Drizzle with manual join for counts
     const groups = await db.select({
       id: communityGroups.id,
       name: communityGroups.name,
       description: communityGroups.description,
       color: communityGroups.color,
       icon: communityGroups.icon,
-      avatar: communityGroups.avatar,
       createdBy: communityGroups.createdBy,
       createdAt: communityGroups.createdAt,
       updatedAt: communityGroups.updatedAt,
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { name, description, color, icon, avatar } = await request.json();
+    const { name, description, color, icon } = await request.json();
 
     if (!name) {
       return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
@@ -79,7 +78,6 @@ export async function POST(request: NextRequest) {
       description: description || null,
       color: color || '#8B5CF6',
       icon: icon || 'users',
-      avatar: avatar || null,
       createdBy: user.userId,
     }).returning();
 
