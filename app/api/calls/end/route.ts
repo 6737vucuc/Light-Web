@@ -18,14 +18,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { targetUserId } = await request.json();
+    const { receiverId } = await request.json();
 
-    if (!targetUserId) {
-      return NextResponse.json({ error: 'Missing targetUserId' }, { status: 400 });
+    if (!receiverId) {
+      return NextResponse.json({ error: 'Missing receiverId' }, { status: 400 });
     }
 
     // Notify other party that call ended
-    await pusher.trigger(`private-calls-${targetUserId}`, 'call-ended', {});
+    await pusher.trigger(`user-${receiverId}`, 'call-ended', {});
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
 
     const pusher = getPusher();
     if (pusher) {
-      await pusher.trigger(`typing-${targetId}`, 'typing-event', {
+      // Trigger on user's main channel for consistency
+      await pusher.trigger(`user-${targetId}`, 'typing', {
         senderId: user.userId,
         isTyping
       });

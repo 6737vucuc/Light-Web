@@ -15,7 +15,7 @@ export const SecurityHeaders = {
   'Referrer-Policy': 'no-referrer',
   
   // Permissions policy - deny all dangerous features
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), ambient-light-sensor=()',
+  'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), ambient-light-sensor=()',
   
   // Enhanced Content Security Policy
   'Content-Security-Policy': [
@@ -24,7 +24,7 @@ export const SecurityHeaders = {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https://sockjs-us2.pusher.com wss://ws-us2.pusher.com https://*.neon.tech", // Pusher + Neon DB
+    "connect-src 'self' https://*.pusher.com wss://*.pusher.com https://*.neon.tech", // Pusher + Neon DB
     "media-src 'self' https:",
     "object-src 'none'",
     "frame-ancestors 'none'",

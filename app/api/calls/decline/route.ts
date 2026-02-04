@@ -18,14 +18,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { callerId } = await request.json();
+    const { receiverId } = await request.json();
 
-    if (!callerId) {
-      return NextResponse.json({ error: 'Missing callerId' }, { status: 400 });
+    if (!receiverId) {
+      return NextResponse.json({ error: 'Missing receiverId' }, { status: 400 });
     }
 
     // Notify caller that call was declined
-    await pusher.trigger(`private-calls-${callerId}`, 'call-declined', {});
+    await pusher.trigger(`user-${receiverId}`, 'call-rejected', {});
 
     return NextResponse.json({ success: true });
   } catch (error) {

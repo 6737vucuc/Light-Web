@@ -26,8 +26,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Send call notification to receiver
-    await pusher.trigger(`private-calls-${receiverId}`, 'incoming-call', {
+    await pusher.trigger(`user-${receiverId}`, 'incoming-call', {
       callerId: decoded.userId,
+      callerPeerId,
       callerName,
       callerAvatar,
       offer,

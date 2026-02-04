@@ -46,7 +46,8 @@ export default function UserAvatarMenu({
   }, [isOpen, onClose]);
 
   const handleViewProfile = () => {
-    router.push(`/profile/${userId}`);
+    // Path matches app/[locale]/community/profile/[userId]/page.tsx
+    router.push(`/community/profile/${userId}`);
     onClose();
   };
 

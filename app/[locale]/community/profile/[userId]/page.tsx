@@ -181,13 +181,22 @@ export default function CommunityProfilePage() {
                   </div>
                 )}
               </div>
-	              <div className="flex-1">
-	                <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
-	              </div>
-            </div>
-          </div>
-        </main>
-      </div>
+		              <div className="flex-1">
+		                <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
+		              </div>
+		            </div>
+		            <div className="mt-8">
+		              <button 
+		                onClick={() => router.push(`/messages?userId=${user.id}`)}
+		                className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 shadow-lg shadow-purple-100 transition-all flex items-center justify-center gap-2"
+		              >
+		                <Mail className="w-5 h-5" />
+		                إرسال رسالة
+		              </button>
+		            </div>
+		          </div>
+		        </main>
+		      </div>
     );
   }
 
