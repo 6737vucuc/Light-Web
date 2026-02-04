@@ -47,6 +47,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const currentCallRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Load Conversations
   const loadConversations = async (targetUserId?: number) => {
@@ -174,17 +175,31 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     };
   }, [currentUser?.id, selectedConversation?.other_user_id]);
 
-  // Update online status on load
+  // Update online status on load and maintain real-time presence
   useEffect(() => {
     if (!currentUser?.id) return;
+    
+    // Initial update
     fetch('/api/users/update-lastseen', { method: 'POST' });
     
-    // Heartbeat for online status
+    // Heartbeat for online status - every 10 seconds for real-time presence
     const interval = setInterval(() => {
       fetch('/api/users/update-lastseen', { method: 'POST' });
-    }, 30000);
+    }, 10000);
     
-    return () => clearInterval(interval);
+    // Mark user as offline when leaving the page
+    const handleBeforeUnload = () => {
+      navigator.sendBeacon('/api/users/set-offline');
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Try to mark offline on cleanup
+      fetch('/api/users/set-offline', { method: 'POST', keepalive: true });
+    };
   }, [currentUser?.id]);
 
   // PeerJS Call Logic
@@ -297,9 +312,24 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const setupCallEvents = (call: any) => {
     call.on('stream', (remoteStream: MediaStream) => {
       console.log('Received remote stream');
-      const audio = new Audio();
-      audio.srcObject = remoteStream;
-      audio.play().catch(e => console.error("Audio play error:", e));
+      
+      // Create audio element if it doesn't exist
+      if (!remoteAudioRef.current) {
+        remoteAudioRef.current = new Audio();
+        remoteAudioRef.current.autoplay = true;
+      }
+      
+      // Set the remote stream
+      remoteAudioRef.current.srcObject = remoteStream;
+      
+      // Play the audio
+      remoteAudioRef.current.play()
+        .then(() => console.log('Remote audio playing successfully'))
+        .catch(e => {
+          console.error("Audio play error:", e);
+          // Try to play again after user interaction
+          toast.error('Please click anywhere to enable audio');
+        });
     });
 
     call.on('close', () => {
@@ -325,6 +355,21 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     const callerId = (window as any).incomingCallerId;
     const targetId = callerId || selectedConversation?.other_user_id;
     
+    // Clean up resources
+    if (currentCallRef.current) {
+      currentCallRef.current.close();
+      currentCallRef.current = null;
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.pause();
+      remoteAudioRef.current.srcObject = null;
+      remoteAudioRef.current = null;
+    }
+    
     if (targetId) {
       fetch('/api/calls/decline', {
         method: 'POST',
@@ -347,6 +392,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     if (currentCallRef.current) currentCallRef.current.close();
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+    
+    // Clean up remote audio
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.pause();
+      remoteAudioRef.current.srcObject = null;
+      remoteAudioRef.current = null;
     }
     
     const targetId = (window as any).incomingCallerId || selectedConversation?.other_user_id;
@@ -489,7 +542,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                   <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-200 shadow-md border-2 border-white">
                     <Image src={getAvatarUrl(conv.avatar)} alt={conv.name} width={56} height={56} className="object-cover" unoptimized />
                   </div>
-                  {conv.is_online && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full shadow-sm"></div>}
+                  {conv.is_online && (
+                    <div className="absolute -bottom-1 -right-1">
+                      <div className="w-4 h-4 bg-green-500 border-2 border-white rounded-full shadow-sm"></div>
+                      <div className="absolute inset-0 w-4 h-4 bg-green-400 rounded-full animate-ping opacity-75"></div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex justify-between items-baseline mb-1">
@@ -524,15 +582,21 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-black text-gray-900 truncate">{selectedConversation.name}</h3>
-                <p className="text-[11px] font-bold">
+                <div className="flex items-center gap-1.5">
                   {otherUserTyping ? (
-                    <span className="text-green-600 animate-pulse">{t('typing')}</span>
+                    <>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-[11px] font-bold text-green-600 animate-pulse">{t('typing')}</span>
+                    </>
                   ) : otherUserOnline ? (
-                    <span className="text-green-600">{t('online')}</span>
+                    <>
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-[11px] font-bold text-green-600">Online • Real-Time</span>
+                    </>
                   ) : otherUserLastSeen ? (
-                    <span className="text-gray-500">{t('lastSeen')} {new Date(otherUserLastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  ) : <span className="text-gray-400">{t('offline')}</span>}
-                </p>
+                    <span className="text-[11px] font-bold text-gray-500">{t('lastSeen')} {new Date(otherUserLastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  ) : <span className="text-[11px] font-bold text-gray-400">{t('offline')}</span>}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button 
