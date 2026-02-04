@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/status';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { groupMembers, communityGroups } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
