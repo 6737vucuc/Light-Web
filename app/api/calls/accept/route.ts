@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth/verify';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
+import { db } from '@/lib/db';
+import { calls } from '@/lib/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,6 +34,31 @@ export async function POST(request: NextRequest) {
         receiverPeerId: receiverPeerId || null
       }
     });
+
+    // Update the call status in the database
+    try {
+      // Find the most recent ringing call between these two users
+      const existingCall = await db.query.calls.findFirst({
+        where: and(
+          eq(calls.callerId, parseInt(receiverId)),
+          eq(calls.receiverId, user.userId),
+          eq(calls.status, 'ringing')
+        ),
+        orderBy: [desc(calls.createdAt)]
+      });
+
+      if (existingCall) {
+        await db.update(calls)
+          .set({ 
+            status: 'connected',
+            receiverPeerId: receiverPeerId,
+            startedAt: new Date() 
+          })
+          .where(eq(calls.id, existingCall.id));
+      }
+    } catch (dbError) {
+      console.error('Error updating call in DB:', dbError);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

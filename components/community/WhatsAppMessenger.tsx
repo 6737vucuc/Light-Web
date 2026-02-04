@@ -215,7 +215,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     if (typeof window === 'undefined' || !currentUser?.id) return;
     
-    // Initialize PeerJS with a consistent ID and reliable ICE servers
+    // Initialize PeerJS with a consistent ID and reliable ICE servers (STUN/TURN)
     const peer = new Peer(`light-user-${currentUser.id}`, {
       host: '0.peerjs.com',
       port: 443,
@@ -223,12 +223,35 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       debug: 1,
       config: {
         iceServers: [
+          // Google STUN servers
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
           { urls: 'stun:stun2.l.google.com:19302' },
           { urls: 'stun:stun3.l.google.com:19302' },
           { urls: 'stun:stun4.l.google.com:19302' },
+          // Additional public STUN servers for better reliability
+          { urls: 'stun:stun.services.mozilla.com' },
+          { urls: 'stun:stun.stunprotocol.org:3478' },
+          { urls: 'stun:stun.voipstunt.com' },
+          { urls: 'stun:stun.xten.com' },
+          // OpenRelay Project (Free TURN servers)
+          {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          },
+          {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          },
+          {
+            urls: 'turn:openrelay.metered.ca:3478',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          }
         ],
+        iceCandidatePoolSize: 10,
         sdpSemantics: 'unified-plan'
       }
     });

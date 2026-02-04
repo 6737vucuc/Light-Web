@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth/verify';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
+import { db } from '@/lib/db';
+import { calls } from '@/lib/db/schema';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +35,21 @@ export async function POST(request: NextRequest) {
         callerAvatar: callerAvatar || null
       }
     });
+
+    // Record the call in the database
+    try {
+      await db.insert(calls).values({
+        callerId: user.userId,
+        receiverId: parseInt(receiverId),
+        callerPeerId: callerPeerId,
+        status: 'ringing',
+        callType: 'voice',
+        startedAt: new Date(),
+      });
+    } catch (dbError) {
+      console.error('Error recording call in DB:', dbError);
+      // Continue even if DB insert fails to not block the call
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
