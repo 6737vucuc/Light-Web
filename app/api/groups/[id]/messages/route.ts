@@ -37,7 +37,6 @@ export async function GET(
     }
 
     // 2. Fetch messages using Admin Client to bypass RLS
-    // Explicitly specify the relationship because there are multiple foreign keys to users table
     const { data: messages, error } = await supabaseAdmin
       .from('group_messages')
       .select(`
@@ -107,25 +106,29 @@ export async function POST(
       .eq('id', user.userId)
       .single();
 
-    // 3. Broadcast via Pusher with complete user data
+    // 3. Broadcast via Supabase Realtime
     try {
-      const { pusherServer } = require('@/lib/realtime/chat');
-      await pusherServer.trigger(`group-${groupId}`, 'new-message', {
-        id: newMessage.id,
-        content: newMessage.content,
-        media_url: newMessage.media_url,
-        type: newMessage.message_type || 'text',
-        timestamp: newMessage.created_at,
-        userId: user.userId,
-        user_id: user.userId,
-        user: userData || {
-          id: user.userId,
-          name: user.name,
-          avatar: user.avatar
+      const channel = supabaseAdmin.channel(`group-${groupId}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'new-message',
+        payload: {
+          id: newMessage.id,
+          content: newMessage.content,
+          media_url: newMessage.media_url,
+          type: newMessage.message_type || 'text',
+          timestamp: newMessage.created_at,
+          userId: user.userId,
+          user_id: user.userId,
+          user: userData || {
+            id: user.userId,
+            name: user.name,
+            avatar: user.avatar
+          }
         }
       });
-    } catch (pError) {
-      console.error('Pusher Broadcast Error:', pError);
+    } catch (broadcastError) {
+      console.error('Supabase Broadcast Error:', broadcastError);
     }
 
     return NextResponse.json({ success: true, message: newMessage });

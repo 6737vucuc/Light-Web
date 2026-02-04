@@ -8,7 +8,7 @@ import Peer from 'peerjs';
 import CallOverlay from './CallOverlay';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
-import Pusher from 'pusher-js';
+import { supabase } from '@/lib/supabase/client';
 
 interface WhatsAppMessengerProps {
   currentUser: any;
@@ -45,7 +45,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const peerRef = useRef<Peer | null>(null);
   const currentCallRef = useRef<any>(null);
-  const pusherRef = useRef<Pusher | null>(null);
+  const channelRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
 
   // Load Conversations
@@ -92,72 +92,84 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     loadConversations(initialUserId);
   }, [currentUser?.id, initialUserId]);
 
-  // Real-time Messages and Typing using Pusher
+  // Real-time Messages, Typing, Presence and Calls using Supabase Realtime
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_APP_KEY || process.env.NEXT_PUBLIC_PUSHER_KEY;
-    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2';
-
-    if (!pusherKey) return;
-
-    if (!pusherRef.current) {
-      pusherRef.current = new Pusher(pusherKey, { cluster: pusherCluster });
-    }
-
-    const channel = pusherRef.current.subscribe(`user-${currentUser.id}`);
-
-    // Listen for new private messages
-    channel.bind('private-message', (data: any) => {
-      const newMsg = data.message;
-      if (selectedConversation && newMsg.sender_id === selectedConversation.other_user_id) {
-        setMessages(prev => {
-          if (prev.find(m => m.id === newMsg.id)) return prev;
-          return [...prev, newMsg];
-        });
-        setTimeout(scrollToBottom, 100);
-        // Mark as read API call if needed
-      }
-      loadConversations();
-    });
-
-    // Listen for typing indicator
-    channel.bind('typing', (data: any) => {
-      if (selectedConversation && data.senderId === selectedConversation.other_user_id) {
-        setOtherUserTyping(data.isTyping);
+    // Create a Supabase Realtime channel for this user
+    const channel = supabase.channel(`user-${currentUser.id}`, {
+      config: {
+        broadcast: { self: false },
       }
     });
 
-    // Listen for online status updates
-    channel.bind('online-status', (data: any) => {
-      if (selectedConversation && data.userId === selectedConversation.other_user_id) {
-        setOtherUserOnline(data.isOnline);
-        if (!data.isOnline) setOtherUserLastSeen(new Date().toISOString());
-      }
-    });
+    channel
+      .on('broadcast', { event: 'private-message' }, ({ payload }) => {
+        const newMsg = payload.message;
+        if (selectedConversation && newMsg.sender_id === selectedConversation.other_user_id) {
+          setMessages(prev => {
+            if (prev.find(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+          setTimeout(scrollToBottom, 100);
+        }
+        loadConversations();
+      })
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (selectedConversation && payload.senderId === selectedConversation.other_user_id) {
+          setOtherUserTyping(payload.isTyping);
+        }
+      })
+      .on('broadcast', { event: 'online-status' }, ({ payload }) => {
+        if (selectedConversation && payload.userId === selectedConversation.other_user_id) {
+          setOtherUserOnline(payload.isOnline);
+          if (!payload.isOnline) setOtherUserLastSeen(new Date().toISOString());
+        }
+      })
+      .on('broadcast', { event: 'incoming-call' }, ({ payload }) => {
+        console.log('Incoming call received:', payload);
+        setCallOtherUser({ name: payload.callerName, avatar: payload.callerAvatar });
+        setCallStatus('incoming');
+        (window as any).incomingPeerId = payload.callerPeerId;
+        (window as any).incomingCallerId = payload.callerId;
+      })
+      .on('broadcast', { event: 'call-rejected' }, () => {
+        console.log('Call rejected by other user');
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(track => track.stop());
+          localStreamRef.current = null;
+        }
+        setCallStatus('ended');
+        setTimeout(() => setCallStatus('idle'), 2000);
+      })
+      .on('broadcast', { event: 'call-ended' }, () => {
+        console.log('Call ended by other user');
+        if (currentCallRef.current) {
+          currentCallRef.current.close();
+          currentCallRef.current = null;
+        }
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(track => track.stop());
+          localStreamRef.current = null;
+        }
+        setCallStatus('ended');
+        setTimeout(() => setCallStatus('idle'), 2000);
+      })
+      .on('broadcast', { event: 'call-accepted' }, () => {
+        console.log('Call accepted by receiver');
+        setCallStatus('connected');
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Supabase Realtime Subscribed!');
+        }
+      });
 
-    // Listen for incoming calls via Pusher signaling
-    channel.bind('incoming-call', (data: any) => {
-      setCallOtherUser({ name: data.callerName, avatar: data.callerAvatar });
-      setCallStatus('incoming');
-      // Store the caller's peerId for answering
-      (window as any).incomingPeerId = data.callerPeerId;
-    });
-
-    channel.bind('call-rejected', () => {
-      setCallStatus('ended');
-      setTimeout(() => setCallStatus('idle'), 2000);
-    });
-
-    channel.bind('call-ended', () => {
-      if (currentCallRef.current) currentCallRef.current.close();
-      setCallStatus('ended');
-      setTimeout(() => setCallStatus('idle'), 2000);
-    });
+    channelRef.current = channel;
 
     return () => {
-      if (pusherRef.current) {
-        pusherRef.current.unsubscribe(`user-${currentUser.id}`);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
       }
     };
   }, [currentUser?.id, selectedConversation?.other_user_id]);
@@ -179,25 +191,40 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     if (typeof window === 'undefined' || !currentUser?.id) return;
     
-    // Initialize PeerJS
+    // Initialize PeerJS with a consistent ID
     const peer = new Peer(`light-user-${currentUser.id}`, {
       host: '0.peerjs.com',
       port: 443,
-      secure: true
+      secure: true,
+      debug: 1
     });
 
     peer.on('open', (id) => {
+      console.log('PeerJS connected with ID:', id);
       setPeerId(id);
       peerRef.current = peer;
     });
 
     peer.on('call', async (call) => {
+      console.log('Receiving WebRTC call from:', call.peer);
       currentCallRef.current = call;
-      // We handle UI via Pusher 'incoming-call' event for better metadata
+      
+      // If we are already in 'incoming' or 'calling' state, we might need to answer
+      // But we wait for the user to click "Accept" which calls handleAcceptCall
+    });
+
+    peer.on('error', (err) => {
+      console.error('PeerJS error:', err);
+      if (err.type === 'unavailable-id') {
+        // ID already taken, might happen on refresh
+      }
     });
 
     return () => {
-      peer.destroy();
+      if (peerRef.current) {
+        peerRef.current.destroy();
+        peerRef.current = null;
+      }
     };
   }, [currentUser?.id]);
 
@@ -211,7 +238,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
 
-      // Notify recipient via Pusher
+      // Notify recipient via Supabase Realtime
       await fetch('/api/calls/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -219,8 +246,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
           receiverId: selectedConversation.other_user_id,
           callerPeerId: peerId,
           callerName: currentUser.name,
-          callerAvatar: currentUser.avatar,
-          offer: { type: 'voice' } // Simplified for signaling
+          callerAvatar: currentUser.avatar
         })
       });
 
@@ -232,52 +258,103 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const handleAcceptCall = async () => {
-    if (!currentCallRef.current && !(window as any).incomingPeerId) return;
+    const callerPeerId = (window as any).incomingPeerId;
+    const callerId = (window as any).incomingCallerId;
+    
+    if (!callerPeerId || !peerRef.current) return;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
       
-      const callerPeerId = (window as any).incomingPeerId;
-      const call = peerRef.current!.call(callerPeerId, stream);
+      // 1. Answer the incoming call if it exists
+      if (currentCallRef.current) {
+        currentCallRef.current.answer(stream);
+        setupCallEvents(currentCallRef.current);
+      } else {
+        // 2. Or initiate a call back to the caller (standard WebRTC pattern)
+        const call = peerRef.current.call(callerPeerId, stream);
+        currentCallRef.current = call;
+        setupCallEvents(call);
+      }
       
-      currentCallRef.current = call;
-      setCallStatus('connected');
-
-      call.on('stream', (remoteStream) => {
-        const audio = new Audio();
-        audio.srcObject = remoteStream;
-        audio.play();
+      // 3. Notify caller that we accepted via Supabase Realtime
+      await fetch('/api/calls/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiverId: callerId })
       });
+      
+      setCallStatus('connected');
 
     } catch (err) {
       console.error('Accept call error:', err);
+      toast.error('Could not connect call');
       setCallStatus('idle');
     }
   };
 
-  const handleRejectCall = () => {
-    if (selectedConversation) {
+  const setupCallEvents = (call: any) => {
+    call.on('stream', (remoteStream: MediaStream) => {
+      console.log('Received remote stream');
+      const audio = new Audio();
+      audio.srcObject = remoteStream;
+      audio.play().catch(e => console.error("Audio play error:", e));
+    });
+
+    call.on('close', () => {
+      console.log('Call stream closed');
+      handleEndCall();
+    });
+
+    call.on('error', (err: any) => {
+      console.error('Call stream error:', err);
+      handleEndCall();
+    });
+  };
+
+  const handleRejectCall = async () => {
+    const confirmed = await toast.confirm({
+      title: t('rejectCall') || 'Reject Call',
+      message: t('rejectCallConfirm') || 'Reject this incoming call?',
+      type: 'danger'
+    });
+    
+    if (!confirmed) return;
+
+    const callerId = (window as any).incomingCallerId;
+    const targetId = callerId || selectedConversation?.other_user_id;
+    
+    if (targetId) {
       fetch('/api/calls/decline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receiverId: selectedConversation.other_user_id })
+        body: JSON.stringify({ receiverId: targetId })
       });
     }
     setCallStatus('idle');
   };
 
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
+    const confirmed = await toast.confirm({
+      title: t('endCall') || 'End Call',
+      message: t('endCallConfirm') || 'Are you sure you want to end this call?',
+      type: 'danger'
+    });
+    
+    if (!confirmed && callStatus === 'connected') return;
+
     if (currentCallRef.current) currentCallRef.current.close();
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
     }
     
-    if (selectedConversation) {
+    const targetId = (window as any).incomingCallerId || selectedConversation?.other_user_id;
+    if (targetId) {
       fetch('/api/calls/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receiverId: selectedConversation.other_user_id })
+        body: JSON.stringify({ receiverId: targetId })
       });
     }
     setCallStatus('idle');

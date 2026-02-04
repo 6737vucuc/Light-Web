@@ -19,7 +19,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { useToast } from '@/lib/contexts/ToastContext';
-import Pusher from 'pusher-js';
+import { supabase } from '@/lib/supabase/client';
 import UserAvatarMenu from './UserAvatarMenu';
 
 interface EnhancedGroupChatProps {
@@ -52,17 +52,17 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pusherRef = useRef<Pusher | null>(null);
+  const channelRef = useRef<any>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadInitialData();
-    initializePusher();
+    initializeRealtime();
     
     return () => {
-      if (pusherRef.current) {
-        pusherRef.current.unsubscribe(`group-${group.id}`);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
       }
     };
   }, [group.id]);
@@ -105,62 +105,60 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     }
   };
 
-  const initializePusher = () => {
-    if (pusherRef.current) return;
+  const initializeRealtime = () => {
+    if (channelRef.current) return;
 
-    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_APP_KEY || process.env.NEXT_PUBLIC_PUSHER_KEY;
-    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2';
-
-    if (!pusherKey) return;
-
-    pusherRef.current = new Pusher(pusherKey, { cluster: pusherCluster });
-    const channel = pusherRef.current.subscribe(`group-${group.id}`);
-
-    channel.bind('new-message', (data: any) => {
-      setMessages((prev) => {
-        if (prev.find(m => m.id === data.id)) return prev;
-        const formattedMessage = {
-          ...data,
-          user_id: data.userId || data.user_id,
-          created_at: data.timestamp || data.created_at,
-          user: data.user || null
-        };
-        return [...prev, formattedMessage];
-      });
-      scrollToBottom();
-    });
-
-    channel.bind('message-deleted', (data: any) => {
-      setMessages((prev) => prev.filter(m => m.id !== data.messageId));
-    });
-
-    channel.bind('user-typing', (data: any) => {
-      if (data.userId !== currentUser?.id) {
-        if (data.isTyping) {
-          setTypingUsers((prev) => {
-            if (prev.find(u => u.userId === data.userId)) return prev;
-            return [...prev, { userId: data.userId, name: data.name }];
-          });
-        } else {
-          setTypingUsers((prev) => prev.filter(u => u.userId !== data.userId));
-        }
+    const channel = supabase.channel(`group-${group.id}`, {
+      config: {
+        broadcast: { self: false },
       }
     });
 
-    channel.bind('member-update', (data: any) => {
-      if (data.membersCount !== undefined) {
-        setTotalMembers(data.membersCount);
-      }
-    });
-
-    channel.bind('presence-update', () => {
-      fetch(`/api/groups/${group.id}/stats`)
-        .then(res => res.json())
-        .then(stats => {
-          setTotalMembers(stats.totalMembers || 0);
-          setOnlineMembersCount(stats.onlineMembers || 0);
+    channel
+      .on('broadcast', { event: 'new-message' }, ({ payload }) => {
+        setMessages((prev) => {
+          if (prev.find(m => m.id === payload.id)) return prev;
+          const formattedMessage = {
+            ...payload,
+            user_id: payload.userId || payload.user_id,
+            created_at: payload.timestamp || payload.created_at,
+            user: payload.user || null
+          };
+          return [...prev, formattedMessage];
         });
-    });
+        scrollToBottom();
+      })
+      .on('broadcast', { event: 'message-deleted' }, ({ payload }) => {
+        setMessages((prev) => prev.filter(m => m.id !== payload.messageId));
+      })
+      .on('broadcast', { event: 'user-typing' }, ({ payload }) => {
+        if (payload.userId !== currentUser?.id) {
+          if (payload.isTyping) {
+            setTypingUsers((prev) => {
+              if (prev.find(u => u.userId === payload.userId)) return prev;
+              return [...prev, { userId: payload.userId, name: payload.name }];
+            });
+          } else {
+            setTypingUsers((prev) => prev.filter(u => u.userId !== payload.userId));
+          }
+        }
+      })
+      .on('broadcast', { event: 'member-update' }, ({ payload }) => {
+        if (payload.membersCount !== undefined) {
+          setTotalMembers(payload.membersCount);
+        }
+      })
+      .on('broadcast', { event: 'presence-update' }, () => {
+        fetch(`/api/groups/${group.id}/stats`)
+          .then(res => res.json())
+          .then(stats => {
+            setTotalMembers(stats.totalMembers || 0);
+            setOnlineMembersCount(stats.onlineMembers || 0);
+          });
+      })
+      .subscribe();
+
+    channelRef.current = channel;
   };
 
   const handleTyping = (isTyping: boolean) => {

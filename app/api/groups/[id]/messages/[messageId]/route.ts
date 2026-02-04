@@ -1,34 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, sql as rawSql } from '@/lib/db';
+import { db } from '@/lib/db';
 import { groupMessages, communityGroups } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
 import { eq, and, sql } from 'drizzle-orm';
-import Pusher from 'pusher';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-function getPusher() {
-  try {
-    const appId = process.env.PUSHER_APP_ID;
-    const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
-    const secret = process.env.PUSHER_SECRET;
-    const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
-
-    if (appId && key && secret && cluster) {
-      return new Pusher({
-        appId,
-        key,
-        secret,
-        cluster,
-        useTLS: true,
-      });
-    }
-  } catch (e) {
-    console.error('Pusher initialization failed:', e);
-  }
-  return null;
-}
 
 export async function DELETE(
   request: NextRequest,
@@ -99,18 +77,21 @@ export async function DELETE(
         .set({ messagesCount: sql`GREATEST(messages_count - 1, 0)` })
         .where(eq(communityGroups.id, groupId));
 
-      // Broadcast deletion to all users via Pusher
-      const pusher = getPusher();
-      if (pusher) {
-        try {
-          await pusher.trigger(`group-${groupId}`, 'message-deleted', {
+      // Broadcast deletion to all users via Supabase Realtime
+      try {
+        const supabaseAdmin = getSupabaseAdmin();
+        const channel = supabaseAdmin.channel(`group-${groupId}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'message-deleted',
+          payload: {
             messageId: messageId,
             deletedBy: user.userId,
             deleteForEveryone: true,
-          });
-        } catch (e) {
-          console.error('Pusher error:', e);
-        }
+          }
+        });
+      } catch (e) {
+        console.error('Supabase Broadcast error:', e);
       }
 
       return NextResponse.json({ 

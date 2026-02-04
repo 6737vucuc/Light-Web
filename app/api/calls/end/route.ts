@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify } from 'jsonwebtoken';
-import Pusher from 'pusher';
+import { verifyAuth } from '@/lib/auth/verify';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
-  useTLS: true,
-});
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,8 +19,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing receiverId' }, { status: 400 });
     }
 
-    // Notify other party that call ended
-    await pusher.trigger(`user-${receiverId}`, 'call-ended', {});
+    // Notify other party via Supabase Realtime
+    const supabaseAdmin = getSupabaseAdmin();
+    const channel = supabaseAdmin.channel(`user-${receiverId}`);
+    
+    await channel.send({
+      type: 'broadcast',
+      event: 'call-ended',
+      payload: {}
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

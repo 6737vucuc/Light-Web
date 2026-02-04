@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, sql } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth/verify';
-import Pusher from 'pusher';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-function getPusher() {
-  const appId = process.env.PUSHER_APP_ID;
-  const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
-  const secret = process.env.PUSHER_SECRET;
-  const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
-
-  if (appId && key && secret && cluster) {
-    return new Pusher({ appId, key, secret, cluster, useTLS: true });
-  }
-  return null;
-}
 
 export async function POST(
   request: NextRequest,
@@ -33,14 +21,19 @@ export async function POST(
     // Get user info for broadcast
     const userInfo = await sql`SELECT name FROM users WHERE id = ${user.userId}`;
 
-    const pusher = getPusher();
-    if (pusher) {
-      await pusher.trigger(`group-${groupId}`, 'user-typing', {
+    // Broadcast via Supabase Realtime
+    const supabaseAdmin = getSupabaseAdmin();
+    const channel = supabaseAdmin.channel(`group-${groupId}`);
+    
+    await channel.send({
+      type: 'broadcast',
+      event: 'user-typing',
+      payload: {
         userId: user.userId,
         name: userInfo[0]?.name || 'User',
         isTyping
-      });
-    }
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

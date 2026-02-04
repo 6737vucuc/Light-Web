@@ -6,19 +6,7 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, sql as rawSql } from 'drizzle-orm';
-import Pusher from 'pusher';
-
-function getPusher() {
-  const appId = process.env.PUSHER_APP_ID;
-  const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
-  const secret = process.env.PUSHER_SECRET;
-  const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
-
-  if (appId && key && secret && cluster) {
-    return new Pusher({ appId, key, secret, cluster, useTLS: true });
-  }
-  return null;
-}
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
@@ -31,32 +19,43 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Update lastSeen to current time
+    // Update lastSeen and isOnline to current time
     await db
       .update(users)
-      .set({ lastSeen: new Date() })
+      .set({ 
+        lastSeen: new Date(),
+        isOnline: true 
+      })
       .where(eq(users.id, authResult.user.id));
 
-    // Notify contacts about online status
-    const pusher = getPusher();
-    if (pusher) {
-      // Find all users this user has messaged with
-      const conversations = await db.execute(rawSql`
-        SELECT DISTINCT
-          CASE 
-            WHEN sender_id = ${authResult.user.id} THEN receiver_id
-            ELSE sender_id
-          END as other_user_id
-        FROM direct_messages
-        WHERE sender_id = ${authResult.user.id} OR receiver_id = ${authResult.user.id}
-      `);
+    // Notify contacts about online status via Supabase Realtime
+    const supabaseAdmin = getSupabaseAdmin();
 
-      // Notify each contact
-      for (const conv of (conversations as any)) {
-        await pusher.trigger(`user-${conv.other_user_id}`, 'online-status', {
-          userId: authResult.user.id,
-          isOnline: true,
-          lastSeen: new Date().toISOString()
+    // Find all users this user has messaged with
+    const conversations = await db.execute(rawSql`
+      SELECT DISTINCT
+        CASE 
+          WHEN sender_id = ${authResult.user.id} THEN receiver_id
+          ELSE sender_id
+        END as other_user_id
+      FROM direct_messages
+      WHERE sender_id = ${authResult.user.id} OR receiver_id = ${authResult.user.id}
+    `);
+
+    // Notify each contact
+    const contactIds = (conversations as any).map((c: any) => c.other_user_id).filter(Boolean);
+    
+    if (contactIds.length > 0) {
+      for (const contactId of contactIds) {
+        const channel = supabaseAdmin.channel(`user-${contactId}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'online-status',
+          payload: {
+            userId: authResult.user.id,
+            isOnline: true,
+            lastSeen: new Date().toISOString()
+          }
         });
       }
     }
@@ -70,4 +69,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

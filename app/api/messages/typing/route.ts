@@ -1,20 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth/verify';
-import Pusher from 'pusher';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
-
-function getPusher() {
-  const appId = process.env.PUSHER_APP_ID;
-  const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
-  const secret = process.env.PUSHER_SECRET;
-  const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
-
-  if (appId && key && secret && cluster) {
-    return new Pusher({ appId, key, secret, cluster, useTLS: true });
-  }
-  return null;
-}
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,14 +16,18 @@ export async function POST(request: NextRequest) {
 
     if (!targetId) return NextResponse.json({ error: 'Target ID required' }, { status: 400 });
 
-    const pusher = getPusher();
-    if (pusher) {
-      // Trigger on user's main channel for consistency
-      await pusher.trigger(`user-${targetId}`, 'typing', {
+    // Broadcast via Supabase Realtime
+    const supabaseAdmin = getSupabaseAdmin();
+    const channel = supabaseAdmin.channel(`user-${targetId}`);
+    
+    await channel.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: {
         senderId: user.userId,
         isTyping
-      });
-    }
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

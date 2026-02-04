@@ -1,17 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/status';
 import { db } from '@/lib/db';
 import { groupMembers, communityGroups } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/verify';
-import Pusher from 'pusher';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-  useTLS: true,
-});
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
@@ -56,15 +51,21 @@ export async function POST(
       .set({ membersCount: count })
       .where(eq(communityGroups.id, groupId));
 
-    // Trigger real-time update via Pusher
+    // Trigger real-time update via Supabase Realtime
     try {
-      await pusher.trigger(`group-${groupId}`, 'member-update', {
-        type: 'leave',
-        membersCount: count,
-        userId: user.userId,
+      const supabaseAdmin = getSupabaseAdmin();
+      const channel = supabaseAdmin.channel(`group-${groupId}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'member-update',
+        payload: {
+          type: 'leave',
+          membersCount: count,
+          userId: user.userId,
+        }
       });
-    } catch (pusherError) {
-      console.error('Pusher trigger error:', pusherError);
+    } catch (broadcastError) {
+      console.error('Supabase Broadcast Error:', broadcastError);
     }
 
     return NextResponse.json({ message: 'Left group successfully', totalMembers: count });

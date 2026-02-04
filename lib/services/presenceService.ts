@@ -1,7 +1,7 @@
-import { pusherServer } from '@/lib/realtime/chat';
 import { db } from '@/lib/db';
 import { eq, and, sql } from 'drizzle-orm';
 import * as schema from '@/lib/db/schema';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
 /**
  * Real-time Presence Service
@@ -38,12 +38,22 @@ export class PresenceService {
         },
       });
 
-      // Broadcast presence update via Pusher
-      await pusherServer.trigger(`group-${groupId}`, 'presence-update', {
-        userId,
-        isOnline,
-        timestamp: new Date(),
-      });
+      // Broadcast presence update via Supabase Realtime
+      try {
+        const supabaseAdmin = getSupabaseAdmin();
+        const channel = supabaseAdmin.channel(`group-${groupId}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'presence-update',
+          payload: {
+            userId,
+            isOnline,
+            timestamp: new Date(),
+          }
+        });
+      } catch (broadcastError) {
+        console.error('Supabase Broadcast Error:', broadcastError);
+      }
     } catch (error) {
       console.error('Error updating presence:', error);
       throw error;
@@ -145,12 +155,22 @@ export class PresenceService {
         )
       );
 
-      // Broadcast offline status
-      await pusherServer.trigger(`group-${groupId}`, 'presence-update', {
-        userId,
-        isOnline: false,
-        timestamp: new Date(),
-      });
+      // Broadcast offline status via Supabase Realtime
+      try {
+        const supabaseAdmin = getSupabaseAdmin();
+        const channel = supabaseAdmin.channel(`group-${groupId}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'presence-update',
+          payload: {
+            userId,
+            isOnline: false,
+            timestamp: new Date(),
+          }
+        });
+      } catch (broadcastError) {
+        console.error('Supabase Broadcast Error:', broadcastError);
+      }
     } catch (error) {
       console.error('Error marking offline:', error);
       throw error;
@@ -180,13 +200,19 @@ export class PresenceService {
     try {
       const onlineMembers = await this.getOnlineMembers(groupId);
 
-      await pusherServer.trigger(`group-${groupId}`, 'members-online-update', {
-        groupId,
-        userId,
-        isOnline,
-        totalOnline: onlineMembers.length,
-        members: onlineMembers,
-        timestamp: new Date(),
+      const supabaseAdmin = getSupabaseAdmin();
+      const channel = supabaseAdmin.channel(`group-${groupId}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'members-online-update',
+        payload: {
+          groupId,
+          userId,
+          isOnline,
+          totalOnline: onlineMembers.length,
+          members: onlineMembers,
+          timestamp: new Date(),
+        }
       });
     } catch (error) {
       console.error('Error broadcasting presence update:', error);

@@ -1,37 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify } from 'jsonwebtoken';
-import Pusher from 'pusher';
+import { verifyAuth } from '@/lib/auth/verify';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
-  useTLS: true,
-});
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const { receiverId, callerPeerId, offer, callerName, callerAvatar } = await request.json();
+    const { receiverId, callerPeerId, callerName, callerAvatar } = await request.json();
 
-    if (!receiverId || !offer) {
+    if (!receiverId || !callerPeerId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Send call notification to receiver
-    await pusher.trigger(`user-${receiverId}`, 'incoming-call', {
-      callerId: decoded.userId,
-      callerPeerId,
-      callerName,
-      callerAvatar,
-      offer,
+    // Broadcast via Supabase Realtime
+    const supabaseAdmin = getSupabaseAdmin();
+    const channel = supabaseAdmin.channel(`user-${receiverId}`);
+    
+    await channel.send({
+      type: 'broadcast',
+      event: 'incoming-call',
+      payload: {
+        callerId: user.userId,
+        callerPeerId,
+        callerName: callerName || 'Unknown',
+        callerAvatar: callerAvatar || null
+      }
     });
 
     return NextResponse.json({ success: true });

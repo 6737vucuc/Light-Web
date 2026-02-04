@@ -1,34 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify } from 'jsonwebtoken';
-import Pusher from 'pusher';
+import { verifyAuth } from '@/lib/auth/verify';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.PUSHER_CLUSTER!,
-  useTLS: true,
-});
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = verify(token, process.env.JWT_SECRET!) as any;
-    const { callerId, answer } = await request.json();
+    const { receiverId } = await request.json();
 
-    if (!callerId || !answer) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!receiverId) {
+      return NextResponse.json({ error: 'Missing receiverId' }, { status: 400 });
     }
 
-    // Send answer to caller
-    await pusher.trigger(`private-calls-${callerId}`, 'call-accepted', {
-      receiverId: decoded.userId,
-      answer,
+    // Notify the caller via Supabase Realtime
+    const supabaseAdmin = getSupabaseAdmin();
+    const channel = supabaseAdmin.channel(`user-${receiverId}`);
+    
+    await channel.send({
+      type: 'broadcast',
+      event: 'call-accepted',
+      payload: {
+        acceptorId: user.userId
+      }
     });
 
     return NextResponse.json({ success: true });

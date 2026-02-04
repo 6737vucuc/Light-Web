@@ -4,32 +4,10 @@ import { users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
 import { eq } from 'drizzle-orm';
 import { encryptMessageMilitary, decryptMessageMilitary } from '@/lib/security/military-encryption';
-import Pusher from 'pusher';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-function getPusher() {
-  try {
-    const appId = process.env.PUSHER_APP_ID;
-    const key = process.env.PUSHER_KEY || process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
-    const secret = process.env.PUSHER_SECRET;
-    const cluster = process.env.PUSHER_CLUSTER || process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
-
-    if (appId && key && secret && cluster) {
-      return new Pusher({
-        appId,
-        key,
-        secret,
-        cluster,
-        useTLS: true,
-      });
-    }
-  } catch (e) {
-    console.error('Pusher initialization failed:', e);
-  }
-  return null;
-}
 
 // GET: Fetch all conversations for the current user
 export async function GET(request: NextRequest) {
@@ -157,23 +135,23 @@ export async function POST(request: NextRequest) {
       columns: { name: true, avatar: true }
     });
 
-    // Broadcast via Pusher for real-time delivery
-    const pusher = getPusher();
-    if (pusher) {
-      try {
-        await pusher.trigger(`user-${receiverId}`, 'private-message', {
-          message: {
-            ...newMessage,
-            content: content,
-            is_encrypted: true,
-            sender_name: sender?.name,
-            sender_avatar: sender?.avatar
-          }
-        });
-      } catch (e) {
-        console.error('Pusher trigger error:', e);
+    // Broadcast via Supabase Realtime for real-time delivery
+    const supabaseAdmin = getSupabaseAdmin();
+    const channel = supabaseAdmin.channel(`user-${receiverId}`);
+    
+    await channel.send({
+      type: 'broadcast',
+      event: 'private-message',
+      payload: {
+        message: {
+          ...newMessage,
+          content: content,
+          is_encrypted: true,
+          sender_name: sender?.name,
+          sender_avatar: sender?.avatar
+        }
       }
-    }
+    });
 
     // Return decrypted message
     return NextResponse.json({ 
