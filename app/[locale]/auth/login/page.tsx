@@ -5,11 +5,21 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2, Mail } from 'lucide-react';
-import { signIn as nextAuthSignIn } from 'next-auth/react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useTranslations } from 'next-intl';
 
 function LoginForm() {
   const t = useTranslations('auth');
+  const supabase = createClientComponentClient();
+
+  const handleGoogleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    });
+  };
   const tCommon = useTranslations('common');
   const tNavbar = useTranslations('navbar');
   const router = useRouter();
@@ -183,7 +193,7 @@ function LoginForm() {
 
             <div className="mt-6">
               <button
-                onClick={() => nextAuthSignIn('google', { callbackUrl: redirectUrl })}
+                onClick={handleGoogleLogin}
                 className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-5 h-5 me-2" viewBox="0 0 24 24">
