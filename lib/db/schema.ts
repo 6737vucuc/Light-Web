@@ -532,4 +532,4 @@ export const verses = pgTable('verses', {
 });
 
 // NextAuth.js OAuth accounts table
-export { accounts } from './nextauth-schema';
+export { accounts } from './schema.ts';
