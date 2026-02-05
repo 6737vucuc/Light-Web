@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { users, communityGroups, groupMessages, verses } from '@/lib/db/schema';
+import { users, communityGroups, groupMessages, dailyVerses } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
 import { eq, sql } from 'drizzle-orm';
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
     const [groupCount] = await db.select({ count: sql<number>`count(*)` }).from(communityGroups);
     const [messageCount] = await db.select({ count: sql<number>`count(*)` }).from(groupMessages);
-    const [verseCount] = await db.select({ count: sql<number>`count(*)` }).from(verses);
+    const [verseCount] = await db.select({ count: sql<number>`count(*)` }).from(dailyVerses);
 
     // Get gender statistics
     const genderResult = await db
