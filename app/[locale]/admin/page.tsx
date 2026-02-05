@@ -362,7 +362,7 @@ function VersesManager() {
         title="Daily Verses" 
         subtitle="Manage inspirational quotes and verses"
         action={
-          <button onClick={() => { setFormData({ id: null, content: '', reference: '', religion: 'all' }); setShowForm(true); }} className="flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg transition-all">
+          <button onClick={() => { setFormData({ id: null, content: '', reference: '', religion: 'all' , displayDate: '' }); setShowForm(true); }} className="flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-lg transition-all">
             <Plus className="w-5 h-5 mr-2" /> New Verse
           </button>
         }
