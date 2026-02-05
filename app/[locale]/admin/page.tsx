@@ -311,7 +311,7 @@ function VersesManager() {
   const [verses, setVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ id: null, content: '', reference: '', religion: 'all' });
+  const [formData, setFormData] = useState({ id: null, content: '', reference: '', religion: 'all', displayDate: new Date().toISOString().split('T')[0] });
 
   useEffect(() => { fetchVerses(); }, []);
 
@@ -329,7 +329,7 @@ function VersesManager() {
     setLoading(true);
     try {
       const response = await fetch('/api/admin/verses', {
-        method: 'POST',
+        method: formData.id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
@@ -394,6 +394,11 @@ function VersesManager() {
                   </select>
                 </div>
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 uppercase">Display Date</label>
+                <input type="date" value={formData.displayDate} onChange={e => setFormData({...formData, displayDate: e.target.value})} className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 font-bold" required />
+                <p className="text-xs text-gray-400 font-medium">Select the specific date this verse should appear.</p>
+              </div>
             </div>
             <div className="p-6 md:p-8 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
               <button type="button" onClick={() => setShowForm(false)} className="px-8 py-4 text-gray-600 font-bold">Cancel</button>
@@ -411,10 +416,17 @@ function VersesManager() {
             <div className="flex justify-between items-end">
               <div>
                 <p className="font-black text-gray-900">{v.reference}</p>
-                <p className="text-xs text-gray-400 font-bold uppercase">{v.religion}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-black uppercase">{v.religion}</span>
+                  {v.displayDate && (
+                    <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-black flex items-center gap-1">
+                      <Clock size={10} /> {v.displayDate}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => { setFormData({ id: v.id, content: v.content, reference: v.reference, religion: v.religion }); setShowForm(true); }} className="p-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-purple-50 hover:text-purple-600 transition-all"><Edit size={18}/></button>
+                <button onClick={() => { setFormData({ id: v.id, content: v.content, reference: v.reference, religion: v.religion, displayDate: v.displayDate || new Date().toISOString().split('T')[0] }); setShowForm(true); }} className="p-2 bg-gray-50 text-gray-600 rounded-xl hover:bg-purple-50 hover:text-purple-600 transition-all"><Edit size={18}/></button>
                 <button onClick={() => handleDelete(v.id)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all"><Trash2 size={18}/></button>
               </div>
             </div>

@@ -17,10 +17,19 @@ export async function GET(request: NextRequest) {
     }
 
     const allVerses = await db.query.dailyVerses.findMany({
-      orderBy: (dailyVerses, { desc }) => [desc(dailyVerses.createdAt)],
+      orderBy: (dailyVerses, { desc }) => [desc(dailyVerses.displayDate), desc(dailyVerses.createdAt)],
     });
 
-    return NextResponse.json({ verses: allVerses });
+    // Map fields to what frontend expects
+    const mappedVerses = allVerses.map(v => ({
+      id: v.id,
+      content: v.verseText,
+      reference: v.verseReference,
+      religion: v.religion,
+      displayDate: v.displayDate
+    }));
+
+    return NextResponse.json({ verses: mappedVerses });
   } catch (error) {
     console.error('Get verses error:', error);
     return NextResponse.json(
@@ -40,20 +49,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { verse, reference, imageUrl, scheduledDate } = body;
+    const { content, reference, religion, displayDate } = body;
 
-    if (!verse || !reference || !scheduledDate) {
+    if (!content || !reference) {
       return NextResponse.json(
-        { error: 'Verse, reference, and scheduled date are required' },
+        { error: 'Content and reference are required' },
         { status: 400 }
       );
     }
 
     const [verseRecord] = await db.insert(dailyVerses).values({
-      verseText: verse,
+      verseText: content,
       verseReference: reference,
-      religion: 'all',
-      displayDate: (scheduledDate ? new Date(scheduledDate) : new Date()).toISOString().split('T')[0],
+      religion: religion || 'all',
+      displayDate: displayDate || new Date().toISOString().split('T')[0],
     }).returning();
 
     return NextResponse.json({
@@ -79,11 +88,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, verse, reference, imageUrl, scheduledDate } = body;
+    const { id, content, reference, religion, displayDate } = body;
 
-    if (!id || !verse || !reference || !scheduledDate) {
+    if (!id || !content || !reference) {
       return NextResponse.json(
-        { error: 'ID, verse, reference, and scheduled date are required' },
+        { error: 'ID, content, and reference are required' },
         { status: 400 }
       );
     }
@@ -91,9 +100,10 @@ export async function PUT(request: NextRequest) {
     const [verseRecord] = await db
       .update(dailyVerses)
       .set({
-        verseText: verse,
+        verseText: content,
         verseReference: reference,
-        displayDate: (scheduledDate ? new Date(scheduledDate) : new Date()).toISOString().split('T')[0],
+        religion: religion || 'all',
+        displayDate: displayDate || new Date().toISOString().split('T')[0],
       })
       .where(eq(dailyVerses.id, id))
       .returning();

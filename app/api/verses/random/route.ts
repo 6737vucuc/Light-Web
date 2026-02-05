@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { dailyVerses, users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq, or, sql, and } from 'drizzle-orm';
+import { eq, or, sql, and, isNull } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,9 +21,6 @@ export async function GET(request: NextRequest) {
 
     const today = new Date().toISOString().split('T')[0];
     
-    // Create a numeric seed based on the date (YYYYMMDD)
-    const dateSeed = parseInt(today.replace(/-/g, ''));
-
     // 1. Try to fetch verse explicitly scheduled for today
     let targetVerse = await db.select()
       .from(dailyVerses)
@@ -39,19 +36,25 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     // 2. If no verse scheduled for today, pick one deterministically based on the date seed
+    // but only from verses that don't have a specific displayDate set for another day
     if (targetVerse.length === 0) {
-      // Get all available verses for this religion
       const allVerses = await db.select()
         .from(dailyVerses)
         .where(
-          or(
-            eq(dailyVerses.religion, userReligion),
-            eq(dailyVerses.religion, 'all')
+          and(
+            or(
+              eq(dailyVerses.religion, userReligion),
+              eq(dailyVerses.religion, 'all')
+            ),
+            or(
+              isNull(dailyVerses.displayDate),
+              eq(dailyVerses.displayDate, '')
+            )
           )
         );
 
       if (allVerses.length > 0) {
-        // Use the date seed to pick the same verse for everyone all day
+        const dateSeed = parseInt(today.replace(/-/g, ''));
         const index = dateSeed % allVerses.length;
         targetVerse = [allVerses[index]];
       }
