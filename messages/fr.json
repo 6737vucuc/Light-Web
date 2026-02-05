@@ -9,6 +9,7 @@
     "admin": "Administration",
     "signIn": "Connexion",
     "signOut": "D\u00e9connexion",
+    "or": "ou",
     "joinUs": "Rejoignez-nous",
     "loading": "Chargement...",
     "save": "Enregistrer",
@@ -142,10 +143,10 @@
     "verifyEmailButton": "Vérifier l'Email",
     "didntReceiveCode": "Vous n'avez pas reçu le code?",
     "resend": "Renvoyer",
-    "emailVerifiedSuccess": "Email vérifié avec succès! Redirection vers la connexion...",
-    "emailAndCodeRequired": "L'email et le code sont requis"
+    "emailVerifiedSuccess": "Email v\u00e9rifi\u00e9 avec succ\u00e8s! Redirection vers la connexion...",
+    "emailAndCodeRequired": "L'email et le code sont requis",
+    "signInWithGoogle": "Se connecter avec Google"
   },
-  "lessons": {
     "title": "Leçons",
     "subtitle": "Où les cœurs rencontrent la lumière du Christ et les vies sont transformées par Sa grâce",
     "noLessons": "Aucune leçon disponible",

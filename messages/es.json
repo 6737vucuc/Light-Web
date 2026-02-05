@@ -7,8 +7,9 @@
     "profile": "Perfil",
     "settings": "Configuraci\u00f3n",
     "admin": "Administraci\u00f3n",
-    "signIn": "Iniciar Sesi\u00f3n",
-    "signOut": "Cerrar Sesi\u00f3n",
+    "signIn": "Iniciar Sesión",
+    "signOut": "Cerrar Sesión",
+    "or": "o",i\u00f3n",
     "joinUs": "\u00danete",
     "loading": "Cargando...",
     "save": "Guardar",
@@ -143,7 +144,8 @@
     "didntReceiveCode": "¿No recibiste el código?",
     "resend": "Reenviar",
     "emailVerifiedSuccess": "¡Correo verificado con éxito! Redirigiendo al inicio de sesión...",
-    "emailAndCodeRequired": "El correo y el código son requeridos"
+    "emailAndCodeRequired": "El correo y el código son requeridos",
+    "signInWithGoogle": "Iniciar sesión con Google"
   },
   "lessons": {
     "title": "Lecciones",

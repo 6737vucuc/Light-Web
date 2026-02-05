@@ -9,6 +9,7 @@
     "admin": "Verwaltung",
     "signIn": "Anmelden",
     "signOut": "Abmelden",
+    "or": "oder",
     "joinUs": "Mitmachen",
     "loading": "Laden...",
     "save": "Speichern",
@@ -114,7 +115,8 @@
     "didntReceiveCode": "Keinen Code erhalten?",
     "resend": "Erneut senden",
     "emailVerifiedSuccess": "E-Mail erfolgreich verifiziert! Weiterleitung zum Login...",
-    "emailAndCodeRequired": "E-Mail und Code sind erforderlich"
+    "emailAndCodeRequired": "E-Mail und Code sind erforderlich",
+    "signInWithGoogle": "Mit Google anmelden"
   },
   "lessons": {
     "title": "Lektionen",

@@ -9,6 +9,7 @@
     "admin": "الإدارة",
     "signIn": "تسجيل الدخول",
     "signOut": "تسجيل الخروج",
+    "or": "أو",
     "joinUs": "انضم إلينا",
     "loading": "جاري التحميل...",
     "save": "حفظ",
@@ -144,7 +145,8 @@
     "didntReceiveCode": "لم تستلم الرمز؟",
     "resend": "إعادة الإرسال",
     "emailVerifiedSuccess": "تم التحقق من البريد بنجاح! جاري إعادة التوجيه إلى تسجيل الدخول...",
-    "emailAndCodeRequired": "البريد الإلكتروني والرمز مطلوبان"
+    "emailAndCodeRequired": "البريد الإلكتروني والرمز مطلوبان",
+    "signInWithGoogle": "تسجيل الدخول بواسطة Google"
   },
   "lessons": {
     "title": "الدروس",

@@ -28,6 +28,11 @@ export const users = pgTable('users', {
   lastFailedLogin: timestamp('last_failed_login'),
   lastSeen: timestamp('last_seen').defaultNow(),
   isOnline: boolean('is_online').default(false),
+  // OAuth Fields
+  googleId: varchar('google_id', { length: 255 }).unique(),
+  authProvider: varchar('auth_provider', { length: 50 }).default('credentials'),
+  emailVerifiedAt: timestamp('email_verified_at'),
+  oauthData: jsonb('oauth_data'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -525,3 +530,6 @@ export const verses = pgTable('verses', {
   createdAt: timestamp('createdat').defaultNow(),
   updatedAt: timestamp('updatedat').defaultNow(),
 });
+
+// NextAuth.js OAuth accounts table
+export { accounts } from './nextauth-schema';

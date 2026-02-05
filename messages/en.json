@@ -9,6 +9,7 @@
     "admin": "Admin",
     "signIn": "Sign In",
     "signOut": "Sign Out",
+    "or": "or",
     "joinUs": "Join Us",
     "loading": "Loading...",
     "save": "Save",
@@ -143,7 +144,8 @@
     "didntReceiveCode": "Didn't receive the code?",
     "resend": "Resend",
     "emailVerifiedSuccess": "Email verified successfully! Redirecting to login...",
-    "emailAndCodeRequired": "Email and code are required"
+    "emailAndCodeRequired": "Email and code are required",
+    "signInWithGoogle": "Sign in with Google"
   },
   "lessons": {
     "title": "Lessons",
