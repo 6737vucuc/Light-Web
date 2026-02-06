@@ -15,9 +15,22 @@ export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
   
   if ('error' in authResult) {
+    // Add debug info to help diagnose in Vercel logs
+    console.log('Auth failed for user:', {
+      error: authResult.error,
+      hasAuthToken: !!request.cookies.get('auth_token'),
+      hasToken: !!request.cookies.get('token'),
+    });
+
     return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
+      { 
+        error: authResult.error,
+        debug: {
+          hasAuthToken: !!request.cookies.get('auth_token'),
+          hasToken: !!request.cookies.get('token'),
+        }
+      },
+      { status: authResult.status, headers: responseHeaders }
     );
   }
 

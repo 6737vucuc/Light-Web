@@ -299,23 +299,17 @@ export async function POST(request: NextRequest) {
     const host = request.headers.get('host');
     const isVercel = host?.includes('vercel.app') || host?.includes('light-web-project.vercel.app');
 
-    // Set secure cookie with lax settings for compatibility
-    response.cookies.set('auth_token', token, {
+    // Simplified cookie settings for maximum compatibility
+    const cookieOptions = {
       httpOnly: true,
       secure: true,
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       maxAge: 60 * 60 * 24 * 7,
       path: '/',
-    });
+    };
 
-    // Backward compatibility
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
-    });
+    response.cookies.set('auth_token', token, cookieOptions);
+    response.cookies.set('token', token, cookieOptions);
 
     // Add rate limit headers
     response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
