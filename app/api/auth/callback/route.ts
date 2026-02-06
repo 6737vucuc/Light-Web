@@ -8,7 +8,10 @@ import { eq } from 'drizzle-orm';
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const locale = requestUrl.pathname.split('/')[1] || 'en';
+  
+  // Get locale from URL or default to 'en'
+  const pathParts = requestUrl.pathname.split('/');
+  const locale = pathParts[1] && ['en', 'ar', 'es', 'fr', 'de'].includes(pathParts[1]) ? pathParts[1] : 'en';
 
   if (code) {
     const supabase = createRouteHandlerClient({ cookies });
@@ -20,6 +23,9 @@ export async function GET(request: Request) {
         where: eq(users.email, user.email as string),
       });
 
+      const fullName = user.user_metadata.full_name || user.user_metadata.name || user.email?.split('@')[0] || 'User';
+      const avatarUrl = user.user_metadata.avatar_url || user.user_metadata.picture;
+
       if (existingUser) {
         // Update existing user
         await db.update(users)
@@ -28,37 +34,40 @@ export async function GET(request: Request) {
             authProvider: 'google',
             emailVerified: true,
             emailVerifiedAt: new Date(),
-            avatar: existingUser.avatar || user.user_metadata.avatar_url,
+            avatar: existingUser.avatar || avatarUrl,
             updatedAt: new Date(),
+            lastSeen: new Date(),
+            isOnline: true,
+            oauthData: user.user_metadata,
           })
           .where(eq(users.id, existingUser.id));
       } else {
         // Create new user if doesn't exist
-        const fullName = user.user_metadata.full_name || user.user_metadata.name || 'User';
         const nameParts = fullName.split(' ');
         const firstName = nameParts[0];
         const lastName = nameParts.slice(1).join(' ');
-        const username = (user.email?.split('@')[0] || 'user') + Math.floor(Math.random() * 1000);
 
         await db.insert(users).values({
           name: fullName,
           email: user.email as string,
-          password: 'OAUTH_USER_' + Math.random().toString(36).slice(-8), // Placeholder password
+          password: 'OAUTH_USER_' + Math.random().toString(36).slice(-8), // Placeholder
           firstName: firstName,
           lastName: lastName,
           googleId: user.id,
           authProvider: 'google',
           emailVerified: true,
           emailVerifiedAt: new Date(),
-          avatar: user.user_metadata.avatar_url,
+          avatar: avatarUrl,
           createdAt: new Date(),
           updatedAt: new Date(),
+          lastSeen: new Date(),
+          isOnline: true,
+          oauthData: user.user_metadata,
         });
       }
     }
   }
 
-  // URL to redirect to after sign in process completes
-  // We use the locale from the request or default to 'en'
+  // Redirect to the home page with the correct locale
   return NextResponse.redirect(new URL(`/${locale}`, request.url));
 }
