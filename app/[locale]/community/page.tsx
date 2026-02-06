@@ -298,22 +298,21 @@ export default function CommunityPage() {
           </div>
         )}
       </main>
-
-      {/* Modern Bottom Navigation */}
-      {!selectedGroup && (
-        <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl border border-gray-100 z-50 shadow-2xl rounded-3xl overflow-hidden">
-          <div className="flex items-center justify-start h-20 gap-8 px-4">
-            <button onClick={() => router.push('/community')} className="flex flex-col items-center justify-center flex-1 h-full relative">
-              <div className="p-2 bg-purple-100 rounded-xl text-purple-600 mb-1"><Users size={24} /></div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">{tCommon('community')}</span>
-              <div className="absolute bottom-0 w-8 h-1 bg-purple-600 rounded-t-full"></div>
-            </button>
-            <button onClick={() => router.push('/')} className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl text-white shadow-xl shadow-purple-200 -mt-8 border-4 border-gray-50">
-              <Home size={28} />
-            </button>
-          </div>
-        </nav>
-      )}
+{/* Modern Bottom Navigation */}
+{!selectedGroup && (
+  <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl border border-gray-100 z-50 shadow-2xl rounded-3xl overflow-hidden">
+    <div className="flex items-center justify-start h-20 gap-4 px-4">
+      <button onClick={() => router.push('/community')} className="flex flex-col items-center justify-center flex-1 h-full relative">
+        <div className="p-2 bg-purple-100 rounded-xl text-purple-600 mb-1"><Users size={24} /></div>
+        <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">{tCommon('community')}</span>
+        <div className="absolute bottom-0 w-8 h-1 bg-purple-600 rounded-t-full"></div>
+      </button>
+      <button onClick={() => router.push('/')} className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl text-white shadow-xl shadow-purple-200 -mt-8 border-4 border-gray-50">
+        <Home size={28} />
+      </button>
+    </div>
+  </nav>
+)}
     </div>
   );
 }
