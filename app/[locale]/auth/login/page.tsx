@@ -24,10 +24,15 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
+      // Force the redirect URL to be the main domain to ensure Google authenticates for the right site
+      const host = window.location.hostname;
+      const isVercel = host.includes('vercel.app') || host.includes('light-web-project.vercel.app');
+      const origin = isVercel ? 'https://light-web-project.vercel.app' : window.location.origin;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback`,
+          redirectTo: `${origin}/api/auth/callback`,
           queryParams: { access_type: 'offline', prompt: 'select_account' },
         },
       });
