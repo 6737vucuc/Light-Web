@@ -20,7 +20,15 @@
 
 ## ⚡ الخطوات المطلوبة منك الآن
 
-### على Vercel (مهم جداً! ⚠️)
+### 1. على Supabase (حل مشكلة Unsupported provider) ⚠️
+هذا الخطأ يعني أن Google Provider غير مفعل. اتبع الآتي:
+1. اذهب لـ Supabase > Authentication > Providers > Google.
+2. فعل **Enable Google Provider**.
+3. أدخل **Client ID** و **Client Secret** (تحصل عليهم من Google Cloud Console).
+4. أضف رابط الـ Callback في Google Console: `https://lzqyucohnjtubivlmdkw.supabase.co/auth/v1/callback`.
+5. احفظ الإعدادات.
+
+### 2. على Vercel (مهم جداً! ⚠️)
 
 يجب إضافة المتغيرات البيئية التالية على Vercel:
 
