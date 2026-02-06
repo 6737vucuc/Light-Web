@@ -102,12 +102,12 @@ export async function GET(request: Request) {
           isAdmin: dbUser.isAdmin,
         });
 
-        // Set the token in a cookie
+        // Set the token in a cookie with more robust settings
         cookieStore.set('token', token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: true, // Always true for Vercel and modern browsers
           sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 7, // 7 days
+          maxAge: 60 * 60 * 24 * 30, // 30 days for better persistence
           path: '/',
         });
       }
