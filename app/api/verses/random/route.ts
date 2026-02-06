@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { dailyVerses, users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq, or, sql, and, isNull } from 'drizzle-orm';
+import { eq, or, and, isNull } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
       userReligion = userDetails?.religion || 'all';
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
     
     // 1. Try to fetch verse explicitly scheduled for today
     let targetVerse = await db.select()
@@ -46,15 +47,12 @@ export async function GET(request: NextRequest) {
               eq(dailyVerses.religion, userReligion),
               eq(dailyVerses.religion, 'all')
             ),
-            or(
-              isNull(dailyVerses.displayDate),
-              eq(dailyVerses.displayDate, '')
-            )
+            isNull(dailyVerses.displayDate)
           )
         );
 
       if (allVerses.length > 0) {
-        const dateSeed = parseInt(today.replace(/-/g, ''));
+        const dateSeed = parseInt(todayStr.replace(/-/g, ''));
         const index = dateSeed % allVerses.length;
         targetVerse = [allVerses[index]];
       }
@@ -78,7 +76,7 @@ export async function GET(request: NextRequest) {
         content: verse.verseText,
         reference: verse.verseReference,
         religion: verse.religion,
-        displayDate: verse.displayDate || today
+        displayDate: verse.displayDate || todayStr
       } 
     });
   } catch (error) {
