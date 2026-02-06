@@ -14,7 +14,7 @@ function LoginForm() {
   const tNavbar = useTranslations('navbar');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/';
+  const redirectUrl = searchParams ? searchParams.get('redirect') || '/' : '/';
   
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
