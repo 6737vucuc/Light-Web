@@ -20,6 +20,8 @@ export async function GET(request: Request) {
 
   console.log('Auth Callback triggered with code:', !!code);
 
+  const response = NextResponse.redirect(new URL(`/${locale}`, request.url));
+
   if (code) {
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -113,9 +115,8 @@ export async function GET(request: Request) {
           isAdmin: dbUser.isAdmin,
         });
 
-        // Set the token in a cookie with settings that match the rest of the app
-        // We use a longer maxAge and ensure path is '/'
-        cookieStore.set('token', token, {
+        // Set the token in the response cookies directly to ensure it's sent to the browser
+        response.cookies.set('token', token, {
           httpOnly: true,
           secure: true,
           sameSite: 'lax',
@@ -123,13 +124,10 @@ export async function GET(request: Request) {
           path: '/',
         });
         
-        console.log('Token cookie set successfully');
+        console.log('Token cookie set in response successfully');
       }
     }
   }
 
-  // Redirect to the home page with the correct locale
-  const redirectUrl = new URL(`/${locale}`, request.url);
-  console.log('Redirecting to:', redirectUrl.toString());
-  return NextResponse.redirect(redirectUrl);
+  return response;
 }
