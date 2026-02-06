@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const locale = requestUrl.pathname.split('/')[1] || 'en';
 
   if (code) {
     const supabase = createRouteHandlerClient({ cookies });
@@ -25,27 +26,39 @@ export async function GET(request: Request) {
           .set({
             googleId: user.id,
             authProvider: 'google',
+            emailVerified: true,
             emailVerifiedAt: new Date(),
             avatar: existingUser.avatar || user.user_metadata.avatar_url,
+            updatedAt: new Date(),
           })
           .where(eq(users.id, existingUser.id));
       } else {
-        // Create new user if doesn't exist (optional, depends on your flow)
-        // For now, we assume users should register first or we auto-create
+        // Create new user if doesn't exist
+        const fullName = user.user_metadata.full_name || user.user_metadata.name || 'User';
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ');
+        const username = (user.email?.split('@')[0] || 'user') + Math.floor(Math.random() * 1000);
+
         await db.insert(users).values({
+          name: fullName,
           email: user.email as string,
-          firstName: user.user_metadata.full_name?.split(' ')[0] || 'User',
-          lastName: user.user_metadata.full_name?.split(' ')[1] || '',
+          password: 'OAUTH_USER_' + Math.random().toString(36).slice(-8), // Placeholder password
+          firstName: firstName,
+          lastName: lastName,
           googleId: user.id,
           authProvider: 'google',
+          emailVerified: true,
           emailVerifiedAt: new Date(),
           avatar: user.user_metadata.avatar_url,
-          username: user.email?.split('@')[0] + Math.floor(Math.random() * 1000),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
       }
     }
   }
 
   // URL to redirect to after sign in process completes
-  return NextResponse.redirect(new URL('/en', request.url));
+  // We use the locale from the request or default to 'en'
+  return NextResponse.redirect(new URL(`/${locale}`, request.url));
 }

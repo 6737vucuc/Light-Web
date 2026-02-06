@@ -13,12 +13,22 @@ function LoginForm() {
   const supabase = createClientComponentClient();
 
   const handleGoogleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
-      },
-    });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setError(err.message || 'Failed to sign in with Google');
+    }
   };
   const tCommon = useTranslations('common');
   const tNavbar = useTranslations('navbar');
