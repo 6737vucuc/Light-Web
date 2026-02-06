@@ -23,7 +23,9 @@ const pool = globalForPg.pool || new Pool({
   max: 2, // Reduced to 2 for Supabase Session mode (conservative limit)
   min: 0, // No minimum connections
   allowExitOnIdle: true, // Allow pool to exit when idle
-  ssl: databaseUrl ? { rejectUnauthorized: false } : false,
+  ssl: process.env.NODE_ENV === 'production' 
+       ? { rejectUnauthorized: true } // Enforce SSL certificate verification in production
+       : { rejectUnauthorized: false }, // Allow self-signed certs in development
 });
 
 // Handle pool errors to prevent crashes
