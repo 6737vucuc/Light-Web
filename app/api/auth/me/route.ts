@@ -5,14 +5,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireAuth(request);
-  
-  if ('error' in authResult) {
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
+  try {
+    const authResult = await requireAuth(request);
 
-  return NextResponse.json({ user: authResult.user });
+    // إذا لم يكن هناك توكن صالح، نرجع user: null بدلاً من 401
+    if ('error' in authResult) {
+      return NextResponse.json({ user: null });
+    }
+
+    return NextResponse.json({ user: authResult.user });
+  } catch (error) {
+    console.error('Auth /me error:', error);
+    return NextResponse.json({ error: 'Auth failed' }, { status: 500 });
+  }
 }
