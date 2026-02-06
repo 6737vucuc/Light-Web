@@ -302,7 +302,7 @@ export default function CommunityPage() {
       {/* Modern Bottom Navigation */}
       {!selectedGroup && (
         <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl border border-gray-100 z-50 shadow-2xl rounded-3xl overflow-hidden">
-          <div className="flex items-center justify-around h-20">
+          <div className="flex items-center justify-start h-20 gap-8 px-4">
             <button onClick={() => router.push('/community')} className="flex flex-col items-center justify-center flex-1 h-full relative">
               <div className="p-2 bg-purple-100 rounded-xl text-purple-600 mb-1"><Users size={24} /></div>
               <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">{tCommon('community')}</span>
