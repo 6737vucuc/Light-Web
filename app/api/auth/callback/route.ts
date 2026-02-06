@@ -20,7 +20,11 @@ export async function GET(request: Request) {
 
   console.log('Auth Callback triggered with code:', !!code);
 
-  const response = NextResponse.redirect(new URL(`/${locale}`, request.url));
+  // Create the response object
+  const response = NextResponse.redirect(new URL(`/${locale}?auth=success`, request.url));
+  
+  // Add cache-control to ensure the redirect is not cached
+  response.headers.set('Cache-Control', 'no-store, max-age=0');
 
   if (code) {
     const cookieStore = cookies();
