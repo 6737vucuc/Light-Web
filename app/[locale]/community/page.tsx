@@ -308,7 +308,7 @@ export default function CommunityPage() {
           {/* Main Navigation Container */}
           <div className="relative mx-4 mb-6 bg-white/95 backdrop-blur-2xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 rounded-[2rem] overflow-visible">
             <div className="flex items-center justify-around h-20 px-2 relative">
-              {/* Community Button (Active) */}
+              {/* Community Button */}
               <button 
                 onClick={() => router.push('/community')} 
                 className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative transition-all duration-300 active:scale-95"
@@ -323,19 +323,7 @@ export default function CommunityPage() {
                 <div className="absolute -bottom-0.5 w-10 h-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-t-full shadow-lg"></div>
               </button>
 
-              {/* Floating Home Button */}
-              <div className="flex-1 flex items-center justify-center">
-                <button 
-                  onClick={() => router.push('/')} 
-                  className="absolute -top-8 w-16 h-16 bg-gradient-to-br from-purple-600 via-purple-500 to-blue-600 rounded-[1.2rem] shadow-2xl shadow-purple-500/40 flex items-center justify-center transform transition-all duration-300 hover:scale-110 hover:rotate-6 active:scale-95 border-4 border-white group"
-                >
-                  <Home size={28} className="text-white group-hover:scale-110 transition-transform" />
-                  {/* Glow Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-[1rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                </button>
-              </div>
-
-              {/* Home Button (Right Side) - Same style as Community */}
+              {/* Home Button - Same style as Community */}
               <button 
                 onClick={() => router.push('/')} 
                 className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative transition-all duration-300 active:scale-95"
