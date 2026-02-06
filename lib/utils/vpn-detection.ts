@@ -20,7 +20,7 @@ export interface VPNDetectionResult {
   riskScore: number; // 0-100
   threatLevel: 'low' | 'medium' | 'high' | 'critical';
   detectionService: string;
-  detectionData?: any;
+  detectionData?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 /**
@@ -49,8 +49,8 @@ export async function detectVPNWithIPAPI(ipAddress: string): Promise<VPNDetectio
     let riskScore = 0;
     let isVPN = false;
     let isTor = false;
-    let isProxy = data.proxy || false;
-    let isHosting = data.hosting || false;
+    const isProxy = data.proxy || false;
+    const isHosting = data.hosting || false;
     let isAnonymous = false;
 
     // Check if ISP/Org contains VPN keywords

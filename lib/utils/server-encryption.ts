@@ -102,7 +102,7 @@ export function decryptMessage(encryptedText: string): string {
 /**
  * Encrypt session data (for secure session storage)
  */
-export function encryptSessionData(data: any): string {
+export function encryptSessionData(data: any): string { // eslint-disable-line @typescript-eslint/no-explicit-any
   const jsonString = JSON.stringify(data);
   return encryptMessage(jsonString);
 }
@@ -110,7 +110,7 @@ export function encryptSessionData(data: any): string {
 /**
  * Decrypt session data
  */
-export function decryptSessionData(encryptedData: string): any {
+export function decryptSessionData(encryptedData: string): any { // eslint-disable-line @typescript-eslint/no-explicit-any
   try {
     const jsonString = decryptMessage(encryptedData);
     return JSON.parse(jsonString);

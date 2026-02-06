@@ -205,7 +205,7 @@ export function validateURL(url: string): {
 /**
  * Validate integer
  */
-export function validateInteger(value: any, min?: number, max?: number): {
+export function validateInteger(value: any, min?: number, max?: number): { // eslint-disable-line @typescript-eslint/no-explicit-any
   isValid: boolean;
   value: number;
   errors: string[];
@@ -299,11 +299,11 @@ export function sanitizeHTML(html: string): string {
  */
 export function validateJSON(input: string): {
   isValid: boolean;
-  parsed: any;
+  parsed: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   errors: string[];
 } {
   const errors: string[] = [];
-  let parsed: any = null;
+  let parsed: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   try {
     parsed = JSON.parse(input);

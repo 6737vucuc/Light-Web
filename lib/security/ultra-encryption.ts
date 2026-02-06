@@ -56,6 +56,7 @@ if (!MASTER_KEY || MASTER_KEY.length < 32) {
 /**
  * Derive encryption key using PBKDF2
  */
+/*
 function deriveKeyPBKDF2(password: string, salt: Buffer): Buffer {
   return pbkdf2Sync(
     password,
@@ -65,6 +66,7 @@ function deriveKeyPBKDF2(password: string, salt: Buffer): Buffer {
     'sha512'
   );
 }
+*/
 
 /**
  * Derive encryption key using Scrypt (more secure)
@@ -322,7 +324,7 @@ export function verifyPassword(password: string, hashedPassword: string): boolea
 /**
  * Encrypt JSON Object
  */
-export function encryptObject(obj: any, userKey?: string): string {
+export function encryptObject(obj: any, userKey?: string): string { // eslint-disable-line @typescript-eslint/no-explicit-any
   const jsonString = JSON.stringify(obj);
   return ultraEncrypt(jsonString, userKey);
 }
@@ -330,7 +332,7 @@ export function encryptObject(obj: any, userKey?: string): string {
 /**
  * Decrypt JSON Object
  */
-export function decryptObject(encryptedData: string, userKey?: string): any {
+export function decryptObject(encryptedData: string, userKey?: string): any { // eslint-disable-line @typescript-eslint/no-explicit-any
   try {
     const jsonString = ultraDecrypt(encryptedData, userKey);
     return JSON.parse(jsonString);

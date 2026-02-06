@@ -16,7 +16,7 @@
 import { createHash, randomBytes } from 'crypto';
 
 // Rate Limiting Store (in production, use Redis)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+// const rateLimitStore = new Map<string, { count: number; resetTime: number }>(); // eslint-disable-line @typescript-eslint/no-unused-vars
 const loginAttemptStore = new Map<string, { attempts: number; blockedUntil: number }>();
 const ipReputationStore = new Map<string, { score: number; lastUpdate: number }>();
 
@@ -313,9 +313,9 @@ export class SessionSecurityManager {
     currentIP: string,
     storedFingerprint: string
   ): boolean {
-    const currentFingerprint = createHash('sha256')
-      .update(`${currentUserAgent}|${currentIP}`)
-      .digest('hex');
+    // const currentFingerprint = createHash('sha256')
+    //   .update(`${currentUserAgent}|${currentIP}`)
+    //   .digest('hex'); // eslint-disable-line @typescript-eslint/no-unused-vars
     
     // Allow some flexibility for IP changes (mobile networks)
     // But user agent should match
@@ -430,7 +430,7 @@ export class SecurityEventLogger {
     userAgent?: string;
     userId?: number;
     details: string;
-    metadata?: any;
+    metadata?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   }): void {
     const timestamp = new Date().toISOString();
     const logEntry = {

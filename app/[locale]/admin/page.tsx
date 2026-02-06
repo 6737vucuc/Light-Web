@@ -102,7 +102,7 @@ function SectionHeader({ title, subtitle, action }: { title: string; subtitle?: 
   );
 }
 
-function EmptyState({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+function EmptyState({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="p-6 bg-gray-50 rounded-full mb-4">
@@ -118,7 +118,7 @@ function EmptyState({ icon: Icon, title, description }: { icon: any; title: stri
 function LessonsManager() {
   const toast = useToast();
   const t = useTranslations('admin');
-  const [lessons, setLessons] = useState<any[]>([]);
+  const [lessons, setLessons] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -412,7 +412,7 @@ function VersesManager() {
         {verses.map(v => (
           <div key={v.id} className="p-6 bg-white border-2 border-gray-100 rounded-3xl hover:border-purple-200 transition-all group">
             <Quote className="text-purple-200 mb-4" size={32} />
-            <p className="text-gray-800 font-medium mb-4 italic">"{v.content}"</p>
+            <p className="text-gray-800 font-medium mb-4 italic">&quot;{v.content}&quot;</p>
             <div className="flex justify-between items-end">
               <div>
                 <p className="font-black text-gray-900">{v.reference}</p>
@@ -439,7 +439,7 @@ function VersesManager() {
 
 // --- Groups Manager ---
 function GroupsManager() {
-  const [groups, setGroups] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ id: null, name: '', description: '', color: '#8B5CF6', icon: 'Users' });

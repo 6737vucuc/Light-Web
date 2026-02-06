@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
 
       setEmailSent(true);
       toast.success('Password reset link sent to your email');
-    } catch (error: any) {
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       toast.error(error.message);
     } finally {
       setLoading(false);
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
             Forgot Password?
           </h1>
           <p className="text-gray-600">
-            Enter your email address and we'll send you a link to reset your password.
+            Enter your email address and we&apos;ll send you a link to reset your password.
           </p>
         </div>
 

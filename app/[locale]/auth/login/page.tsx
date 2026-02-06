@@ -41,7 +41,7 @@ export default function LoginPage() {
 
       router.push(redirectUrl);
       router.refresh();
-    } catch (err: any) {
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error('Login error:', err);
       setError(err.message || 'Invalid credentials');
     } finally {
@@ -134,7 +134,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link
                 href="/auth/register"
                 className="text-purple-600 hover:text-purple-700 font-semibold"

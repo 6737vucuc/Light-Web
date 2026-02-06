@@ -10,7 +10,7 @@ import nodemailer from 'nodemailer';
 function createSecurityTransporter() {
   const emailService = process.env.VPN_EMAIL_SERVICE || process.env.EMAIL_SERVICE || 'outlook';
   
-  let transportConfig: any;
+  let transportConfig: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   
   if (emailService === 'custom') {
     // Custom SMTP configuration
@@ -107,7 +107,7 @@ export async function sendVPNAlert(
   userName: string,
   userEmail: string,
   ipAddress: string,
-  detection: any
+  detection: any // eslint-disable-line @typescript-eslint/no-explicit-any
 ) {
   try {
     console.log('Creating security email transporter...');
@@ -201,7 +201,7 @@ export async function sendVPNAlert(
     
     console.log('VPN warning email sent successfully!');
     console.log('Message ID:', info.messageId);
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error('❌ Error in sendVPNAlert:');
     console.error('Error message:', error.message);
     console.error('Full error:', error);

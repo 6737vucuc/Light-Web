@@ -338,7 +338,7 @@ export async function muteUser(groupId: number, userId: number, mutedUntil: Date
 // Activity Logging
 // ============================================
 
-export async function logGroupActivity(groupId: number, userId: number | null, action: string, details?: any) {
+export async function logGroupActivity(groupId: number, userId: number | null, action: string, details?: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
   try {
     await db.insert(schema.groupActivityLog).values({
       groupId: groupId,

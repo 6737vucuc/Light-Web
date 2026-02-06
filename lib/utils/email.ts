@@ -1,4 +1,5 @@
 import { createTransport } from 'nodemailer';
+import crypto from 'crypto';
 
 // Create transporter using Gmail
 const transporter = createTransport({
@@ -128,7 +129,6 @@ export async function sendVerificationCode(email: string, code: string, userName
  */
 export function generateVerificationCode(): string {
   // Generate 6 random digits using crypto for better security
-  const crypto = require('crypto');
   const randomNum = crypto.randomInt(100000, 999999);
   return randomNum.toString();
 }
