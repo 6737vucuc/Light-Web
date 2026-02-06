@@ -308,12 +308,8 @@ export default function CommunityPage() {
               <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">{tCommon('community')}</span>
               <div className="absolute bottom-0 w-8 h-1 bg-purple-600 rounded-t-full"></div>
             </button>
-            <button onClick={() => router.push('/')} className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl text-white shadow-xl shadow-purple-200 -mt-8 border-4 border-gray-50">
+            <button onClick={() => router.push('/')} className="flex items-center justify-left w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl text-white shadow-xl shadow-purple-200 -mt-8 border-4 border-gray-50">
               <Home size={28} />
-            </button>
-            <button onClick={() => router.push('/profile')} className="flex flex-col items-center justify-center flex-1 h-full">
-              <div className="p-2 text-gray-400 mb-1"><User size={24} /></div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{tCommon('profile')}</span>
             </button>
           </div>
         </nav>
