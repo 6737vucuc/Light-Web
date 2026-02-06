@@ -186,7 +186,7 @@ export default function CommunityPage() {
                 </div>
                 <div className="text-center md:text-start flex-1">
                   <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3 tracking-tight">
-                    {t('welcome')} {currentUser?.name?.split(' ')[0]}! ðŸ‘‹
+                    {t('welcome')} {currentUser?.name?.split(' ')[0]}!
                   </h2>
                   <p className="text-gray-500 text-lg font-medium max-w-2xl leading-relaxed">
                     {t('joinGroups')}
