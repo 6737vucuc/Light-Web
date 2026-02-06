@@ -18,13 +18,6 @@ export default function Navbar() {
 
   useEffect(() => {
     checkAuth();
-    
-    // Check if we just returned from successful auth
-    if (typeof window !== 'undefined' && window.location.search.includes('auth=success')) {
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-      router.refresh();
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
