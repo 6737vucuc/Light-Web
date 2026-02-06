@@ -135,15 +135,24 @@ export async function GET(request: Request) {
         // Simplified cookie settings for maximum compatibility with Vercel/Chrome
         const cookieOptions = {
           httpOnly: true,
-          secure: true, // Required for SameSite: Lax/None in most browsers
+          secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax' as const,
           maxAge: 60 * 60 * 24 * 7,
           path: '/',
-          // Removed domain entirely to let browser handle it
         };
 
-        response.cookies.set('auth_token', token, cookieOptions);
-        response.cookies.set('token', token, cookieOptions);
+        // Set cookies on the response object directly
+        response.cookies.set({
+          name: 'auth_token',
+          value: token,
+          ...cookieOptions
+        });
+        
+        response.cookies.set({
+          name: 'token',
+          value: token,
+          ...cookieOptions
+        });
         
         console.log('Token cookie set in response successfully');
       }
