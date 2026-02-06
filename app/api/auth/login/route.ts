@@ -299,14 +299,22 @@ export async function POST(request: NextRequest) {
     const host = request.headers.get('host');
     const isVercel = host?.includes('vercel.app') || host?.includes('light-web-project.vercel.app');
 
-    // Set secure cookie with strict settings
+    // Set secure cookie with lax settings for compatibility
+    response.cookies.set('auth_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    // Backward compatibility
     response.cookies.set('token', token, {
-      httpOnly: true, // Prevent XSS attacks
-      secure: true, // Force secure for production/Vercel
-      sameSite: 'lax', // lax for OAuth compatibility while still preventing CSRF
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/', // Available across the entire site
-      domain: isVercel ? 'light-web-project.vercel.app' : undefined, // Unified domain
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
     });
 
     // Add rate limit headers

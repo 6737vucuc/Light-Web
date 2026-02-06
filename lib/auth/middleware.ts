@@ -6,8 +6,8 @@ import { eq } from 'drizzle-orm';
 
 export async function requireAuth(request: NextRequest) {
   try {
-    // Try to get token from cookie first, then from Authorization header
-    let token = request.cookies.get('token')?.value;
+    // Try to get token from cookie first (check both auth_token and token), then from Authorization header
+    let token = request.cookies.get('auth_token')?.value || request.cookies.get('token')?.value;
     
     if (!token) {
       const authHeader = request.headers.get('authorization');

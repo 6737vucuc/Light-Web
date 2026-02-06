@@ -129,13 +129,22 @@ export async function GET(request: Request) {
         const isVercel = host?.includes('vercel.app') || host?.includes('light-web-project.vercel.app');
         
         // Set the token in the response cookies with the same settings as login route
+        // Use 'auth_token' as the primary cookie name for consistency
+        response.cookies.set('auth_token', token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
+        });
+        
+        // Also set 'token' for backward compatibility during transition
         response.cookies.set('token', token, {
-          httpOnly: true, // Prevent XSS attacks
-          secure: true, // Always true for OAuth in production/Vercel
-          sameSite: 'lax', // lax is required for OAuth redirects
-          maxAge: 60 * 60 * 24 * 7, // 7 days (same as login)
-          path: '/', // Available across the entire site
-          domain: isVercel ? 'light-web-project.vercel.app' : undefined, // Force unified domain on Vercel
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7,
+          path: '/',
         });
         
         console.log('Token cookie set in response successfully');
