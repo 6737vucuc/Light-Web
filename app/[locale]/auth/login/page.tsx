@@ -1,23 +1,29 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useTranslations } from 'next-intl';
 
-// Separate component for the form to properly use useSearchParams within Suspense
 function LoginFormContent() {
+  // Safe translation hooks
   const t = useTranslations('auth');
   const tCommon = useTranslations('common');
   const tNavbar = useTranslations('navbar');
-  const router = useRouter();
-  const searchParams = useSearchParams();
   
-  // Safely get redirect URL - this is the part that needs Suspense
-  const redirectUrl = searchParams?.get('redirect') || '/';
+  const router = useRouter();
+  const [redirectUrl, setRedirectUrl] = useState('/');
+  
+  // Get redirect URL safely without useSearchParams to avoid client-side exception
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setRedirectUrl(params.get('redirect') || '/');
+    }
+  }, []);
   
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -78,7 +84,7 @@ function LoginFormContent() {
       router.refresh();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || t('invalidCredentials'));
+      setError(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
