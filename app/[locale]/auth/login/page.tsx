@@ -9,12 +9,24 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useTranslations } from 'next-intl';
 
 function LoginForm() {
-  const t = useTranslations('auth');
-  const tCommon = useTranslations('common');
-  const tNavbar = useTranslations('navbar');
+  // Use try-catch or safe defaults for translations to prevent crashes if keys are missing
+  let t, tCommon, tNavbar;
+  try {
+    t = useTranslations('auth');
+    tCommon = useTranslations('common');
+    tNavbar = useTranslations('navbar');
+  } catch (e) {
+    // Fallback if translations fail
+    t = (key: string) => key;
+    tCommon = (key: string) => key;
+    tNavbar = (key: string) => key;
+  }
+
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams ? searchParams.get('redirect') || '/' : '/';
+  
+  // Safely get redirect URL
+  const redirectUrl = searchParams?.get('redirect') || '/';
   
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,7 +87,7 @@ function LoginForm() {
       router.refresh();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || t('invalidCredentials'));
+      setError(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -86,12 +98,13 @@ function LoginForm() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <div className="relative w-24 h-24 rounded-full overflow-hidden shadow-lg">
+          <div className="relative w-24 h-24 rounded-full overflow-hidden shadow-lg bg-white">
             <Image
               src="/logo.png"
-              alt={tNavbar('lightOfLife')}
+              alt="Logo"
               fill
               className="object-cover"
+              priority
             />
           </div>
         </div>
