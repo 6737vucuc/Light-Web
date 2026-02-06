@@ -24,12 +24,19 @@ export async function POST(request: NextRequest) {
 
     // Clear the auth cookie
     const response = NextResponse.json({ success: true });
-    response.cookies.set('auth_token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 0, // Expire immediately
-      path: '/',
+    const host = request.headers.get('host');
+    const isVercel = host?.includes('vercel.app') || host?.includes('light-web-project.vercel.app');
+
+    // Clear both possible token names just in case
+    ['token', 'auth_token'].forEach(cookieName => {
+      response.cookies.set(cookieName, '', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 0, // Expire immediately
+        path: '/',
+        domain: isVercel ? 'light-web-project.vercel.app' : undefined,
+      });
     });
 
     return response;

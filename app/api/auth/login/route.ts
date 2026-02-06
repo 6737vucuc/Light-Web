@@ -295,13 +295,18 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    // Get host for domain unification
+    const host = request.headers.get('host');
+    const isVercel = host?.includes('vercel.app') || host?.includes('light-web-project.vercel.app');
+
     // Set secure cookie with strict settings
     response.cookies.set('token', token, {
       httpOnly: true, // Prevent XSS attacks
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      secure: true, // Force secure for production/Vercel
       sameSite: 'lax', // lax for OAuth compatibility while still preventing CSRF
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/', // Available across the entire site
+      domain: isVercel ? 'light-web-project.vercel.app' : undefined, // Unified domain
     });
 
     // Add rate limit headers

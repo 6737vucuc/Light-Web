@@ -124,13 +124,18 @@ export async function GET(request: Request) {
           username: dbUser.email.split('@')[0], // Fallback username
         });
 
+        // Get the host from the request to set the correct domain for cookies
+        const host = request.headers.get('host');
+        const isVercel = host?.includes('vercel.app') || host?.includes('light-web-project.vercel.app');
+        
         // Set the token in the response cookies with the same settings as login route
         response.cookies.set('token', token, {
           httpOnly: true, // Prevent XSS attacks
-          secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+          secure: true, // Always true for OAuth in production/Vercel
           sameSite: 'lax', // lax is required for OAuth redirects
           maxAge: 60 * 60 * 24 * 7, // 7 days (same as login)
           path: '/', // Available across the entire site
+          domain: isVercel ? 'light-web-project.vercel.app' : undefined, // Force unified domain on Vercel
         });
         
         console.log('Token cookie set in response successfully');
