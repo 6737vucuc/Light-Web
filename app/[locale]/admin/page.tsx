@@ -866,10 +866,10 @@ function UsersManager() {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/unban-user', {
+      const response = await fetch('/api/admin/ban-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, ban: false }),
       });
       if (response.ok) {
         toast.success('User unbanned');

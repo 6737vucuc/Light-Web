@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, ban, reason, duration } = body;
+    // If 'ban' is not provided, assume it's true (for backward compatibility with UI)
+    const { userId, ban = true, reason, duration } = body;
 
     if (!userId) {
       return NextResponse.json(
