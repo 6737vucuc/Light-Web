@@ -299,7 +299,7 @@ export default function CommunityPage() {
         )}
       </main>
 
-      {/* Enhanced Modern Bottom Navigation */}
+      {/* Enhanced Modern Bottom Navigation - Community & Home Only */}
       {!selectedGroup && (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
           {/* Gradient Background Overlay */}
@@ -308,19 +308,6 @@ export default function CommunityPage() {
           {/* Main Navigation Container */}
           <div className="relative mx-4 mb-6 bg-white/95 backdrop-blur-2xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 rounded-[2rem] overflow-visible">
             <div className="flex items-center justify-around h-20 px-2 relative">
-              {/* Lessons Button */}
-              <button 
-                onClick={() => router.push('/lessons')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 group transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 rounded-2xl transition-all duration-300 group-hover:bg-purple-50">
-                  <BookOpen size={22} className="text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </div>
-                <span className="text-[9px] font-bold text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-wider">
-                  Lessons
-                </span>
-              </button>
-
               {/* Community Button (Active) */}
               <button 
                 onClick={() => router.push('/community')} 
@@ -348,30 +335,19 @@ export default function CommunityPage() {
                 </button>
               </div>
 
-              {/* Support Button */}
+              {/* Home Button (Right Side) - Same style as Community */}
               <button 
-                onClick={() => router.push('/support')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 group transition-all duration-300 active:scale-95"
+                onClick={() => router.push('/')} 
+                className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative transition-all duration-300 active:scale-95"
               >
-                <div className="p-2.5 rounded-2xl transition-all duration-300 group-hover:bg-purple-50">
-                  <Heart size={22} className="text-gray-400 group-hover:text-purple-600 transition-colors" />
+                <div className="p-2.5 bg-purple-100 rounded-2xl shadow-lg shadow-purple-200/50 transition-all duration-300">
+                  <Home size={22} className="text-purple-600" />
                 </div>
-                <span className="text-[9px] font-bold text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-wider">
-                  Support
+                <span className="text-[9px] font-black text-purple-600 uppercase tracking-wider">
+                  Home
                 </span>
-              </button>
-
-              {/* Profile Button */}
-              <button 
-                onClick={() => router.push('/profile?from=community')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 group transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 rounded-2xl transition-all duration-300 group-hover:bg-purple-50">
-                  <User size={22} className="text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </div>
-                <span className="text-[9px] font-bold text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-wider">
-                  Profile
-                </span>
+                {/* Active Indicator */}
+                <div className="absolute -bottom-0.5 w-10 h-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-t-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </button>
             </div>
 
