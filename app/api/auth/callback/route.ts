@@ -61,7 +61,7 @@ export async function GET(request: Request) {
 
       if (dbUser) {
         console.log('Updating existing user in DB:', dbUser.id);
-        // Update existing user
+        // Update existing user and reset failed login attempts (same as login route)
         await db.update(users)
           .set({
             googleId: user.id,
@@ -73,6 +73,10 @@ export async function GET(request: Request) {
             lastSeen: new Date(),
             isOnline: true,
             oauthData: user.user_metadata,
+            // Reset security fields (same as login route)
+            failedLoginAttempts: 0,
+            lockedUntil: null,
+            lastFailedLogin: null,
           })
           .where(eq(users.id, dbUser.id));
       } else {
@@ -109,19 +113,24 @@ export async function GET(request: Request) {
       // IMPORTANT: Create a local JWT token to maintain session in the current system
       if (dbUser) {
         console.log('Creating local JWT token for user:', dbUser.id);
+        
+        // Create JWT token with the same payload as login route for consistency
         const token = await createToken({
           userId: dbUser.id,
           email: dbUser.email,
           isAdmin: dbUser.isAdmin,
+          name: dbUser.name,
+          avatar: dbUser.avatar,
+          username: dbUser.email.split('@')[0], // Fallback username
         });
 
-        // Set the token in the response cookies directly to ensure it's sent to the browser
+        // Set the token in the response cookies with the same settings as login route
         response.cookies.set('token', token, {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 30, // 30 days
-          path: '/',
+          httpOnly: true, // Prevent XSS attacks
+          secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+          sameSite: 'lax', // lax is required for OAuth redirects
+          maxAge: 60 * 60 * 24 * 7, // 7 days (same as login)
+          path: '/', // Available across the entire site
         });
         
         console.log('Token cookie set in response successfully');

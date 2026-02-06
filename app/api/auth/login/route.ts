@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set('token', token, {
       httpOnly: true, // Prevent XSS attacks
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: 'strict', // Prevent CSRF attacks
+      sameSite: 'lax', // lax for OAuth compatibility while still preventing CSRF
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/', // Available across the entire site
     });
