@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { createToken } from '@/lib/auth/jwt';
 
 // استخدام القيم الثابتة من lib/supabase/client.ts
 const supabaseUrl = 'https://lzqyucohnjtubivlmdkw.supabase.co';
@@ -41,14 +42,14 @@ export async function GET(request: Request) {
 
     if (!error && user) {
       // Sync user data with our custom users table
-      const existingUser = await db.query.users.findFirst({
+      let dbUser = await db.query.users.findFirst({
         where: eq(users.email, user.email as string),
       });
 
       const fullName = user.user_metadata.full_name || user.user_metadata.name || user.email?.split('@')[0] || 'User';
       const avatarUrl = user.user_metadata.avatar_url || user.user_metadata.picture;
 
-      if (existingUser) {
+      if (dbUser) {
         // Update existing user
         await db.update(users)
           .set({
@@ -56,13 +57,13 @@ export async function GET(request: Request) {
             authProvider: 'google',
             emailVerified: true,
             emailVerifiedAt: new Date(),
-            avatar: existingUser.avatar || avatarUrl,
+            avatar: dbUser.avatar || avatarUrl,
             updatedAt: new Date(),
             lastSeen: new Date(),
             isOnline: true,
             oauthData: user.user_metadata,
           })
-          .where(eq(users.id, existingUser.id));
+          .where(eq(users.id, dbUser.id));
       } else {
         // Create new user if doesn't exist
         const nameParts = fullName.split(' ');
@@ -85,6 +86,29 @@ export async function GET(request: Request) {
           lastSeen: new Date(),
           isOnline: true,
           oauthData: user.user_metadata,
+        });
+        
+        // Fetch the newly created user
+        dbUser = await db.query.users.findFirst({
+          where: eq(users.email, user.email as string),
+        });
+      }
+
+      // IMPORTANT: Create a local JWT token to maintain session in the current system
+      if (dbUser) {
+        const token = await createToken({
+          userId: dbUser.id,
+          email: dbUser.email,
+          isAdmin: dbUser.isAdmin,
+        });
+
+        // Set the token in a cookie
+        cookieStore.set('token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+          path: '/',
         });
       }
     }
