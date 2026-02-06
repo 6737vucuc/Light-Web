@@ -13,6 +13,11 @@ if (!databaseUrl) {
   console.warn('DATABASE_URL not set, using dummy connection for build');
 }
 
+// Disable SSL certificate verification for Supabase compatibility
+if (process.env.NODE_ENV === 'production') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 // Singleton pattern for Pool to prevent connection leaks in Next.js hot-reloading
 const globalForPg = global as unknown as { pool: Pool };
 
@@ -23,7 +28,9 @@ const pool = globalForPg.pool || new Pool({
   max: 2, // Reduced to 2 for Supabase Session mode (conservative limit)
   min: 0, // No minimum connections
   allowExitOnIdle: true, // Allow pool to exit when idle
-  ssl: { rejectUnauthorized: false }, // Allow connections to Supabase/Neon without explicit CA cert verification
+  ssl: {
+    rejectUnauthorized: false, // Disable certificate verification
+  },
 });
 
 // Handle pool errors to prevent crashes
