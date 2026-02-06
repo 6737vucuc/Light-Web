@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,16 +15,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  let supabase: ReturnType<typeof createBrowserClient> | null = null;
-
-  // إنشاء Supabase client بأمان بعد التأكد من env
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-  }
-
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -33,7 +23,6 @@ export default function LoginPage() {
   }, []);
 
   const handleGoogleLogin = async () => {
-    if (!supabase) return setError('Supabase client not initialized.');
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
