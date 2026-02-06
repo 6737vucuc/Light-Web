@@ -342,7 +342,8 @@ export async function POST(request: NextRequest) {
         message: errorMessage,
         code: isDbError ? 'DB_ERROR' : 'AUTH_ERROR',
         // Always include message for now to help user debug
-        details: errorMessage 
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
       },
       { 
         status: 500,

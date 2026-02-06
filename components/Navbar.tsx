@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { Link, useRouter, usePathname } from '@/i18n/navigation';
 import Image from 'next/image';
-import { useRouter, usePathname } from 'next/navigation';
 import { Menu, X, LogOut } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import LanguageSwitcher from './LanguageSwitcher';

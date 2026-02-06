@@ -1,7 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from '@/i18n/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { Globe, ChevronDown } from 'lucide-react';
 
@@ -37,20 +37,9 @@ export default function LanguageSwitcher() {
   }, []);
 
   const handleLocaleChange = (newLocale: string) => {
-    // Remove current locale from pathname if present
-    let pathParts = pathname.split('/').filter(Boolean);
-    
-    // Check if first part is a locale and remove it
-    if (pathParts.length > 0 && locales.some(l => l.code === pathParts[0])) {
-      pathParts.shift(); // Remove current locale
-    }
-    
-    // Build new pathname with new locale
-    const basePath = pathParts.join('/');
-    const newPathname = `/${newLocale}${basePath ? '/' + basePath : ''}`;
-
-    router.push(newPathname);
-    router.refresh(); // Force refresh to update translations
+    // With next-intl/navigation, we can just push the pathname and it will handle the locale
+    router.push(pathname, { locale: newLocale });
+    router.refresh();
     setIsOpen(false);
   };
 
