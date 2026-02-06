@@ -1,16 +1,33 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Loader2, Mail } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useTranslations } from 'next-intl';
 
 function LoginForm() {
   const t = useTranslations('auth');
-  const supabase = createClientComponentClient();
+  const tCommon = useTranslations('common');
+  const tNavbar = useTranslations('navbar');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/';
+  
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleGoogleLogin = async () => {
     try {
@@ -30,18 +47,6 @@ function LoginForm() {
       setError(err.message || 'Failed to sign in with Google');
     }
   };
-  const tCommon = useTranslations('common');
-  const tNavbar = useTranslations('navbar');
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/';
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,30 +60,17 @@ function LoginForm() {
         body: JSON.stringify(formData),
       });
 
-      // Check if response is ok first
       if (!response.ok) {
-        // Try to parse error JSON
         let errorMessage = 'Login failed';
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorData.message || 'Login failed';
         } catch (jsonError) {
-          // If JSON parsing fails, use status text
           errorMessage = `Server error: ${response.status} ${response.statusText}`;
         }
         throw new Error(errorMessage);
       }
 
-      // Parse success response
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error('Failed to parse success response:', jsonError);
-        throw new Error('Invalid response from server. Please try again.');
-      }
-
-      // Redirect to specified page or home
       router.push(redirectUrl);
       router.refresh();
     } catch (err: any) {
@@ -203,6 +195,7 @@ function LoginForm() {
 
             <div className="mt-6">
               <button
+                type="button"
                 onClick={handleGoogleLogin}
                 className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
               >
@@ -221,7 +214,7 @@ function LoginForm() {
                   />
                   <path
                     fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 12-4.53z"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
                 {t('signInWithGoogle')}
@@ -235,7 +228,6 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
-  const tCommon = useTranslations('common');
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
