@@ -18,6 +18,8 @@ export async function GET(request: Request) {
   const pathParts = requestUrl.pathname.split('/');
   const locale = pathParts[1] && ['en', 'ar', 'es', 'fr', 'de'].includes(pathParts[1]) ? pathParts[1] : 'en';
 
+  console.log('Auth Callback triggered with code:', !!code);
+
   if (code) {
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -40,7 +42,13 @@ export async function GET(request: Request) {
 
     const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code);
 
+    if (error) {
+      console.error('Supabase auth error:', error.message);
+    }
+
     if (!error && user) {
+      console.log('Supabase user authenticated:', user.email);
+      
       // Sync user data with our custom users table
       let dbUser = await db.query.users.findFirst({
         where: eq(users.email, user.email as string),
@@ -50,6 +58,7 @@ export async function GET(request: Request) {
       const avatarUrl = user.user_metadata.avatar_url || user.user_metadata.picture;
 
       if (dbUser) {
+        console.log('Updating existing user in DB:', dbUser.id);
         // Update existing user
         await db.update(users)
           .set({
@@ -65,6 +74,7 @@ export async function GET(request: Request) {
           })
           .where(eq(users.id, dbUser.id));
       } else {
+        console.log('Creating new user in DB for email:', user.email);
         // Create new user if doesn't exist
         const nameParts = fullName.split(' ');
         const firstName = nameParts[0];
@@ -96,24 +106,30 @@ export async function GET(request: Request) {
 
       // IMPORTANT: Create a local JWT token to maintain session in the current system
       if (dbUser) {
+        console.log('Creating local JWT token for user:', dbUser.id);
         const token = await createToken({
           userId: dbUser.id,
           email: dbUser.email,
           isAdmin: dbUser.isAdmin,
         });
 
-        // Set the token in a cookie with more robust settings
+        // Set the token in a cookie with settings that match the rest of the app
+        // We use a longer maxAge and ensure path is '/'
         cookieStore.set('token', token, {
           httpOnly: true,
-          secure: true, // Always true for Vercel and modern browsers
+          secure: true,
           sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 30, // 30 days for better persistence
+          maxAge: 60 * 60 * 24 * 30, // 30 days
           path: '/',
         });
+        
+        console.log('Token cookie set successfully');
       }
     }
   }
 
   // Redirect to the home page with the correct locale
-  return NextResponse.redirect(new URL(`/${locale}`, request.url));
+  const redirectUrl = new URL(`/${locale}`, request.url);
+  console.log('Redirecting to:', redirectUrl.toString());
+  return NextResponse.redirect(redirectUrl);
 }
