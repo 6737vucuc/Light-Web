@@ -48,6 +48,8 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [otherUserOnline, setOtherUserOnline] = useState(false);
   const [otherUserLastSeen, setOtherUserLastSeen] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Call States
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'incoming' | 'connected' | 'ended'>('idle');
@@ -207,8 +209,27 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
-          ]
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            // Free TURN servers from Metered.ca (Publicly available for open projects)
+            {
+              urls: 'turn:openrelay.metered.ca:80',
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            },
+            {
+              urls: 'turn:openrelay.metered.ca:443',
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            },
+            {
+              urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            }
+          ],
+          iceCandidatePoolSize: 10
         }
       });
 
@@ -275,13 +296,13 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     }, 2000);
   };
 
-  const sendMessage = async (e?: any) => {
+  const sendMessage = async (e?: any, mediaUrl?: string, mediaType?: string) => {
     if (e) e.preventDefault();
-    if (!newMessage.trim() || !selectedConversation || isSending) return;
+    if (!mediaUrl && (!newMessage.trim() || !selectedConversation || isSending)) return;
 
     setIsSending(true);
-    const content = newMessage.trim();
-    setNewMessage('');
+    const content = mediaUrl ? '' : newMessage.trim();
+    if (!mediaUrl) setNewMessage('');
 
     try {
       const res = await fetch('/api/direct-messages', {
@@ -290,7 +311,8 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         body: JSON.stringify({
           receiverId: selectedConversation.other_user_id,
           content,
-          messageType: 'text'
+          messageType: mediaType || 'text',
+          mediaUrl: mediaUrl || null
         })
       });
 
@@ -307,6 +329,37 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConversation) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const type = file.type.startsWith('image/') ? 'image' : 'video';
+        await sendMessage(null, data.url, type);
+        toast.success('File sent successfully');
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Upload failed');
+      }
+    } catch (err) {
+      toast.error('Upload failed');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleStartCall = async (type: 'audio' | 'video' = 'audio') => {
     if (!selectedConversation) return;
     setCallOtherUser({ name: selectedConversation.name, avatar: selectedConversation.avatar });
@@ -319,8 +372,21 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         Peer = module.default;
       }
 
-      if (!peerRef.current || peerRef.current.destroyed) {
-        toast.error('Connection not ready');
+      // If peer is not ready, try to wait or re-init
+      if (!peerRef.current || peerRef.current.destroyed || peerRef.current.disconnected) {
+        console.log('[SignalCall] Peer not ready, attempting to wait...');
+        toast.info('Connecting to secure call server...');
+        
+        // Wait up to 3 seconds for peer to become ready
+        let waitCount = 0;
+        while ((!peerRef.current || !peerId) && waitCount < 6) {
+          await new Promise(r => setTimeout(r, 500));
+          waitCount++;
+        }
+      }
+
+      if (!peerRef.current || !peerId) {
+        toast.error('Connection not ready. Please refresh and try again.');
         setCallStatus('idle');
         return;
       }
@@ -390,15 +456,28 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     }
   };
 
-  const handleEndCall = () => {
-    if (currentCallRef.current) currentCallRef.current.close();
+  const handleEndCall = useCallback(() => {
+    console.log('[SignalCall] Ending call and cleaning up resources');
+    if (currentCallRef.current) {
+      currentCallRef.current.close();
+    }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
     }
+    
+    // Notify other user that call ended
+    if (selectedConversation) {
+      fetch('/api/calls/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiverId: selectedConversation.other_user_id })
+      }).catch(console.error);
+    }
+
     setCallStatus('idle');
     currentCallRef.current = null;
-  };
+  }, [selectedConversation]);
 
   const setupCallEvents = (call: any) => {
     call.on('stream', (remoteStream: MediaStream) => {
@@ -587,7 +666,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                           ? 'bg-blue-600 text-white rounded-br-none' 
                           : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
                       }`}>
-                        {msg.content}
+                        {msg.message_type === 'image' ? (
+                          <div className="relative w-64 h-64 rounded-lg overflow-hidden mb-1">
+                            <Image src={msg.media_url} alt="Sent image" fill className="object-cover" unoptimized />
+                          </div>
+                        ) : msg.message_type === 'video' ? (
+                          <video src={msg.media_url} controls className="w-64 rounded-lg mb-1" />
+                        ) : (
+                          msg.content
+                        )}
                       </div>
                       <div className={`flex items-center gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                         <span className="text-[10px] text-gray-400 font-medium">{formatTime(msg.created_at)}</span>
@@ -620,8 +707,28 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                       }
                     }}
                   />
-                  <button type="button" className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"><Paperclip size={22} /></button>
-                  <button type="button" className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"><Camera size={22} /></button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleFileUpload}
+                    accept="image/*,video/*"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors disabled:opacity-50"
+                  >
+                    {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip size={22} />}
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"
+                  >
+                    <Camera size={22} />
+                  </button>
                 </div>
                 {newMessage.trim() ? (
                   <button 
