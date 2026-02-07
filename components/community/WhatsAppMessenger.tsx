@@ -294,42 +294,77 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const handleStartCall = async () => {
     if (!selectedConversation) return;
     
-    if (!peerId) {
-      console.log('Call button pressed but peerId is not ready yet');
-      toast.info('Initializing call system... Please try again in a second.');
-      return;
-    }
-    
-    console.log('Starting call with peerId:', peerId);
     setCallOtherUser({ name: selectedConversation.name, avatar: selectedConversation.avatar });
     setCallStatus('calling');
 
+    // Helper to ensure PeerJS is ready
+    const ensurePeerId = (): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        if (peerId && peerRef.current && !peerRef.current.destroyed) {
+          resolve(peerId);
+          return;
+        }
+
+        console.log('Initializing PeerJS on demand...');
+        const peerIdToUse = `light-user-${currentUser.id}-${Date.now()}`;
+        const peer = new Peer(peerIdToUse, {
+          debug: 1,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
+            ]
+          }
+        });
+
+        peer.on('open', (id) => {
+          setPeerId(id);
+          peerRef.current = peer;
+          resolve(id);
+        });
+
+        peer.on('error', (err) => {
+          console.error('PeerJS on-demand error:', err);
+          reject(err);
+        });
+
+        // Timeout after 10 seconds
+        setTimeout(() => reject(new Error('PeerJS initialization timeout')), 10000);
+      });
+    };
+
     try {
-      // Improved constraints for better audio quality
+      // 1. Request microphone access immediately
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } 
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
       });
       localStreamRef.current = stream;
 
-      // Notify recipient via Supabase Realtime
-      await fetch('/api/calls/initiate', {
+      // 2. Ensure PeerJS is ready
+      const currentPeerId = await ensurePeerId();
+
+      // 3. Notify recipient via Supabase Realtime
+      const response = await fetch('/api/calls/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiverId: selectedConversation.other_user_id,
-          callerPeerId: peerId,
+          callerPeerId: currentPeerId,
           callerName: currentUser.name,
           callerAvatar: currentUser.avatar
         })
       });
 
-    } catch (err) {
-      console.error('Call error:', err);
-      toast.error('Could not access microphone');
+      if (!response.ok) throw new Error('Failed to initiate call via API');
+
+    } catch (err: any) {
+      console.error('Call initiation error:', err);
+      toast.error(err.message || 'Could not start call');
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current = null;
+      }
       setCallStatus('idle');
     }
   };
