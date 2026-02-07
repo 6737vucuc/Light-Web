@@ -301,7 +301,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   }, [currentUser?.id]);
 
   const handleStartCall = async () => {
-    if (!selectedConversation || !peerId) return;
+    if (!selectedConversation) return;
+    
+    if (!peerId) {
+      toast.info('Initializing call system... Please try again in a second.');
+      return;
+    }
     
     setCallOtherUser({ name: selectedConversation.name, avatar: selectedConversation.avatar });
     setCallStatus('calling');
