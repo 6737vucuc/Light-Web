@@ -190,7 +190,7 @@ if (typeof window === 'undefined' || !currentUser?.id) return;
 
 let peerInstance: any = null;  
 let retryCount = 0;  
-const maxRetries = 1;  
+const maxRetries = 5;  
 
 const initPeer = async () => {  
   if (typeof window === 'undefined') return;  
@@ -210,8 +210,10 @@ const initPeer = async () => {
     config: {  
       iceServers: [  
         { urls: 'stun:stun.l.google.com:19302' },  
-      },  
- 
+        { urls: 'stun:stun1.l.google.com:19302' },  
+        { urls: 'stun:stun2.l.google.com:19302' },  
+        { urls: 'stun:stun3.l.google.com:19302' },  
+        { urls: 'stun:stun4.l.google.com:19302' },  
         // Free TURN servers from Metered.ca (Publicly available for open projects)  
         {  
           urls: 'turn:openrelay.metered.ca:80',  
@@ -252,7 +254,7 @@ const initPeer = async () => {
   peer.on('error', (err: any) => {  
     if ((err.type === 'unavailable-id' || err.type === 'network') && retryCount < maxRetries) {  
       retryCount++;  
-      setTimeout(initPeer, 1000);  
+      setTimeout(initPeer, 2000);  
     }  
   });  
 
