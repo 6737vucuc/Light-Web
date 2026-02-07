@@ -11,21 +11,14 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { receiverId, receiverPeerId } = await request.json();
+    if (!receiverId) return NextResponse.json({ error: 'Missing receiverId' }, { status: 400 });
 
-    if (!receiverId) {
-      return NextResponse.json({ error: 'Missing receiverId' }, { status: 400 });
-    }
-
-    // Notify the caller via Supabase Realtime
+    // ✅ Notify caller that المكالمة قُبلت
     const supabaseAdmin = getSupabaseAdmin();
     const channel = supabaseAdmin.channel(`user-${receiverId}`);
-    
     await channel.send({
       type: 'broadcast',
       event: 'call-accepted',
@@ -35,9 +28,8 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Update the call status in the database
+    // ✅ تحديث حالة المكالمة في DB
     try {
-      // Find the most recent ringing call between these two users
       const existingCall = await db.query.calls.findFirst({
         where: and(
           eq(calls.callerId, parseInt(receiverId)),
@@ -49,10 +41,10 @@ export async function POST(request: NextRequest) {
 
       if (existingCall) {
         await db.update(calls)
-          .set({ 
+          .set({
             status: 'connected',
             receiverPeerId: receiverPeerId,
-            startedAt: new Date() 
+            startedAt: new Date()
           })
           .where(eq(calls.id, existingCall.id));
       }
