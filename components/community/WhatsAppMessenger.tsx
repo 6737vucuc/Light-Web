@@ -221,80 +221,71 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   useEffect(() => {
     if (typeof window === 'undefined' || !currentUser?.id) return;
     
-    // Initialize PeerJS with a consistent ID and reliable ICE servers (STUN/TURN)
-    const peer = new Peer(`light-user-${currentUser.id}`, {
-      host: '0.peerjs.com',
-      port: 443,
-      secure: true,
-      debug: 1,
-      config: {
-        iceServers: [
-          // Google STUN servers
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' },
-          { urls: 'stun:stun4.l.google.com:19302' },
-          // Additional public STUN servers for better reliability
-          { urls: 'stun:stun.services.mozilla.com' },
-          { urls: 'stun:stun.stunprotocol.org:3478' },
-          { urls: 'stun:stun.voipstunt.com' },
-          { urls: 'stun:stun.xten.com' },
-          // OpenRelay Project (Free TURN servers)
-          {
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-          },
-          {
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-          },
-          {
-            urls: 'turn:openrelay.metered.ca:3478',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-          }
-        ],
-        iceCandidatePoolSize: 10,
-        sdpSemantics: 'unified-plan'
-      }
-    });
+    let peerInstance: Peer | null = null;
+    let retryCount = 0;
+    const maxRetries = 5;
 
-    peer.on('open', (id) => {
-      console.log('PeerJS connected with ID:', id);
-      setPeerId(id);
-      peerRef.current = peer;
-    });
-
-    peer.on('call', async (call) => {
-      console.log('Receiving WebRTC call from:', call.peer);
-      currentCallRef.current = call;
+    const initPeer = () => {
+      console.log(`Initializing PeerJS (Attempt ${retryCount + 1})...`);
       
-      // If we already have a local stream (meaning we accepted the call via UI)
-      // we should answer it immediately to establish the audio link
-      if (localStreamRef.current) {
-        console.log('Answering incoming PeerJS call with existing local stream');
-        call.answer(localStreamRef.current);
-        setupCallEvents(call);
-      } else {
-        // If we don't have a stream yet, the handleAcceptCall will handle it
-        // when the user clicks the accept button
-        console.log('PeerJS call received but waiting for user to accept via UI');
-      }
-    });
+      // Use a slightly randomized ID if the primary one is taken, or just retry
+      const peerIdToUse = `light-user-${currentUser.id}${retryCount > 0 ? `-${Math.floor(Math.random() * 1000)}` : ''}`;
+      
+      const peer = new Peer(peerIdToUse, {
+        debug: 1,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            {
+              urls: 'turn:openrelay.metered.ca:80',
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            },
+            {
+              urls: 'turn:openrelay.metered.ca:443',
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            }
+          ],
+          iceCandidatePoolSize: 10
+        }
+      });
 
-    peer.on('error', (err) => {
-      console.error('PeerJS error:', err);
-      if (err.type === 'unavailable-id') {
-        // ID already taken, might happen on refresh
-      }
-    });
+      peer.on('open', (id) => {
+        console.log('PeerJS connected with ID:', id);
+        setPeerId(id);
+        peerRef.current = peer;
+        peerInstance = peer;
+        retryCount = 0; // Reset on success
+      });
+
+      peer.on('call', async (call) => {
+        console.log('Receiving WebRTC call from:', call.peer);
+        currentCallRef.current = call;
+        if (localStreamRef.current) {
+          call.answer(localStreamRef.current);
+          setupCallEvents(call);
+        }
+      });
+
+      peer.on('error', (err) => {
+        console.error('PeerJS error:', err);
+        if ((err.type === 'unavailable-id' || err.type === 'network' || err.type === 'server-error') && retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(initPeer, 2000);
+        }
+      });
+
+      peerInstance = peer;
+    };
+
+    initPeer();
 
     return () => {
-      if (peerRef.current) {
-        peerRef.current.destroy();
+      if (peerInstance) {
+        peerInstance.destroy();
         peerRef.current = null;
       }
     };
