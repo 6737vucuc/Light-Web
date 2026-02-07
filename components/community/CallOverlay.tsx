@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 
 interface CallOverlayProps {
   callStatus: 'idle' | 'calling' | 'incoming' | 'connected' | 'ended';
+  callType?: 'audio' | 'video';
   otherUser: {
     name: string;
     avatar: string | null;
@@ -16,7 +17,7 @@ interface CallOverlayProps {
   onEnd: () => void;
 }
 
-export default function CallOverlay({ callStatus, otherUser, onAccept, onReject, onEnd }: CallOverlayProps) {
+export default function CallOverlay({ callStatus, callType = 'audio', otherUser, onAccept, onReject, onEnd }: CallOverlayProps) {
   const t = useTranslations('messages');
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
@@ -83,10 +84,18 @@ export default function CallOverlay({ callStatus, otherUser, onAccept, onReject,
   if (callStatus === 'idle') return null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 animate-in fade-in duration-300">
-      {/* User Info */}
-      <div className="flex flex-col items-center mb-12">
-        <div className={`relative w-32 h-32 rounded-full overflow-hidden border-4 ${callStatus === 'connected' ? 'border-green-500' : 'border-purple-500'} shadow-2xl mb-6 ${callStatus === 'calling' || callStatus === 'incoming' ? 'animate-pulse' : ''}`}>
+    <div className="fixed inset-0 z-[100] bg-[#1b1b1b] flex flex-col items-center justify-center text-white p-6 animate-in fade-in duration-300">
+      {/* Video Elements (Hidden or Visible) */}
+      {callType === 'video' && callStatus === 'connected' && (
+        <div className="absolute inset-0 z-0">
+          <video id="remoteVideo" autoPlay playsInline className="w-full h-full object-cover" />
+          <video id="localVideo" autoPlay playsInline muted className="absolute bottom-24 right-6 w-32 h-48 object-cover rounded-2xl border-2 border-white/20 shadow-2xl" />
+        </div>
+      )}
+
+      {/* User Info Overlay */}
+      <div className={`relative z-10 flex flex-col items-center ${callType === 'video' && callStatus === 'connected' ? 'mb-auto mt-12' : 'mb-12'}`}>
+        <div className={`relative w-32 h-32 rounded-full overflow-hidden border-4 ${callStatus === 'connected' ? 'border-blue-500' : 'border-gray-600'} shadow-2xl mb-6 ${callStatus === 'calling' || callStatus === 'incoming' ? 'animate-pulse' : ''}`}>
           <Image 
             src={getAvatarUrl(otherUser.avatar)} 
             alt={otherUser.name} 
@@ -95,33 +104,38 @@ export default function CallOverlay({ callStatus, otherUser, onAccept, onReject,
             unoptimized
           />
         </div>
-        <h2 className="text-3xl font-bold mb-2">{otherUser.name}</h2>
-        <div className="flex items-center gap-2">
+        <h2 className="text-3xl font-bold mb-2 drop-shadow-lg">{otherUser.name}</h2>
+        <div className="flex items-center gap-2 bg-black/20 backdrop-blur-md px-4 py-1 rounded-full">
           {callStatus === 'connected' && <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>}
-          <p className={`${callStatus === 'connected' ? 'text-green-400' : 'text-purple-300'} font-medium`}>
-            {callStatus === 'calling' && t('calling')}
-            {callStatus === 'incoming' && t('incomingCall')}
+          <p className={`${callStatus === 'connected' ? 'text-green-400' : 'text-gray-300'} font-medium text-sm`}>
+            {callStatus === 'calling' && (callType === 'video' ? 'Signal Video Calling...' : 'Signal Calling...')}
+            {callStatus === 'incoming' && (callType === 'video' ? 'Incoming Video Call' : 'Incoming Voice Call')}
             {callStatus === 'connected' && formatDuration(duration)}
-            {callStatus === 'ended' && t('callEnded')}
+            {callStatus === 'ended' && 'Call Ended'}
           </p>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col items-center gap-8 w-full max-w-xs">
+      <div className="relative z-10 flex flex-col items-center gap-8 w-full max-w-xs">
         {callStatus === 'connected' && (
           <div className="flex justify-center gap-6 w-full mb-4">
             <button 
               onClick={() => setIsMuted(!isMuted)}
-              className={`p-4 rounded-full transition-all ${isMuted ? 'bg-red-500' : 'bg-white/10 hover:bg-white/20'}`}
+              className={`p-5 rounded-full transition-all ${isMuted ? 'bg-red-500' : 'bg-white/10 hover:bg-white/20 backdrop-blur-md'}`}
             >
-              {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+              {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
             </button>
+            {callType === 'video' && (
+              <button className="p-5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all">
+                <Camera className="w-7 h-7" />
+              </button>
+            )}
             <button 
               onClick={() => setIsSpeakerOn(!isSpeakerOn)}
-              className={`p-4 rounded-full transition-all ${!isSpeakerOn ? 'bg-gray-600' : 'bg-white/10 hover:bg-white/20'}`}
+              className={`p-5 rounded-full transition-all ${!isSpeakerOn ? 'bg-gray-600' : 'bg-white/10 hover:bg-white/20 backdrop-blur-md'}`}
             >
-              {isSpeakerOn ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
+              {isSpeakerOn ? <Volume2 className="w-7 h-7" /> : <VolumeX className="w-7 h-7" />}
             </button>
           </div>
         )}

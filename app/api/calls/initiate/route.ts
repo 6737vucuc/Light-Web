@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { receiverId, callerPeerId, callerName, callerAvatar } = await request.json();
+    const { receiverId, callerPeerId, callerName, callerAvatar, callType } = await request.json();
 
     if (!receiverId || !callerPeerId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
               callerId: user.userId,
               callerPeerId,
               callerName: callerName || 'Unknown',
-              callerAvatar: callerAvatar || null
+              callerAvatar: callerAvatar || null,
+              callType: callType || 'audio'
             }
           });
           console.log(`[REALTIME] Broadcast result:`, result);
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
         receiverId: parseInt(receiverId),
         callerPeerId: callerPeerId,
         status: 'ringing',
-        callType: 'voice',
+        callType: callType === 'video' ? 'video' : 'voice',
         startedAt: new Date(),
       });
     } catch (dbError) {

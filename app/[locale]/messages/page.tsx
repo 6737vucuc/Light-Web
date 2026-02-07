@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import WhatsAppMessenger from '@/components/community/WhatsAppMessenger';
+import SignalMessenger from '@/components/community/SignalMessenger';
 import SecurityLoading from '@/components/SecurityLoading';
 import { ArrowLeft, MessageSquare, Shield, Sparkles, Home, User } from 'lucide-react';
 import Image from 'next/image';
@@ -71,8 +71,8 @@ function MessagesContent() {
                   <MessageSquare className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-black text-white tracking-tight">Private Messages</h1>
-                  <p className="text-purple-100 text-[10px] font-bold uppercase tracking-widest opacity-80">Secure & Encrypted</p>
+                  <h1 className="text-xl font-black text-white tracking-tight">Signal Private Messenger</h1>
+                  <p className="text-purple-100 text-[10px] font-bold uppercase tracking-widest opacity-80">State-of-the-art Encryption</p>
                 </div>
               </div>
             </div>
@@ -101,7 +101,7 @@ function MessagesContent() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden max-w-7xl mx-auto w-full px-0 md:px-4 lg:px-8 py-0 md:py-6">
         <div className="bg-white md:rounded-3xl shadow-2xl border border-gray-100 overflow-hidden h-full flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <WhatsAppMessenger 
+          <SignalMessenger 
             currentUser={currentUser} 
             initialUserId={userId ? parseInt(userId) : undefined}
             fullPage={true}
