@@ -11,30 +11,22 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { receiverId } = await request.json();
+    if (!receiverId) return NextResponse.json({ error: 'Missing receiverId' }, { status: 400 });
 
-    if (!receiverId) {
-      return NextResponse.json({ error: 'Missing receiverId' }, { status: 400 });
-    }
-
-    // Notify other party via Supabase Realtime
+    // ✅ Notify other party
     const supabaseAdmin = getSupabaseAdmin();
     const channel = supabaseAdmin.channel(`user-${receiverId}`);
-    
     await channel.send({
       type: 'broadcast',
       event: 'call-ended',
-      payload: {}
+      payload: { endedBy: user.userId }
     });
 
-    // Update the call status in the database
+    // ✅ Update call in DB
     try {
-      // Find the most recent active call between these two users
       const existingCall = await db.query.calls.findFirst({
         where: and(
           or(
@@ -56,7 +48,7 @@ export async function POST(request: NextRequest) {
         await db.update(calls)
           .set({ 
             status: 'ended',
-            endedAt: endedAt,
+            endedAt,
             duration: duration > 0 ? duration : 0
           })
           .where(eq(calls.id, existingCall.id));
