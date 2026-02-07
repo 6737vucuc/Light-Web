@@ -23,17 +23,33 @@ export async function POST(request: NextRequest) {
 
     // Broadcast via Supabase Realtime
     const supabaseAdmin = getSupabaseAdmin();
-    const channel = supabaseAdmin.channel(`user-${receiverId}`);
+    const channelName = `user-${receiverId}`;
+    const channel = supabaseAdmin.channel(channelName);
     
-    await channel.send({
-      type: 'broadcast',
-      event: 'incoming-call',
-      payload: {
-        callerId: user.userId,
-        callerPeerId,
-        callerName: callerName || 'Unknown',
-        callerAvatar: callerAvatar || null
-      }
+    // For server-side broadcast to work reliably, we need to ensure the channel is subscribed
+    // or use a small delay/retry logic if the first attempt fails.
+    // However, the most reliable way is to wait for the SUBSCRIBED status.
+    await new Promise((resolve) => {
+      channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[REALTIME] Subscribed to ${channelName}, sending broadcast...`);
+          const result = await channel.send({
+            type: 'broadcast',
+            event: 'incoming-call',
+            payload: {
+              callerId: user.userId,
+              callerPeerId,
+              callerName: callerName || 'Unknown',
+              callerAvatar: callerAvatar || null
+            }
+          });
+          console.log(`[REALTIME] Broadcast result:`, result);
+          resolve(result);
+        }
+      });
+      
+      // Safety timeout
+      setTimeout(() => resolve('timeout'), 3000);
     });
 
     // Record the call in the database

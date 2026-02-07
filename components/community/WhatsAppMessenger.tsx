@@ -188,7 +188,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [currentUser?.id, selectedConversation?.other_user_id]);
+  }, [currentUser?.id]); // Removed selectedConversation dependency to keep channel alive for incoming calls even when switching chats
 
   // Update online status on load and maintain real-time presence
   useEffect(() => {
