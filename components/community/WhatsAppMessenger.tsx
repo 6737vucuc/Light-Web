@@ -253,20 +253,37 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         }
       });
 
-      peer.on('open', (id) => {
+      peer.on('open', async (id) => {
         console.log('PeerJS connected with ID:', id);
         setPeerId(id);
         peerRef.current = peer;
         peerInstance = peer;
         retryCount = 0; // Reset on success
+        
+        // Store PeerID in database for incoming calls
+        try {
+          await supabase
+            .from('users')
+            .update({ current_peer_id: id })
+            .eq('id', currentUser.id);
+          console.log('PeerID stored in database:', id);
+        } catch (err) {
+          console.error('Failed to store PeerID:', err);
+        }
       });
 
       peer.on('call', async (call) => {
-        console.log('Receiving WebRTC call from:', call.peer);
+        console.log('[Call] Receiving WebRTC call from:', call.peer);
         currentCallRef.current = call;
+        
+        // If we already have a stream (user accepted the call), answer immediately
         if (localStreamRef.current) {
+          console.log('[Call] Answering with existing stream');
           call.answer(localStreamRef.current);
           setupCallEvents(call);
+        } else {
+          console.log('[Call] No stream yet, call object saved for later answer');
+          // The call will be answered when user clicks Accept button
         }
       });
 
@@ -284,6 +301,15 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     initPeer();
 
     return () => {
+      // Clear PeerID from database on disconnect
+      if (currentUser?.id) {
+        supabase
+          .from('users')
+          .update({ current_peer_id: null })
+          .eq('id', currentUser.id)
+          .then(() => console.log('PeerID cleared from database'))
+          .catch(err => console.error('Failed to clear PeerID:', err));
+      }
       if (peerInstance) {
         peerInstance.destroy();
         peerRef.current = null;
@@ -298,69 +324,66 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     setCallOtherUser({ name: selectedConversation.name, avatar: selectedConversation.avatar });
     setCallStatus('calling');
 
-    // 2. Helper to get Peer ID (async but non-blocking for the initial notification)
-    const getPeerIdAsync = (): Promise<string> => {
-      return new Promise((resolve) => {
-        if (peerId && peerRef.current && !peerRef.current.destroyed) {
-          resolve(peerId);
-          return;
-        }
-        
-        const peerIdToUse = `light-user-${currentUser.id}-${Date.now()}`;
-        const peer = new Peer(peerIdToUse, {
-          debug: 1,
-          config: {
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
-            ]
-          }
-        });
-
-        peer.on('open', (id) => {
-          setPeerId(id);
-          peerRef.current = peer;
-          resolve(id);
-        });
-
-        peer.on('error', (err) => {
-          console.error('PeerJS background error:', err);
-          resolve(peerIdToUse); // Fallback to the ID we intended to use
-        });
-        
-        // Safety resolve after 3 seconds to not block signaling
-        setTimeout(() => resolve(peerIdToUse), 3000);
-      });
-    };
-
     try {
-      // 3. Request microphone access immediately
-      navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
-      }).then(stream => {
-        localStreamRef.current = stream;
-      }).catch(err => {
-        console.error('Mic access error:', err);
-      });
+      // 2. Ensure we have a PeerJS connection
+      if (!peerId || !peerRef.current || peerRef.current.destroyed) {
+        toast.error('Connection not ready. Please try again.');
+        setCallStatus('idle');
+        return;
+      }
 
-      // 4. Get Peer ID and notify recipient via Supabase Realtime IMMEDIATELY
-      const currentPeerId = await getPeerIdAsync();
-      
+      // 3. Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+      });
+      localStreamRef.current = stream;
+      console.log('[Call] Microphone access granted');
+
+      // 4. Get receiver's current PeerID from database
+      const { data: receiverData, error: receiverError } = await supabase
+        .from('users')
+        .select('id, name, current_peer_id')
+        .eq('id', selectedConversation.other_user_id)
+        .single();
+
+      if (receiverError || !receiverData?.current_peer_id) {
+        throw new Error('Receiver is not online or not available for calls');
+      }
+
+      console.log('[Call] Receiver PeerID:', receiverData.current_peer_id);
+
+      // 5. Notify recipient via Supabase Realtime FIRST
       await fetch('/api/calls/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiverId: selectedConversation.other_user_id,
-          callerPeerId: currentPeerId,
+          callerPeerId: peerId,
           callerName: currentUser.name,
           callerAvatar: currentUser.avatar
         })
       });
 
+      console.log('[Call] Supabase notification sent');
+
+      // 6. Start actual PeerJS call immediately
+      const call = peerRef.current.call(receiverData.current_peer_id, stream);
+      currentCallRef.current = call;
+      console.log('[Call] PeerJS call initiated to:', receiverData.current_peer_id);
+
+      // 7. Setup call event handlers
+      setupCallEvents(call);
+
     } catch (err: any) {
-      console.error('Call initiation error:', err);
-      // We don't show error toast here to keep it silent if background tasks fail
-      // but the signaling still went through
+      console.error('[Call] Error:', err);
+      toast.error(err.message || 'Failed to start call');
+      
+      // Cleanup on error
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current = null;
+      }
+      setCallStatus('idle');
     }
   };
 
@@ -368,78 +391,52 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     const callerPeerId = (window as any).incomingPeerId;
     const callerId = (window as any).incomingCallerId;
     
-    // 1. Helper to ensure PeerJS is ready for the receiver
-    const ensureReceiverPeerId = (): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        if (peerId && peerRef.current && !peerRef.current.destroyed) {
-          resolve(peerId);
-          return;
-        }
-
-        console.log('Initializing PeerJS for receiver on demand...');
-        const peerIdToUse = `light-user-${currentUser.id}-${Date.now()}`;
-        const peer = new Peer(peerIdToUse, {
-          debug: 1,
-          config: {
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
-            ]
-          }
-        });
-
-        peer.on('open', (id) => {
-          setPeerId(id);
-          peerRef.current = peer;
-          resolve(id);
-        });
-
-        peer.on('error', (err) => {
-          console.error('Receiver PeerJS error:', err);
-          reject(err);
-        });
-
-        setTimeout(() => reject(new Error('Receiver PeerJS timeout')), 8000);
-      });
-    };
+    console.log('[Call] Accepting call from:', callerId, 'with PeerID:', callerPeerId);
 
     try {
+      // 1. Ensure we have a PeerJS connection
+      if (!peerId || !peerRef.current || peerRef.current.destroyed) {
+        toast.error('Connection not ready. Please try again.');
+        setCallStatus('idle');
+        return;
+      }
+
       // 2. Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
       });
       localStreamRef.current = stream;
+      console.log('[Call] Microphone access granted for receiver');
       
-      // 3. Ensure our PeerJS is ready to receive/send audio
-      const myPeerId = await ensureReceiverPeerId();
-      
-      // 4. Answer the incoming call if it exists, or call back
+      // 3. Answer the incoming PeerJS call if it exists
       if (currentCallRef.current) {
-        console.log('Answering existing PeerJS call');
+        console.log('[Call] Answering existing PeerJS call');
         currentCallRef.current.answer(stream);
         setupCallEvents(currentCallRef.current);
-      } else if (callerPeerId) {
-        console.log('Initiating callback to caller:', callerPeerId);
-        const call = peerRef.current!.call(callerPeerId, stream);
-        currentCallRef.current = call;
-        setupCallEvents(call);
+      } else {
+        console.log('[Call] No incoming call object yet, waiting for PeerJS call event...');
+        // The call will be answered automatically in the peer.on('call') handler
+        // which already has the logic to answer with localStreamRef.current
       }
       
-      // 5. Notify caller that we accepted via Supabase Realtime
+      // 4. Notify caller that we accepted via Supabase Realtime
       await fetch('/api/calls/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           receiverId: callerId,
-          receiverPeerId: myPeerId
+          receiverPeerId: peerId
         })
       });
       
+      console.log('[Call] Acceptance notification sent');
       setCallStatus('connected');
 
     } catch (err: any) {
-      console.error('Accept call error:', err);
+      console.error('[Call] Accept error:', err);
       toast.error(err.message || 'Could not connect call');
+      
+      // Cleanup on error
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
         localStreamRef.current = null;
@@ -449,13 +446,17 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const setupCallEvents = (call: any) => {
+    console.log('[Call] Setting up call event handlers');
+    
     call.on('stream', (remoteStream: MediaStream) => {
-      console.log('Received remote stream');
+      console.log('[Call] Received remote stream:', remoteStream);
+      console.log('[Call] Remote stream tracks:', remoteStream.getTracks());
       
       // Create audio element if it doesn't exist
       if (!remoteAudioRef.current) {
         remoteAudioRef.current = new Audio();
         remoteAudioRef.current.autoplay = true;
+        remoteAudioRef.current.volume = 1.0;
       }
       
       // Set the remote stream
@@ -463,21 +464,23 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       
       // Play the audio
       remoteAudioRef.current.play()
-        .then(() => console.log('Remote audio playing successfully'))
+        .then(() => {
+          console.log('[Call] Remote audio playing successfully');
+          console.log('[Call] Audio element volume:', remoteAudioRef.current?.volume);
+        })
         .catch(e => {
-          console.error("Audio play error:", e);
-          // Try to play again after user interaction
+          console.error('[Call] Audio play error:', e);
           toast.error('Please click anywhere to enable audio');
         });
     });
 
     call.on('close', () => {
-      console.log('Call stream closed');
+      console.log('[Call] Call stream closed');
       handleEndCall();
     });
 
     call.on('error', (err: any) => {
-      console.error('Call stream error:', err);
+      console.error('[Call] Call stream error:', err);
       handleEndCall();
     });
   };
