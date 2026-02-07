@@ -245,6 +245,11 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         }
       }
 
+      // If already connected, don't re-init
+      if (peerRef.current && !peerRef.current.destroyed && !peerRef.current.disconnected) {
+        return;
+      }
+
       console.log(`Initializing PeerJS (Attempt ${retryCount + 1})...`);
       
       // Use a slightly randomized ID if the primary one is taken, or just retry
@@ -252,6 +257,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       
       const peer = new Peer(peerIdToUse, {
         debug: 1,
+        secure: true,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -350,9 +356,23 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         Peer = module.default;
       }
 
-      // 2. Ensure we have a PeerJS connection
-      if (!peerId || !peerRef.current || peerRef.current.destroyed) {
-        toast.error('Connection not ready. Please try again.');
+      // 2. Ensure we have a PeerJS connection, if not, try to init it
+      if (!peerRef.current || peerRef.current.destroyed || peerRef.current.disconnected) {
+        console.log('[Call] Peer not ready, attempting to re-initialize...');
+        // We can't wait for initPeer because it's in a useEffect, but we can try to re-init
+        // For now, let's show a more helpful message and try to trigger a re-init
+        toast.info('Connecting to call server, please wait a moment...');
+        
+        // If it's completely missing, we might need to wait for the useEffect to run
+        // or manually trigger the init logic if we move it outside
+        if (!peerId) {
+          setTimeout(() => handleStartCall(), 2000);
+          return;
+        }
+      }
+
+      if (!peerId || !peerRef.current) {
+        toast.error('Connection not ready. Please try again in a few seconds.');
         setCallStatus('idle');
         return;
       }
