@@ -1,26 +1,19 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Send, Image as ImageIcon, ArrowLeft, MoreVertical, Phone, Video,
-  Search, Smile, Paperclip, Mic, X, Check, CheckCheck, Trash2,
-  User as UserIcon, MessageCircle, Loader2, MessageSquare, Shield,
-  Info, Camera, Lock, Settings, Bell, Archive, UserPlus, Ghost,
-  RefreshCw
+  Send, ArrowLeft, MoreVertical, Phone, Video,
+  Search, Smile, Paperclip, Mic, Check, CheckCheck,
+  MessageSquare, Loader2, Shield, Lock, Ghost,
+  Camera, RefreshCw, UserX, Wifi, WifiOff, Volume2, VolumeX
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
-import CallOverlay from './CallOverlay';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabase/client';
 
 // PeerJS will be imported dynamically to avoid SSR issues
 let Peer: any;
-if (typeof window !== 'undefined') {
-  import('peerjs').then(module => {
-    Peer = module.default;
-  });
-}
 
 interface SignalMessengerProps {
   currentUser: any;
@@ -57,15 +50,21 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [callOtherUser, setCallOtherUser] = useState({ name: '', avatar: '' as string | null });
   const [peerId, setPeerId] = useState<string | null>(null);
   const [isPeerReady, setIsPeerReady] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOn, setIsVideoOn] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const callDurationRef = useRef<NodeJS.Timeout | null>(null);
   const peerRef = useRef<any>(null);
   const currentCallRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const messageIds = useRef<Set<string>>(new Set());
 
   // Load Conversations
   const loadConversations = useCallback(async (targetUserId?: number) => {
@@ -100,8 +99,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         }  
         setIsLoading(false);  
       }  
-    } catch (error) { console.error(error); }
-
+    } catch (error) { console.error('Load conversations error:', error); }
   }, [selectedConversation]);
 
   useEffect(() => {
@@ -109,7 +107,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     loadConversations(initialUserId);
   }, [currentUser?.id, initialUserId, loadConversations]);
 
-  // Initialize Peer Connection
+  // Initialize PeerJS connection
   const initializePeerConnection = useCallback(async () => {
     if (typeof window === 'undefined' || !currentUser?.id) {
       console.log('[Signal] Cannot initialize: window not defined or no user');
@@ -133,49 +131,54 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         peerRef.current.destroy();
       }
 
-      const peerIdToUse = `signal-${currentUser.id}-${Date.now()}`;
+      // Generate unique peer ID with timestamp
+      const peerIdToUse = `signal-${currentUser.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       console.log('[Signal] Creating new peer with ID:', peerIdToUse);
       
+      // Use public PeerJS server
       const peer = new Peer(peerIdToUse, {
-        debug: 3,
+        host: '0.peerjs.com',
+        port: 443,
+        path: '/',
         secure: true,
+        debug: 3,
         config: {
           iceServers: [
+            // Public STUN servers
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'stun:stun2.l.google.com:19302' },
             { urls: 'stun:stun3.l.google.com:19302' },
             { urls: 'stun:stun4.l.google.com:19302' },
-            // Public TURN servers from Metered.ca
+            { urls: 'stun:stun.voipbuster.com:3478' },
+            { urls: 'stun:stun.voipstunt.com:3478' },
+            // Public TURN servers (free)
             {
-              urls: 'turn:a.relay.metered.ca:80',
-              username: 'metered',
-              credential: 'metered'
+              urls: 'turn:numb.viagenie.ca',
+              credential: 'muazkh',
+              username: 'webrtc@live.com'
             },
             {
-              urls: 'turn:a.relay.metered.ca:443',
-              username: 'metered',
-              credential: 'metered'
-            },
-            {
-              urls: 'turn:a.relay.metered.ca:443?transport=tcp',
-              username: 'metered',
-              credential: 'metered'
+              urls: 'turn:turn.bistri.com:80',
+              credential: 'homeo',
+              username: 'homeo'
             }
           ],
           iceCandidatePoolSize: 10,
-          iceTransportPolicy: 'all'
+          iceTransportPolicy: 'all',
+          rtcpMuxPolicy: 'require',
+          bundlePolicy: 'max-bundle'
         }
       });
 
       return new Promise<string>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error('Peer connection timeout (10s)'));
-        }, 10000);
+          reject(new Error('Connection timeout (15 seconds)'));
+        }, 15000);
 
         peer.on('open', async (id: string) => {
           clearTimeout(timeout);
-          console.log('[Signal] Peer connection opened with ID:', id);
+          console.log('[Signal] ✅ Peer connection opened with ID:', id);
           setPeerId(id);
           peerRef.current = peer;
           setIsPeerReady(true);
@@ -184,180 +187,283 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
           try {
             await supabase
               .from('users')
-              .update({ current_peer_id: id })
+              .update({ 
+                current_peer_id: id,
+                last_seen: new Date().toISOString(),
+                is_online: true 
+              })
               .eq('id', currentUser.id);
-            console.log('[Signal] Updated peer ID in database');
+            console.log('[Signal] ✅ Updated peer ID in database');
           } catch (dbError) {
-            console.error('[Signal] Error updating database:', dbError);
+            console.error('[Signal] ❌ Error updating database:', dbError);
           }
           
+          toast.success('Connected to call server');
           resolve(id);
         });
 
         peer.on('call', (call: any) => {
-          console.log('[Signal] Incoming call received');
+          console.log('[Signal] 📞 Incoming call received from:', call.peer);
           currentCallRef.current = call;
-          // Don't answer automatically - wait for user to accept
+          
+          // Show incoming call UI
+          const callerId = call.peer.split('-')[1];
+          if (selectedConversation?.other_user_id === parseInt(callerId)) {
+            setCallStatus('incoming');
+          }
         });
 
         peer.on('error', (err: any) => {
-          console.error('[Signal] Peer error:', err);
+          console.error('[Signal] ❌ Peer error:', err);
           clearTimeout(timeout);
           
           if (err.type === 'unavailable-id') {
-            // Try again with different ID
-            console.log('[Signal] Peer ID unavailable, will retry...');
-            setTimeout(() => initializePeerConnection(), 1000);
+            console.log('[Signal] 🔄 Peer ID unavailable, retrying with new ID...');
+            setTimeout(() => initializePeerConnection(), 2000);
+          } else if (err.type === 'network') {
+            console.log('[Signal] 🌐 Network error, checking connection...');
+            toast.error('Network connection issue');
           }
           
           reject(err);
         });
 
         peer.on('disconnected', () => {
-          console.log('[Signal] Peer disconnected');
+          console.log('[Signal] 🔌 Peer disconnected');
           setIsPeerReady(false);
+          toast.info('Connection lost, reconnecting...');
+          
+          // Try to reconnect
+          setTimeout(() => {
+            if (!peer.destroyed) {
+              peer.reconnect();
+            }
+          }, 3000);
         });
 
         peer.on('close', () => {
-          console.log('[Signal] Peer connection closed');
+          console.log('[Signal] 🔒 Peer connection closed');
           setIsPeerReady(false);
         });
       });
     } catch (error) {
-      console.error('[Signal] Failed to initialize peer:', error);
-      toast.error('Failed to initialize connection');
+      console.error('[Signal] ❌ Failed to initialize peer:', error);
+      toast.error('Connection failed. Please refresh the page.');
       setIsPeerReady(false);
       throw error;
     }
-  }, [currentUser?.id, toast]);
+  }, [currentUser?.id, toast, selectedConversation]);
 
   // Initialize peer connection on mount
   useEffect(() => {
     if (!currentUser?.id || typeof window === 'undefined') return;
 
-    console.log('[Signal] Initializing peer connection for user:', currentUser.id);
+    console.log('[Signal] 🚀 Initializing peer connection for user:', currentUser.id);
     
-    initializePeerConnection().catch(error => {
-      console.error('[Signal] Initial peer initialization failed:', error);
-    });
+    const init = async () => {
+      try {
+        await initializePeerConnection();
+      } catch (error) {
+        console.error('[Signal] ❌ Initial peer initialization failed:', error);
+      }
+    };
+    
+    init();
 
+    // Cleanup on unmount
     return () => {
-      console.log('[Signal] Cleaning up peer connection');
+      console.log('[Signal] 🧹 Cleaning up peer connection');
       if (peerRef.current && !peerRef.current.destroyed) {
         peerRef.current.destroy();
       }
       if (currentUser?.id) {
-        supabase.from('users').update({ current_peer_id: null }).eq('id', currentUser.id);
+        supabase.from('users').update({ 
+          current_peer_id: null,
+          is_online: false 
+        }).eq('id', currentUser.id);
       }
     };
   }, [currentUser?.id, initializePeerConnection]);
 
-  // Load Messages when conversation selected
+  // Subscribe to real-time messages and calls
   useEffect(() => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || !currentUser?.id) return;
+
+    let isSubscribed = true;
+    messageIds.current.clear();
 
     const loadMessages = async () => {  
       try {  
         const res = await fetch(`/api/direct-messages/${selectedConversation.other_user_id}`);  
-        if (res.ok) {  
+        if (res.ok && isSubscribed) {  
           const data = await res.json();  
-          setMessages(data.messages || []);  
+          const uniqueMessages = data.messages?.filter((msg: any) => {
+            if (messageIds.current.has(msg.id)) return false;
+            messageIds.current.add(msg.id);
+            return true;
+          }) || [];
+          setMessages(uniqueMessages);  
           setOtherUserOnline(selectedConversation.is_online);  
           setOtherUserLastSeen(selectedConversation.last_seen);  
           scrollToBottom();  
         }  
-      } catch (error) { console.error(error); }  
+      } catch (error) { console.error('Load messages error:', error); }  
     };  
 
     loadMessages();  
 
-    // Subscribe to real-time messages for this user  
-    const channel = supabase.channel(`user-${currentUser.id}`, {  
-      config: { broadcast: { self: true } }  
+    // Create unique channel name for this conversation
+    const channelName = `dm-${Math.min(currentUser.id, selectedConversation.other_user_id)}-${Math.max(currentUser.id, selectedConversation.other_user_id)}`;
+    console.log('[Signal] 📡 Subscribing to channel:', channelName);
+    
+    const channel = supabase.channel(channelName, {  
+      config: { 
+        broadcast: { self: false, ack: true }
+      }  
     });  
 
-    channel  
-      .on('broadcast', { event: 'private-message' }, ({ payload }) => {  
-        const msg = payload.message;  
-        if (msg.sender_id === selectedConversation.other_user_id || msg.receiver_id === selectedConversation.other_user_id) {  
-          setMessages(prev => {  
-            if (prev.find(m => m.id === msg.id)) return prev;  
-            return [...prev, msg];  
-          });  
-          scrollToBottom();  
-            
-          // Mark as read if we are the receiver  
-          if (msg.receiver_id === currentUser.id) {  
-            fetch(`/api/direct-messages/${selectedConversation.other_user_id}/read`, { method: 'POST' });  
-          }  
-        }  
-        // Update conversations list  
-        loadConversations();  
-      })  
-      .on('broadcast', { event: 'typing' }, ({ payload }) => {  
-        if (payload.userId === selectedConversation.other_user_id) {  
-          setOtherUserTyping(payload.isTyping);  
-        }  
-      })  
-      .on('broadcast', { event: 'incoming-call' }, ({ payload }) => {  
-        if (payload.receiverId === currentUser.id) {
-          console.log('[Signal] Received incoming call broadcast:', payload);
+    // Message handler
+    channel.on('broadcast', { event: 'new-message' }, ({ payload }) => {  
+      if (!isSubscribed) return;
+      
+      const msg = payload;
+      if ((msg.sender_id === selectedConversation.other_user_id && msg.receiver_id === currentUser.id) ||
+          (msg.receiver_id === selectedConversation.other_user_id && msg.sender_id === currentUser.id)) {  
+        
+        if (messageIds.current.has(msg.id)) return;
+        messageIds.current.add(msg.id);
+        
+        setMessages(prev => [...prev, msg]);  
+        scrollToBottom();  
           
-          // Ensure peer is ready
-          if (!isPeerReady) {
-            console.log('[Signal] Peer not ready, initializing...');
-            toast.info('Setting up connection for incoming call...');
-            initializePeerConnection().then(() => {
-              setCallOtherUser({ 
-                name: payload.callerName, 
-                avatar: payload.callerAvatar 
-              });
-              setCallStatus('incoming');
-              setCallType(payload.callType || 'audio');
-              (window as any).incomingPeerId = payload.callerPeerId;
-              (window as any).incomingCallerId = payload.callerId;
-              console.log('[Signal] Call setup complete');
-            }).catch(err => {
-              console.error('[Signal] Failed to initialize peer for incoming call:', err);
-              toast.error('Failed to accept call - connection error');
-            });
-          } else {
-            setCallOtherUser({ 
-              name: payload.callerName, 
-              avatar: payload.callerAvatar 
-            });
-            setCallStatus('incoming');
-            setCallType(payload.callType || 'audio');
-            (window as any).incomingPeerId = payload.callerPeerId;
-            (window as any).incomingCallerId = payload.callerId;
-            console.log('[Signal] Incoming call set up');
-          }
+        // Mark as read if we are the receiver  
+        if (msg.receiver_id === currentUser.id && !msg.is_read) {  
+          fetch(`/api/direct-messages/${msg.id}/read`, { method: 'POST' });  
         }  
-      })  
-      .on('broadcast', { event: 'call-accepted' }, ({ payload }) => {  
-        if (payload.receiverId === currentUser.id) {  
-          console.log('[Signal] Call accepted by other user');
-          setCallStatus('connected');  
-        }  
-      })  
-      .on('broadcast', { event: 'call-ended' }, ({ payload }) => {  
-        if (payload.receiverId === currentUser.id) {  
-          console.log('[Signal] Call ended by other user');
-          handleEndCall();  
-        }  
-      })  
-      .subscribe();  
+      }  
+    });
+
+    // Typing indicator handler
+    channel.on('broadcast', { event: 'typing' }, ({ payload }) => {  
+      if (!isSubscribed) return;
+      if (payload.userId === selectedConversation.other_user_id) {  
+        setOtherUserTyping(payload.isTyping);  
+      }  
+    });
+
+    // Incoming call handler
+    channel.on('broadcast', { event: 'incoming-call' }, ({ payload }) => {  
+      if (!isSubscribed) return;
+      if (payload.receiverId === currentUser.id) {
+        console.log('[Signal] 📞 Received call invitation from:', payload.callerName);
+        
+        setCallOtherUser({ 
+          name: payload.callerName, 
+          avatar: payload.callerAvatar 
+        });
+        setCallStatus('incoming');
+        setCallType(payload.callType || 'audio');
+        
+        // Store caller info for later use
+        (window as any).callerInfo = {
+          peerId: payload.callerPeerId,
+          userId: payload.callerId
+        };
+        
+        // Play ringtone
+        playRingtone();
+      }  
+    });
+
+    // Call accepted handler
+    channel.on('broadcast', { event: 'call-accepted' }, ({ payload }) => {  
+      if (!isSubscribed) return;
+      if (payload.receiverId === currentUser.id) {  
+        console.log('[Signal] ✅ Call accepted by other user');
+        setCallStatus('connected');  
+        stopRingtone();
+        startCallTimer();
+      }  
+    });
+
+    // Call ended handler
+    channel.on('broadcast', { event: 'call-ended' }, ({ payload }) => {  
+      if (!isSubscribed) return;
+      if (payload.receiverId === currentUser.id) {  
+        console.log('[Signal] ❌ Call ended by other user');
+        stopRingtone();
+        handleEndCall();  
+      }  
+    });
+
+    // User online status
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      const otherUserPresent = Object.keys(state).some(key => 
+        key.includes(`user-${selectedConversation.other_user_id}`)
+      );
+      setOtherUserOnline(otherUserPresent);
+    });
+
+    // Subscribe to channel
+    channel.subscribe(async (status) => {
+      console.log('[Signal] Channel status:', status);
+      if (status === 'SUBSCRIBED') {
+        // Track presence
+        await channel.track({
+          userId: currentUser.id,
+          online_at: new Date().toISOString()
+        });
+      }
+    });
 
     channelRef.current = channel;  
 
     return () => {  
+      isSubscribed = false;
+      stopRingtone();
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        console.log('[Signal] Removed Supabase channel');
+        supabase.removeChannel(channelRef.current)
+          .then(() => console.log('[Signal] ✅ Channel removed'))
+          .catch(err => console.error('[Signal] ❌ Error removing channel:', err));
       }
     };
 
-  }, [selectedConversation, currentUser.id, loadConversations, isPeerReady, initializePeerConnection, toast]);
+  }, [selectedConversation, currentUser.id]);
+
+  // Call timer
+  const startCallTimer = useCallback(() => {
+    if (callDurationRef.current) clearInterval(callDurationRef.current);
+    
+    setCallDuration(0);
+    callDurationRef.current = setInterval(() => {
+      setCallDuration(prev => prev + 1);
+    }, 1000);
+  }, []);
+
+  // Ringtone functions
+  const playRingtone = () => {
+    try {
+      const audio = new Audio('/ringtone.mp3');
+      audio.loop = true;
+      audio.volume = 0.5;
+      audio.play().catch(console.error);
+      (window as any).ringtone = audio;
+    } catch (error) {
+      console.error('Error playing ringtone:', error);
+    }
+  };
+
+  const stopRingtone = () => {
+    try {
+      if ((window as any).ringtone) {
+        (window as any).ringtone.pause();
+        (window as any).ringtone.currentTime = 0;
+      }
+    } catch (error) {
+      console.error('Error stopping ringtone:', error);
+    }
+  };
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -365,7 +471,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     }, 100);
   };
 
-  const handleTyping = (e: any) => {
+  const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNewMessage(e.target.value);
     if (!isTyping) {
       setIsTyping(true);
@@ -386,7 +492,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     }, 2000);
   };
 
-  const sendMessage = async (e?: any, mediaUrl?: string, mediaType?: string) => {
+  const sendMessage = async (e?: React.FormEvent, mediaUrl?: string, mediaType?: string) => {
     if (e) e.preventDefault();
     if (!mediaUrl && (!newMessage.trim() || !selectedConversation || isSending)) return;
 
@@ -408,8 +514,18 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
 
       if (res.ok) {  
         const data = await res.json();  
-        setMessages(prev => [...prev, data.message]);  
-        scrollToBottom();  
+        if (!messageIds.current.has(data.message.id)) {
+          messageIds.current.add(data.message.id);
+          setMessages(prev => [...prev, data.message]);  
+          scrollToBottom();  
+          
+          // Send via real-time
+          channelRef.current?.send({
+            type: 'broadcast',
+            event: 'new-message',
+            payload: data.message
+          });
+        }
         loadConversations();  
       }  
     } catch (error) {  
@@ -436,7 +552,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       if (res.ok) {  
         const data = await res.json();  
         const type = file.type.startsWith('image/') ? 'image' : 'video';  
-        await sendMessage(null, data.url, type);  
+        await sendMessage(undefined, data.url, type);  
         toast.success('File sent successfully');  
       } else {  
         const error = await res.json();  
@@ -450,66 +566,57 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     }
   };
 
+  // Call Functions
   const handleStartCall = async (type: 'audio' | 'video' = 'audio') => {
     if (!selectedConversation) {
       toast.error('No conversation selected');
       return;
     }
     
-    console.log('[SignalCall] Starting call with:', selectedConversation.name);
-    console.log('[SignalCall] Peer ready:', isPeerReady);
-    console.log('[SignalCall] Peer ID:', peerId);
-    console.log('[SignalCall] Peer ref:', peerRef.current);
+    console.log('[SignalCall] 📞 Starting', type, 'call with:', selectedConversation.name);
     
+    if (!isPeerReady || !peerRef.current) {
+      toast.error('Connection not ready. Please wait...');
+      return;
+    }
+
     setCallOtherUser({ name: selectedConversation.name, avatar: selectedConversation.avatar });
     setCallStatus('calling');
     setCallType(type);
+    setIsVideoOn(type === 'video');
 
     try {
-      // Check if peer is ready
-      if (!isPeerReady || !peerRef.current || peerRef.current.destroyed || !peerId) {
-        console.log('[SignalCall] Peer not ready, initializing...');
-        toast.info('Setting up secure connection...');
-        
-        try {
-          await initializePeerConnection();
-          console.log('[SignalCall] Peer initialized successfully');
-        } catch (peerError) {
-          console.error('[SignalCall] Failed to initialize peer:', peerError);
-          toast.error('Connection failed. Please try again.');
-          setCallStatus('idle');
-          return;
-        }
-      }
-
-      // Get user media permissions
-      console.log('[SignalCall] Requesting media permissions...');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      // Get media permissions
+      const constraints = { 
         audio: true, 
-        video: type === 'video' 
-      });
+        video: type === 'video' ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        } : false 
+      };
+      
+      console.log('[SignalCall] Requesting media with constraints:', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
-      console.log('[SignalCall] Media permissions granted');
+      console.log('[SignalCall] ✅ Media permissions granted');
 
       // Get receiver's peer ID from database
-      console.log('[SignalCall] Fetching receiver peer ID for user:', selectedConversation.other_user_id);
-      const { data: receiverData, error } = await supabase
+      const { data: receiverData } = await supabase
         .from('users')
         .select('current_peer_id')
         .eq('id', selectedConversation.other_user_id)
         .single();
 
-      if (error || !receiverData?.current_peer_id) {
-        console.error('[SignalCall] Receiver not online or peer ID not found:', error);
+      if (!receiverData?.current_peer_id) {
         toast.error('User is offline or not available for calls');
         handleEndCall();
         return;
       }
 
-      console.log('[SignalCall] Receiver peer ID:', receiverData.current_peer_id);
+      console.log('[SignalCall] 📞 Calling peer:', receiverData.current_peer_id);
 
-      // Send call notification via Supabase
-      console.log('[SignalCall] Sending call notification...');
+      // Send call invitation via Supabase
       await channelRef.current.send({
         type: 'broadcast',
         event: 'incoming-call',
@@ -523,33 +630,31 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         }
       });
 
-      // Start the call
-      console.log('[SignalCall] Initiating call to:', receiverData.current_peer_id);
+      // Start the call with timeout
       const call = peerRef.current.call(receiverData.current_peer_id, stream);
       currentCallRef.current = call;
       setupCallEvents(call);
-      console.log('[SignalCall] Call initiated');
-
-      // Set call timeout
+      
+      // Set call timeout (30 seconds)
       setTimeout(() => {
         if (callStatus === 'calling') {
-          console.log('[SignalCall] Call timeout - no answer');
+          console.log('[SignalCall] ⏰ Call timeout - no answer');
           toast.error('Call timed out. User not answering.');
           handleEndCall();
         }
-      }, 45000); // 45 seconds timeout
+      }, 30000);
 
     } catch (err: any) {
-      console.error('[SignalCall] Error during call setup:', err);
+      console.error('[SignalCall] ❌ Error during call setup:', err);
       
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        toast.error('Microphone/camera permission denied. Please allow access.');
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        toast.error('No microphone/camera found. Please check your device.');
-      } else if (err.message && err.message.includes('offline')) {
-        toast.error('User is offline. Please try again later.');
+      if (err.name === 'NotAllowedError') {
+        toast.error('Microphone/camera permission denied');
+      } else if (err.name === 'NotFoundError') {
+        toast.error('No microphone/camera found');
+      } else if (err.name === 'NotReadableError') {
+        toast.error('Device is busy or not accessible');
       } else {
-        toast.error(err.message || 'Call failed. Please try again.');
+        toast.error('Call failed: ' + (err.message || 'Unknown error'));
       }
       
       handleEndCall();
@@ -557,63 +662,72 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   };
 
   const handleAcceptCall = async () => {
-    console.log('[SignalCall] Accepting incoming call');
-    const callerId = (window as any).incomingCallerId;
-    const callerPeerId = (window as any).incomingPeerId;
+    console.log('[SignalCall] ✅ Accepting incoming call');
+    const callerInfo = (window as any).callerInfo;
     
-    if (!callerPeerId) {
+    if (!callerInfo?.peerId) {
       toast.error('Call information missing');
       handleEndCall();
       return;
     }
 
     try {
-      console.log('[SignalCall] Getting media permissions...');
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: callType === 'video'
-      });
+      stopRingtone();
+      
+      const constraints = { 
+        audio: true, 
+        video: callType === 'video' ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } : false 
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
-      console.log('[SignalCall] Media permissions granted');
+      console.log('[SignalCall] ✅ Media permissions granted for answering');
 
-      // Check if we have a call object already
+      // Answer the call
       if (currentCallRef.current) {
-        console.log('[SignalCall] Answering existing call');
         currentCallRef.current.answer(stream);
         setupCallEvents(currentCallRef.current);
-      } else if (peerRef.current && callerPeerId) {
-        // If no call object, we might need to call back
-        console.log('[SignalCall] No call object, calling back to:', callerPeerId);
-        const call = peerRef.current.call(callerPeerId, stream);
+      } else {
+        // If no call object, initiate call back
+        const call = peerRef.current.call(callerInfo.peerId, stream);
         currentCallRef.current = call;
         setupCallEvents(call);
-      } else {
-        throw new Error('No active call connection');
       }
       
       // Notify caller that call was accepted
-      console.log('[SignalCall] Sending call accepted notification');
       await channelRef.current.send({
         type: 'broadcast',
         event: 'call-accepted',
         payload: {
-          receiverId: callerId,
+          receiverId: callerInfo.userId,
           receiverPeerId: peerId
         }
       });
       
       setCallStatus('connected');
-      console.log('[SignalCall] Call connected');
+      startCallTimer();
+      console.log('[SignalCall] ✅ Call connected');
       
     } catch (err: any) {
-      console.error('[SignalCall] Error accepting call:', err);
+      console.error('[SignalCall] ❌ Error accepting call:', err);
       toast.error('Could not connect to call');
       handleEndCall();
     }
   };
 
   const handleEndCall = useCallback(() => {
-    console.log('[SignalCall] Ending call and cleaning up resources');
+    console.log('[SignalCall] 🚫 Ending call');
+    
+    stopRingtone();
+    
+    // Clear call timer
+    if (callDurationRef.current) {
+      clearInterval(callDurationRef.current);
+      callDurationRef.current = null;
+    }
     
     // Close current call
     if (currentCallRef.current) {
@@ -629,7 +743,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       localStreamRef.current = null;
     }
     
-    // Stop remote audio/video
+    // Stop and clean remote streams
     if (remoteAudioRef.current) {
       remoteAudioRef.current.pause();
       remoteAudioRef.current.srcObject = null;
@@ -639,62 +753,107 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       remoteVideoRef.current.pause();
       remoteVideoRef.current.srcObject = null;
     }
+    
+    if (localVideoRef.current) {
+      localVideoRef.current.pause();
+      localVideoRef.current.srcObject = null;
+    }
 
     // Notify other user that call ended
-    if (selectedConversation) {
-      console.log('[SignalCall] Notifying other user call ended');
-      channelRef.current?.send({
+    if (selectedConversation && channelRef.current) {
+      channelRef.current.send({
         type: 'broadcast',
         event: 'call-ended',
         payload: { receiverId: selectedConversation.other_user_id }
       }).catch(console.error);
     }
 
+    // Reset call states
     setCallStatus('idle');
-    console.log('[SignalCall] Call ended');
+    setCallDuration(0);
+    setIsMuted(false);
+    setIsVideoOn(true);
+    
+    console.log('[SignalCall] ✅ Call ended cleanly');
   }, [selectedConversation]);
 
   const setupCallEvents = (call: any) => {
     console.log('[SignalCall] Setting up call events');
     
     call.on('stream', (remoteStream: MediaStream) => {
-      console.log('[SignalCall] Received remote stream');
+      console.log('[SignalCall] 📹 Received remote stream');
       
-      setTimeout(() => {
-        if (callType === 'video') {
-          const remoteVideo = document.getElementById('remoteVideo') as HTMLVideoElement;
-          const localVideo = document.getElementById('localVideo') as HTMLVideoElement;
-          
-          if (remoteVideo) {
-            remoteVideo.srcObject = remoteStream;
-            remoteVideo.play().catch(console.error);
-            console.log('[SignalCall] Remote video stream playing');
-          }
-          if (localVideo && localStreamRef.current) {
-            localVideo.srcObject = localStreamRef.current;
-            localVideo.play().catch(console.error);
-            console.log('[SignalCall] Local video stream playing');
-          }
-        } else {
-          if (!remoteAudioRef.current) {
-            remoteAudioRef.current = new Audio();
-          }
-          remoteAudioRef.current.srcObject = remoteStream;
-          remoteAudioRef.current.play().catch(console.error);
-          console.log('[SignalCall] Audio stream playing');
+      if (callType === 'video') {
+        if (!remoteVideoRef.current) {
+          remoteVideoRef.current = document.createElement('video');
+          remoteVideoRef.current.autoplay = true;
+          remoteVideoRef.current.playsInline = true;
+          remoteVideoRef.current.style.position = 'fixed';
+          remoteVideoRef.current.style.top = '0';
+          remoteVideoRef.current.style.left = '0';
+          remoteVideoRef.current.style.width = '100%';
+          remoteVideoRef.current.style.height = '100%';
+          remoteVideoRef.current.style.objectFit = 'cover';
+          remoteVideoRef.current.style.zIndex = '9998';
+          document.body.appendChild(remoteVideoRef.current);
         }
-      }, 500);
+        remoteVideoRef.current.srcObject = remoteStream;
+      } else {
+        if (!remoteAudioRef.current) {
+          remoteAudioRef.current = new Audio();
+          remoteAudioRef.current.autoplay = true;
+        }
+        remoteAudioRef.current.srcObject = remoteStream;
+      }
     });
     
     call.on('close', () => {
-      console.log('[SignalCall] Call closed by remote');
+      console.log('[SignalCall] 🔒 Call closed by remote');
       handleEndCall();
     });
     
     call.on('error', (err: any) => {
-      console.error('[SignalCall] Call error:', err);
+      console.error('[SignalCall] ❌ Call error:', err);
       handleEndCall();
     });
+  };
+
+  const toggleMute = () => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoOn(videoTrack.enabled);
+      }
+    }
+  };
+
+  const refreshConnection = async () => {
+    toast.info('Refreshing connection...');
+    setIsPeerReady(false);
+    
+    try {
+      await initializePeerConnection();
+      toast.success('Connection refreshed');
+    } catch (error) {
+      toast.error('Failed to refresh connection');
+    }
+  };
+
+  const formatCallDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getAvatarUrl = (avatar?: string | null) => {
@@ -713,25 +872,14 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     });
   };
 
-  const refreshConnection = async () => {
-    toast.info('Refreshing connection...');
-    try {
-      await initializePeerConnection();
-      toast.success('Connection refreshed successfully');
-    } catch (error) {
-      toast.error('Failed to refresh connection');
-    }
-  };
-
   const filteredConversations = conversations.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="flex h-full bg-white overflow-hidden font-sans text-[#1b1b1b]">
-      {/* Sidebar - Signal Style */}
+      {/* Sidebar */}
       <div className={`w-full md:w-[350px] flex-shrink-0 border-r border-gray-100 flex flex-col ${selectedConversation && 'hidden md:flex'}`}>
-        {/* Sidebar Header */}
         <div className="p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg overflow-hidden">
@@ -742,29 +890,16 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             <h1 className="text-xl font-bold tracking-tight">Signal</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><Search size={20} /></button>
-            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><MoreVertical size={20} /></button>
+            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <Search size={20} />
+            </button>
           </div>
         </div>
 
-        {/* Search Bar */}  
-        <div className="px-4 mb-2">  
-          <div className="relative">  
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />  
-            <input   
-              type="text"   
-              placeholder="Search"   
-              className="w-full bg-gray-100 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none"  
-              value={searchQuery}  
-              onChange={(e) => setSearchQuery(e.target.value)}  
-            />  
-          </div>  
-        </div>  
-
-        {/* Connections Status */}
+        {/* Connection Status */}
         <div className="px-4 mb-3">
-          <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${isPeerReady ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
-            <div className={`w-2 h-2 rounded-full ${isPeerReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
+          <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${isPeerReady ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'}`}>
+            {isPeerReady ? <Wifi size={16} /> : <WifiOff size={16} />}
             <span className="font-medium">
               {isPeerReady ? 'Call Ready' : 'Connecting...'}
             </span>
@@ -777,6 +912,20 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             </button>
           </div>
         </div>
+
+        {/* Search */}
+        <div className="px-4 mb-2">  
+          <div className="relative">  
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />  
+            <input   
+              type="text"   
+              placeholder="Search"   
+              className="w-full bg-gray-100 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none"  
+              value={searchQuery}  
+              onChange={(e) => setSearchQuery(e.target.value)}  
+            />  
+          </div>  
+        </div>  
 
         {/* Conversations List */}  
         <div className="flex-1 overflow-y-auto">  
@@ -795,7 +944,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
           ) : (  
             filteredConversations.map((conv) => (  
               <button  
-                key={conv.other_user_id}  
+                key={`conv-${conv.other_user_id}`}  
                 onClick={() => setSelectedConversation(conv)}  
                 className={`w-full p-3 flex items-center gap-3 hover:bg-gray-50 transition-colors relative ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-blue-50/50' : ''}`}  
               >  
@@ -827,7 +976,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         </div>  
       </div>  
 
-      {/* Chat Area - Signal Style */}  
+      {/* Chat Area */}  
       <div className={`flex-1 flex flex-col bg-white ${!selectedConversation && 'hidden md:flex'}`}>  
         {selectedConversation ? (  
           <>  
@@ -845,7 +994,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                   <p className="text-[11px] text-gray-500 font-medium flex items-center gap-2">  
                     <span className={`inline-flex items-center gap-1 ${isPeerReady ? 'text-green-600' : 'text-yellow-600'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${isPeerReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
-                      {isPeerReady ? 'Call Ready' : 'Connecting...'}
+                      {isPeerReady ? 'Ready for calls' : 'Connecting...'}
                     </span>
                     {otherUserTyping ? (  
                       <span className="text-blue-600 animate-pulse">• typing...</span>  
@@ -863,26 +1012,24 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                   className="p-2.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
                   title="Refresh Connection"
                 >
-                  <RefreshCw size={18} />
+                  <RefreshCw size={18} className={!isPeerReady ? 'animate-spin' : ''} />
                 </button>
                 <button 
                   onClick={() => handleStartCall('video')} 
                   disabled={!isPeerReady || callStatus !== 'idle'}
-                  className={`p-2.5 hover:bg-gray-100 rounded-full transition-colors ${!isPeerReady || callStatus !== 'idle' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600'}`}
-                  title={!isPeerReady ? "Connection not ready" : "Video call"}
+                  className={`p-2.5 rounded-full transition-colors ${!isPeerReady || callStatus !== 'idle' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                  title={!isPeerReady ? "Connecting..." : callStatus !== 'idle' ? "Already in call" : "Video call"}
                 >
                   <Video size={20} />
                 </button>  
                 <button 
                   onClick={() => handleStartCall('audio')} 
                   disabled={!isPeerReady || callStatus !== 'idle'}
-                  className={`p-2.5 hover:bg-gray-100 rounded-full transition-colors ${!isPeerReady || callStatus !== 'idle' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600'}`}
-                  title={!isPeerReady ? "Connection not ready" : "Audio call"}
+                  className={`p-2.5 rounded-full transition-colors ${!isPeerReady || callStatus !== 'idle' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                  title={!isPeerReady ? "Connecting..." : callStatus !== 'idle' ? "Already in call" : "Audio call"}
                 >
                   <Phone size={20} />
                 </button>  
-                <button className="p-2.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"><Search size={20} /></button>  
-                <button className="p-2.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"><MoreVertical size={20} /></button>  
               </div>  
             </div>  
 
@@ -890,7 +1037,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#f9f9f9]">  
               <div className="flex justify-center mb-6">  
                 <div className="bg-blue-50 text-blue-700 text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 border border-blue-100">  
-                  <Lock size={10} /> Signal Encrypted  
+                  <Lock size={10} /> End-to-End Encrypted  
                 </div>  
               </div>  
 
@@ -941,7 +1088,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                   <button type="button" className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"><Smile size={22} /></button>  
                   <textarea   
                     rows={1}  
-                    placeholder="Signal message"  
+                    placeholder="Type a message..."  
                     className="flex-1 bg-transparent border-none focus:ring-0 outline-none py-2 px-2 text-[15px] resize-none max-h-32"  
                     value={newMessage}  
                     onChange={handleTyping}  
@@ -998,28 +1145,17 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             <div className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl mb-8 transform rotate-12">  
               <MessageSquare size={48} />  
             </div>  
-            <h2 className="text-2xl font-bold mb-2">Signal for Web</h2>  
-            <p className="text-gray-500 max-w-xs mx-auto text-sm leading-relaxed">  
-              Select a conversation to start messaging securely with your friends.  
+            <h2 className="text-2xl font-bold mb-2">Signal Messenger</h2>  
+            <p className="text-gray-500 max-w-xs mx-auto text-sm leading-relaxed mb-6">  
+              End-to-end encrypted messaging and calling. Select a conversation to start.  
             </p>  
-            <div className="mt-6 flex flex-col items-center gap-2">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${isPeerReady ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
-                <div className={`w-2 h-2 rounded-full ${isPeerReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
-                <span className="font-medium">
-                  {isPeerReady ? 'Call system ready' : 'Initializing call system...'}
-                </span>
-              </div>
-              {!isPeerReady && (
-                <button 
-                  onClick={refreshConnection}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <RefreshCw size={16} className="animate-spin" />
-                  Initialize Connection
-                </button>
-              )}
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg mb-4 ${isPeerReady ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'}`}>
+              {isPeerReady ? <Wifi size={18} /> : <WifiOff size={18} />}
+              <span className="font-medium">
+                {isPeerReady ? 'Call system ready' : 'Initializing call system...'}
+              </span>
             </div>
-            <div className="mt-10 flex gap-4">  
+            <div className="mt-8 flex gap-4">  
               <div className="flex flex-col items-center gap-1">  
                 <div className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-blue-600"><Shield size={20} /></div>  
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Secure</span>  
@@ -1038,13 +1174,90 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       </div>  
 
       {/* Call Overlay */}  
-      <CallOverlay   
-        callStatus={callStatus}  
-        otherUser={callOtherUser}  
-        onAccept={handleAcceptCall}  
-        onReject={handleEndCall}  
-        onEnd={handleEndCall}  
-      />  
+      {callStatus !== 'idle' && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full mx-4 text-white">
+            {/* Call Header */}
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 rounded-full bg-gray-700 mx-auto mb-4 overflow-hidden">
+                {callOtherUser.avatar ? (
+                  <Image src={getAvatarUrl(callOtherUser.avatar)} alt={callOtherUser.name} width={80} height={80} className="object-cover" unoptimized />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-2xl">
+                    {callOtherUser.name.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <h3 className="text-xl font-bold">{callOtherUser.name}</h3>
+              <p className="text-gray-300 mt-1">
+                {callStatus === 'calling' && 'Calling...'}
+                {callStatus === 'incoming' && 'Incoming call...'}
+                {callStatus === 'connected' && `${formatCallDuration(callDuration)}`}
+              </p>
+            </div>
+
+            {/* Call Controls */}
+            <div className="flex justify-center gap-6 mb-8">
+              {callStatus === 'connected' && (
+                <>
+                  <button 
+                    onClick={toggleMute}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center ${isMuted ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+                  >
+                    {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                  </button>
+                  {callType === 'video' && (
+                    <button 
+                      onClick={toggleVideo}
+                      className={`w-14 h-14 rounded-full flex items-center justify-center ${!isVideoOn ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+                    >
+                      <Camera size={24} />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-center gap-6">
+              {callStatus === 'incoming' && (
+                <>
+                  <button 
+                    onClick={handleEndCall}
+                    className="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center hover:bg-red-700"
+                  >
+                    <Phone size={24} className="rotate-135" />
+                  </button>
+                  <button 
+                    onClick={handleAcceptCall}
+                    className="w-14 h-14 rounded-full bg-green-600 flex items-center justify-center hover:bg-green-700"
+                  >
+                    <Phone size={24} />
+                  </button>
+                </>
+              )}
+              
+              {callStatus === 'calling' && (
+                <button 
+                  onClick={handleEndCall}
+                  className="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center hover:bg-red-700"
+                >
+                  <Phone size={24} className="rotate-135" />
+                </button>
+              )}
+              
+              {callStatus === 'connected' && (
+                <button 
+                  onClick={handleEndCall}
+                  className="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center hover:bg-red-700 mx-auto"
+                >
+                  <Phone size={24} className="rotate-135" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
