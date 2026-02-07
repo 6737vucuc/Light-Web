@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
 Send, Image as ImageIcon, ArrowLeft, MoreVertical, Phone, Video,
