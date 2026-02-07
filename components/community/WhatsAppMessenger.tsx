@@ -304,10 +304,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     if (!selectedConversation) return;
     
     if (!peerId) {
+      console.log('Call button pressed but peerId is not ready yet');
       toast.info('Initializing call system... Please try again in a second.');
       return;
     }
     
+    console.log('Starting call with peerId:', peerId);
     setCallOtherUser({ name: selectedConversation.name, avatar: selectedConversation.avatar });
     setCallStatus('calling');
 
