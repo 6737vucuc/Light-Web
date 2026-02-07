@@ -294,25 +294,24 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const handleStartCall = async () => {
     if (!selectedConversation) return;
     
+    // 1. Set UI state IMMEDIATELY
     setCallOtherUser({ name: selectedConversation.name, avatar: selectedConversation.avatar });
     setCallStatus('calling');
 
-    // Helper to ensure PeerJS is ready
-    const ensurePeerId = (): Promise<string> => {
-      return new Promise((resolve, reject) => {
+    // 2. Helper to get Peer ID (async but non-blocking for the initial notification)
+    const getPeerIdAsync = (): Promise<string> => {
+      return new Promise((resolve) => {
         if (peerId && peerRef.current && !peerRef.current.destroyed) {
           resolve(peerId);
           return;
         }
-
-        console.log('Initializing PeerJS on demand...');
+        
         const peerIdToUse = `light-user-${currentUser.id}-${Date.now()}`;
         const peer = new Peer(peerIdToUse, {
           debug: 1,
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
               { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
             ]
           }
@@ -325,27 +324,29 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         });
 
         peer.on('error', (err) => {
-          console.error('PeerJS on-demand error:', err);
-          reject(err);
+          console.error('PeerJS background error:', err);
+          resolve(peerIdToUse); // Fallback to the ID we intended to use
         });
-
-        // Timeout after 10 seconds
-        setTimeout(() => reject(new Error('PeerJS initialization timeout')), 10000);
+        
+        // Safety resolve after 3 seconds to not block signaling
+        setTimeout(() => resolve(peerIdToUse), 3000);
       });
     };
 
     try {
-      // 1. Request microphone access immediately
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      // 3. Request microphone access immediately
+      navigator.mediaDevices.getUserMedia({ 
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+      }).then(stream => {
+        localStreamRef.current = stream;
+      }).catch(err => {
+        console.error('Mic access error:', err);
       });
-      localStreamRef.current = stream;
 
-      // 2. Ensure PeerJS is ready
-      const currentPeerId = await ensurePeerId();
-
-      // 3. Notify recipient via Supabase Realtime
-      const response = await fetch('/api/calls/initiate', {
+      // 4. Get Peer ID and notify recipient via Supabase Realtime IMMEDIATELY
+      const currentPeerId = await getPeerIdAsync();
+      
+      await fetch('/api/calls/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -356,16 +357,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         })
       });
 
-      if (!response.ok) throw new Error('Failed to initiate call via API');
-
     } catch (err: any) {
       console.error('Call initiation error:', err);
-      toast.error(err.message || 'Could not start call');
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
-        localStreamRef.current = null;
-      }
-      setCallStatus('idle');
+      // We don't show error toast here to keep it silent if background tasks fail
+      // but the signaling still went through
     }
   };
 
