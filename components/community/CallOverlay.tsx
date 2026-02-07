@@ -38,7 +38,7 @@ export default function CallOverlay({ callStatus, otherUser, onAccept, onReject,
       }
     } else if (callStatus === 'calling' || callStatus === 'incoming') {
       // Play ringing sound
-      if (!audioRef.current) {
+      if (!audioRef.current && typeof window !== 'undefined') {
         audioRef.current = new Audio(
           callStatus === 'calling' 
             ? 'https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3' // Outgoing ring

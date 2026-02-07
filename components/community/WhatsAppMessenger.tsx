@@ -4,7 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, Image as ImageIcon, ArrowLeft, MoreVertical, Phone, Search, Smile, Paperclip, Mic, X, Check, CheckCheck, Trash2, User as UserIcon, MessageCircle, Loader2, MessageSquare, Shield } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
-import Peer from 'peerjs';
+// PeerJS will be imported dynamically to avoid SSR issues
+let Peer: any;
+if (typeof window !== 'undefined') {
+  import('peerjs').then(module => {
+    Peer = module.default;
+  });
+}
 import CallOverlay from './CallOverlay';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
@@ -225,7 +231,20 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     let retryCount = 0;
     const maxRetries = 5;
 
-    const initPeer = () => {
+    const initPeer = async () => {
+      if (typeof window === 'undefined') return;
+      
+      // Ensure Peer is loaded
+      if (!Peer) {
+        try {
+          const module = await import('peerjs');
+          Peer = module.default;
+        } catch (err) {
+          console.error('Failed to load PeerJS:', err);
+          return;
+        }
+      }
+
       console.log(`Initializing PeerJS (Attempt ${retryCount + 1})...`);
       
       // Use a slightly randomized ID if the primary one is taken, or just retry
@@ -325,6 +344,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     setCallStatus('calling');
 
     try {
+      // Ensure Peer is loaded
+      if (!Peer && typeof window !== 'undefined') {
+        const module = await import('peerjs');
+        Peer = module.default;
+      }
+
       // 2. Ensure we have a PeerJS connection
       if (!peerId || !peerRef.current || peerRef.current.destroyed) {
         toast.error('Connection not ready. Please try again.');
@@ -394,6 +419,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     console.log('[Call] Accepting call from:', callerId, 'with PeerID:', callerPeerId);
 
     try {
+      // Ensure Peer is loaded
+      if (!Peer && typeof window !== 'undefined') {
+        const module = await import('peerjs');
+        Peer = module.default;
+      }
+
       // 1. Ensure we have a PeerJS connection
       if (!peerId || !peerRef.current || peerRef.current.destroyed) {
         toast.error('Connection not ready. Please try again.');
@@ -453,7 +484,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       console.log('[Call] Remote stream tracks:', remoteStream.getTracks());
       
       // Create audio element if it doesn't exist
-      if (!remoteAudioRef.current) {
+      if (!remoteAudioRef.current && typeof window !== 'undefined') {
         remoteAudioRef.current = new Audio();
         remoteAudioRef.current.autoplay = true;
         remoteAudioRef.current.volume = 1.0;
