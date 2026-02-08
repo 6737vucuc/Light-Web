@@ -212,13 +212,13 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
               onClick={() => initiateCall(recipientId, 'voice')}
               className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-gray-50 hover:bg-purple-50 text-gray-600 hover:text-purple-600 rounded-xl md:rounded-2xl transition-all active:scale-90 border border-gray-100"
             >
-              <Phone size={18} md:size={22} strokeWidth={2.5} />
+              <Phone size={20} strokeWidth={2.5} />
             </button>
             <button 
               onClick={() => initiateCall(recipientId, 'video')}
               className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 rounded-xl md:rounded-2xl transition-all active:scale-90 border border-gray-100"
             >
-              <Video size={18} md:size={22} strokeWidth={2.5} />
+              <Video size={20} strokeWidth={2.5} />
             </button>
             <div className="hidden md:block w-px h-8 bg-gray-100 mx-1"></div>
             <button onClick={onClose} className="hidden md:flex w-12 h-12 items-center justify-center bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all active:scale-90 border border-gray-100">
@@ -232,7 +232,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
               <div className="w-20 h-20 md:w-24 md:h-24 bg-gray-100 rounded-[1.5rem] md:rounded-[2rem] flex items-center justify-center mb-4">
-                <MessageSquare size={40} md:size={48} className="text-gray-300" />
+                <MessageSquare size={48} className="text-gray-300" />
               </div>
               <p className="font-black text-gray-400 text-sm md:text-base">Start a beautiful conversation</p>
             </div>
@@ -291,9 +291,9 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                     {isMine && (
                       <div className="flex items-center">
                         {msg.isRead ? (
-                          <CheckCheck size={12} md:size={14} className="text-blue-500" />
+                          <CheckCheck size={14} className="text-blue-500" />
                         ) : (
-                          <Check size={12} md:size={14} className="text-gray-300" />
+                          <Check size={14} className="text-gray-300" />
                         )}
                       </div>
                     )}
@@ -315,21 +315,21 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                 onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
                 className={`w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl transition-all ${showAttachmentMenu ? 'bg-purple-600 text-white rotate-45' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
               >
-                <Paperclip size={20} md:size={22} />
+                <Paperclip size={22} />
               </button>
               
               {showAttachmentMenu && (
                 <div className="absolute bottom-14 md:bottom-16 left-0 bg-white rounded-2xl md:rounded-[2rem] shadow-2xl border border-gray-100 p-2 md:p-3 flex flex-col gap-1 md:gap-2 animate-in slide-in-from-bottom-4 duration-300 min-w-[160px] md:min-w-[180px]">
                   <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 md:gap-3 p-2 md:p-3 hover:bg-purple-50 rounded-xl md:rounded-2xl transition-colors text-gray-700 font-black text-xs md:text-sm">
-                    <div className="w-8 h-8 md:w-10 md:h-10 bg-purple-100 text-purple-600 rounded-lg md:rounded-xl flex items-center justify-center"><ImageIcon size={18} md:size={20} /></div>
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-purple-100 text-purple-600 rounded-lg md:rounded-xl flex items-center justify-center"><ImageIcon size={20} /></div>
                     Photos
                   </button>
                   <button onClick={() => setShowVoiceRecorder(true)} className="flex items-center gap-2 md:gap-3 p-2 md:p-3 hover:bg-red-50 rounded-xl md:rounded-2xl transition-colors text-gray-700 font-black text-xs md:text-sm">
-                    <div className="w-8 h-8 md:w-10 md:h-10 bg-red-100 text-red-600 rounded-lg md:rounded-xl flex items-center justify-center"><Mic size={18} md:size={20} /></div>
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-red-100 text-red-600 rounded-lg md:rounded-xl flex items-center justify-center"><Mic size={20} /></div>
                     Voice Message
                   </button>
                   <button className="flex items-center gap-2 md:gap-3 p-2 md:p-3 hover:bg-emerald-50 rounded-xl md:rounded-2xl transition-colors text-gray-700 font-black text-xs md:text-sm">
-                    <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-100 text-emerald-600 rounded-lg md:rounded-xl flex items-center justify-center"><FileText size={18} md:size={20} /></div>
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-100 text-emerald-600 rounded-lg md:rounded-xl flex items-center justify-center"><FileText size={20} /></div>
                     Document
                   </button>
                 </div>
@@ -342,7 +342,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 className={`p-1.5 md:p-2 transition-colors ${showEmojiPicker ? 'text-purple-600' : 'text-gray-400 hover:text-gray-600'}`}
               >
-                <Smile size={20} md:size={24} />
+                <Smile size={24} />
               </button>
               
               <input 
@@ -368,7 +368,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
               disabled={(!newMessage.trim() && !isUploading) || isSending}
               className="w-11 h-11 md:w-14 md:h-14 bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-xl md:rounded-[1.5rem] shadow-xl shadow-purple-200 flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
             >
-              <Send size={20} md:size={24} strokeWidth={2.5} />
+              <Send size={24} strokeWidth={2.5} />
             </button>
           </div>
 
@@ -449,13 +449,13 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                       onClick={rejectCall}
                       className="w-16 h-16 md:w-20 md:h-20 bg-white/10 hover:bg-red-500/20 text-white hover:text-red-500 rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-center shadow-2xl transition-all border border-white/10 group"
                     >
-                      <PhoneOff size={28} md:size={32} className="group-hover:scale-110 transition-transform" />
+                      <PhoneOff size={32} className="group-hover:scale-110 transition-transform" />
                     </button>
                     <button 
                       onClick={acceptCall}
                       className="w-20 h-20 md:w-24 md:h-24 bg-emerald-500 text-white rounded-[2.5rem] md:rounded-[3rem] flex items-center justify-center shadow-[0_20px_50px_rgba(16,185,129,0.4)] hover:scale-110 active:scale-90 transition-all"
                     >
-                      <Phone size={32} md:size={40} className="animate-bounce" />
+                      <Phone size={40} className="animate-bounce" />
                     </button>
                   </>
                 ) : (
@@ -464,16 +464,16 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                       onClick={toggleMute}
                       className={`w-14 h-14 md:w-18 md:h-18 ${callState.isMuted ? 'bg-red-500 text-white' : 'bg-white/10 text-white'} rounded-[1.5rem] md:rounded-[2rem] flex items-center justify-center hover:bg-white/20 transition-all border border-white/10`}
                     >
-                      {callState.isMuted ? <MicOff size={24} md:size={28} /> : <Mic size={24} md:size={28} />}
+                      {callState.isMuted ? <MicOff size={28} /> : <Mic size={28} />}
                     </button>
                     <button 
                       onClick={endCall}
                       className="w-20 h-20 md:w-24 md:h-24 bg-red-500 text-white rounded-[2.5rem] md:rounded-[3rem] flex items-center justify-center shadow-[0_20px_50px_rgba(239,68,68,0.4)] hover:scale-110 active:scale-90 transition-all"
                     >
-                      <PhoneOff size={32} md:size={40} />
+                      <PhoneOff size={40} />
                     </button>
                     <button className="w-14 h-14 md:w-18 md:h-18 bg-white/10 text-white rounded-[1.5rem] md:rounded-[2rem] flex items-center justify-center hover:bg-white/20 transition-all border border-white/10">
-                      <Volume2 size={24} md:size={28} />
+                      <Volume2 size={28} />
                     </button>
                   </>
                 )}
