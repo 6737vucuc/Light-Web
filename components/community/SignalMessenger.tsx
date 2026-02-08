@@ -49,6 +49,9 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Call States
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'incoming' | 'connected' | 'ended'>('idle');
@@ -275,6 +278,37 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConversation) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `chat-attachments/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const fileUrl = `https://lzqyucohnjtubivlmdkw.supabase.co/storage/v1/object/public/images/${filePath}`;
+      
+      const encryptedContent = btoa(unescape(encodeURIComponent(`[IMAGE]${fileUrl}`)));
+      await supabase.from('direct_messages').insert({
+        sender_id: currentUser.id,
+        receiver_id: selectedConversation.other_user_id,
+        content: encryptedContent,
+      });
+    } catch (error) {
+      toast.error('فشل رفع الصورة');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
     if (localStream && localVideoRef.current) localVideoRef.current.srcObject = localStream;
@@ -318,8 +352,21 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             {isSupabaseConnected ? 'متصل' : 'جاري الاتصال'}
           </div>
         </div>
+        <div className="px-4 mb-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="بحث عن محادثة..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-50 border-none rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-purple-200 outline-none"
+            />
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto">
-          {conversations.map((conv) => (
+          {conversations.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((conv) => (
             <button key={conv.other_user_id} onClick={() => setSelectedConversation(conv)} className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 border-b border-gray-50/50 ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-[#f5f3ff]' : ''}`}>
               <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border border-gray-100">
                 <Image src={getAvatarUrl(conv.avatar)} alt={conv.name} width={48} height={48} className="object-cover" unoptimized />
@@ -361,8 +408,23 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#fcfcfc]">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-[15px] shadow-sm ${msg.sender_id === currentUser.id ? 'bg-[#7c3aed] text-white rounded-br-none' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'}`}>
-                    {decodeMessage(msg.content)}
+                  <div className={`max-w-[85%] rounded-2xl text-[15px] shadow-sm overflow-hidden ${msg.sender_id === currentUser.id ? 'bg-[#7c3aed] text-white rounded-br-none' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'}`}>
+                    {decodeMessage(msg.content).startsWith('[IMAGE]') ? (
+                      <div className="p-1">
+                        <Image 
+                          src={decodeMessage(msg.content).replace('[IMAGE]', '')} 
+                          alt="Attachment" 
+                          width={300} 
+                          height={300} 
+                          className="rounded-xl object-cover max-w-full h-auto"
+                          unoptimized
+                        />
+                      </div>
+                    ) : (
+                      <div className="px-4 py-2.5">
+                        {decodeMessage(msg.content)}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -374,7 +436,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                 <div className="flex-1 bg-gray-100 rounded-2xl flex items-center px-3 py-1 border border-transparent focus-within:border-purple-200 focus-within:bg-white transition-all shadow-inner">
                   <button type="button" className="p-1.5 text-gray-400 hover:text-[#7c3aed]"><Smile size={22} /></button>
                   <input type="text" value={newMessage} onChange={handleTyping} placeholder={t('typeMessage')} className="flex-1 bg-transparent border-none px-2 py-2 focus:ring-0 outline-none text-[15px] text-gray-800" />
-                  <button type="button" className="p-1.5 text-gray-400 hover:text-[#7c3aed]"><Paperclip size={22} /></button>
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
+                  <button 
+                    type="button" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="p-1.5 text-gray-400 hover:text-[#7c3aed] disabled:opacity-50"
+                  >
+                    {isUploading ? <Loader2 size={22} className="animate-spin" /> : <Paperclip size={22} />}
+                  </button>
                 </div>
                 <button type="submit" disabled={!newMessage.trim() || isSending} className="p-3 bg-[#7c3aed] text-white rounded-full shadow-md hover:bg-[#6d28d9] disabled:opacity-50 transition-all flex-shrink-0">
                   <Send size={20} />
