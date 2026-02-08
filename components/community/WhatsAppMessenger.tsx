@@ -15,6 +15,8 @@ import CallOverlay from './CallOverlay';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabase/client';
+import { peerJSConfig, audioConstraints, getErrorMessage, checkWebRTCSupport } from '@/lib/webrtc/config';
+import { WebRTCStatsMonitor, CallQuality } from '@/lib/webrtc/stats';
 
 interface WhatsAppMessengerProps {
   currentUser: any;
@@ -54,6 +56,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const channelRef = useRef<any>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const statsMonitorRef = useRef<WebRTCStatsMonitor | null>(null);
 
   // Load Conversations
   const loadConversations = async (targetUserId?: number) => {
@@ -255,28 +258,8 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       // Use a slightly randomized ID if the primary one is taken, or just retry
       const peerIdToUse = `light-user-${currentUser.id}${retryCount > 0 ? `-${Math.floor(Math.random() * 1000)}` : ''}`;
       
-      const peer = new Peer(peerIdToUse, {
-        debug: 1,
-        secure: true,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            {
-              urls: 'turn:openrelay.metered.ca:80',
-              username: 'openrelayproject',
-              credential: 'openrelayproject'
-            },
-            {
-              urls: 'turn:openrelay.metered.ca:443',
-              username: 'openrelayproject',
-              credential: 'openrelayproject'
-            }
-          ],
-          iceCandidatePoolSize: 10
-        }
-      });
+      // Use optimized PeerJS configuration with Google STUN/TURN servers
+      const peer = new Peer(peerIdToUse, peerJSConfig);
 
       peer.on('open', async (id) => {
         console.log('PeerJS connected with ID:', id);
@@ -377,9 +360,9 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         return;
       }
 
-      // 3. Request microphone access
+      // 3. Request microphone access with high-quality settings
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+        audio: audioConstraints
       });
       localStreamRef.current = stream;
       console.log('[Call] Microphone access granted');
@@ -452,9 +435,9 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         return;
       }
 
-      // 2. Request microphone access
+      // 2. Request microphone access with high-quality settings
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+        audio: audioConstraints
       });
       localStreamRef.current = stream;
       console.log('[Call] Microphone access granted for receiver');
@@ -503,6 +486,22 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       console.log('[Call] Received remote stream:', remoteStream);
       console.log('[Call] Remote stream tracks:', remoteStream.getTracks());
       
+      // Verify stream has active audio tracks
+      const audioTracks = remoteStream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        console.error('[Call] No audio tracks in remote stream');
+        toast.error('No audio received from remote user');
+        return;
+      }
+      
+      console.log('[Call] Audio tracks:', audioTracks.map(t => ({
+        id: t.id,
+        label: t.label,
+        enabled: t.enabled,
+        muted: t.muted,
+        readyState: t.readyState
+      })));
+      
       // Create audio element if it doesn't exist
       if (!remoteAudioRef.current && typeof window !== 'undefined') {
         remoteAudioRef.current = new Audio();
@@ -511,18 +510,55 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       }
       
       // Set the remote stream
-      remoteAudioRef.current.srcObject = remoteStream;
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        
+        // Play the audio with retry logic
+        const playAudio = async (retries = 3) => {
+          try {
+            await remoteAudioRef.current!.play();
+            console.log('[Call] Remote audio playing successfully');
+            console.log('[Call] Audio element volume:', remoteAudioRef.current?.volume);
+          } catch (e: any) {
+            console.error('[Call] Audio play error:', e);
+            if (retries > 0) {
+              console.log(`[Call] Retrying audio play... (${retries} attempts left)`);
+              setTimeout(() => playAudio(retries - 1), 500);
+            } else {
+              toast.error('Please click anywhere to enable audio');
+              // Add click listener to enable audio
+              const enableAudio = () => {
+                remoteAudioRef.current?.play()
+                  .then(() => {
+                    console.log('[Call] Audio enabled after user interaction');
+                    document.removeEventListener('click', enableAudio);
+                  })
+                  .catch(err => console.error('[Call] Still cannot play audio:', err));
+              };
+              document.addEventListener('click', enableAudio, { once: true });
+            }
+          }
+        };
+        
+        playAudio();
+      }
       
-      // Play the audio
-      remoteAudioRef.current.play()
-        .then(() => {
-          console.log('[Call] Remote audio playing successfully');
-          console.log('[Call] Audio element volume:', remoteAudioRef.current?.volume);
-        })
-        .catch(e => {
-          console.error('[Call] Audio play error:', e);
-          toast.error('Please click anywhere to enable audio');
-        });
+      // Start WebRTC stats monitoring
+      if (call.peerConnection && !statsMonitorRef.current) {
+        console.log('[Call] Starting WebRTC stats monitoring');
+        statsMonitorRef.current = new WebRTCStatsMonitor(
+          (stats) => {
+            // Stats update callback (logged automatically)
+          },
+          (quality: CallQuality) => {
+            // Quality change callback
+            if (quality.level === 'poor' || quality.level === 'bad') {
+              console.warn(`[Call] ${quality.message}`);
+            }
+          }
+        );
+        statsMonitorRef.current.start(call.peerConnection, 2000); // Update every 2 seconds
+      }
     });
 
     call.on('close', () => {
@@ -532,6 +568,8 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
     call.on('error', (err: any) => {
       console.error('[Call] Call stream error:', err);
+      const errorMsg = getErrorMessage(err);
+      toast.error(errorMsg);
       handleEndCall();
     });
   };

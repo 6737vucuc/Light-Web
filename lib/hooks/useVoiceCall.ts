@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Peer from 'peerjs';
 import { supabase } from '@/lib/supabase/client';
 import { ChatEvent } from '@/lib/realtime/chat';
+import { peerJSConfig, audioConstraints, getErrorMessage } from '@/lib/webrtc/config';
+import { WebRTCStatsMonitor, CallQuality } from '@/lib/webrtc/stats';
 
 interface CallState {
   isCalling: boolean;
@@ -39,6 +41,7 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<any>(null);
+  const statsMonitorRef = useRef<WebRTCStatsMonitor | null>(null);
 
   const cleanup = useCallback(() => {
     if (localStreamRef.current) {
@@ -53,22 +56,70 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    if (statsMonitorRef.current) {
+      statsMonitorRef.current.stop();
+      statsMonitorRef.current = null;
+    }
     setCallState(initialState);
   }, []);
+
+  const setupCallEvents = useCallback((call: any) => {
+    console.log('[Call] Setting up call event handlers');
+    
+    call.on('stream', (remoteStream: MediaStream) => {
+      console.log('[Call] Received remote stream:', remoteStream);
+      remoteStreamRef.current = remoteStream;
+      
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        
+        const playAudio = async (retries = 3) => {
+          try {
+            await remoteAudioRef.current!.play();
+            console.log('[Call] Remote audio playing successfully');
+          } catch (e) {
+            console.error('[Call] Audio play error:', e);
+            if (retries > 0) {
+              setTimeout(() => playAudio(retries - 1), 500);
+            }
+          }
+        };
+        
+        playAudio();
+      }
+      
+      // Start WebRTC stats monitoring
+      if (call.peerConnection && !statsMonitorRef.current) {
+        statsMonitorRef.current = new WebRTCStatsMonitor(
+          (stats) => {
+            // Stats update logged in monitor
+          },
+          (quality: CallQuality) => {
+            if (quality.level === 'poor' || quality.level === 'bad') {
+              console.warn(`[Call] ${quality.message}`);
+            }
+          }
+        );
+        statsMonitorRef.current.start(call.peerConnection, 2000);
+      }
+    });
+
+    call.on('close', () => {
+      console.log('[Call] Call stream closed');
+      cleanup();
+    });
+
+    call.on('error', (err: any) => {
+      console.error('[Call] Call stream error:', err);
+      cleanup();
+    });
+  }, [cleanup]);
 
   useEffect(() => {
     if (!currentUserId) return;
 
-    // Initialize PeerJS with Google's free STUN server
-    const peer = new Peer(`user-${currentUserId}`, {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-        ],
-      },
-    });
+    // Initialize PeerJS with optimized Google STUN/TURN servers
+    const peer = new Peer(`user-${currentUserId}`, peerJSConfig);
 
     peer.on('open', (id) => {
       console.log('PeerJS connected with ID:', id);
@@ -101,17 +152,14 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
       .on('broadcast', { event: ChatEvent.CALL_ACCEPTED }, async ({ payload }) => {
         if (callState.isCalling || callState.receiverId === payload.acceptorId) {
           try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callState.callType === 'video' });
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+              audio: audioConstraints, 
+              video: callState.callType === 'video' 
+            });
             localStreamRef.current = stream;
             
             const call = peerRef.current!.call(payload.receiverPeerId, stream);
-            call.on('stream', (remoteStream) => {
-              remoteStreamRef.current = remoteStream;
-              if (remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = remoteStream;
-                remoteAudioRef.current.play().catch(console.error);
-              }
-            });
+            setupCallEvents(call);
 
             setCallState(prev => ({ ...prev, isCalling: false, isInCall: true }));
             startTimer();
@@ -136,7 +184,7 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
       supabase.removeChannel(channel);
       cleanup();
     };
-  }, [currentUserId, cleanup, callState.isCalling, callState.receiverId, callState.callType]);
+  }, [currentUserId, cleanup, callState.isCalling, callState.receiverId, callState.callType, setupCallEvents]);
 
   const startTimer = () => {
     timerRef.current = setInterval(() => {
@@ -163,18 +211,15 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
 
   const acceptCall = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callState.callType === 'video' });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: audioConstraints, 
+        video: callState.callType === 'video' 
+      });
       localStreamRef.current = stream;
 
       peerRef.current!.on('call', (call) => {
         call.answer(stream);
-        call.on('stream', (remoteStream) => {
-          remoteStreamRef.current = remoteStream;
-          if (remoteAudioRef.current) {
-            remoteAudioRef.current.srcObject = remoteStream;
-            remoteAudioRef.current.play().catch(console.error);
-          }
-        });
+        setupCallEvents(call);
       });
 
       await fetch('/api/calls/accept', {
