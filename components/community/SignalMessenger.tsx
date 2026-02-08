@@ -4,7 +4,8 @@ import {
   Wifi, WifiOff, RefreshCw, Loader2, User, 
   ChevronLeft, MoreVertical, Paperclip, Smile, Mic,
   PhoneOff, MicOff, VideoOff, X, Volume2, Maximize2,
-  Play, Pause, Trash2, Check, CheckCheck, Search
+  Play, Pause, Trash2, Check, CheckCheck, Search,
+  MapPin, FileText, Download, Reply, Image as ImageIcon
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
@@ -14,14 +15,16 @@ import { supabase } from '@/lib/supabase/client';
 
 let Peer: any;
 
-const decodeMessage = (content: string) => {
-  if (!content) return '';
+// Advanced Encryption/Decryption Helpers
+const encode = (str: string) => btoa(unescape(encodeURIComponent(str)));
+const decode = (str: string) => {
+  if (!str) return '';
   try {
-    if (/^[A-Za-z0-9+/=]+$/.test(content)) {
-      try { return decodeURIComponent(escape(atob(content))); } catch { return atob(content); }
+    if (/^[A-Za-z0-9+/=]+$/.test(str)) {
+      try { return decodeURIComponent(escape(atob(str))); } catch { return atob(str); }
     }
-    return content;
-  } catch (e) { return content; }
+    return str;
+  } catch (e) { return str; }
 };
 
 interface SignalMessengerProps {
@@ -51,6 +54,8 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [otherUserOnline, setOtherUserOnline] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [replyTo, setReplyTo] = useState<any>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice Recording States
@@ -80,58 +85,40 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const initPeer = useCallback(async () => {
     if (typeof window === 'undefined' || !currentUser?.id) return;
     try {
-      if (!Peer) {
-        const module = await import('peerjs');
-        Peer = module.default;
-      }
+      if (!Peer) { const module = await import('peerjs'); Peer = module.default; }
       if (peerRef.current) peerRef.current.destroy();
       const peer = new Peer(`user-${currentUser.id}`, { host: '0.peerjs.com', port: 443, path: '/', secure: true });
       peer.on('open', () => { setIsPeerReady(true); peerRef.current = peer; });
       peer.on('call', async (call: any) => {
-        currentCallRef.current = call;
-        setCallType(call.metadata?.type || 'audio');
-        setCallStatus('incoming');
-        setIncomingCallData({ peerId: call.peer, name: call.metadata?.name, avatar: call.metadata?.avatar });
+        currentCallRef.current = call; setCallType(call.metadata?.type || 'audio');
+        setCallStatus('incoming'); setIncomingCallData({ peerId: call.peer, name: call.metadata?.name, avatar: call.metadata?.avatar });
       });
       peer.on('error', () => setIsPeerReady(false));
     } catch (e) { console.error(e); }
   }, [currentUser?.id]);
 
-  useEffect(() => {
-    initPeer();
-    return () => { if (peerRef.current) peerRef.current.destroy(); };
-  }, [initPeer]);
+  useEffect(() => { initPeer(); return () => { if (peerRef.current) peerRef.current.destroy(); }; }, [initPeer]);
 
-  // Real-time Messaging & Mark as Read
+  // Real-time Engine
   useEffect(() => {
     if (!currentUser?.id || !selectedConversation) return;
-
     const channelId = `chat-${Math.min(currentUser.id, selectedConversation.other_user_id)}-${Math.max(currentUser.id, selectedConversation.other_user_id)}`;
     const channel = supabase.channel(channelId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, async (payload) => {
         if (payload.eventType === 'INSERT') {
           const msg = payload.new;
           if (!messageIds.current.has(msg.id)) {
-            if (msg.sender_id === selectedConversation.other_user_id || msg.receiver_id === selectedConversation.other_user_id) {
-              messageIds.current.add(msg.id);
-              setMessages(prev => [...prev, msg]);
-              setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-              if (msg.sender_id === selectedConversation.other_user_id) {
-                new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
-                // Mark as read in DB
-                await supabase.from('direct_messages').update({ is_read: true }).eq('id', msg.id);
-              }
+            messageIds.current.add(msg.id); setMessages(prev => [...prev, msg]);
+            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+            if (msg.sender_id === selectedConversation.other_user_id) {
+              new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+              await supabase.from('direct_messages').update({ is_read: true }).eq('id', msg.id);
             }
           }
-        } else if (payload.eventType === 'UPDATE') {
-          setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
-        } else if (payload.eventType === 'DELETE') {
-          setMessages(prev => prev.filter(m => m.id !== payload.old.id));
-        }
+        } else if (payload.eventType === 'UPDATE') { setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m)); }
+        else if (payload.eventType === 'DELETE') { setMessages(prev => prev.filter(m => m.id !== payload.old.id)); }
       })
-      .on('broadcast', { event: 'typing' }, ({ payload }) => {
-        if (payload.userId === selectedConversation.other_user_id) setOtherUserTyping(payload.isTyping);
-      })
+      .on('broadcast', { event: 'typing' }, ({ payload }) => { if (payload.userId === selectedConversation.other_user_id) setOtherUserTyping(payload.isTyping); })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
         setOtherUserOnline(Object.keys(state).some(key => (state[key] as any).some((p: any) => p.userId === selectedConversation.other_user_id)));
@@ -140,77 +127,84 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         setIsSupabaseConnected(status === 'SUBSCRIBED');
         if (status === 'SUBSCRIBED') {
           await channel.track({ userId: currentUser.id, online_at: new Date().toISOString() });
-          // Mark all previous messages as read
-          await supabase.from('direct_messages').update({ is_read: true })
-            .eq('sender_id', selectedConversation.other_user_id)
-            .eq('receiver_id', currentUser.id)
-            .eq('is_read', false);
+          await supabase.from('direct_messages').update({ is_read: true }).eq('sender_id', selectedConversation.other_user_id).eq('receiver_id', currentUser.id).eq('is_read', false);
         }
       });
-
     return () => { supabase.removeChannel(channel); };
   }, [currentUser.id, selectedConversation]);
 
-  // Voice Recording Logic
+  // Signaling for Calls
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const channel = supabase.channel(`calls-${currentUser.id}`)
+      .on('broadcast', { event: 'call-request' }, ({ payload }) => { if (callStatus === 'idle') { setCallStatus('incoming'); setCallType(payload.type); setIncomingCallData(payload); } })
+      .on('broadcast', { event: 'call-response' }, ({ payload }) => { if (!payload.accepted) { setCallStatus('idle'); toast.error('تم رفض المكالمة'); stopMedia(); } })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser.id, callStatus]);
+
+  // Advanced Features
+  const shareLocation = async () => {
+    if (!navigator.geolocation) return toast.error('الموقع غير مدعوم');
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const locUrl = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+      await sendMessage('text', `[LOCATION]${locUrl}`);
+    });
+  };
+
+  const uploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConversation) return;
+    setIsUploading(true);
+    try {
+      const type = file.type.startsWith('image/') ? 'image' : 'file';
+      const fileName = `${Date.now()}-${file.name}`;
+      const filePath = `chat-${type}s/${fileName}`;
+      const { error } = await supabase.storage.from('images').upload(filePath, file);
+      if (error) throw error;
+      const url = `https://lzqyucohnjtubivlmdkw.supabase.co/storage/v1/object/public/images/${filePath}`;
+      await sendMessage(type, file.name, url);
+    } catch (e) { toast.error('فشل الرفع'); } finally { setIsUploading(false); }
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      const mr = new MediaRecorder(stream); mediaRecorderRef.current = mr; audioChunksRef.current = [];
+      mr.ondataavailable = (e) => audioChunksRef.current.push(e.data);
+      mr.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const fileName = `${Date.now()}.webm`;
+        const { error } = await supabase.storage.from('images').upload(`chat-voices/${fileName}`, blob);
+        if (!error) {
+          const url = `https://lzqyucohnjtubivlmdkw.supabase.co/storage/v1/object/public/images/chat-voices/${fileName}`;
+          await sendMessage('voice', 'رسالة صوتية', url);
+        }
       };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await uploadMedia(audioBlob, 'voice');
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-      recordingIntervalRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
-    } catch (err) { toast.error('فشل الوصول للميكروفون'); }
+      mr.start(); setIsRecording(true); setRecordingTime(0);
+      recordingIntervalRef.current = setInterval(() => setRecordingTime(p => p + 1), 1000);
+    } catch (e) { toast.error('فشل الميكروفون'); }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+      mediaRecorderRef.current.stop(); setIsRecording(false);
       if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
       mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
     }
   };
 
-  const uploadMedia = async (file: Blob | File, type: 'image' | 'voice') => {
+  const sendMessage = async (type: string, content: string, mediaUrl?: string) => {
     if (!selectedConversation) return;
-    setIsUploading(true);
+    setIsSending(true);
     try {
-      const fileName = `${Math.random()}.${type === 'voice' ? 'webm' : (file as File).name.split('.').pop()}`;
-      const filePath = `chat-${type}s/${fileName}`;
-      const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file);
-      if (uploadError) throw uploadError;
-
-      const fileUrl = `https://lzqyucohnjtubivlmdkw.supabase.co/storage/v1/object/public/images/${filePath}`;
-      const encryptedContent = btoa(unescape(encodeURIComponent(type === 'voice' ? 'رسالة صوتية' : 'صورة')));
-      
       await supabase.from('direct_messages').insert({
-        sender_id: currentUser.id,
-        receiver_id: selectedConversation.other_user_id,
-        content: encryptedContent,
-        message_type: type,
-        media_url: fileUrl
+        sender_id: currentUser.id, receiver_id: selectedConversation.other_user_id,
+        content: encode(content), message_type: type, media_url: mediaUrl,
+        reply_to_id: replyTo?.id
       });
-    } catch (error) { toast.error('فشل الرفع'); } finally { setIsUploading(false); }
-  };
-
-  const deleteMessage = async (id: number) => {
-    try {
-      const { error } = await supabase.from('direct_messages').update({ is_deleted: true, content: btoa('تم حذف هذه الرسالة') }).eq('id', id);
-      if (error) throw error;
-    } catch (e) { toast.error('فشل الحذف'); }
+      setReplyTo(null); setNewMessage('');
+    } catch (e) { toast.error('فشل الإرسال'); } finally { setIsSending(false); }
   };
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,199 +215,232 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedConversation || isSending) return;
-    setIsTyping(false);
-    const content = newMessage.trim();
-    setNewMessage('');
-    setIsSending(true);
-    try {
-      const encryptedContent = btoa(unescape(encodeURIComponent(content)));
-      await supabase.from('direct_messages').insert({
-        sender_id: currentUser.id,
-        receiver_id: selectedConversation.other_user_id,
-        content: encryptedContent,
-        message_type: 'text'
-      });
-    } catch (error) { toast.error('فشل الإرسال'); } finally { setIsSending(false); }
-  };
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (isTyping && selectedConversation) {
+        setIsTyping(false);
+        supabase.channel(`chat-${selectedConversation.other_user_id}`).send({ type: 'broadcast', event: 'typing', payload: { userId: currentUser.id, isTyping: false } });
+      }
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [newMessage, isTyping, selectedConversation, currentUser.id]);
 
-  const getAvatarUrl = (avatar?: string | null) => {
-    if (!avatar) return '/default-avatar.png';
-    if (avatar.startsWith('data:') || avatar.startsWith('http')) return avatar;
-    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
+  const stopMedia = () => { if (localStream) localStream.getTracks().forEach(t => t.stop()); setLocalStream(null); setRemoteStream(null); if (currentCallRef.current) currentCallRef.current.close(); };
+  const endCall = () => { setCallStatus('idle'); stopMedia(); };
+  const acceptCall = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === 'video' }); setLocalStream(s);
+      if (currentCallRef.current) { currentCallRef.current.answer(s); currentCallRef.current.on('stream', (rs: any) => { setRemoteStream(rs); setCallStatus('connected'); }); }
+    } catch (e) { endCall(); }
   };
 
   const startCall = async (type: 'audio' | 'video') => {
     if (!selectedConversation || !isPeerReady) return;
-    setCallStatus('calling');
-    setCallType(type);
+    setCallStatus('calling'); setCallType(type);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
-      setLocalStream(stream);
-      await supabase.channel(`calls-${selectedConversation.other_user_id}`).send({
-        type: 'broadcast', event: 'call-request',
-        payload: { from: currentUser.id, name: currentUser.name, avatar: currentUser.avatar, type, peerId: `user-${currentUser.id}` }
-      });
-      const call = peerRef.current.call(`user-${selectedConversation.other_user_id}`, stream, { metadata: { type, name: currentUser.name, avatar: currentUser.avatar } });
-      call.on('stream', (rStream: MediaStream) => { setRemoteStream(rStream); setCallStatus('connected'); });
-      call.on('close', () => { setCallStatus('idle'); if (localStream) localStream.getTracks().forEach(t => t.stop()); });
-      currentCallRef.current = call;
-    } catch (err) { setCallStatus('idle'); toast.error('فشل الوصول للوسائط'); }
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' }); setLocalStream(s);
+      await supabase.channel(`calls-${selectedConversation.other_user_id}`).send({ type: 'broadcast', event: 'call-request', payload: { from: currentUser.id, name: currentUser.name, avatar: currentUser.avatar, type, peerId: `user-${currentUser.id}` } });
+      const call = peerRef.current.call(`user-${selectedConversation.other_user_id}`, s, { metadata: { type, name: currentUser.name, avatar: currentUser.avatar } });
+      call.on('stream', (rs: any) => { setRemoteStream(rs); setCallStatus('connected'); });
+      call.on('close', endCall); currentCallRef.current = call;
+    } catch (e) { endCall(); }
   };
 
   useEffect(() => {
-    const fetchConversations = async () => {
-      const res = await fetch('/api/direct-messages');
-      if (res.ok) { const data = await res.json(); setConversations(data.conversations || []); }
-      setIsLoading(false);
-    };
-    fetchConversations();
+    if (remoteStream && remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+    if (localStream && localVideoRef.current) localVideoRef.current.srcObject = localStream;
+  }, [remoteStream, localStream]);
+
+  useEffect(() => {
+    const fetch = async () => { const res = await fetch('/api/direct-messages'); if (res.ok) { const d = await res.json(); setConversations(d.conversations || []); } setIsLoading(false); };
+    fetch();
   }, []);
 
-  const loadMessages = useCallback(async (otherId: string) => {
-    const { data } = await supabase.from('direct_messages').select('*')
-      .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUser.id})`)
-      .order('created_at', { ascending: true });
+  const loadMsgs = useCallback(async (id: string) => {
+    const { data } = await supabase.from('direct_messages').select('*').or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUser.id})`).order('created_at', { ascending: true });
     if (data) { setMessages(data); data.forEach(m => messageIds.current.add(m.id)); setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100); }
   }, [currentUser.id]);
 
-  useEffect(() => { if (selectedConversation) loadMessages(selectedConversation.other_user_id); }, [selectedConversation, loadMessages]);
+  useEffect(() => { if (selectedConversation) loadMsgs(selectedConversation.other_user_id); }, [selectedConversation, loadMsgs]);
 
   return (
-    <div className="flex h-full bg-white overflow-hidden font-sans text-[#1b1b1b] relative">
+    <div className="flex h-full bg-[#f8fafc] overflow-hidden font-sans text-[#1e293b] relative">
       {/* Sidebar */}
-      <div className={`w-full md:w-[350px] flex-shrink-0 border-r border-gray-100 flex flex-col ${selectedConversation ? 'hidden md:flex' : 'flex'}`}>
-        <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-white">
-          <h1 className="text-xl font-bold tracking-tight text-[#7c3aed]">Signal</h1>
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium ${isSupabaseConnected ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
-            {isSupabaseConnected ? 'متصل' : 'جاري الاتصال'}
+      <div className={`w-full md:w-[380px] flex-shrink-0 border-r border-slate-200 flex flex-col bg-white ${selectedConversation ? 'hidden md:flex' : 'flex'}`}>
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <h1 className="text-2xl font-black tracking-tighter text-[#7c3aed]">Signal</h1>
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${isSupabaseConnected ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+            {isSupabaseConnected ? 'Live' : 'Syncing'}
           </div>
         </div>
-        <div className="px-4 py-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input type="text" placeholder="بحث عن محادثة..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-gray-50 border-none rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-purple-200 outline-none" />
+        <div className="px-5 py-3">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#7c3aed] transition-colors" size={18} />
+            <input type="text" placeholder="Search chats..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-50 border-none rounded-2xl pl-11 pr-4 py-3 text-sm focus:ring-2 focus:ring-purple-100 outline-none transition-all" />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-2">
           {conversations.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((conv) => (
-            <button key={conv.other_user_id} onClick={() => setSelectedConversation(conv)} className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 border-b border-gray-50/50 ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-[#f5f3ff]' : ''}`}>
-              <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border border-gray-100">
-                <Image src={getAvatarUrl(conv.avatar)} alt={conv.name} width={48} height={48} className="object-cover" unoptimized />
+            <button key={conv.other_user_id} onClick={() => setSelectedConversation(conv)} className={`w-full p-4 mb-1 flex items-center gap-4 rounded-2xl hover:bg-slate-50 transition-all ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-purple-50 shadow-sm' : ''}`}>
+              <div className="relative flex-shrink-0">
+                <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white shadow-sm">
+                  <Image src={conv.avatar || '/default-avatar.png'} alt={conv.name} width={56} height={56} className="object-cover" unoptimized />
+                </div>
+                {conv.is_online && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>}
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <h3 className="font-bold text-[15px] truncate">{conv.name}</h3>
-                <p className="text-sm text-gray-500 truncate">{decodeMessage(conv.last_message) || 'ابدأ المحادثة...'}</p>
+                <div className="flex justify-between items-baseline mb-1">
+                  <h3 className="font-bold text-[16px] truncate text-slate-800">{conv.name}</h3>
+                  <span className="text-[10px] text-slate-400 font-medium">12:45 PM</span>
+                </div>
+                <p className="text-sm text-slate-500 truncate leading-relaxed">{decode(conv.last_message) || 'Start a new story...'}</p>
               </div>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Chat Area */}
+      {/* Chat Engine */}
       <div className={`flex-1 flex flex-col bg-white absolute inset-0 z-20 md:relative md:z-0 ${selectedConversation ? 'flex' : 'hidden md:flex'}`}>
         {selectedConversation ? (
           <>
-            <div className="h-16 border-b border-gray-100 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md">
-              <div className="flex items-center gap-3 min-w-0">
-                <button onClick={() => setSelectedConversation(null)} className="p-2 -ml-2 hover:bg-gray-100 rounded-full md:hidden"><ChevronLeft size={24} /></button>
-                <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-100">
-                  <Image src={getAvatarUrl(selectedConversation.avatar)} alt={selectedConversation.name} width={40} height={40} className="object-cover" unoptimized />
+            <div className="h-20 border-b border-slate-100 flex items-center justify-between px-6 bg-white/90 backdrop-blur-xl sticky top-0 z-10">
+              <div className="flex items-center gap-4 min-w-0">
+                <button onClick={() => setSelectedConversation(null)} className="p-2 -ml-2 hover:bg-slate-100 rounded-xl md:hidden text-slate-600"><ChevronLeft size={28} /></button>
+                <div className="w-12 h-12 rounded-2xl overflow-hidden border border-slate-100 shadow-sm flex-shrink-0">
+                  <Image src={selectedConversation.avatar || '/default-avatar.png'} alt={selectedConversation.name} width={48} height={48} className="object-cover" unoptimized />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="font-bold text-[15px] truncate">{selectedConversation.name}</h2>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${otherUserOnline ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <span className={`text-[11px] font-bold ${otherUserOnline ? 'text-green-600' : 'text-gray-400'}`}>
-                      {otherUserTyping ? 'جاري الكتابة...' : (otherUserOnline ? 'متصل الآن' : 'غير متصل')}
+                  <h2 className="font-bold text-[17px] truncate text-slate-900 leading-tight">{selectedConversation.name}</h2>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`w-2 h-2 rounded-full ${otherUserOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                    <span className={`text-[12px] font-bold ${otherUserOnline ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {otherUserTyping ? 'Typing...' : (otherUserOnline ? 'Active Now' : 'Offline')}
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => startCall('audio')} className="p-2.5 text-[#7c3aed] hover:bg-purple-50 rounded-full transition-colors"><Phone size={20} /></button>
-                <button onClick={() => startCall('video')} className="p-2.5 text-[#7c3aed] hover:bg-purple-50 rounded-full transition-colors"><Video size={20} /></button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => startCall('audio')} className="p-3 text-[#7c3aed] hover:bg-purple-50 rounded-2xl transition-all active:scale-90"><Phone size={22} /></button>
+                <button onClick={() => startCall('video')} className="p-3 text-[#7c3aed] hover:bg-purple-50 rounded-2xl transition-all active:scale-90"><Video size={22} /></button>
+                <button className="p-3 text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"><MoreVertical size={22} /></button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#fcfcfc]">
-              {messages.map((msg) => (
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#fdfdfd] scrollbar-hide">
+              {messages.map((msg, i) => (
                 <div key={msg.id} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'} group relative`}>
-                  <div className={`max-w-[85%] rounded-2xl text-[15px] shadow-sm overflow-hidden ${msg.sender_id === currentUser.id ? 'bg-[#7c3aed] text-white rounded-br-none' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'}`}>
-                    {msg.message_type === 'image' ? (
-                      <div className="p-1"><Image src={msg.media_url} alt="Image" width={300} height={300} className="rounded-xl object-cover max-w-full h-auto" unoptimized /></div>
-                    ) : msg.message_type === 'voice' ? (
-                      <div className="px-4 py-2 flex items-center gap-3 min-w-[200px]">
-                        <Volume2 size={20} />
-                        <audio src={msg.media_url} controls className="h-8 w-full" />
+                  <div className={`max-w-[85%] rounded-3xl text-[15px] shadow-sm transition-all hover:shadow-md overflow-hidden ${msg.sender_id === currentUser.id ? 'bg-[#7c3aed] text-white rounded-br-none' : 'bg-white border border-slate-100 text-slate-800 rounded-bl-none'}`}>
+                    {msg.reply_to_id && (
+                      <div className="mx-2 mt-2 p-2 bg-black/5 rounded-2xl border-l-4 border-white/20 text-[12px] opacity-80">
+                        {decode(messages.find(m => m.id === msg.reply_to_id)?.content) || 'Replied message'}
                       </div>
-                    ) : (
-                      <div className="px-4 py-2.5">{decodeMessage(msg.content)}</div>
                     )}
-                    <div className={`text-[10px] px-2 pb-1 flex items-center justify-end gap-1 opacity-70 ${msg.sender_id === currentUser.id ? 'text-white' : 'text-gray-400'}`}>
+                    {msg.message_type === 'image' ? (
+                      <div className="p-1.5"><Image src={msg.media_url} alt="Image" width={400} height={400} className="rounded-2xl object-cover max-w-full h-auto shadow-sm" unoptimized /></div>
+                    ) : msg.message_type === 'voice' ? (
+                      <div className="px-5 py-3 flex items-center gap-4 min-w-[240px]">
+                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"><Volume2 size={20} /></div>
+                        <audio src={msg.media_url} controls className="h-8 w-full filter invert" />
+                      </div>
+                    ) : msg.message_type === 'file' ? (
+                      <a href={msg.media_url} target="_blank" className="px-5 py-4 flex items-center gap-4 min-w-[200px] hover:bg-black/5 transition-colors">
+                        <FileText size={24} />
+                        <div className="flex-1 truncate"><p className="font-bold text-sm truncate">{decode(msg.content)}</p><p className="text-[10px] opacity-70 uppercase tracking-widest">Download File</p></div>
+                        <Download size={18} />
+                      </a>
+                    ) : (
+                      <div className="px-5 py-3.5 leading-relaxed font-medium">
+                        {decode(msg.content).startsWith('[LOCATION]') ? (
+                          <a href={decode(msg.content).replace('[LOCATION]', '')} target="_blank" className="flex items-center gap-3 underline"><MapPin size={20} /> My Current Location</a>
+                        ) : decode(msg.content)}
+                      </div>
+                    )}
+                    <div className={`text-[10px] px-4 pb-2 flex items-center justify-end gap-1.5 font-bold uppercase tracking-tighter opacity-60 ${msg.sender_id === currentUser.id ? 'text-white' : 'text-slate-400'}`}>
                       {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      {msg.sender_id === currentUser.id && (msg.is_read ? <CheckCheck size={12} className="text-blue-300" /> : <Check size={12} />)}
+                      {msg.sender_id === currentUser.id && (msg.is_read ? <CheckCheck size={14} className="text-purple-200" /> : <Check size={14} />)}
                     </div>
                   </div>
-                  {msg.sender_id === currentUser.id && !msg.is_deleted && (
-                    <button onClick={() => deleteMessage(msg.id)} className="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-500 transition-all ml-2 self-center"><Trash2 size={14} /></button>
-                  )}
+                  <div className={`absolute top-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-all ${msg.sender_id === currentUser.id ? 'right-full mr-2' : 'left-full ml-2'}`}>
+                    <button onClick={() => setReplyTo(msg)} className="p-2 bg-white shadow-sm border border-slate-100 rounded-full text-slate-400 hover:text-[#7c3aed]"><Reply size={14} /></button>
+                    {msg.sender_id === currentUser.id && <button onClick={async () => await supabase.from('direct_messages').delete().eq('id', msg.id)} className="p-2 bg-white shadow-sm border border-slate-100 rounded-full text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>}
+                  </div>
                 </div>
               ))}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-4" />
             </div>
 
-            <div className="p-4 bg-white border-t border-gray-50">
-              <form onSubmit={handleSendMessage} className="flex items-center gap-2 max-w-4xl mx-auto">
-                <div className="flex-1 bg-gray-100 rounded-2xl flex items-center px-3 py-1 border border-transparent focus-within:border-purple-200 focus-within:bg-white transition-all shadow-inner">
-                  <button type="button" className="p-1.5 text-gray-400 hover:text-[#7c3aed]"><Smile size={22} /></button>
-                  <input type="text" value={newMessage} onChange={handleTyping} placeholder="اكتب رسالة..." className="flex-1 bg-transparent border-none px-2 py-2 focus:ring-0 outline-none text-[15px] text-gray-800" disabled={isRecording} />
-                  <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && uploadMedia(e.target.files[0], 'image')} className="hidden" accept="image/*" />
-                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading || isRecording} className="p-1.5 text-gray-400 hover:text-[#7c3aed] disabled:opacity-50">
-                    {isUploading ? <Loader2 size={22} className="animate-spin" /> : <Paperclip size={22} />}
-                  </button>
+            {replyTo && (
+              <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between animate-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-3 text-sm text-slate-600 truncate">
+                  <Reply size={16} className="text-[#7c3aed]" />
+                  <span className="font-bold">Replying to:</span>
+                  <span className="truncate italic">{decode(replyTo.content)}</span>
+                </div>
+                <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-slate-200 rounded-full transition-colors"><X size={16} /></button>
+              </div>
+            )}
+
+            <div className="p-6 bg-white border-t border-slate-100">
+              <form onSubmit={(e) => { e.preventDefault(); sendMessage('text', newMessage); }} className="flex items-center gap-3 max-w-5xl mx-auto relative">
+                <div className="flex-1 bg-slate-50 rounded-[28px] flex items-center px-4 py-1.5 border border-transparent focus-within:border-purple-200 focus-within:bg-white transition-all shadow-inner">
+                  <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 transition-colors ${showEmojiPicker ? 'text-[#7c3aed]' : 'text-slate-400 hover:text-[#7c3aed]'}`}><Smile size={24} /></button>
+                  <input type="text" value={newMessage} onChange={handleTyping} placeholder="Write something magical..." className="flex-1 bg-transparent border-none px-3 py-3 focus:ring-0 outline-none text-[16px] text-slate-800 font-medium" disabled={isRecording} />
+                  <input type="file" ref={fileInputRef} onChange={uploadFile} className="hidden" />
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={shareLocation} className="p-2 text-slate-400 hover:text-[#7c3aed] transition-colors"><MapPin size={22} /></button>
+                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="p-2 text-slate-400 hover:text-[#7c3aed] transition-colors">{isUploading ? <Loader2 size={22} className="animate-spin" /> : <Paperclip size={22} />}</button>
+                  </div>
                 </div>
                 {newMessage.trim() ? (
-                  <button type="submit" disabled={isSending} className="p-3 bg-[#7c3aed] text-white rounded-full shadow-md hover:bg-[#6d28d9] transition-all"><Send size={20} /></button>
+                  <button type="submit" disabled={isSending} className="w-14 h-14 bg-[#7c3aed] text-white rounded-full shadow-lg shadow-purple-200 flex items-center justify-center hover:bg-[#6d28d9] active:scale-90 transition-all"><Send size={24} /></button>
                 ) : (
-                  <button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`p-3 rounded-full shadow-md transition-all ${isRecording ? 'bg-red-500 animate-pulse text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                    <Mic size={20} />
-                  </button>
+                  <button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 ${isRecording ? 'bg-red-500 animate-pulse text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}><Mic size={24} /></button>
+                )}
+                {showEmojiPicker && (
+                  <div className="absolute bottom-full left-0 mb-4 p-4 bg-white shadow-2xl rounded-3xl border border-slate-100 grid grid-cols-6 gap-2 z-50 animate-in zoom-in-95">
+                    {['😊', '😂', '😍', '👍', '🔥', '❤️', '🙌', '✨', '🎉', '🤔', '😎', '💡'].map(e => (
+                      <button key={e} type="button" onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }} className="text-2xl hover:scale-125 transition-transform p-1">{e}</button>
+                    ))}
+                  </div>
                 )}
               </form>
-              {isRecording && <p className="text-center text-xs text-red-500 mt-1 font-bold animate-pulse">جاري التسجيل: {recordingTime} ثانية...</p>}
+              {isRecording && <div className="flex items-center justify-center gap-2 mt-3 text-red-500 font-black text-xs uppercase tracking-widest animate-pulse"><div className="w-2 h-2 bg-red-500 rounded-full"></div> Recording Audio: {recordingTime}s</div>}
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-300"><MessageSquare size={64} className="opacity-10 mb-4" /><p>اختر محادثة للبدء</p></div>
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-200 bg-[#fafafa]">
+            <div className="w-32 h-32 bg-white rounded-[40px] shadow-xl shadow-slate-100 flex items-center justify-center mb-8 border border-slate-50"><MessageSquare size={64} className="text-purple-100" /></div>
+            <h3 className="text-slate-900 font-black text-2xl mb-2 tracking-tight">Your Private Space</h3>
+            <p className="text-slate-400 font-medium">Select a conversation to start the magic.</p>
+          </div>
         )}
       </div>
 
       {/* Call UI Overlay */}
       {callStatus !== 'idle' && (
-        <div className="fixed inset-0 z-[100] bg-[#0f172a] flex flex-col items-center justify-center text-white p-6 animate-in fade-in duration-300">
-          <div className="absolute top-6 right-6"><button onClick={() => { setCallStatus('idle'); if (localStream) localStream.getTracks().forEach(t => t.stop()); }} className="p-2 bg-white/10 hover:bg-white/20 rounded-full"><X size={24} /></button></div>
-          <div className="flex flex-col items-center mb-12">
-            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#7c3aed] mb-6 shadow-2xl animate-pulse">
-              <Image src={getAvatarUrl(callStatus === 'incoming' ? incomingCallData?.avatar : selectedConversation?.avatar)} alt="Avatar" width={128} height={128} className="object-cover" unoptimized />
+        <div className="fixed inset-0 z-[100] bg-[#0f172a] flex flex-col items-center justify-center text-white p-8 animate-in fade-in duration-500 backdrop-blur-3xl">
+          <div className="absolute top-8 right-8"><button onClick={endCall} className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all"><X size={32} /></button></div>
+          <div className="flex flex-col items-center mb-16">
+            <div className="w-40 h-40 rounded-[50px] overflow-hidden border-8 border-[#7c3aed]/30 mb-8 shadow-2xl animate-pulse relative">
+              <Image src={callStatus === 'incoming' ? (incomingCallData?.avatar || '/default-avatar.png') : (selectedConversation?.avatar || '/default-avatar.png')} alt="Avatar" width={160} height={160} className="object-cover" unoptimized />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#7c3aed]/20 to-transparent"></div>
             </div>
-            <h2 className="text-3xl font-bold mb-2">{callStatus === 'incoming' ? incomingCallData?.name : selectedConversation?.name}</h2>
-            <p className="text-purple-300 animate-pulse font-medium">{callStatus === 'calling' ? 'جاري الاتصال...' : callStatus === 'incoming' ? 'مكالمة واردة...' : 'متصل'}</p>
+            <h2 className="text-4xl font-black mb-3 tracking-tight">{callStatus === 'incoming' ? incomingCallData?.name : selectedConversation?.name}</h2>
+            <div className="flex items-center gap-3 px-4 py-1.5 bg-white/10 rounded-full"><div className="w-2 h-2 bg-purple-400 rounded-full animate-ping"></div><p className="text-purple-200 font-bold uppercase tracking-widest text-xs">{callStatus === 'calling' ? 'Calling...' : callStatus === 'incoming' ? 'Incoming Call' : 'Connected'}</p></div>
           </div>
           {callType === 'video' && callStatus === 'connected' && (
-            <div className="relative w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl mb-8">
+            <div className="relative w-full max-w-5xl aspect-video bg-slate-900 rounded-[40px] overflow-hidden shadow-2xl mb-12 border border-white/10">
               <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-              <div className="absolute bottom-4 right-4 w-1/4 aspect-video bg-gray-800 rounded-xl overflow-hidden border-2 border-white/20 shadow-lg"><video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" /></div>
+              <div className="absolute bottom-6 right-6 w-1/3 max-w-[240px] aspect-video bg-slate-800 rounded-3xl overflow-hidden border-4 border-white/20 shadow-2xl"><video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" /></div>
             </div>
           )}
-          <div className="flex items-center gap-6 mt-auto mb-10">
+          <div className="flex items-center gap-8 mt-auto mb-12">
             {callStatus === 'incoming' ? (
-              <><button onClick={acceptCall} className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center hover:bg-green-600 shadow-lg hover:scale-110"><Phone size={32} /></button><button onClick={() => { setCallStatus('idle'); if (localStream) localStream.getTracks().forEach(t => t.stop()); }} className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 shadow-lg hover:scale-110"><PhoneOff size={32} /></button></>
+              <><button onClick={acceptCall} className="w-20 h-20 bg-emerald-500 rounded-[30px] flex items-center justify-center hover:bg-emerald-600 shadow-2xl shadow-emerald-500/40 hover:scale-110 transition-all active:scale-90"><Phone size={40} /></button><button onClick={endCall} className="w-20 h-20 bg-rose-500 rounded-[30px] flex items-center justify-center hover:bg-rose-600 shadow-2xl shadow-rose-500/40 hover:scale-110 transition-all active:scale-90"><PhoneOff size={40} /></button></>
             ) : (
-              <><button onClick={() => setIsMuted(!isMuted)} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isMuted ? 'bg-red-500' : 'bg-white/10 hover:bg-white/20'}`}>{isMuted ? <MicOff size={24} /> : <Mic size={24} />}</button><button onClick={() => { setCallStatus('idle'); if (localStream) localStream.getTracks().forEach(t => t.stop()); }} className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 shadow-lg hover:scale-110"><PhoneOff size={32} /></button>{callType === 'video' && (<button onClick={() => setIsVideoOff(!isVideoOff)} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isVideoOff ? 'bg-red-500' : 'bg-white/10 hover:bg-white/20'}`}>{isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}</button>)}</>
+              <><button onClick={() => setIsMuted(!isMuted)} className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${isMuted ? 'bg-rose-500' : 'bg-white/10 hover:bg-white/20'}`}>{isMuted ? <MicOff size={28} /> : <Mic size={28} />}</button><button onClick={endCall} className="w-20 h-20 bg-rose-500 rounded-[30px] flex items-center justify-center hover:bg-rose-600 shadow-2xl shadow-rose-500/40 hover:scale-110 transition-all active:scale-90"><PhoneOff size={40} /></button>{callType === 'video' && (<button onClick={() => setIsVideoOff(!isVideoOff)} className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${isVideoOff ? 'bg-rose-500' : 'bg-white/10 hover:bg-white/20'}`}>{isVideoOff ? <VideoOff size={28} /> : <Video size={28} />}</button>)}</>
             )}
           </div>
         </div>
