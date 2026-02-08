@@ -25,6 +25,8 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const router = useRouter();
   const params = useParams();
   const locale = params?.locale as string || 'ar';
+  
+  // Try to get translations safely
   const t = useTranslations('messages');
   const toast = useToast();
 
@@ -37,161 +39,117 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
   const [otherUserLastSeen, setOtherUserLastSeen] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
+  
   // Connection States
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'incoming' | 'connected' | 'ended'>('idle');
-  const [callType, setCallType] = useState<'audio' | 'video'>('audio');
-  const [callOtherUser, setCallOtherUser] = useState({ name: '', avatar: '' as string | null });
   const [peerId, setPeerId] = useState<string | null>(null);
   const [isPeerReady, setIsPeerReady] = useState(false);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOn, setIsVideoOn] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const callDurationRef = useRef<NodeJS.Timeout | null>(null);
   const peerRef = useRef<any>(null);
-  const currentCallRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const messageIds = useRef<Set<string>>(new Set());
 
-  // Initialize PeerJS connection
+  // Load Messages from Supabase
+  const loadMessages = useCallback(async (conversationId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('direct_messages')
+        .select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${conversationId}),and(sender_id.eq.${conversationId},receiver_id.eq.${currentUser.id})`)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      if (data) {
+        setMessages(data);
+        data.forEach(msg => messageIds.current.add(msg.id));
+        scrollToBottom();
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      loadMessages(selectedConversation.other_user_id);
+    }
+  }, [selectedConversation, loadMessages]);
+
+  // Initialize PeerJS
   const initializePeerConnection = useCallback(async () => {
     if (typeof window === 'undefined' || !currentUser?.id) return null;
-
     try {
       if (!Peer) {
         const module = await import('peerjs');
         Peer = module.default;
       }
+      if (peerRef.current && !peerRef.current.destroyed) peerRef.current.destroy();
 
-      if (peerRef.current && !peerRef.current.destroyed) {
-        peerRef.current.destroy();
-      }
-
-      const peerIdToUse = `signal-${currentUser.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const peerIdToUse = `signal-${currentUser.id}`;
       const peer = new Peer(peerIdToUse, {
         host: '0.peerjs.com',
         port: 443,
         path: '/',
         secure: true,
-        debug: 1,
-        pingInterval: 5000,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'turn:numb.viagenie.ca', credential: 'muazkh', username: 'webrtc@live.com' }
-          ]
-        }
+        debug: 1
       });
 
-      return new Promise<string>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Peer connection timeout')), 15000);
-
-        peer.on('open', async (id: string) => {
-          clearTimeout(timeout);
-          setPeerId(id);
-          peerRef.current = peer;
-          setIsPeerReady(true);
-          
-          try {
-            await supabase.from('users').update({ 
-              current_peer_id: id,
-              last_seen: new Date().toISOString(),
-              is_online: true 
-            }).eq('id', currentUser.id);
-          } catch (dbError) { console.error('DB update error:', dbError); }
-          resolve(id);
-        });
-
-        peer.on('error', (err: any) => {
-          clearTimeout(timeout);
-          setIsPeerReady(false);
-          if (err.type === 'network') setTimeout(() => peer.reconnect(), 5000);
-          reject(err);
-        });
-
-        peer.on('disconnected', () => {
-          setIsPeerReady(false);
-          setTimeout(() => { if (!peer.destroyed) peer.reconnect(); }, 3000);
-        });
-
-        peer.on('close', () => setIsPeerReady(false));
+      peer.on('open', (id: string) => {
+        setPeerId(id);
+        peerRef.current = peer;
+        setIsPeerReady(true);
       });
+
+      peer.on('error', () => setIsPeerReady(false));
+      peer.on('disconnected', () => setIsPeerReady(false));
+      return peer;
     } catch (error) {
       setIsPeerReady(false);
-      throw error;
+      return null;
     }
   }, [currentUser?.id]);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
-    initializePeerConnection().catch(console.error);
-    return () => {
-      if (peerRef.current && !peerRef.current.destroyed) peerRef.current.destroy();
-    };
-  }, [currentUser?.id, initializePeerConnection]);
+    initializePeerConnection();
+    return () => { if (peerRef.current) peerRef.current.destroy(); };
+  }, [initializePeerConnection]);
 
   // Load Conversations
-  const loadConversations = useCallback(async (targetUserId?: number) => {
-    try {
-      const res = await fetch('/api/direct-messages');
-      if (res.ok) {
-        const data = await res.json();
-        const convs = data.conversations || [];
-        setConversations(convs);
-        if (targetUserId && !selectedConversation) {  
-          const existingConv = convs.find((c: any) => c.other_user_id === targetUserId);  
-          if (existingConv) setSelectedConversation(existingConv);
-        }
-        setIsLoading(false);  
-      }
-    } catch (error) { console.error('Load conversations error:', error); }
-  }, [selectedConversation]);
-
   useEffect(() => {
-    loadConversations(initialUserId);
-  }, [initialUserId, loadConversations]);
+    const fetchConversations = async () => {
+      try {
+        const res = await fetch('/api/direct-messages');
+        if (res.ok) {
+          const data = await res.json();
+          setConversations(data.conversations || []);
+          setIsLoading(false);
+        }
+      } catch (error) { setIsLoading(false); }
+    };
+    fetchConversations();
+  }, []);
 
-  // Real-time Subscription
+  // Real-time
   useEffect(() => {
     if (!selectedConversation || !currentUser?.id) return;
 
-    const channelName = `dm-${Math.min(currentUser.id, selectedConversation.other_user_id)}-${Math.max(currentUser.id, selectedConversation.other_user_id)}`;
-    const channel = supabase.channel(channelName);
-
-    channel
-      .on('broadcast', { event: 'new-message' }, ({ payload }) => {
-        if (!messageIds.current.has(payload.id)) {
-          messageIds.current.add(payload.id);
-          setMessages(prev => [...prev, payload]);
+    const channel = supabase.channel(`chat-${selectedConversation.other_user_id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'direct_messages',
+        filter: `sender_id=eq.${selectedConversation.other_user_id}` 
+      }, payload => {
+        if (!messageIds.current.has(payload.new.id)) {
+          messageIds.current.add(payload.new.id);
+          setMessages(prev => [...prev, payload.new]);
           scrollToBottom();
         }
       })
-      .on('broadcast', { event: 'typing' }, ({ payload }) => {
-        if (payload.userId === selectedConversation.other_user_id) setOtherUserTyping(payload.isTyping);
-      })
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const otherUserPresent = Object.keys(state).some(key => key.includes(`user-${selectedConversation.other_user_id}`));
-        setOtherUserOnline(otherUserPresent);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          setIsSupabaseConnected(true);
-          await channel.track({ userId: currentUser.id, online_at: new Date().toISOString() });
-        } else {
-          setIsSupabaseConnected(false);
-        }
+      .subscribe(status => {
+        setIsSupabaseConnected(status === 'SUBSCRIBED');
       });
 
     channelRef.current = channel;
@@ -202,18 +160,37 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
-  const refreshConnection = async () => {
-    toast.info(t('refreshConnection'));
-    try {
-      await initializePeerConnection();
-      toast.success(t('success'));
-    } catch (error) { toast.error(t('error')); }
-  };
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedConversation) return;
 
-  const handleStartCall = async (type: 'audio' | 'video') => {
-    if (!isSupabaseConnected || !isPeerReady) return;
-    toast.info(t('calling'));
-    // Call logic here...
+    const messageContent = newMessage.trim();
+    setNewMessage('');
+    setIsSending(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('direct_messages')
+        .insert({
+          sender_id: currentUser.id,
+          receiver_id: selectedConversation.other_user_id,
+          content: messageContent,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        messageIds.current.add(data.id);
+        setMessages(prev => [...prev, data]);
+        scrollToBottom();
+      }
+    } catch (error) {
+      toast.error('Failed to send message');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const getAvatarUrl = (avatar?: string | null) => {
@@ -222,103 +199,77 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
-  const formatTime = (date: any) => {
-    if (!date) return '';
-    return new Date(date).toLocaleTimeString(locale === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  };
-
   return (
     <div className="flex h-full bg-white overflow-hidden font-sans text-[#1b1b1b]">
       {/* Sidebar */}
       <div className={`w-full md:w-[350px] flex-shrink-0 border-r border-gray-100 flex flex-col ${selectedConversation && 'hidden md:flex'}`}>
-        <div className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg overflow-hidden">
-              {currentUser.avatar ? <Image src={getAvatarUrl(currentUser.avatar)} alt={currentUser.name} width={40} height={40} className="object-cover" unoptimized /> : currentUser.name.charAt(0)}
-            </div>
-            <h1 className="text-xl font-bold tracking-tight">Signal</h1>
+        <div className="p-4 border-b border-gray-50 flex items-center justify-between">
+          <h1 className="text-xl font-bold tracking-tight text-blue-600">Signal</h1>
+        </div>
+
+        <div className="px-4 py-2">
+          <div className={`flex items-center gap-2 text-[12px] px-3 py-1.5 rounded-full ${isSupabaseConnected ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
+            <div className={`w-2 h-2 rounded-full ${isSupabaseConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
+            {isSupabaseConnected ? t('callReady') : t('connecting')}
           </div>
         </div>
 
-        {/* Connection Status - REAL & ACTUAL */}
-        <div className="px-4 mb-3">
-          <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${isSupabaseConnected && isPeerReady ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'}`}>
-            {isSupabaseConnected && isPeerReady ? <Wifi size={16} /> : <WifiOff size={16} />}
-            <span className="font-medium">
-              {isSupabaseConnected && isPeerReady ? t('callReady') : t('connecting')}
-            </span>
-            <button onClick={refreshConnection} className="ml-auto p-1 hover:bg-gray-100 rounded-full transition-colors">
-              <RefreshCw size={14} className={!isSupabaseConnected || !isPeerReady ? 'animate-spin' : ''} />
-            </button>
-          </div>
-        </div>
-
-        {/* Conversations List */}
         <div className="flex-1 overflow-y-auto">
           {conversations.map((conv) => (
-            <button key={conv.other_user_id} onClick={() => setSelectedConversation(conv)} className={`w-full p-3 flex items-center gap-3 hover:bg-gray-50 transition-colors ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-blue-50/50' : ''}`}>
-              <div className="relative flex-shrink-0">
-                <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
-                  <Image src={getAvatarUrl(conv.avatar)} alt={conv.name} width={48} height={48} className="object-cover" unoptimized />
-                </div>
-                {conv.is_online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>}
+            <button key={conv.other_user_id} onClick={() => setSelectedConversation(conv)} className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-blue-50' : ''}`}>
+              <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-100">
+                <Image src={getAvatarUrl(conv.avatar)} alt={conv.name} width={48} height={48} className="object-cover" unoptimized />
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <h3 className="font-bold text-[15px] truncate">{conv.name}</h3>
-                <p className="text-sm text-gray-500 truncate">{conv.last_message || 'Start a conversation'}</p>
+                <p className="text-sm text-gray-500 truncate">{conv.last_message || 'Start chatting'}</p>
               </div>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Chat Area */}
+      {/* Chat */}
       <div className={`flex-1 flex flex-col bg-white ${!selectedConversation && 'hidden md:flex'}`}>
         {selectedConversation ? (
           <>
             <div className="h-16 border-b border-gray-100 flex items-center justify-between px-4 flex-shrink-0">
               <div className="flex items-center gap-3 min-w-0">
-                <button onClick={() => setSelectedConversation(null)} className="md:hidden p-2 -ml-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
-                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                <button onClick={() => setSelectedConversation(null)} className="md:hidden p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100">
                   <Image src={getAvatarUrl(selectedConversation.avatar)} alt={selectedConversation.name} width={40} height={40} className="object-cover" unoptimized />
                 </div>
-                <div className="min-w-0">
+                <div>
                   <h2 className="font-bold text-[15px] truncate">{selectedConversation.name}</h2>
-                  <p className="text-[11px] font-medium flex items-center gap-2">
-                    <div className="flex flex-col gap-0.5">
-                      <span className={`inline-flex items-center gap-1 ${isSupabaseConnected && isPeerReady ? 'text-green-600' : 'text-yellow-600'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected && isPeerReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
-                        {isSupabaseConnected && isPeerReady ? t('readyForCalls') : t('connecting')}
-                      </span>
-                      <span className={otherUserOnline ? "text-green-600" : "text-gray-400"}>
-                        • {otherUserOnline ? t('online') : t('offline')}
-                      </span>
-                    </div>
-                  </p>
+                  <p className="text-[10px] text-green-600 font-medium">{t('online')}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={refreshConnection} className="p-2.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"><RefreshCw size={18} className={!isSupabaseConnected || !isPeerReady ? 'animate-spin' : ''} /></button>
-                <button onClick={() => handleStartCall('video')} disabled={!isSupabaseConnected || !isPeerReady || callStatus !== 'idle'} className={`p-2.5 rounded-full transition-colors ${!isSupabaseConnected || !isPeerReady || callStatus !== 'idle' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`} title={t('videoCall')}><Video size={20} /></button>
-                <button onClick={() => handleStartCall('audio')} disabled={!isSupabaseConnected || !isPeerReady || callStatus !== 'idle'} className={`p-2.5 rounded-full transition-colors ${!isSupabaseConnected || !isPeerReady || callStatus !== 'idle' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`} title={t('audioCall')}><Phone size={20} /></button>
+              <div className="flex items-center gap-2">
+                <button disabled={!isPeerReady} className="p-2 text-gray-400 hover:text-blue-600 disabled:opacity-30"><Phone size={20} /></button>
+                <button disabled={!isPeerReady} className="p-2 text-gray-400 hover:text-blue-600 disabled:opacity-30"><Video size={20} /></button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#f9f9f9]">
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#fcfcfc]">
               {messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'} items-end gap-2`}>
-                  <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-[15px] shadow-sm ${msg.sender_id === currentUser.id ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'}`}>
+                <div key={msg.id} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] px-4 py-2 rounded-2xl text-[15px] ${msg.sender_id === currentUser.id ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'}`}>
                     {msg.content}
-                    <div className={`text-[10px] mt-1 ${msg.sender_id === currentUser.id ? 'text-blue-100' : 'text-gray-400'}`}>{formatTime(msg.created_at)}</div>
                   </div>
                 </div>
               ))}
               <div ref={messagesEndRef} />
             </div>
+
+            <form onSubmit={sendMessage} className="p-4 border-t border-gray-100 flex items-center gap-2">
+              <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder={t('typeMessage')} className="flex-1 bg-gray-100 border-none rounded-full px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-[15px]" />
+              <button type="submit" disabled={!newMessage.trim() || isSending} className="p-2 bg-blue-600 text-white rounded-full disabled:opacity-50 hover:bg-blue-700 transition-colors"><Send size={20} /></button>
+            </form>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-            <MessageSquare size={64} className="mb-4 opacity-20" />
-            <p>Select a conversation to start messaging</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-300">
+            <MessageSquare size={64} className="opacity-20 mb-4" />
+            <p>Select a contact to start messaging</p>
           </div>
         )}
       </div>
