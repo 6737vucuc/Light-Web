@@ -269,7 +269,14 @@
     "messages": "الرسائل",
     "confirm": "تأكيد",
     "yes": "نعم",
-    "no": "لا"
+    "no": "لا",
+    "callReady": "المكالمات جاهزة",
+    "connecting": "جاري الاتصال...",
+    "readyForCalls": "جاهز للمكالمات",
+    "refreshConnection": "تحديث الاتصال",
+    "videoCall": "مكالمة فيديو",
+    "audioCall": "مكالمة صوتية",
+    "alreadyInCall": "في مكالمة بالفعل"
   },
   "privateChat": {
     "title": "الرسائل الخاصة",

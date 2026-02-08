@@ -141,7 +141,8 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         port: 443,
         path: '/',
         secure: true,
-        debug: 3,
+        debug: 1, // Reduced debug level
+        pingInterval: 5000, // Added ping interval to keep connection alive
         config: {
           iceServers: [
             // Public STUN servers
@@ -185,7 +186,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
           
           // Update user's peer ID in database
           try {
-            await supabase
+            const { error: dbError } = await supabase
               .from('users')
               .update({ 
                 current_peer_id: id,
@@ -193,12 +194,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                 is_online: true 
               })
               .eq('id', currentUser.id);
+            
+            if (dbError) throw dbError;
             console.log('[Signal] ✅ Updated peer ID in database');
           } catch (dbError) {
             console.error('[Signal] ❌ Error updating database:', dbError);
           }
           
-          toast.success('Connected to call server');
+          // Only show success toast if it's not the initial connection to reduce noise
+          // toast.success('Connected to call server');
           resolve(id);
         });
 
@@ -216,13 +220,17 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         peer.on('error', (err: any) => {
           console.error('[Signal] ❌ Peer error:', err);
           clearTimeout(timeout);
+          setIsPeerReady(false);
           
           if (err.type === 'unavailable-id') {
             console.log('[Signal] 🔄 Peer ID unavailable, retrying with new ID...');
             setTimeout(() => initializePeerConnection(), 2000);
           } else if (err.type === 'network') {
             console.log('[Signal] 🌐 Network error, checking connection...');
-            toast.error('Network connection issue');
+            // Try to reconnect on network error
+            setTimeout(() => {
+              if (peer && !peer.destroyed) peer.reconnect();
+            }, 5000);
           }
           
           reject(err);
@@ -901,12 +909,12 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
           <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${isPeerReady ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'}`}>
             {isPeerReady ? <Wifi size={16} /> : <WifiOff size={16} />}
             <span className="font-medium">
-              {isPeerReady ? 'Call Ready' : 'Connecting...'}
+              {isPeerReady ? t('callReady') : t('connecting')}
             </span>
             <button 
               onClick={refreshConnection}
               className="ml-auto p-1 hover:bg-gray-100 rounded-full transition-colors"
-              title="Refresh Connection"
+              title={t('refreshConnection')}
             >
               <RefreshCw size={14} className={!isPeerReady ? 'animate-spin' : ''} />
             </button>
@@ -994,7 +1002,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                   <p className="text-[11px] text-gray-500 font-medium flex items-center gap-2">  
                     <span className={`inline-flex items-center gap-1 ${isPeerReady ? 'text-green-600' : 'text-yellow-600'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${isPeerReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
-                      {isPeerReady ? 'Ready for calls' : 'Connecting...'}
+                      {isPeerReady ? t('readyForCalls') : t('connecting')}
                     </span>
                     {otherUserTyping ? (  
                       <span className="text-blue-600 animate-pulse">• typing...</span>  
@@ -1010,7 +1018,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                 <button 
                   onClick={refreshConnection}
                   className="p-2.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
-                  title="Refresh Connection"
+                  title={t('refreshConnection')}
                 >
                   <RefreshCw size={18} className={!isPeerReady ? 'animate-spin' : ''} />
                 </button>
@@ -1018,7 +1026,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                   onClick={() => handleStartCall('video')} 
                   disabled={!isPeerReady || callStatus !== 'idle'}
                   className={`p-2.5 rounded-full transition-colors ${!isPeerReady || callStatus !== 'idle' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                  title={!isPeerReady ? "Connecting..." : callStatus !== 'idle' ? "Already in call" : "Video call"}
+                  title={!isPeerReady ? t('connecting') : callStatus !== 'idle' ? t('alreadyInCall') : t('videoCall')}
                 >
                   <Video size={20} />
                 </button>  
@@ -1026,7 +1034,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                   onClick={() => handleStartCall('audio')} 
                   disabled={!isPeerReady || callStatus !== 'idle'}
                   className={`p-2.5 rounded-full transition-colors ${!isPeerReady || callStatus !== 'idle' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                  title={!isPeerReady ? "Connecting..." : callStatus !== 'idle' ? "Already in call" : "Audio call"}
+                  title={!isPeerReady ? t('connecting') : callStatus !== 'idle' ? t('alreadyInCall') : t('audioCall')}
                 >
                   <Phone size={20} />
                 </button>  
