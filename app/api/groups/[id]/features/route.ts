@@ -18,7 +18,7 @@ import {
 // Pinned Messages
 // ============================================
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const groupId = parseInt((await params).id);
     const { action, messageId, userId } = await request.json();

@@ -6,7 +6,7 @@ import { verifyAuth } from '@/lib/auth/verify';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);

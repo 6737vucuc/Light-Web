@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; messageId: string> }> }
+  { params }: { params: Promise<{ id: string; messageId: string }> }> }
 ) {
   try {
     const { id, messageId: msgId } = await params;
