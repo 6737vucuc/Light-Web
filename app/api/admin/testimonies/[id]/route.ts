@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // Delete a testimony
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<Promise<{ id: string> }> }
 ) {
   try {
     const user = await verifyAuth(request);
@@ -36,7 +36,7 @@ export async function DELETE(
 // Update testimony (approve/reject)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<Promise<{ id: string> }> }
 ) {
   try {
     const user = await verifyAuth(request);

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // Update report status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<Promise<{ id: string> }> }
 ) {
   try {
     const user = await verifyAuth(request);
@@ -52,7 +52,7 @@ export async function PATCH(
 // Delete report
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<Promise<{ id: string> }> }
 ) {
   try {
     const user = await verifyAuth(request);

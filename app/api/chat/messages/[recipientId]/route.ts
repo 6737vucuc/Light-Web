@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ recipientId: string }> }
+  { params }: { params: Promise<Promise<{ recipientId: string> }> }
 ) {
   try {
     const user = await verifyAuth(request);

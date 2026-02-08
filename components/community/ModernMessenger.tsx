@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   X, Send, Phone, Video, Info, Image as ImageIcon, 
   Smile, MoreVertical, Mic, Paperclip, Check, CheckCheck,
@@ -98,6 +98,20 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
       });
 
       if (res.ok) {
+        const data = await res.json();
+        // Add message to local state immediately
+        const newMsg = {
+          id: data.message.id,
+          senderId: currentUserId,
+          senderName: currentUser?.name || 'You',
+          senderAvatar: currentUser?.avatar,
+          content: messageContent.trim(),
+          messageType: type,
+          mediaUrl: mediaUrl,
+          timestamp: new Date(),
+          isRead: false,
+        };
+        setMessages(prev => [...prev, newMsg]);
         setNewMessage('');
         setShowEmojiPicker(false);
         sendTyping(false, currentUser?.name || 'User');
