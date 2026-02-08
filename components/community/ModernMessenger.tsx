@@ -251,7 +251,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                     isMine 
                       ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-blue-600 text-white shadow-[0_10px_30px_-10px_rgba(124,58,237,0.5)] rounded-[1.4rem] md:rounded-[1.8rem] rounded-tr-none' 
                       : 'bg-white text-gray-800 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.05)] border border-gray-100 rounded-[1.4rem] md:rounded-[1.8rem] rounded-tl-none'
-                  } ${isImage ? 'p-1' md:p-1.5 : 'px-4 py-3 md:px-6 md:py-4'}`}>
+                  } ${isImage ? 'p-1 md:p-1.5' : 'px-4 py-3 md:px-6 md:py-4'}`}>
                     
                     {isImage ? (
                       <div className="relative rounded-[1.1rem] md:rounded-[1.4rem] overflow-hidden min-w-[150px] md:min-w-[200px] min-h-[100px] md:min-h-[150px]">
