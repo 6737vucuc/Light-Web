@@ -10,13 +10,17 @@ import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabase/client';
 
-// Helper to safely decode Base64/UTF-8 messages
+// Helper to safely decode Base64/UTF-8 messages with support for Arabic and Emojis
 const decodeMessage = (content: string) => {
   if (!content) return '';
   try {
     // Check if it looks like Base64 (simple heuristic)
-    if (/^[A-Za-z0-9+/=]+$/.test(content) && content.length > 20) {
-      return atob(content);
+    if (/^[A-Za-z0-9+/=]+$/.test(content)) {
+      try {
+        return decodeURIComponent(escape(atob(content)));
+      } catch {
+        return atob(content);
+      }
     }
     return content;
   } catch (e) {
@@ -132,12 +136,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     setIsSending(true);
 
     try {
+      // Encrypt message to Base64 before storing in DB
+      const encryptedContent = btoa(unescape(encodeURIComponent(content)));
+      
       const { data, error } = await supabase
         .from('direct_messages')
         .insert({
           sender_id: currentUser.id,
           receiver_id: selectedConversation.other_user_id,
-          content: content,
+          content: encryptedContent,
         })
         .select()
         .single();
