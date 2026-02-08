@@ -252,9 +252,39 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   }, [remoteStream, localStream]);
 
   useEffect(() => {
-    const fetch = async () => { const res = await fetch('/api/direct-messages'); if (res.ok) { const d = await res.json(); setConversations(d.conversations || []); } setIsLoading(false); };
+    const fetch = async () => { 
+      const res = await fetch('/api/direct-messages'); 
+      if (res.ok) { 
+        const d = await res.json(); 
+        const convs = d.conversations || [];
+        setConversations(convs); 
+
+        // Auto-select conversation if initialUserId is provided
+        if (initialUserId) {
+          const existingConv = convs.find((c: any) => c.other_user_id === initialUserId);
+          if (existingConv) {
+            setSelectedConversation(existingConv);
+          } else {
+            // If conversation doesn't exist yet, fetch user info and create a temporary selected state
+            const fetchUser = async () => {
+              const { data: userData } = await supabase.from('users').select('id, name, avatar').eq('id', initialUserId).single();
+              if (userData) {
+                setSelectedConversation({
+                  other_user_id: userData.id,
+                  name: userData.name,
+                  avatar: userData.avatar,
+                  last_message: ''
+                });
+              }
+            };
+            fetchUser();
+          }
+        }
+      } 
+      setIsLoading(false); 
+    };
     fetch();
-  }, []);
+  }, [initialUserId]);
 
   const loadMsgs = useCallback(async (id: string) => {
     if (!id) return;
