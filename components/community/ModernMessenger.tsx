@@ -12,6 +12,10 @@ import { useRealtimeChat } from '@/lib/hooks/useRealtimeChat';
 import { useVoiceCall } from '@/lib/hooks/useVoiceCall';
 import { RealtimeChatService } from '@/lib/realtime/chat';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
+import VoiceRecorder from './VoiceRecorder';
+import VoiceMessagePlayer from './VoiceMessagePlayer';
+import MessageReactions from './MessageReactions';
+import LinkPreview from './LinkPreview';
 
 interface ModernMessengerProps {
   recipient: any;
@@ -25,6 +29,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -120,6 +125,28 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     }
   };
 
+  const handleVoiceMessageSend = async (audioBlob: Blob) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'voice-message.webm');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        await handleSendMessage('', 'voice', data.url);
+      }
+    } catch (error) {
+      console.error('Voice upload error:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const onEmojiClick = (emojiData: any) => {
     setNewMessage(prev => prev + emojiData.emoji);
   };
@@ -198,6 +225,8 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
           {messages.map((msg, idx) => {
             const isMine = msg.senderId === currentUser.id;
             const isImage = msg.messageType === 'image';
+            const isVoice = msg.messageType === 'voice';
+            const isLink = msg.messageType === 'text' && msg.content?.startsWith('http');
             
             return (
               <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-4 duration-500`}>
@@ -212,6 +241,22 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                       <div className="relative rounded-[1.4rem] overflow-hidden min-w-[200px] min-h-[150px]">
                         <Image src={msg.mediaUrl} alt="Sent image" width={400} height={300} className="object-cover hover:scale-105 transition-transform duration-500" unoptimized />
                       </div>
+                    ) : isVoice ? (
+                      <VoiceMessagePlayer
+                        audioUrl={msg.mediaUrl}
+                        duration={msg.duration || 0}
+                        senderName={msg.senderName}
+                        timestamp={new Date(msg.createdAt || msg.timestamp)}
+                        isMine={isMine}
+                      />
+                    ) : isLink ? (
+                      <LinkPreview
+                        url={msg.content}
+                        title={msg.linkTitle}
+                        description={msg.linkDescription}
+                        image={msg.linkImage}
+                        isMine={isMine}
+                      />
                     ) : (
                       <p className="text-[15px] font-bold leading-relaxed tracking-tight">{msg.content}</p>
                     )}
@@ -264,9 +309,9 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                     <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center"><ImageIcon size={20} /></div>
                     Photos
                   </button>
-                  <button className="flex items-center gap-3 p-3 hover:bg-blue-50 rounded-2xl transition-colors text-gray-700 font-black text-sm">
-                    <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center"><Camera size={20} /></div>
-                    Camera
+                  <button onClick={() => setShowVoiceRecorder(true)} className="flex items-center gap-3 p-3 hover:bg-red-50 rounded-2xl transition-colors text-gray-700 font-black text-sm">
+                    <div className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center"><Mic size={20} /></div>
+                    Voice Message
                   </button>
                   <button className="flex items-center gap-3 p-3 hover:bg-emerald-50 rounded-2xl transition-colors text-gray-700 font-black text-sm">
                     <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center"><FileText size={20} /></div>
@@ -332,6 +377,13 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
           onChange={handleFileUpload} 
           className="hidden" 
           accept="image/*,application/pdf"
+        />
+
+        {/* Voice Recorder Modal */}
+        <VoiceRecorder
+          isOpen={showVoiceRecorder}
+          onClose={() => setShowVoiceRecorder(false)}
+          onSend={handleVoiceMessageSend}
         />
 
         {/* Call Overlay - Ultra Immersive */}
