@@ -43,6 +43,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
 
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
+  const [unreadCounts, setUnreadCounts] = useState<{[key: number]: number}>({});
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +54,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInMessages, setSearchInMessages] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -259,13 +261,27 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         const convs = d.conversations || [];
         setConversations(convs); 
 
+        // Fetch unread counts
+        const { data: unreadData } = await supabase
+          .from('direct_messages')
+          .select('sender_id')
+          .eq('receiver_id', currentUser.id)
+          .eq('is_read', false);
+        
+        if (unreadData) {
+          const counts: any = {};
+          unreadData.forEach(m => {
+            counts[m.sender_id] = (counts[m.sender_id] || 0) + 1;
+          });
+          setUnreadCounts(counts);
+        }
+
         // Auto-select conversation if initialUserId is provided
         if (initialUserId) {
           const existingConv = convs.find((c: any) => c.other_user_id === initialUserId);
           if (existingConv) {
             setSelectedConversation(existingConv);
           } else {
-            // If conversation doesn't exist yet, fetch user info and create a temporary selected state
             const fetchUser = async () => {
               const { data: userData } = await supabase.from('users').select('id, name, avatar').eq('id', initialUserId).single();
               if (userData) {
@@ -284,7 +300,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       setIsLoading(false); 
     };
     fetch();
-  }, [initialUserId]);
+  }, [initialUserId, currentUser.id]);
 
   const loadMsgs = useCallback(async (id: string) => {
     if (!id) return;
@@ -321,24 +337,51 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         <div className="px-5 py-3">
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#7c3aed] transition-colors" size={18} />
-            <input type="text" placeholder="Search chats..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-50 border-none rounded-2xl pl-11 pr-4 py-3 text-sm focus:ring-2 focus:ring-purple-100 outline-none transition-all" />
+            <input type="text" placeholder={searchInMessages ? "Search messages..." : "Search chats..."} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-50 border-none rounded-2xl pl-11 pr-4 py-3 text-sm focus:ring-2 focus:ring-purple-100 outline-none transition-all" />
+            <button 
+              onClick={() => setSearchInMessages(!searchInMessages)} 
+              className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all ${searchInMessages ? 'bg-purple-100 text-[#7c3aed]' : 'text-slate-400 hover:bg-slate-100'}`}
+              title="Search in messages"
+            >
+              <MessageSquare size={16} />
+            </button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-2">
-          {conversations.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((conv) => (
-            <button key={conv.other_user_id} onClick={() => setSelectedConversation(conv)} className={`w-full p-4 mb-1 flex items-center gap-4 rounded-2xl hover:bg-slate-50 transition-all ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-purple-50 shadow-sm' : ''}`}>
+          {conversations.filter(c => {
+            const nameMatch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
+            const msgMatch = searchInMessages && decode(c.last_message).toLowerCase().includes(searchQuery.toLowerCase());
+            return nameMatch || msgMatch;
+          }).map((conv) => (
+            <button 
+              key={conv.other_user_id} 
+              onClick={() => {
+                setSelectedConversation(conv);
+                setUnreadCounts(prev => ({ ...prev, [conv.other_user_id]: 0 }));
+              }} 
+              className={`w-full p-4 mb-1 flex items-center gap-4 rounded-2xl hover:bg-slate-50 transition-all group ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-purple-50 shadow-sm' : ''}`}
+            >
               <div className="relative flex-shrink-0">
-                <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white shadow-sm">
+                <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
                   <Image src={conv.avatar || '/default-avatar.png'} alt={conv.name} width={56} height={56} className="object-cover" unoptimized />
                 </div>
-                {conv.is_online && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>}
+                {conv.is_online && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow-sm animate-pulse"></div>}
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <div className="flex justify-between items-baseline mb-1">
                   <h3 className="font-bold text-[16px] truncate text-slate-800">{conv.name}</h3>
-                  <span className="text-[10px] text-slate-400 font-medium">12:45 PM</span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {conv.last_message_time ? new Date(conv.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </span>
                 </div>
-                <p className="text-sm text-slate-500 truncate leading-relaxed">{decode(conv.last_message) || 'Start a new story...'}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-slate-500 truncate leading-relaxed flex-1">{decode(conv.last_message) || 'Start a new story...'}</p>
+                  {unreadCounts[conv.other_user_id] > 0 && (
+                    <span className="bg-[#7c3aed] text-white text-[10px] font-black px-2 py-0.5 rounded-full min-w-[20px] text-center animate-bounce">
+                      {unreadCounts[conv.other_user_id]}
+                    </span>
+                  )}
+                </div>
               </div>
             </button>
           ))}
@@ -366,8 +409,8 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => startCall('audio')} className="p-3 text-[#7c3aed] hover:bg-purple-50 rounded-2xl transition-all active:scale-90"><Phone size={22} /></button>
-                <button onClick={() => startCall('video')} className="p-3 text-[#7c3aed] hover:bg-purple-50 rounded-2xl transition-all active:scale-90"><Video size={22} /></button>
+                <button onClick={() => startCall('audio')} className="p-3 text-[#7c3aed] hover:bg-purple-100 hover:scale-110 rounded-2xl transition-all active:scale-90 shadow-sm hover:shadow-md"><Phone size={22} /></button>
+                <button onClick={() => startCall('video')} className="p-3 text-[#7c3aed] hover:bg-purple-100 hover:scale-110 rounded-2xl transition-all active:scale-90 shadow-sm hover:shadow-md"><Video size={22} /></button>
                 <button className="p-3 text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"><MoreVertical size={22} /></button>
               </div>
             </div>
@@ -375,7 +418,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#fdfdfd] scrollbar-hide">
               {messages.map((msg, i) => (
                 <div key={msg.id} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'} group relative`}>
-                  <div className={`max-w-[85%] rounded-3xl text-[15px] shadow-sm transition-all hover:shadow-md overflow-hidden ${msg.sender_id === currentUser.id ? 'bg-[#7c3aed] text-white rounded-br-none' : 'bg-white border border-slate-100 text-slate-800 rounded-bl-none'}`}>
+                  <div className={`max-w-[85%] rounded-3xl text-[15px] shadow-sm transition-all hover:shadow-lg hover:scale-[1.02] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300 ${msg.sender_id === currentUser.id ? 'bg-gradient-to-br from-[#7c3aed] to-[#6d28d9] text-white rounded-br-none' : 'bg-white border border-slate-100 text-slate-800 rounded-bl-none'}`}>
                     {msg.reply_to_id && (
                       <div className="mx-2 mt-2 p-2 bg-black/5 rounded-2xl border-l-4 border-white/20 text-[12px] opacity-80">
                         {decode(messages.find(m => m.id === msg.reply_to_id)?.content) || 'Replied message'}
