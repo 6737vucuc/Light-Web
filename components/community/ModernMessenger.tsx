@@ -5,7 +5,8 @@ import {
   X, Send, Phone, Video, Info, Image as ImageIcon, 
   Smile, MoreVertical, Mic, Paperclip, Check, CheckCheck,
   Camera, Music, FileText, MapPin, User as UserIcon,
-  PhoneOff, MicOff, Volume2, Maximize2, Minimize2
+  PhoneOff, MicOff, Volume2, Maximize2, Minimize2,
+  MessageSquare
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRealtimeChat } from '@/lib/hooks/useRealtimeChat';
@@ -33,29 +34,38 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const channelId = RealtimeChatService.getPrivateChannelName(currentUser.id, recipient.id);
+  // Ensure we have IDs before calling getPrivateChannelName
+  const currentUserId = currentUser?.id || currentUser?.userId;
+  const recipientId = recipient?.id || recipient?.userId;
   
-  const { messages, setMessages, typingUsers, sendTyping } = useRealtimeChat(channelId, currentUser.id);
+  const channelId = (currentUserId && recipientId) 
+    ? RealtimeChatService.getPrivateChannelName(currentUserId, recipientId)
+    : 'private-chat-pending';
+  
+  const { messages, setMessages, typingUsers, sendTyping } = useRealtimeChat(channelId, currentUserId);
   const { 
     callState, initiateCall, acceptCall, rejectCall, endCall, 
     toggleMute, formatDuration, remoteAudioRef 
   } = useVoiceCall(
-    currentUser.id, 
-    currentUser.name, 
-    currentUser.avatar
+    currentUserId, 
+    currentUser?.name || 'User', 
+    currentUser?.avatar || null
   );
 
   useEffect(() => {
-    loadMessages();
-  }, [recipient.id]);
+    if (recipientId) {
+      loadMessages();
+    }
+  }, [recipientId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   const loadMessages = async () => {
+    if (!recipientId) return;
     try {
-      const res = await fetch(`/api/chat/messages/${recipient.id}`);
+      const res = await fetch(`/api/chat/messages/${recipientId}`);
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
@@ -72,6 +82,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const handleSendMessage = async (content?: string, type: string = 'text', mediaUrl?: string) => {
     const messageContent = content || newMessage;
     if (!messageContent.trim() && !mediaUrl) return;
+    if (!recipientId) return;
     
     setIsSending(true);
     try {
@@ -79,7 +90,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recipientId: recipient.id,
+          recipientId: recipientId,
           content: messageContent.trim(),
           messageType: type,
           mediaUrl: mediaUrl
@@ -89,7 +100,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
       if (res.ok) {
         setNewMessage('');
         setShowEmojiPicker(false);
-        sendTyping(false, currentUser.name);
+        sendTyping(false, currentUser?.name || 'User');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -157,6 +168,8 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  if (!recipient || !currentUser) return null;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
       <div className="bg-white w-full max-w-4xl h-full md:h-[90vh] md:rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] flex flex-col overflow-hidden border border-white/20 animate-in zoom-in-95 duration-500 relative">
@@ -174,7 +187,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                   <Image src={getAvatarUrl(recipient.avatar)} alt={recipient.name} fill className="object-cover" unoptimized />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-blue-500 text-white text-2xl font-black">
-                    {recipient.name.charAt(0).toUpperCase()}
+                    {recipient.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 )}
               </div>
@@ -193,13 +206,13 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
           
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => initiateCall(recipient.id, 'voice')}
+              onClick={() => initiateCall(recipientId, 'voice')}
               className="w-12 h-12 flex items-center justify-center bg-gray-50 hover:bg-purple-50 text-gray-600 hover:text-purple-600 rounded-2xl transition-all active:scale-90 border border-gray-100"
             >
               <Phone size={22} strokeWidth={2.5} />
             </button>
             <button 
-              onClick={() => initiateCall(recipient.id, 'video')}
+              onClick={() => initiateCall(recipientId, 'video')}
               className="w-12 h-12 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 rounded-2xl transition-all active:scale-90 border border-gray-100"
             >
               <Video size={22} strokeWidth={2.5} />
@@ -223,7 +236,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
           )}
           
           {messages.map((msg, idx) => {
-            const isMine = msg.senderId === currentUser.id;
+            const isMine = msg.senderId === currentUserId;
             const isImage = msg.messageType === 'image';
             const isVoice = msg.messageType === 'voice';
             const isLink = msg.messageType === 'text' && msg.content?.startsWith('http');
@@ -246,7 +259,6 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                         audioUrl={msg.mediaUrl}
                         duration={msg.duration || 0}
                         senderName={msg.senderName}
-                        timestamp={new Date(msg.createdAt || msg.timestamp)}
                         isMine={isMine}
                       />
                     ) : isLink ? (
@@ -335,7 +347,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                 value={newMessage}
                 onChange={(e) => {
                   setNewMessage(e.target.value);
-                  sendTyping(e.target.value.length > 0, currentUser.name);
+                  sendTyping(e.target.value.length > 0, currentUser?.name || 'User');
                 }}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder="Type your message..."
