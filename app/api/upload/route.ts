@@ -30,12 +30,14 @@ export async function POST(request: NextRequest) {
       'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
       // Videos
       'video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov', 'video/quicktime',
-      'video/x-msvideo', 'video/x-matroska'
+      'video/x-msvideo', 'video/x-matroska',
+      // Audio
+      'audio/webm', 'audio/ogg', 'audio/mp3', 'audio/wav', 'audio/mpeg'
     ];
 
-    if (!allowedTypes.includes(file.type)) {
+    if (!allowedTypes.includes(file.type) && !file.type.startsWith('application/')) {
       return NextResponse.json({ 
-        error: `Invalid file type (${file.type}). Allowed: images and videos.` 
+        error: `Invalid file type (${file.type}). Allowed: images, videos, and audio.` 
       }, { status: 400 });
     }
 

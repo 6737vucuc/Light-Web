@@ -53,16 +53,26 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isPeerReady, setIsPeerReady] = useState(false);
+  
+  // Voice Recording States
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   
   // Call States
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'incoming' | 'connected'>('idle');
   const [callType, setCallType] = useState<'audio' | 'video'>('audio');
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const peerRef = useRef<any>(null);
   const currentCallRef = useRef<any>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -174,8 +184,9 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     loadMessages();
   }, [selectedConv]);
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConv || isSending) return;
+  const handleSendMessage = async (content?: string, type: string = 'text', mediaUrl?: string) => {
+    const messageContent = content || newMessage;
+    if (!messageContent.trim() && !mediaUrl || !selectedConv || isSending) return;
     setIsSending(true);
     try {
       const res = await fetch('/api/chat/messages', {
@@ -183,14 +194,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiverId: selectedConv.id,
-          content: newMessage,
-          messageType: 'text'
+          content: messageContent,
+          messageType: type,
+          mediaUrl
         })
       });
       if (res.ok) {
         const { message } = await res.json();
         setMessages(prev => [...prev, message]);
-        setNewMessage('');
+        if (type === 'text') setNewMessage('');
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       }
     } catch (error) {
@@ -200,7 +212,81 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     }
   };
 
+  // File Upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConv) return;
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        const url = data.url;
+        const type = file.type.startsWith('image/') ? 'image' : 'file';
+        handleSendMessage(file.name, type, url);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Voice Recording
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'voice.webm');
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          const url = data.url;
+          handleSendMessage('Voice message', 'voice', url);
+        }
+        stream.getTracks().forEach(t => t.stop());
+      };
+      recorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+    } catch (e) { console.error('Mic error:', e); }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  useEffect(() => {
+    let interval: any;
+    if (isRecording) interval = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
   // Call Functions
+  const toggleMute = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(t => t.enabled = !t.enabled);
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStream && callType === 'video') {
+      localStream.getVideoTracks().forEach(t => t.enabled = !t.enabled);
+      setIsVideoOff(!isVideoOff);
+    }
+  };
   const startCall = async (type: 'audio' | 'video') => {
     if (!isPeerReady || !selectedConv) return;
     setCallType(type);
@@ -358,7 +444,51 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                   <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                     <div className={`max-w-[80%] group relative`}>
                       <div className={`px-5 py-3.5 rounded-[1.75rem] text-[15px] shadow-sm transition-all hover:shadow-md ${isMe ? 'bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-tr-none' : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'}`}>
-                        <p className="leading-relaxed font-medium">{msg.content}</p>
+                        {msg.messageType === 'text' && <p className="leading-relaxed font-medium">{msg.content}</p>}
+                        
+                        {msg.messageType === 'image' && msg.mediaUrl && (
+                          <div className="rounded-xl overflow-hidden mb-2 border border-white/20">
+                            <Image src={msg.mediaUrl} alt="Sent image" width={300} height={200} className="object-cover w-full h-auto" unoptimized />
+                          </div>
+                        )}
+
+                        {msg.messageType === 'voice' && msg.mediaUrl && (
+                          <div className="flex items-center gap-3 py-2 min-w-[200px]">
+                            <button 
+                              onClick={(e) => {
+                                const audio = e.currentTarget.nextElementSibling as HTMLAudioElement;
+                                if (audio.paused) audio.play(); else audio.pause();
+                              }}
+                              className={`p-2.5 rounded-full ${isMe ? 'bg-white/20 hover:bg-white/30' : 'bg-purple-100 hover:bg-purple-200'} transition-all`}
+                            >
+                              <Play size={18} className={isMe ? 'text-white' : 'text-purple-600'} />
+                            </button>
+                            <audio src={msg.mediaUrl} onPlay={(e) => {
+                              const btn = e.currentTarget.previousElementSibling as HTMLButtonElement;
+                              // Simple visual feedback could be added here
+                            }} />
+                            <div className="flex-1">
+                              <div className={`h-1.5 w-full rounded-full ${isMe ? 'bg-white/20' : 'bg-slate-100'}`}>
+                                <div className={`h-full w-0 rounded-full ${isMe ? 'bg-white' : 'bg-purple-600'} transition-all duration-300`}></div>
+                              </div>
+                              <p className={`text-[9px] mt-1 font-bold ${isMe ? 'text-purple-100' : 'text-slate-400'}`}>Voice Message</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {msg.messageType === 'file' && msg.mediaUrl && (
+                          <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-3 p-3 rounded-xl ${isMe ? 'bg-white/10' : 'bg-slate-50'} hover:opacity-80 transition-all`}>
+                            <div className={`p-2 rounded-lg ${isMe ? 'bg-white/20' : 'bg-purple-100 text-purple-600'}`}>
+                              <FileText size={20} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold truncate">{msg.content}</p>
+                              <p className="text-[10px] opacity-60">Click to download</p>
+                            </div>
+                            <Download size={16} className="opacity-60" />
+                          </a>
+                        )}
+
                         <div className={`flex items-center justify-end gap-1.5 mt-1.5 text-[10px] font-bold ${isMe ? 'text-purple-100/80' : 'text-slate-400'}`}>
                           {format(new Date(msg.createdAt), 'HH:mm')}
                           {isMe && (msg.isRead ? <CheckCheck size={14} className="text-emerald-300" /> : <Check size={14} />)}
@@ -373,27 +503,41 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
 
             {/* Input */}
             <div className="p-6 bg-white border-t border-slate-50">
+              {isRecording && (
+                <div className="mb-4 p-4 bg-red-50 rounded-2xl flex items-center justify-between animate-pulse">
+                  <div className="flex items-center gap-3 text-red-600">
+                    <div className="w-3 h-3 bg-red-600 rounded-full animate-ping"></div>
+                    <span className="font-black uppercase tracking-widest text-xs">Recording Voice... {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
+                  </div>
+                  <button onClick={stopRecording} className="p-2 bg-red-600 text-white rounded-full hover:scale-110 transition-all"><X size={20} /></button>
+                </div>
+              )}
+              
               <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-[2rem] border border-slate-100 focus-within:border-purple-200 focus-within:ring-8 focus-within:ring-purple-50/50 transition-all shadow-inner">
                 <button className="p-3 text-slate-400 hover:text-purple-600 hover:bg-white rounded-full transition-all"><Smile size={24} /></button>
-                <button className="p-3 text-slate-400 hover:text-purple-600 hover:bg-white rounded-full transition-all"><Paperclip size={24} /></button>
+                <button onClick={() => fileInputRef.current?.click()} className="p-3 text-slate-400 hover:text-purple-600 hover:bg-white rounded-full transition-all">
+                  <Paperclip size={24} />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                </button>
                 <input 
                   type="text" 
-                  placeholder="Write something beautiful..." 
+                  placeholder={isUploading ? "Uploading file..." : "Write something beautiful..."}
                   value={newMessage}
+                  disabled={isUploading}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                   className="flex-1 bg-transparent border-none outline-none text-base text-slate-700 py-2 font-medium placeholder:text-slate-300"
                 />
-                {newMessage.trim() ? (
+                {newMessage.trim() || isUploading ? (
                   <button 
-                    onClick={handleSendMessage}
-                    disabled={isSending}
+                    onClick={() => handleSendMessage()}
+                    disabled={isSending || isUploading}
                     className="p-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full hover:shadow-xl hover:shadow-purple-200 transition-all disabled:opacity-50 active:scale-95"
                   >
-                    <Send size={20} />
+                    {isUploading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
                   </button>
                 ) : (
-                  <button className="p-4 bg-white text-purple-600 rounded-full shadow-sm hover:shadow-md transition-all"><Mic size={24} /></button>
+                  <button onClick={startRecording} className="p-4 bg-white text-purple-600 rounded-full shadow-sm hover:shadow-md transition-all"><Mic size={24} /></button>
                 )}
               </div>
             </div>
@@ -455,14 +599,18 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             <div className="flex items-center gap-8">
               {callStatus === 'incoming' ? (
                 <>
-                  <button onClick={acceptCall} className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/20 hover:scale-110 transition-all"><Phone size={32} /></button>
+                  <button onClick={acceptCall} className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/20 hover:scale-110 transition-all animate-bounce"><Phone size={32} /></button>
                   <button onClick={endCall} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/20 hover:scale-110 transition-all"><PhoneOff size={32} /></button>
                 </>
               ) : (
                 <>
-                  <button className="w-16 h-16 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md transition-all"><MicOff size={24} /></button>
+                  <button onClick={toggleMute} className={`w-16 h-16 ${isMuted ? 'bg-red-500' : 'bg-white/10'} hover:bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md transition-all`}>
+                    {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+                  </button>
                   <button onClick={endCall} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/20 hover:scale-110 transition-all"><PhoneOff size={32} /></button>
-                  <button className="w-16 h-16 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md transition-all"><VideoOff size={24} /></button>
+                  <button onClick={toggleVideo} className={`w-16 h-16 ${isVideoOff ? 'bg-red-500' : 'bg-white/10'} hover:bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md transition-all`}>
+                    {isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}
+                  </button>
                 </>
               )}
             </div>
