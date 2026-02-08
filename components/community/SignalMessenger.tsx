@@ -257,11 +257,25 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   }, []);
 
   const loadMsgs = useCallback(async (id: string) => {
-    const { data } = await supabase.from('direct_messages').select('*').or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUser.id})`).order('created_at', { ascending: true });
-    if (data) { setMessages(data); data.forEach(m => messageIds.current.add(m.id)); setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100); }
+    if (!id) return;
+    try {
+      const { data, error } = await supabase.from('direct_messages').select('*').or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUser.id})`).order('created_at', { ascending: true });
+      if (error) throw error;
+      if (data) { 
+        setMessages(data); 
+        data.forEach(m => messageIds.current.add(m.id)); 
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100); 
+      }
+    } catch (e) {
+      console.error('Error loading messages:', e);
+    }
   }, [currentUser.id]);
 
-  useEffect(() => { if (selectedConversation) loadMsgs(selectedConversation.other_user_id); }, [selectedConversation, loadMsgs]);
+  useEffect(() => { 
+    if (selectedConversation?.other_user_id) {
+      loadMsgs(selectedConversation.other_user_id);
+    }
+  }, [selectedConversation?.other_user_id, loadMsgs]);
 
   return (
     <div className="flex h-full bg-[#f8fafc] overflow-hidden font-sans text-[#1e293b] relative">
@@ -269,9 +283,9 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       <div className={`w-full md:w-[380px] flex-shrink-0 border-r border-slate-200 flex flex-col bg-white ${selectedConversation ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <h1 className="text-2xl font-black tracking-tighter text-[#7c3aed]">Signal</h1>
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${isSupabaseConnected ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-            {isSupabaseConnected ? 'Live' : 'Syncing'}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Live
           </div>
         </div>
         <div className="px-5 py-3">
