@@ -5,7 +5,8 @@ import {
   ChevronLeft, MoreVertical, Paperclip, Smile, Mic,
   PhoneOff, MicOff, VideoOff, X, Volume2, Maximize2,
   Play, Pause, Trash2, Check, CheckCheck, Search,
-  MapPin, FileText, Download, Reply, Image as ImageIcon
+  MapPin, FileText, Download, Reply, Image as ImageIcon,
+  ShieldAlert, ShieldCheck, Pin, PinOff, Grid, History
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
@@ -53,11 +54,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
+  const [otherUserLastSeen, setOtherUserLastSeen] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInMessages, setSearchInMessages] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [showMediaGallery, setShowMediaGallery] = useState(false);
+  const [pinnedMessageId, setPinnedMessageId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice Recording States
@@ -92,12 +97,13 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       const peer = new Peer(`user-${currentUser.id}`, { host: '0.peerjs.com', port: 443, path: '/', secure: true });
       peer.on('open', () => { setIsPeerReady(true); peerRef.current = peer; });
       peer.on('call', async (call: any) => {
+        if (isBlocked) { call.close(); return; }
         currentCallRef.current = call; setCallType(call.metadata?.type || 'audio');
         setCallStatus('incoming'); setIncomingCallData({ peerId: call.peer, name: call.metadata?.name, avatar: call.metadata?.avatar });
       });
       peer.on('error', () => setIsPeerReady(false));
     } catch (e) { console.error(e); }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, isBlocked]);
 
   useEffect(() => { initPeer(); return () => { if (peerRef.current) peerRef.current.destroy(); }; }, [initPeer]);
 
@@ -123,7 +129,12 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       .on('broadcast', { event: 'typing' }, ({ payload }) => { if (payload.userId === selectedConversation.other_user_id) setOtherUserTyping(payload.isTyping); })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
-        setOtherUserOnline(Object.keys(state).some(key => (state[key] as any).some((p: any) => p.userId === selectedConversation.other_user_id)));
+        const isOnline = Object.keys(state).some(key => (state[key] as any).some((p: any) => p.userId === selectedConversation.other_user_id));
+        setOtherUserOnline(isOnline);
+        if (!isOnline) {
+          const userPresence = Object.values(state).flat().find((p: any) => p.userId === selectedConversation.other_user_id);
+          if (userPresence) setOtherUserLastSeen((userPresence as any).online_at);
+        }
       })
       .subscribe(async (status) => {
         setIsSupabaseConnected(status === 'SUBSCRIBED');
@@ -135,18 +146,38 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     return () => { supabase.removeChannel(channel); };
   }, [currentUser.id, selectedConversation]);
 
+  // Block & Privacy Logic (Simulated since DB table doesn't exist)
+  const toggleBlock = () => {
+    setIsBlocked(!isBlocked);
+    toast.info(isBlocked ? 'تم إلغاء الحظر' : 'تم حظر المستخدم');
+  };
+
+  // Pinned Message Logic
+  const togglePin = (msgId: number) => {
+    setPinnedMessageId(pinnedMessageId === msgId ? null : msgId);
+    toast.info(pinnedMessageId === msgId ? 'تم إلغاء التثبيت' : 'تم تثبيت الرسالة');
+  };
+
+  // Media Gallery Logic
+  const mediaMessages = messages.filter(m => m.message_type === 'image' || m.message_type === 'file');
+
   // Signaling for Calls
   useEffect(() => {
     if (!currentUser?.id) return;
     const channel = supabase.channel(`calls-${currentUser.id}`)
-      .on('broadcast', { event: 'call-request' }, ({ payload }) => { if (callStatus === 'idle') { setCallStatus('incoming'); setCallType(payload.type); setIncomingCallData(payload); } })
+      .on('broadcast', { event: 'call-request' }, ({ payload }) => { 
+        if (callStatus === 'idle' && !isBlocked) { 
+          setCallStatus('incoming'); setCallType(payload.type); setIncomingCallData(payload); 
+        } 
+      })
       .on('broadcast', { event: 'call-response' }, ({ payload }) => { if (!payload.accepted) { setCallStatus('idle'); toast.error('تم رفض المكالمة'); stopMedia(); } })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [currentUser.id, callStatus]);
+  }, [currentUser.id, callStatus, isBlocked]);
 
   // Advanced Features
   const shareLocation = async () => {
+    if (isBlocked) return toast.error('لا يمكنك الإرسال لمستخدم محظور');
     if (!navigator.geolocation) return toast.error('الموقع غير مدعوم');
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const locUrl = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
@@ -156,7 +187,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
 
   const uploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedConversation) return;
+    if (!file || !selectedConversation || isBlocked) return;
     setIsUploading(true);
     try {
       const type = file.type.startsWith('image/') ? 'image' : 'file';
@@ -170,6 +201,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   };
 
   const startRecording = async () => {
+    if (isBlocked) return toast.error('المستخدم محظور');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream); mediaRecorderRef.current = mr; audioChunksRef.current = [];
@@ -197,7 +229,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   };
 
   const sendMessage = async (type: string, content: string, mediaUrl?: string) => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || isBlocked) return;
     setIsSending(true);
     try {
       await supabase.from('direct_messages').insert({
@@ -211,47 +243,47 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
-    if (!isTyping && selectedConversation) {
+    if (!isTyping && selectedConversation && !isBlocked) {
       setIsTyping(true);
-      supabase.channel(`chat-${selectedConversation.other_user_id}`).send({ type: 'broadcast', event: 'typing', payload: { userId: currentUser.id, isTyping: true } });
+      supabase.channel(`chat-${Math.min(currentUser.id, selectedConversation.other_user_id)}-${Math.max(currentUser.id, selectedConversation.other_user_id)}`)
+        .send({ type: 'broadcast', event: 'typing', payload: { userId: currentUser.id, isTyping: true } });
+      setTimeout(() => {
+        setIsTyping(false);
+        supabase.channel(`chat-${Math.min(currentUser.id, selectedConversation.other_user_id)}-${Math.max(currentUser.id, selectedConversation.other_user_id)}`)
+          .send({ type: 'broadcast', event: 'typing', payload: { userId: currentUser.id, isTyping: false } });
+      }, 3000);
     }
   };
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (isTyping && selectedConversation) {
-        setIsTyping(false);
-        supabase.channel(`chat-${selectedConversation.other_user_id}`).send({ type: 'broadcast', event: 'typing', payload: { userId: currentUser.id, isTyping: false } });
-      }
-    }, 3000);
-    return () => clearTimeout(t);
-  }, [newMessage, isTyping, selectedConversation, currentUser.id]);
+  const startCall = async (type: 'audio' | 'video') => {
+    if (!isPeerReady || !selectedConversation || isBlocked) return toast.error('النظام غير جاهز أو المستخدم محظور');
+    setCallType(type); setCallStatus('calling');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' });
+      setLocalStream(stream);
+      const call = peerRef.current.call(`user-${selectedConversation.other_user_id}`, stream, { metadata: { type, name: currentUser.name, avatar: currentUser.avatar } });
+      currentCallRef.current = call;
+      call.on('stream', (rs: any) => { setRemoteStream(rs); setCallStatus('connected'); });
+      call.on('close', () => stopMedia());
+      supabase.channel(`calls-${selectedConversation.other_user_id}`).send({ type: 'broadcast', event: 'call-request', payload: { type, peerId: `user-${currentUser.id}`, name: currentUser.name, avatar: currentUser.avatar } });
+    } catch (e) { toast.error('فشل الوصول للوسائط'); setCallStatus('idle'); }
+  };
 
-  const stopMedia = () => { if (localStream) localStream.getTracks().forEach(t => t.stop()); setLocalStream(null); setRemoteStream(null); if (currentCallRef.current) currentCallRef.current.close(); };
-  const endCall = () => { setCallStatus('idle'); stopMedia(); };
   const acceptCall = async () => {
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === 'video' }); setLocalStream(s);
-      if (currentCallRef.current) { currentCallRef.current.answer(s); currentCallRef.current.on('stream', (rs: any) => { setRemoteStream(rs); setCallStatus('connected'); }); }
-    } catch (e) { endCall(); }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callType === 'video' });
+      setLocalStream(stream);
+      currentCallRef.current.answer(stream);
+      currentCallRef.current.on('stream', (rs: any) => { setRemoteStream(rs); setCallStatus('connected'); });
+      supabase.channel(`calls-${incomingCallData.peerId.replace('user-', '')}`).send({ type: 'broadcast', event: 'call-response', payload: { accepted: true } });
+    } catch (e) { toast.error('فشل قبول المكالمة'); }
   };
 
-  const startCall = async (type: 'audio' | 'video') => {
-    if (!selectedConversation || !isPeerReady) return;
-    setCallStatus('calling'); setCallType(type);
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: type === 'video' }); setLocalStream(s);
-      await supabase.channel(`calls-${selectedConversation.other_user_id}`).send({ type: 'broadcast', event: 'call-request', payload: { from: currentUser.id, name: currentUser.name, avatar: currentUser.avatar, type, peerId: `user-${currentUser.id}` } });
-      const call = peerRef.current.call(`user-${selectedConversation.other_user_id}`, s, { metadata: { type, name: currentUser.name, avatar: currentUser.avatar } });
-      call.on('stream', (rs: any) => { setRemoteStream(rs); setCallStatus('connected'); });
-      call.on('close', endCall); currentCallRef.current = call;
-    } catch (e) { endCall(); }
+  const stopMedia = () => {
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    if (currentCallRef.current) currentCallRef.current.close();
+    setLocalStream(null); setRemoteStream(null); setCallStatus('idle');
   };
-
-  useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-    if (localStream && localVideoRef.current) localVideoRef.current.srcObject = localStream;
-  }, [remoteStream, localStream]);
 
   useEffect(() => {
     const fetch = async () => { 
@@ -304,47 +336,27 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
 
   const loadMsgs = useCallback(async (id: string) => {
     if (!id) return;
-    try {
-      const { data, error } = await supabase.from('direct_messages').select('*').or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUser.id})`).order('created_at', { ascending: true });
-      if (error) throw error;
-      if (data) { 
-        setMessages(data); 
-        data.forEach(m => messageIds.current.add(m.id)); 
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100); 
-      }
-    } catch (e) {
-      console.error('Error loading messages:', e);
-    }
+    const { data } = await supabase.from('direct_messages').select('*').or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUser.id})`).order('created_at', { ascending: true });
+    if (data) { setMessages(data); messageIds.current = new Set(data.map(m => m.id)); setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100); }
   }, [currentUser.id]);
 
-  useEffect(() => { 
-    if (selectedConversation?.other_user_id) {
-      loadMsgs(selectedConversation.other_user_id);
-    }
-  }, [selectedConversation?.other_user_id, loadMsgs]);
+  useEffect(() => { if (selectedConversation) loadMsgs(selectedConversation.other_user_id); }, [selectedConversation, loadMsgs]);
+
+  if (isLoading) return <div className="flex-1 flex items-center justify-center bg-white"><Loader2 className="animate-spin text-purple-600" size={40} /></div>;
 
   return (
-    <div className="flex h-full bg-[#f8fafc] overflow-hidden font-sans text-[#1e293b] relative">
-      {/* Sidebar */}
-      <div className={`w-full md:w-[380px] flex-shrink-0 border-r border-slate-200 flex flex-col bg-white ${selectedConversation ? 'hidden md:flex' : 'flex'}`}>
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <h1 className="text-2xl font-black tracking-tighter text-[#7c3aed]">Signal</h1>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Live
+    <div className={`flex bg-white shadow-2xl overflow-hidden ${fullPage ? 'fixed inset-0 z-50' : 'h-[700px] rounded-3xl border border-slate-100'}`}>
+      {/* Conversations List */}
+      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[380px] flex-col border-r border-slate-50 bg-[#fdfdfd]`}>
+        <div className="p-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Messages</h2>
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-all"><X size={20} /></button>
           </div>
-        </div>
-        <div className="px-5 py-3">
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#7c3aed] transition-colors" size={18} />
             <input type="text" placeholder={searchInMessages ? "Search messages..." : "Search chats..."} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-50 border-none rounded-2xl pl-11 pr-4 py-3 text-sm focus:ring-2 focus:ring-purple-100 outline-none transition-all" />
-            <button 
-              onClick={() => setSearchInMessages(!searchInMessages)} 
-              className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all ${searchInMessages ? 'bg-purple-100 text-[#7c3aed]' : 'text-slate-400 hover:bg-slate-100'}`}
-              title="Search in messages"
-            >
-              <MessageSquare size={16} />
-            </button>
+            <button onClick={() => setSearchInMessages(!searchInMessages)} className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all ${searchInMessages ? 'bg-purple-100 text-[#7c3aed]' : 'text-slate-400 hover:bg-slate-100'}`} title="Search in messages"><MessageSquare size={16} /></button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-2">
@@ -353,14 +365,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             const msgMatch = searchInMessages && decode(c.last_message).toLowerCase().includes(searchQuery.toLowerCase());
             return nameMatch || msgMatch;
           }).map((conv) => (
-            <button 
-              key={conv.other_user_id} 
-              onClick={() => {
-                setSelectedConversation(conv);
-                setUnreadCounts(prev => ({ ...prev, [conv.other_user_id]: 0 }));
-              }} 
-              className={`w-full p-4 mb-1 flex items-center gap-4 rounded-2xl hover:bg-slate-50 transition-all group ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-purple-50 shadow-sm' : ''}`}
-            >
+            <button key={conv.other_user_id} onClick={() => { setSelectedConversation(conv); setUnreadCounts(prev => ({ ...prev, [conv.other_user_id]: 0 })); }} className={`w-full p-4 mb-1 flex items-center gap-4 rounded-2xl hover:bg-slate-50 transition-all group ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-purple-50 shadow-sm' : ''}`}>
               <div className="relative flex-shrink-0">
                 <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
                   <Image src={conv.avatar || '/default-avatar.png'} alt={conv.name} width={56} height={56} className="object-cover" unoptimized />
@@ -370,17 +375,11 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
               <div className="flex-1 min-w-0 text-left">
                 <div className="flex justify-between items-baseline mb-1">
                   <h3 className="font-bold text-[16px] truncate text-slate-800">{conv.name}</h3>
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    {conv.last_message_time ? new Date(conv.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">{conv.last_message_time ? new Date(conv.last_message_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm text-slate-500 truncate leading-relaxed flex-1">{decode(conv.last_message) || 'Start a new story...'}</p>
-                  {unreadCounts[conv.other_user_id] > 0 && (
-                    <span className="bg-[#7c3aed] text-white text-[10px] font-black px-2 py-0.5 rounded-full min-w-[20px] text-center animate-bounce">
-                      {unreadCounts[conv.other_user_id]}
-                    </span>
-                  )}
+                  {unreadCounts[conv.other_user_id] > 0 && <span className="bg-[#7c3aed] text-white text-[10px] font-black px-2 py-0.5 rounded-full min-w-[20px] text-center animate-bounce">{unreadCounts[conv.other_user_id]}</span>}
                 </div>
               </div>
             </button>
@@ -388,34 +387,88 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         </div>
       </div>
 
-      {/* Chat Engine */}
-      <div className={`flex-1 flex flex-col bg-white absolute inset-0 z-20 md:relative md:z-0 ${selectedConversation ? 'flex' : 'hidden md:flex'}`}>
+      {/* Chat Area */}
+      <div className={`${selectedConversation ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-white relative`}>
         {selectedConversation ? (
           <>
-            <div className="h-20 border-b border-slate-100 flex items-center justify-between px-6 bg-white/90 backdrop-blur-xl sticky top-0 z-10">
-              <div className="flex items-center gap-4 min-w-0">
-                <button onClick={() => setSelectedConversation(null)} className="p-2 -ml-2 hover:bg-slate-100 rounded-xl md:hidden text-slate-600"><ChevronLeft size={28} /></button>
-                <div className="w-12 h-12 rounded-2xl overflow-hidden border border-slate-100 shadow-sm flex-shrink-0">
-                  <Image src={selectedConversation.avatar || '/default-avatar.png'} alt={selectedConversation.name} width={48} height={48} className="object-cover" unoptimized />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="font-bold text-[17px] truncate text-slate-900 leading-tight">{selectedConversation.name}</h2>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`w-2 h-2 rounded-full ${otherUserOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                    <span className={`text-[12px] font-bold ${otherUserOnline ? 'text-emerald-600' : 'text-slate-400'}`}>
-                      {otherUserTyping ? 'Typing...' : (otherUserOnline ? 'Active Now' : 'Offline')}
-                    </span>
+            {/* Header */}
+            <div className="p-4 border-b border-slate-50 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setSelectedConversation(null)} className="md:hidden p-2 hover:bg-slate-50 rounded-full"><ChevronLeft /></button>
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-md border-2 border-purple-50">
+                    <Image src={selectedConversation.avatar || '/default-avatar.png'} alt={selectedConversation.name} width={48} height={48} className="object-cover" unoptimized />
                   </div>
+                  {otherUserOnline && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>}
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800 leading-tight">{selectedConversation.name}</h3>
+                  <p className="text-[11px] font-bold flex items-center gap-1">
+                    {otherUserTyping ? (
+                      <span className="text-emerald-500 animate-pulse">Typing...</span>
+                    ) : otherUserOnline ? (
+                      <span className="text-emerald-500">Live Now</span>
+                    ) : (
+                      <span className="text-slate-400 flex items-center gap-1">
+                        <History size={10} /> 
+                        {otherUserLastSeen ? `Last seen ${new Date(otherUserLastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Offline'}
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => setShowMediaGallery(!showMediaGallery)} className={`p-3 rounded-2xl transition-all ${showMediaGallery ? 'bg-purple-100 text-[#7c3aed]' : 'text-slate-400 hover:bg-slate-50'}`} title="Media Gallery"><Grid size={22} /></button>
                 <button onClick={() => startCall('audio')} className="p-3 text-[#7c3aed] hover:bg-purple-100 hover:scale-110 rounded-2xl transition-all active:scale-90 shadow-sm hover:shadow-md"><Phone size={22} /></button>
                 <button onClick={() => startCall('video')} className="p-3 text-[#7c3aed] hover:bg-purple-100 hover:scale-110 rounded-2xl transition-all active:scale-90 shadow-sm hover:shadow-md"><Video size={22} /></button>
-                <button className="p-3 text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"><MoreVertical size={22} /></button>
+                <div className="relative group">
+                  <button className="p-3 text-slate-400 hover:bg-slate-50 rounded-2xl transition-all"><MoreVertical size={22} /></button>
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-50 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all z-50 overflow-hidden">
+                    <button onClick={toggleBlock} className="w-full p-4 text-left text-sm font-bold hover:bg-red-50 text-red-600 flex items-center gap-3">
+                      {isBlocked ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
+                      {isBlocked ? 'Unblock User' : 'Block User'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#fdfdfd] scrollbar-hide">
+            {/* Pinned Message Bar */}
+            {pinnedMessageId && (
+              <div className="bg-purple-50 px-6 py-2 border-b border-purple-100 flex items-center justify-between animate-in slide-in-from-top duration-300">
+                <div className="flex items-center gap-3 truncate">
+                  <Pin size={14} className="text-[#7c3aed]" />
+                  <p className="text-xs font-bold text-purple-700 truncate">
+                    {decode(messages.find(m => m.id === pinnedMessageId)?.content) || 'Pinned message'}
+                  </p>
+                </div>
+                <button onClick={() => setPinnedMessageId(null)} className="text-purple-400 hover:text-purple-600"><X size={14} /></button>
+              </div>
+            )}
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#fdfdfd] scrollbar-hide relative">
+              {showMediaGallery && (
+                <div className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm p-6 animate-in fade-in duration-300 overflow-y-auto">
+                  <div className="flex items-center justify-between mb-6">
+                    <h4 className="text-xl font-black text-slate-800">Media & Files</h4>
+                    <button onClick={() => setShowMediaGallery(false)} className="p-2 hover:bg-slate-100 rounded-full"><X size={24} /></button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {mediaMessages.length > 0 ? mediaMessages.map(m => (
+                      <div key={m.id} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 shadow-sm group relative">
+                        {m.message_type === 'image' ? (
+                          <Image src={m.media_url} alt="Media" fill className="object-cover" unoptimized />
+                        ) : (
+                          <div className="w-full h-full bg-slate-50 flex items-center justify-center"><FileText className="text-slate-300" size={32} /></div>
+                        )}
+                        <a href={m.media_url} download className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all text-white"><Download size={24} /></a>
+                      </div>
+                    )) : <p className="col-span-3 text-center text-slate-400 py-10 font-bold">No media found</p>}
+                  </div>
+                </div>
+              )}
+
               {messages.map((msg, i) => (
                 <div key={msg.id} className={`flex ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'} group relative`}>
                   <div className={`max-w-[85%] rounded-3xl text-[15px] shadow-sm transition-all hover:shadow-lg hover:scale-[1.02] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300 ${msg.sender_id === currentUser.id ? 'bg-gradient-to-br from-[#7c3aed] to-[#6d28d9] text-white rounded-br-none' : 'bg-white border border-slate-100 text-slate-800 rounded-bl-none'}`}>
@@ -424,114 +477,150 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                         {decode(messages.find(m => m.id === msg.reply_to_id)?.content) || 'Replied message'}
                       </div>
                     )}
-                    {msg.message_type === 'image' ? (
-                      <div className="p-1.5"><Image src={msg.media_url} alt="Image" width={400} height={400} className="rounded-2xl object-cover max-w-full h-auto shadow-sm" unoptimized /></div>
-                    ) : msg.message_type === 'voice' ? (
-                      <div className="px-5 py-3 flex items-center gap-4 min-w-[240px]">
-                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"><Volume2 size={20} /></div>
-                        <audio src={msg.media_url} controls className="h-8 w-full filter invert" />
+                    <div className="p-3">
+                      {msg.message_type === 'image' && (
+                        <div className="mb-2 rounded-2xl overflow-hidden border border-white/20 shadow-inner">
+                          <Image src={msg.media_url} alt="Media" width={300} height={200} className="w-full object-cover" unoptimized />
+                        </div>
+                      )}
+                      {msg.message_type === 'voice' && (
+                        <div className="flex items-center gap-3 py-1">
+                          <button className="p-2 bg-white/20 rounded-full"><Play size={16} fill="currentColor" /></button>
+                          <div className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden"><div className="h-full w-1/3 bg-white"></div></div>
+                          <span className="text-[10px] font-bold">0:12</span>
+                        </div>
+                      )}
+                      {msg.message_type === 'file' && (
+                        <a href={msg.media_url} target="_blank" className="flex items-center gap-3 p-2 bg-black/5 rounded-2xl border border-white/10 mb-1">
+                          <div className="p-2 bg-white/20 rounded-xl"><FileText size={20} /></div>
+                          <div className="flex-1 min-w-0"><p className="text-xs font-bold truncate">{msg.content}</p><p className="text-[10px] opacity-70 uppercase font-black">Download File</p></div>
+                        </a>
+                      )}
+                      <p className="leading-relaxed font-medium">{decode(msg.content)}</p>
+                      <div className={`flex items-center gap-1 mt-1 text-[10px] font-bold ${msg.sender_id === currentUser.id ? 'text-white/70' : 'text-slate-400'}`}>
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {msg.sender_id === currentUser.id && (msg.is_read ? <CheckCheck size={12} className="text-emerald-300" /> : <Check size={12} />)}
+                        {pinnedMessageId === msg.id && <Pin size={10} className="ml-1" />}
                       </div>
-                    ) : msg.message_type === 'file' ? (
-                      <a href={msg.media_url} target="_blank" className="px-5 py-4 flex items-center gap-4 min-w-[200px] hover:bg-black/5 transition-colors">
-                        <FileText size={24} />
-                        <div className="flex-1 truncate"><p className="font-bold text-sm truncate">{decode(msg.content)}</p><p className="text-[10px] opacity-70 uppercase tracking-widest">Download File</p></div>
-                        <Download size={18} />
-                      </a>
-                    ) : (
-                      <div className="px-5 py-3.5 leading-relaxed font-medium">
-                        {decode(msg.content).startsWith('[LOCATION]') ? (
-                          <a href={decode(msg.content).replace('[LOCATION]', '')} target="_blank" className="flex items-center gap-3 underline"><MapPin size={20} /> My Current Location</a>
-                        ) : decode(msg.content)}
-                      </div>
-                    )}
-                    <div className={`text-[10px] px-4 pb-2 flex items-center justify-end gap-1.5 font-bold uppercase tracking-tighter opacity-60 ${msg.sender_id === currentUser.id ? 'text-white' : 'text-slate-400'}`}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      {msg.sender_id === currentUser.id && (msg.is_read ? <CheckCheck size={14} className="text-purple-200" /> : <Check size={14} />)}
                     </div>
                   </div>
-                  <div className={`absolute top-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-all ${msg.sender_id === currentUser.id ? 'right-full mr-2' : 'left-full ml-2'}`}>
-                    <button onClick={() => setReplyTo(msg)} className="p-2 bg-white shadow-sm border border-slate-100 rounded-full text-slate-400 hover:text-[#7c3aed]"><Reply size={14} /></button>
-                    {msg.sender_id === currentUser.id && <button onClick={async () => await supabase.from('direct_messages').delete().eq('id', msg.id)} className="p-2 bg-white shadow-sm border border-slate-100 rounded-full text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>}
+                  {/* Quick Actions */}
+                  <div className={`absolute top-0 ${msg.sender_id === currentUser.id ? '-left-12' : '-right-12'} opacity-0 group-hover:opacity-100 transition-all flex flex-col gap-1`}>
+                    <button onClick={() => setReplyTo(msg)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400" title="Reply"><Reply size={16} /></button>
+                    <button onClick={() => togglePin(msg.id)} className={`p-2 hover:bg-slate-100 rounded-full ${pinnedMessageId === msg.id ? 'text-[#7c3aed]' : 'text-slate-400'}`} title="Pin"><Pin size={16} /></button>
+                    {msg.sender_id === currentUser.id && <button onClick={async () => await supabase.from('direct_messages').delete().eq('id', msg.id)} className="p-2 hover:bg-red-50 rounded-full text-red-400" title="Delete"><Trash2 size={16} /></button>}
                   </div>
                 </div>
               ))}
-              <div ref={messagesEndRef} className="h-4" />
+              <div ref={messagesEndRef} />
             </div>
 
-            {replyTo && (
-              <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between animate-in slide-in-from-bottom-2">
-                <div className="flex items-center gap-3 text-sm text-slate-600 truncate">
-                  <Reply size={16} className="text-[#7c3aed]" />
-                  <span className="font-bold">Replying to:</span>
-                  <span className="truncate italic">{decode(replyTo.content)}</span>
+            {/* Input Area */}
+            <div className="p-6 bg-white border-t border-slate-50 relative">
+              {isBlocked ? (
+                <div className="bg-red-50 p-4 rounded-2xl text-center border border-red-100 animate-pulse">
+                  <p className="text-sm font-black text-red-600">You have blocked this user. Unblock to send messages.</p>
                 </div>
-                <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-slate-200 rounded-full transition-colors"><X size={16} /></button>
-              </div>
-            )}
-
-            <div className="p-6 bg-white border-t border-slate-100">
-              <form onSubmit={(e) => { e.preventDefault(); sendMessage('text', newMessage); }} className="flex items-center gap-3 max-w-5xl mx-auto relative">
-                <div className="flex-1 bg-slate-50 rounded-[28px] flex items-center px-4 py-1.5 border border-transparent focus-within:border-purple-200 focus-within:bg-white transition-all shadow-inner">
-                  <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 transition-colors ${showEmojiPicker ? 'text-[#7c3aed]' : 'text-slate-400 hover:text-[#7c3aed]'}`}><Smile size={24} /></button>
-                  <input type="text" value={newMessage} onChange={handleTyping} placeholder="Write something magical..." className="flex-1 bg-transparent border-none px-3 py-3 focus:ring-0 outline-none text-[16px] text-slate-800 font-medium" disabled={isRecording} />
+              ) : (
+                <>
+                  {replyTo && (
+                    <div className="absolute bottom-full left-0 right-0 bg-slate-50 p-3 border-t border-slate-100 flex items-center justify-between animate-in slide-in-from-bottom duration-200">
+                      <div className="flex items-center gap-3 truncate">
+                        <Reply size={16} className="text-[#7c3aed]" />
+                        <div className="truncate"><p className="text-[10px] font-black text-[#7c3aed] uppercase">Replying to</p><p className="text-xs text-slate-600 truncate">{decode(replyTo.content)}</p></div>
+                      </div>
+                      <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-slate-200 rounded-full"><X size={16} /></button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => fileInputRef.current?.click()} className="p-3 text-slate-400 hover:bg-slate-50 rounded-2xl transition-all" title="Attach File"><Paperclip size={22} /></button>
+                      <button onClick={shareLocation} className="p-3 text-slate-400 hover:bg-slate-50 rounded-2xl transition-all" title="Share Location"><MapPin size={22} /></button>
+                    </div>
+                    <div className="flex-1 relative flex items-center">
+                      <input type="text" value={newMessage} onChange={handleTyping} onKeyPress={(e) => e.key === 'Enter' && sendMessage('text', newMessage)} placeholder="Type a message..." className="w-full bg-slate-50 border-none rounded-2xl pl-5 pr-12 py-4 text-sm focus:ring-2 focus:ring-purple-100 outline-none transition-all font-medium" />
+                      <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="absolute right-3 p-2 text-slate-400 hover:text-[#7c3aed] transition-colors"><Smile size={22} /></button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onMouseDown={startRecording} onMouseUp={stopRecording} onMouseLeave={stopRecording} className={`p-4 rounded-2xl transition-all shadow-lg ${isRecording ? 'bg-red-500 text-white animate-pulse scale-110' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                        {isRecording ? <span className="text-xs font-black">{recordingTime}s</span> : <Mic size={22} />}
+                      </button>
+                      <button onClick={() => sendMessage('text', newMessage)} disabled={!newMessage.trim() || isSending} className="p-4 bg-gradient-to-br from-[#7c3aed] to-[#6d28d9] text-white rounded-2xl hover:shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-lg">
+                        {isSending ? <Loader2 className="animate-spin" size={22} /> : <Send size={22} />}
+                      </button>
+                    </div>
+                  </div>
                   <input type="file" ref={fileInputRef} onChange={uploadFile} className="hidden" />
-                  <div className="flex items-center gap-1">
-                    <button type="button" onClick={shareLocation} className="p-2 text-slate-400 hover:text-[#7c3aed] transition-colors"><MapPin size={22} /></button>
-                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="p-2 text-slate-400 hover:text-[#7c3aed] transition-colors">{isUploading ? <Loader2 size={22} className="animate-spin" /> : <Paperclip size={22} />}</button>
-                  </div>
-                </div>
-                {newMessage.trim() ? (
-                  <button type="submit" disabled={isSending} className="w-14 h-14 bg-[#7c3aed] text-white rounded-full shadow-lg shadow-purple-200 flex items-center justify-center hover:bg-[#6d28d9] active:scale-90 transition-all"><Send size={24} /></button>
-                ) : (
-                  <button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} onTouchStart={startRecording} onTouchEnd={stopRecording} className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 ${isRecording ? 'bg-red-500 animate-pulse text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}><Mic size={24} /></button>
-                )}
-                {showEmojiPicker && (
-                  <div className="absolute bottom-full left-0 mb-4 p-4 bg-white shadow-2xl rounded-3xl border border-slate-100 grid grid-cols-6 gap-2 z-50 animate-in zoom-in-95">
-                    {['😊', '😂', '😍', '👍', '🔥', '❤️', '🙌', '✨', '🎉', '🤔', '😎', '💡'].map(e => (
-                      <button key={e} type="button" onClick={() => { setNewMessage(p => p + e); setShowEmojiPicker(false); }} className="text-2xl hover:scale-125 transition-transform p-1">{e}</button>
-                    ))}
-                  </div>
-                )}
-              </form>
-              {isRecording && <div className="flex items-center justify-center gap-2 mt-3 text-red-500 font-black text-xs uppercase tracking-widest animate-pulse"><div className="w-2 h-2 bg-red-500 rounded-full"></div> Recording Audio: {recordingTime}s</div>}
+                </>
+              )}
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-200 bg-[#fafafa]">
-            <div className="w-32 h-32 bg-white rounded-[40px] shadow-xl shadow-slate-100 flex items-center justify-center mb-8 border border-slate-50"><MessageSquare size={64} className="text-purple-100" /></div>
-            <h3 className="text-slate-900 font-black text-2xl mb-2 tracking-tight">Your Private Space</h3>
-            <p className="text-slate-400 font-medium">Select a conversation to start the magic.</p>
+          <div className="flex-1 flex flex-col items-center justify-center bg-[#fdfdfd] p-10 text-center">
+            <div className="w-32 h-32 bg-purple-50 rounded-[40px] flex items-center justify-center mb-8 animate-bounce duration-1000">
+              <Sparkles className="text-[#7c3aed]" size={60} />
+            </div>
+            <h3 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Your Private Space</h3>
+            <p className="text-slate-500 max-w-xs leading-relaxed font-medium">Select a conversation to start sharing moments and stories in a secure environment.</p>
           </div>
         )}
       </div>
 
-      {/* Call UI Overlay */}
+      {/* Call Overlay */}
       {callStatus !== 'idle' && (
-        <div className="fixed inset-0 z-[100] bg-[#0f172a] flex flex-col items-center justify-center text-white p-8 animate-in fade-in duration-500 backdrop-blur-3xl">
-          <div className="absolute top-8 right-8"><button onClick={endCall} className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all"><X size={32} /></button></div>
-          <div className="flex flex-col items-center mb-16">
-            <div className="w-40 h-40 rounded-[50px] overflow-hidden border-8 border-[#7c3aed]/30 mb-8 shadow-2xl animate-pulse relative">
-              <Image src={callStatus === 'incoming' ? (incomingCallData?.avatar || '/default-avatar.png') : (selectedConversation?.avatar || '/default-avatar.png')} alt="Avatar" width={160} height={160} className="object-cover" unoptimized />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#7c3aed]/20 to-transparent"></div>
-            </div>
-            <h2 className="text-4xl font-black mb-3 tracking-tight">{callStatus === 'incoming' ? incomingCallData?.name : selectedConversation?.name}</h2>
-            <div className="flex items-center gap-3 px-4 py-1.5 bg-white/10 rounded-full"><div className="w-2 h-2 bg-purple-400 rounded-full animate-ping"></div><p className="text-purple-200 font-bold uppercase tracking-widest text-xs">{callStatus === 'calling' ? 'Calling...' : callStatus === 'incoming' ? 'Incoming Call' : 'Connected'}</p></div>
+        <div className="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center p-8 animate-in fade-in duration-500">
+          <div className="absolute inset-0 overflow-hidden opacity-20">
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-600 to-blue-900"></div>
+            {remoteStream && callType === 'video' && <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover blur-3xl" />}
           </div>
-          {callType === 'video' && callStatus === 'connected' && (
-            <div className="relative w-full max-w-5xl aspect-video bg-slate-900 rounded-[40px] overflow-hidden shadow-2xl mb-12 border border-white/10">
-              <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
-              <div className="absolute bottom-6 right-6 w-1/3 max-w-[240px] aspect-video bg-slate-800 rounded-3xl overflow-hidden border-4 border-white/20 shadow-2xl"><video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" /></div>
+          
+          <div className="relative z-10 flex flex-col items-center w-full max-w-md">
+            <div className="relative mb-12">
+              <div className="w-40 h-40 rounded-[60px] overflow-hidden border-4 border-white/20 shadow-2xl animate-pulse">
+                <Image src={(callStatus === 'incoming' ? incomingCallData?.avatar : selectedConversation?.avatar) || '/default-avatar.png'} alt="Caller" width={160} height={160} className="object-cover" unoptimized />
+              </div>
+              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md px-6 py-2 rounded-full border border-white/20">
+                <p className="text-white text-sm font-black tracking-widest uppercase">{callStatus}</p>
+              </div>
             </div>
-          )}
-          <div className="flex items-center gap-8 mt-auto mb-12">
-            {callStatus === 'incoming' ? (
-              <><button onClick={acceptCall} className="w-20 h-20 bg-emerald-500 rounded-[30px] flex items-center justify-center hover:bg-emerald-600 shadow-2xl shadow-emerald-500/40 hover:scale-110 transition-all active:scale-90"><Phone size={40} /></button><button onClick={endCall} className="w-20 h-20 bg-rose-500 rounded-[30px] flex items-center justify-center hover:bg-rose-600 shadow-2xl shadow-rose-500/40 hover:scale-110 transition-all active:scale-90"><PhoneOff size={40} /></button></>
-            ) : (
-              <><button onClick={() => setIsMuted(!isMuted)} className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${isMuted ? 'bg-rose-500' : 'bg-white/10 hover:bg-white/20'}`}>{isMuted ? <MicOff size={28} /> : <Mic size={28} />}</button><button onClick={endCall} className="w-20 h-20 bg-rose-500 rounded-[30px] flex items-center justify-center hover:bg-rose-600 shadow-2xl shadow-rose-500/40 hover:scale-110 transition-all active:scale-90"><PhoneOff size={40} /></button>{callType === 'video' && (<button onClick={() => setIsVideoOff(!isVideoOff)} className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${isVideoOff ? 'bg-rose-500' : 'bg-white/10 hover:bg-white/20'}`}>{isVideoOff ? <VideoOff size={28} /> : <Video size={28} />}</button>)}</>
+            
+            <h2 className="text-4xl font-black text-white mb-2 tracking-tight text-center">
+              {callStatus === 'incoming' ? incomingCallData?.name : selectedConversation?.name}
+            </h2>
+            <p className="text-white/60 font-bold mb-20">{callType === 'video' ? 'Video Call' : 'Audio Call'}</p>
+
+            {callStatus === 'connected' && callType === 'video' && (
+              <div className="w-full aspect-video bg-black/40 rounded-[40px] overflow-hidden mb-12 border-2 border-white/10 shadow-2xl relative">
+                <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                <div className="absolute bottom-4 right-4 w-32 aspect-video bg-black/60 rounded-2xl overflow-hidden border-2 border-white/20 shadow-xl">
+                  <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                </div>
+              </div>
             )}
+
+            <div className="flex items-center gap-8">
+              {callStatus === 'incoming' ? (
+                <>
+                  <button onClick={stopMedia} className="p-6 bg-red-500 text-white rounded-[30px] hover:bg-red-600 hover:scale-110 transition-all shadow-2xl shadow-red-500/40"><PhoneOff size={32} /></button>
+                  <button onClick={acceptCall} className="p-6 bg-emerald-500 text-white rounded-[30px] hover:bg-emerald-600 hover:scale-110 transition-all shadow-2xl shadow-emerald-500/40 animate-bounce"><Phone size={32} /></button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => setIsMuted(!isMuted)} className={`p-5 rounded-[25px] transition-all ${isMuted ? 'bg-white text-slate-900' : 'bg-white/10 text-white hover:bg-white/20'}`}>{isMuted ? <MicOff size={24} /> : <Mic size={24} />}</button>
+                  <button onClick={stopMedia} className="p-8 bg-red-500 text-white rounded-[35px] hover:bg-red-600 hover:scale-110 transition-all shadow-2xl shadow-red-500/40"><PhoneOff size={36} /></button>
+                  {callType === 'video' && <button onClick={() => setIsVideoOff(!isVideoOff)} className={`p-5 rounded-[25px] transition-all ${isVideoOff ? 'bg-white text-slate-900' : 'bg-white/10 text-white hover:bg-white/20'}`}>{isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}</button>}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
+
+const Sparkles = ({ className, size }: { className?: string, size?: number }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M3 5h4"/><path d="M21 17v4"/><path d="M19 19h4"/>
+  </svg>
+);
