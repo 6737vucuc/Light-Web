@@ -10,19 +10,13 @@ export async function POST(request: NextRequest) {
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { receiverId, callerId, callerPeerId, callerName, callerAvatar, callType } = await request.json();
+    const { callerId } = await request.json();
 
-    await RealtimeChatService.initiateCall(receiverId, {
-      callerId,
-      callerPeerId,
-      callerName,
-      callerAvatar,
-      callType
-    });
+    await RealtimeChatService.rejectCall(callerId);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error initiating call:', error);
+    console.error('Error rejecting call:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,333 +1,222 @@
-'use client';
-
-import { useState, useRef, useEffect, useCallback } from 'react';
-import Pusher from 'pusher-js';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import Peer from 'peerjs';
+import { supabase } from '@/lib/supabase/client';
+import { ChatEvent } from '@/lib/realtime/chat';
 
 interface CallState {
-  isInCall: boolean;
   isCalling: boolean;
   isReceivingCall: boolean;
+  isInCall: boolean;
   callerId: number | null;
-  callerName: string | null;
+  callerName: string;
   callerAvatar: string | null;
   receiverId: number | null;
+  callType: 'voice' | 'video';
   isMuted: boolean;
   isSpeaker: boolean;
-  callDuration: number;
+  duration: number;
 }
 
-interface UseVoiceCallProps {
-  currentUserId: number;
-  currentUserName: string;
-  currentUserAvatar?: string;
-}
+const initialState: CallState = {
+  isCalling: false,
+  isReceivingCall: false,
+  isInCall: false,
+  callerId: null,
+  callerName: '',
+  callerAvatar: null,
+  receiverId: null,
+  callType: 'voice',
+  isMuted: false,
+  isSpeaker: false,
+  duration: 0,
+};
 
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-  { urls: 'stun:stun3.l.google.com:19302' },
-  { urls: 'stun:stun4.l.google.com:19302' },
-];
-
-export function useVoiceCall({ currentUserId, currentUserName, currentUserAvatar }: UseVoiceCallProps) {
-  const [callState, setCallState] = useState<CallState>({
-    isInCall: false,
-    isCalling: false,
-    isReceivingCall: false,
-    callerId: null,
-    callerName: null,
-    callerAvatar: null,
-    receiverId: null,
-    isMuted: false,
-    isSpeaker: false,
-    callDuration: 0,
-  });
-
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+export function useVoiceCall(currentUserId: number, currentUserName: string, currentUserAvatar: string | null) {
+  const [callState, setCallState] = useState<CallState>(initialState);
+  const peerRef = useRef<Peer | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
-  const pusherRef = useRef<Pusher | null>(null);
-  const channelRef = useRef<any>(null);
-  const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Initialize Pusher for signaling
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-    });
-
-    const channel = pusherRef.current.subscribe(`private-calls-${currentUserId}`);
-    channelRef.current = channel;
-
-    // Listen for incoming calls
-    channel.bind('incoming-call', async (data: any) => {
-      console.log('Incoming call:', data);
-      setCallState(prev => ({
-        ...prev,
-        isReceivingCall: true,
-        callerId: data.callerId,
-        callerName: data.callerName,
-        callerAvatar: data.callerAvatar,
-      }));
-    });
-
-    // Listen for call accepted
-    channel.bind('call-accepted', async (data: any) => {
-      console.log('Call accepted:', data);
-      if (data.answer && peerConnectionRef.current) {
-        await peerConnectionRef.current.setRemoteDescription(
-          new RTCSessionDescription(data.answer)
-        );
-        setCallState(prev => ({
-          ...prev,
-          isCalling: false,
-          isInCall: true,
-        }));
-        startCallTimer();
-      }
-    });
-
-    // Listen for ICE candidates
-    channel.bind('ice-candidate', async (data: any) => {
-      if (data.candidate && peerConnectionRef.current) {
-        try {
-          await peerConnectionRef.current.addIceCandidate(
-            new RTCIceCandidate(data.candidate)
-          );
-        } catch (error) {
-          console.error('Error adding ICE candidate:', error);
-        }
-      }
-    });
-
-    // Listen for call ended
-    channel.bind('call-ended', () => {
-      endCall();
-    });
-
-    // Listen for call declined
-    channel.bind('call-declined', () => {
-      setCallState(prev => ({
-        ...prev,
-        isCalling: false,
-        isReceivingCall: false,
-      }));
-      cleanup();
-    });
-
-    return () => {
-      if (pusherRef.current) {
-        pusherRef.current.unsubscribe(`private-calls-${currentUserId}`);
-        pusherRef.current.disconnect();
-      }
-    };
-  }, [currentUserId]);
-
-  const startCallTimer = () => {
-    callTimerRef.current = setInterval(() => {
-      setCallState(prev => ({
-        ...prev,
-        callDuration: prev.callDuration + 1,
-      }));
-    }, 1000);
-  };
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const channelRef = useRef<any>(null);
 
   const cleanup = useCallback(() => {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
     }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getTracks().forEach(track => track.stop());
+      remoteStreamRef.current = null;
     }
-    if (callTimerRef.current) {
-      clearInterval(callTimerRef.current);
-      callTimerRef.current = null;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
-    setCallState({
-      isInCall: false,
-      isCalling: false,
-      isReceivingCall: false,
-      callerId: null,
-      callerName: null,
-      callerAvatar: null,
-      receiverId: null,
-      isMuted: false,
-      isSpeaker: false,
-      callDuration: 0,
-    });
+    setCallState(initialState);
   }, []);
 
-  const createPeerConnection = useCallback(() => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  useEffect(() => {
+    if (!currentUserId) return;
 
-    pc.onicecandidate = async (event) => {
-      if (event.candidate) {
-        const targetId = callState.receiverId || callState.callerId;
-        await fetch('/api/calls/signal', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'ice-candidate',
-            targetUserId: targetId,
-            candidate: event.candidate,
-          }),
-        });
-      }
-    };
+    // Initialize PeerJS with Google's free STUN server
+    const peer = new Peer(`user-${currentUserId}`, {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+        ],
+      },
+    });
 
-    pc.ontrack = (event) => {
-      remoteStreamRef.current = event.streams[0];
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = event.streams[0];
-        remoteAudioRef.current.play().catch(console.error);
-      }
-    };
+    peer.on('open', (id) => {
+      console.log('PeerJS connected with ID:', id);
+    });
 
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-        endCall();
-      }
-    };
+    peer.on('call', async (call) => {
+      // This is handled via Supabase broadcast for better UI control
+      // But we need to be ready to answer
+      console.log('Incoming PeerJS call');
+    });
 
-    return pc;
-  }, [callState.receiverId, callState.callerId]);
+    peerRef.current = peer;
 
-  const startCall = useCallback(async (receiverId: number, receiverName: string) => {
-    try {
-      // Get audio stream
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      localStreamRef.current = stream;
+    // Initialize Supabase Channel for signaling
+    const channel = supabase.channel(`user-${currentUserId}`, {
+      config: { broadcast: { self: false } },
+    });
 
-      // Create peer connection
-      const pc = createPeerConnection();
-      peerConnectionRef.current = pc;
+    channel
+      .on('broadcast', { event: ChatEvent.INCOMING_CALL }, ({ payload }) => {
+        setCallState(prev => ({
+          ...prev,
+          isReceivingCall: true,
+          callerId: payload.callerId,
+          callerName: payload.callerName,
+          callerAvatar: payload.callerAvatar,
+          callType: payload.callType,
+        }));
+      })
+      .on('broadcast', { event: ChatEvent.CALL_ACCEPTED }, async ({ payload }) => {
+        if (callState.isCalling || callState.receiverId === payload.acceptorId) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callState.callType === 'video' });
+            localStreamRef.current = stream;
+            
+            const call = peerRef.current!.call(payload.receiverPeerId, stream);
+            call.on('stream', (remoteStream) => {
+              remoteStreamRef.current = remoteStream;
+              if (remoteAudioRef.current) {
+                remoteAudioRef.current.srcObject = remoteStream;
+                remoteAudioRef.current.play().catch(console.error);
+              }
+            });
 
-      // Add local stream
-      stream.getTracks().forEach(track => {
-        pc.addTrack(track, stream);
-      });
-
-      // Create offer
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      // Send call request
-      await fetch('/api/calls/initiate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          receiverId,
-          offer,
-          callerName: currentUserName,
-          callerAvatar: currentUserAvatar,
-        }),
-      });
-
-      setCallState(prev => ({
-        ...prev,
-        isCalling: true,
-        receiverId,
-      }));
-
-      // Auto-end call after 30 seconds if no answer
-      setTimeout(() => {
-        if (callState.isCalling && !callState.isInCall) {
-          endCall();
+            setCallState(prev => ({ ...prev, isCalling: false, isInCall: true }));
+            startTimer();
+          } catch (err) {
+            console.error('Failed to get local stream', err);
+            endCall();
+          }
         }
-      }, 30000);
+      })
+      .on('broadcast', { event: ChatEvent.CALL_REJECTED }, () => {
+        cleanup();
+      })
+      .on('broadcast', { event: ChatEvent.CALL_ENDED }, () => {
+        cleanup();
+      })
+      .subscribe();
 
-    } catch (error: any) {
-      console.error('Error starting call:', error);
-      
-      // Better error handling for permission errors
-      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        console.error('Microphone permission denied');
-      } else if (error.name === 'NotFoundError') {
-        console.error('No microphone found');
-      }
-      
+    channelRef.current = channel;
+
+    return () => {
+      peer.destroy();
+      supabase.removeChannel(channel);
       cleanup();
-    }
-  }, [currentUserName, currentUserAvatar, createPeerConnection, cleanup]);
+    };
+  }, [currentUserId, cleanup, callState.isCalling, callState.receiverId, callState.callType]);
 
-  const acceptCall = useCallback(async (offer: RTCSessionDescriptionInit) => {
+  const startTimer = () => {
+    timerRef.current = setInterval(() => {
+      setCallState(prev => ({ ...prev, duration: prev.duration + 1 }));
+    }, 1000);
+  };
+
+  const initiateCall = async (receiverId: number, callType: 'voice' | 'video' = 'voice') => {
+    setCallState(prev => ({ ...prev, isCalling: true, receiverId, callType }));
+    
+    await fetch('/api/calls/initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        receiverId,
+        callerId: currentUserId,
+        callerPeerId: `user-${currentUserId}`,
+        callerName: currentUserName,
+        callerAvatar: currentUserAvatar,
+        callType,
+      }),
+    });
+  };
+
+  const acceptCall = async () => {
     try {
-      // Get audio stream
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callState.callType === 'video' });
       localStreamRef.current = stream;
 
-      // Create peer connection
-      const pc = createPeerConnection();
-      peerConnectionRef.current = pc;
-
-      // Add local stream
-      stream.getTracks().forEach(track => {
-        pc.addTrack(track, stream);
+      peerRef.current!.on('call', (call) => {
+        call.answer(stream);
+        call.on('stream', (remoteStream) => {
+          remoteStreamRef.current = remoteStream;
+          if (remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.play().catch(console.error);
+          }
+        });
       });
 
-      // Set remote description
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-      // Create answer
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      // Send answer
       await fetch('/api/calls/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           callerId: callState.callerId,
-          answer,
+          acceptorId: currentUserId,
+          receiverPeerId: `user-${currentUserId}`,
         }),
       });
 
-      setCallState(prev => ({
-        ...prev,
-        isReceivingCall: false,
-        isInCall: true,
-      }));
-
-      startCallTimer();
-
-    } catch (error) {
-      console.error('Error accepting call:', error);
+      setCallState(prev => ({ ...prev, isReceivingCall: false, isInCall: true }));
+      startTimer();
+    } catch (err) {
+      console.error('Failed to accept call', err);
       cleanup();
     }
-  }, [callState.callerId, createPeerConnection, cleanup]);
+  };
 
-  const declineCall = useCallback(async () => {
-    await fetch('/api/calls/decline', {
+  const rejectCall = async () => {
+    await fetch('/api/calls/reject', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        callerId: callState.callerId,
-      }),
+      body: JSON.stringify({ callerId: callState.callerId }),
     });
     cleanup();
-  }, [callState.callerId, cleanup]);
+  };
 
-  const endCall = useCallback(async () => {
+  const endCall = async () => {
     const targetId = callState.receiverId || callState.callerId;
     if (targetId) {
       await fetch('/api/calls/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetUserId: targetId,
-        }),
+        body: JSON.stringify({ recipientId: targetId, endedBy: currentUserId }),
       });
     }
     cleanup();
-  }, [callState.receiverId, callState.callerId, cleanup]);
+  };
 
-  const toggleMute = useCallback(() => {
+  const toggleMute = () => {
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
@@ -335,12 +224,7 @@ export function useVoiceCall({ currentUserId, currentUserName, currentUserAvatar
         setCallState(prev => ({ ...prev, isMuted: !audioTrack.enabled }));
       }
     }
-  }, []);
-
-  const toggleSpeaker = useCallback(() => {
-    setCallState(prev => ({ ...prev, isSpeaker: !prev.isSpeaker }));
-    // Note: Speaker toggle requires native app support, not available in web
-  }, []);
+  };
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -350,12 +234,11 @@ export function useVoiceCall({ currentUserId, currentUserName, currentUserAvatar
 
   return {
     callState,
-    startCall,
+    initiateCall,
     acceptCall,
-    declineCall,
+    rejectCall,
     endCall,
     toggleMute,
-    toggleSpeaker,
     formatDuration,
     remoteAudioRef,
   };

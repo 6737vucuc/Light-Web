@@ -1,6 +1,5 @@
 // Content Security Policy Configuration
 // Provides advanced protection against XSS, clickjacking, and other attacks
-
 export function generateCSP(): string {
   const cspDirectives = {
     'default-src': ["'self'"],
@@ -31,8 +30,13 @@ export function generateCSP(): string {
     'connect-src': [
       "'self'",
       'https://api.cloudinary.com',
-      'wss://*.pusher.com',
-      'https://*.pusher.com',
+      'https://*.supabase.co',
+      'wss://*.supabase.co',
+      'https://*.supabase.com',
+      'wss://*.supabase.com',
+      'https://*.pooler.supabase.com',
+      'https://0.peerjs.com',
+      'wss://0.peerjs.com',
       'https://vercel.live',
     ],
     'media-src': [
@@ -97,7 +101,7 @@ export const securityHeaders = [
   },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
+    value: 'camera=*, microphone=*, geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
   },
   {
     key: 'Strict-Transport-Security',

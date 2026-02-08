@@ -11,6 +11,7 @@ interface UserAvatarMenuProps {
   isOpen: boolean;
   onClose: () => void;
   position: { x: number; y: number };
+  onSendMessage?: () => void;
 }
 
 export default function UserAvatarMenu({ 
@@ -18,7 +19,8 @@ export default function UserAvatarMenu({
   userName, 
   isOpen, 
   onClose, 
-  position 
+  position,
+  onSendMessage
 }: UserAvatarMenuProps) {
   const router = useRouter();
   const t = useTranslations('community');
@@ -54,8 +56,12 @@ export default function UserAvatarMenu({
   };
 
   const handleSendMessage = () => {
-    router.push(`/messages?userId=${userId}`);
-    onClose();
+    if (onSendMessage) {
+      onSendMessage();
+    } else {
+      router.push(`/messages?userId=${userId}`);
+      onClose();
+    }
   };
 
   const handleReport = async () => {
