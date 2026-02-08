@@ -22,7 +22,8 @@ function MessagesContent() {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
-          setCurrentUser(data.user);
+          // Ensure user data is correctly set for the messenger
+          setCurrentUser(data.user || data);
           setIsAuthenticated(true);
           setIsLoading(false);
         } else {
