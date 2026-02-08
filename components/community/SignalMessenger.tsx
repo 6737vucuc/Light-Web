@@ -285,11 +285,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                 <div className="min-w-0">
                   <h2 className="font-bold text-[15px] truncate">{selectedConversation.name}</h2>
                   <p className="text-[11px] font-medium flex items-center gap-2">
-                    <span className={`inline-flex items-center gap-1 ${isSupabaseConnected && isPeerReady ? 'text-green-600' : 'text-yellow-600'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected && isPeerReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
-                      {isSupabaseConnected && isPeerReady ? t('readyForCalls') : t('connecting')}
-                    </span>
-                    {otherUserOnline ? <span className="text-green-600">• Online</span> : <span className="text-gray-400">• Offline</span>}
+                    <div className="flex flex-col gap-0.5">
+                      <span className={`inline-flex items-center gap-1 ${isSupabaseConnected && isPeerReady ? 'text-green-600' : 'text-yellow-600'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected && isPeerReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
+                        {isSupabaseConnected && isPeerReady ? t('readyForCalls') : t('connecting')}
+                      </span>
+                      <span className={otherUserOnline ? "text-green-600" : "text-gray-400"}>
+                        • {otherUserOnline ? t('online') : t('offline')}
+                      </span>
+                    </div>
                   </p>
                 </div>
               </div>
