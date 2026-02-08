@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { receiverId, content, messageType, mediaUrl } = await request.json();
+    const { receiverId, content, messageType, mediaUrl, replyToId } = await request.json();
     if (!receiverId || (!content && !mediaUrl)) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
 
     // Save to Database
     const [newMessage] = await rawSql`
-      INSERT INTO direct_messages (sender_id, receiver_id, content, message_type, media_url, is_encrypted)
-      VALUES (${user.userId}, ${receiverId}, ${encryptedContent}, ${messageType || 'text'}, ${mediaUrl || null}, true)
+      INSERT INTO direct_messages (sender_id, receiver_id, content, message_type, media_url, is_encrypted, reply_to_id)
+      VALUES (${user.userId}, ${receiverId}, ${encryptedContent}, ${messageType || 'text'}, ${mediaUrl || null}, true, ${replyToId || null})
       RETURNING *
     `;
 
@@ -33,6 +33,16 @@ export async function POST(request: NextRequest) {
     const channelId = `chat-${Math.min(user.userId, receiverId)}-${Math.max(user.userId, receiverId)}`;
     const supabaseAdmin = getSupabaseAdmin();
     
+    // Fetch reply content if exists for broadcast
+    let replyToContent = null;
+    if (replyToId) {
+      const [replyMsg] = await rawSql`SELECT content FROM direct_messages WHERE id = ${replyToId}`;
+      if (replyMsg) {
+        // Note: In a real scenario, we'd decrypt this, but for broadcast we can just send a placeholder or fetch from client
+        replyToContent = "Replying to message..."; 
+      }
+    }
+
     const broadcastMsg = {
       id: newMessage.id,
       senderId: user.userId,
@@ -41,7 +51,8 @@ export async function POST(request: NextRequest) {
       messageType: newMessage.message_type,
       mediaUrl: newMessage.media_url,
       createdAt: newMessage.created_at,
-      isRead: false
+      isRead: false,
+      replyTo: replyToId ? { id: replyToId, content: replyToContent } : null
     };
 
     await supabaseAdmin.channel(channelId).send({

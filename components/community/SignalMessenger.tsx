@@ -51,7 +51,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [replyTo, setReplyTo] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -196,13 +196,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
           receiverId: selectedConv.id,
           content: messageContent,
           messageType: type,
-          mediaUrl
+          mediaUrl,
+          replyToId: replyTo?.id
         })
       });
       if (res.ok) {
         const { message } = await res.json();
         setMessages(prev => [...prev, message]);
         if (type === 'text') setNewMessage('');
+        setReplyTo(null);
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       }
     } catch (error) {
@@ -372,7 +374,10 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         </div>
         
         <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-2">
-          {conversations.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(conv => (
+          {conversations.filter(c => 
+            c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            c.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
+          ).map(conv => (
             <button 
               key={conv.id} 
               onClick={() => setSelectedConv(conv)}
@@ -444,6 +449,11 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                   <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                     <div className={`max-w-[80%] group relative`}>
                       <div className={`px-5 py-3.5 rounded-[1.75rem] text-[15px] shadow-sm transition-all hover:shadow-md ${isMe ? 'bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-tr-none' : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'}`}>
+                        {msg.replyTo && (
+                          <div className={`mb-2 p-2 rounded-xl text-xs border-l-4 ${isMe ? 'bg-white/10 border-white/40 text-purple-100' : 'bg-slate-50 border-purple-400 text-slate-500'} truncate`}>
+                            {msg.replyTo.content}
+                          </div>
+                        )}
                         {msg.messageType === 'text' && <p className="leading-relaxed font-medium">{msg.content}</p>}
                         
                         {msg.messageType === 'image' && msg.mediaUrl && (
@@ -494,6 +504,22 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                           {isMe && (msg.isRead ? <CheckCheck size={14} className="text-emerald-300" /> : <Check size={14} />)}
                         </div>
                       </div>
+                      {!isMe && (
+                        <button 
+                          onClick={() => setReplyTo(msg)}
+                          className="absolute -right-10 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-purple-600 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <Reply size={18} />
+                        </button>
+                      )}
+                      {isMe && (
+                        <button 
+                          onClick={() => setReplyTo(msg)}
+                          className="absolute -left-10 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-purple-600 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <Reply size={18} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -503,6 +529,18 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
 
             {/* Input */}
             <div className="p-6 bg-white border-t border-slate-50">
+              {replyTo && (
+                <div className="mb-4 p-3 bg-purple-50 rounded-2xl flex items-center justify-between animate-in slide-in-from-bottom-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-1 h-8 bg-purple-600 rounded-full"></div>
+                    <div>
+                      <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest">Replying to</p>
+                      <p className="text-xs text-slate-600 truncate max-w-[200px]">{replyTo.content}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setReplyTo(null)} className="p-2 hover:bg-purple-100 rounded-full transition-all text-purple-600"><X size={16} /></button>
+                </div>
+              )}
               {isRecording && (
                 <div className="mb-4 p-4 bg-red-50 rounded-2xl flex items-center justify-between animate-pulse">
                   <div className="flex items-center gap-3 text-red-600">
