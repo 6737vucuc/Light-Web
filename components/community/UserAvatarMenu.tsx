@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { AlertTriangle, User, X, MessageSquare } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
