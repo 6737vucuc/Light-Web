@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // Update support ticket status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<Promise<{ id: string> }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
@@ -50,7 +50,7 @@ export async function PATCH(
 // Delete support ticket
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<Promise<{ id: string> }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);

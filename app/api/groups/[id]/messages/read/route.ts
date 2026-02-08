@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 // POST - Mark messages as read
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<Promise<{ id: string> }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -55,7 +55,7 @@ export async function POST(
 // GET - Get read receipts for a message
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<Promise<{ id: string> }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;

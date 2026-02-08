@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // Update report status (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<Promise<{ id: string> }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);

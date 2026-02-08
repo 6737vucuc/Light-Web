@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 // PATCH - Update call status (accept, reject, end)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<Promise<{ callId: string> }> }
+  { params }: { params: Promise<{ callId: string }> }
 ) {
   try {
     const { callId } = await params;
@@ -84,7 +84,7 @@ export async function PATCH(
 // GET - Get call details
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<Promise<{ callId: string> }> }
+  { params }: { params: Promise<{ callId: string }> }
 ) {
   try {
     const { callId } = await params;

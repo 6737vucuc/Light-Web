@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // Get ticket details with replies
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<Promise<{ id: string> }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
@@ -73,7 +73,7 @@ export async function GET(
 // Update ticket status (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<Promise<{ id: string> }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
