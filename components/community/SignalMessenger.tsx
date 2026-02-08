@@ -55,6 +55,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isPeerReady, setIsPeerReady] = useState(false);
   
   // Voice Recording States
@@ -268,6 +269,13 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       setIsRecording(false);
     }
   };
+
+  const addEmoji = (emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const emojis = ['😊', '😂', '❤️', '😍', '👍', '🔥', '🙌', '✨', '🤔', '😎', '🎉', '💡', '✅', '🚀', '🙏', '💯'];
 
   useEffect(() => {
     let interval: any;
@@ -528,7 +536,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
             </div>
 
             {/* Input */}
-            <div className="p-6 bg-white border-t border-slate-50">
+            <div className="p-6 bg-white border-t border-slate-50 relative">
+              {showEmojiPicker && (
+                <div className="absolute bottom-full left-6 mb-4 p-4 bg-white rounded-3xl shadow-2xl border border-slate-100 grid grid-cols-8 gap-2 animate-in zoom-in-95 duration-200 z-50">
+                  {emojis.map(emoji => (
+                    <button key={emoji} onClick={() => addEmoji(emoji)} className="text-2xl hover:scale-125 transition-transform p-1">{emoji}</button>
+                  ))}
+                </div>
+              )}
+              
               {replyTo && (
                 <div className="mb-4 p-3 bg-purple-50 rounded-2xl flex items-center justify-between animate-in slide-in-from-bottom-2">
                   <div className="flex items-center gap-3">
@@ -547,12 +563,17 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                     <div className="w-3 h-3 bg-red-600 rounded-full animate-ping"></div>
                     <span className="font-black uppercase tracking-widest text-xs">Recording Voice... {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
                   </div>
-                  <button onClick={stopRecording} className="p-2 bg-red-600 text-white rounded-full hover:scale-110 transition-all"><X size={20} /></button>
+                  <button onClick={stopRecording} className="p-2 bg-red-600 text-white rounded-full hover:scale-110 transition-all shadow-lg shadow-red-200"><X size={16} /></button>
                 </div>
               )}
               
               <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-[2rem] border border-slate-100 focus-within:border-purple-200 focus-within:ring-8 focus-within:ring-purple-50/50 transition-all shadow-inner">
-                <button className="p-3 text-slate-400 hover:text-purple-600 hover:bg-white rounded-full transition-all"><Smile size={24} /></button>
+                <button 
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className={`p-3 rounded-full transition-all ${showEmojiPicker ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-purple-600 hover:bg-white'}`}
+                >
+                  <Smile size={24} />
+                </button>
                 <button onClick={() => fileInputRef.current?.click()} className="p-3 text-slate-400 hover:text-purple-600 hover:bg-white rounded-full transition-all">
                   <Paperclip size={24} />
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
