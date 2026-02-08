@@ -21,11 +21,18 @@ const encode = (str: string) => btoa(unescape(encodeURIComponent(str)));
 const decode = (str: string) => {
   if (!str) return '';
   try {
+    // Check if it's base64 encoded
     if (/^[A-Za-z0-9+/=]+$/.test(str)) {
-      try { return decodeURIComponent(escape(atob(str))); } catch { return atob(str); }
+      try { 
+        const decoded = atob(str);
+        try { return decodeURIComponent(escape(decoded)); } catch { return decoded; }
+      } catch { return str; }
     }
     return str;
-  } catch (e) { return str; }
+  } catch (e) { 
+    console.error('Decode error:', e);
+    return str; 
+  }
 };
 
 interface SignalMessengerProps {
@@ -115,8 +122,15 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
       .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, async (payload) => {
         if (payload.eventType === 'INSERT') {
           const msg = payload.new;
-          if (!messageIds.current.has(msg.id)) {
-            messageIds.current.add(msg.id); setMessages(prev => [...prev, msg]);
+          const msgId = msg.id.toString();
+          if (!messageIds.current.has(msgId)) {
+            messageIds.current.add(msgId); 
+            // Note: This message from postgres_changes is encrypted. 
+            // We prefer the one from 'private-message' broadcast if available.
+            setMessages(prev => {
+              if (prev.some(m => m.id.toString() === msgId)) return prev;
+              return [...prev, msg];
+            });
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
             if (msg.sender_id === selectedConversation.other_user_id) {
               new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
@@ -125,6 +139,18 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
           }
         } else if (payload.eventType === 'UPDATE') { setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m)); }
         else if (payload.eventType === 'DELETE') { setMessages(prev => prev.filter(m => m.id !== payload.old.id)); }
+      })
+      .on('broadcast', { event: 'private-message' }, ({ payload }) => {
+        const msg = payload.message;
+        const msgId = msg.id.toString();
+        if (!messageIds.current.has(msgId)) {
+          messageIds.current.add(msgId);
+          setMessages(prev => [...prev, msg]);
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+          if (msg.sender_id === selectedConversation.other_user_id) {
+            new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(() => {});
+          }
+        }
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => { if (payload.userId === selectedConversation.other_user_id) setOtherUserTyping(payload.isTyping); })
       .on('presence', { event: 'sync' }, () => {
@@ -232,13 +258,40 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     if (!selectedConversation || isBlocked) return;
     setIsSending(true);
     try {
-      await supabase.from('direct_messages').insert({
-        sender_id: currentUser.id, receiver_id: selectedConversation.other_user_id,
-        content: encode(content), message_type: type, media_url: mediaUrl,
-        reply_to_id: replyTo?.id
+      // Use the API instead of direct Supabase insert to handle military encryption and database sync correctly
+      const res = await fetch('/api/direct-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiverId: selectedConversation.other_user_id,
+          content: content,
+          messageType: type,
+          mediaUrl: mediaUrl || null
+        }),
       });
-      setReplyTo(null); setNewMessage('');
-    } catch (e) { toast.error('فشل الإرسال'); } finally { setIsSending(false); }
+
+      if (res.ok) {
+        setReplyTo(null);
+        setNewMessage('');
+      } else {
+        // Fallback to direct supabase if API fails
+        await supabase.from('direct_messages').insert({
+          sender_id: currentUser.id, 
+          receiver_id: selectedConversation.other_user_id,
+          content: encode(content), 
+          message_type: type, 
+          media_url: mediaUrl,
+          reply_to_id: replyTo?.id
+        });
+        setReplyTo(null); 
+        setNewMessage('');
+      }
+    } catch (e) { 
+      console.error('Send error:', e);
+      toast.error('فشل الإرسال'); 
+    } finally { 
+      setIsSending(false); 
+    }
   };
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -336,8 +389,27 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
 
   const loadMsgs = useCallback(async (id: string) => {
     if (!id) return;
-    const { data } = await supabase.from('direct_messages').select('*').or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUser.id})`).order('created_at', { ascending: true });
-    if (data) { setMessages(data); messageIds.current = new Set(data.map(m => m.id)); setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100); }
+    try {
+      // Use the API instead of direct Supabase query to handle military encryption correctly
+      const res = await fetch(`/api/direct-messages/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const msgs = data.messages || [];
+        setMessages(msgs);
+        messageIds.current = new Set(msgs.map((m: any) => m.id.toString()));
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      } else {
+        // Fallback to direct supabase if API fails
+        const { data } = await supabase.from('direct_messages').select('*').or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUser.id})`).order('created_at', { ascending: true });
+        if (data) { 
+          setMessages(data); 
+          messageIds.current = new Set(data.map(m => m.id.toString())); 
+          setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100); 
+        }
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
   }, [currentUser.id]);
 
   useEffect(() => { if (selectedConversation) loadMsgs(selectedConversation.other_user_id); }, [selectedConversation, loadMsgs]);

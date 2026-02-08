@@ -308,6 +308,7 @@ export async function POST(request: NextRequest) {
       path: '/',
     };
 
+    // Set cookies without explicit domain to allow browser to handle it correctly
     response.cookies.set('auth_token', token, cookieOptions);
     response.cookies.set('token', token, cookieOptions);
 

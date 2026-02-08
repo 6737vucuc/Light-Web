@@ -44,25 +44,33 @@ ORDER BY dm.created_at ASC
       WHERE sender_id = ${otherUserId} AND receiver_id = ${currentUserId} AND is_read = false
     `;
 
-    // Decrypt messages
+    // Decrypt messages and ensure snake_case for frontend compatibility
     const decryptedMessages = messages.map((msg: any) => {
+      let content = msg.content;
       try {
         if (msg.is_encrypted && msg.content) {
-          return {
-            ...msg,
-            content: decryptMessageMilitary(msg.content),
-            is_encrypted: true
-          };
+          content = decryptMessageMilitary(msg.content);
         }
-        return msg;
       } catch (error) {
         console.error('Error decrypting message:', error);
-        return {
-          ...msg,
-          content: '[Encrypted message - decryption failed]',
-          is_encrypted: true
-        };
+        content = '[Encrypted message - decryption failed]';
       }
+
+      return {
+        id: msg.id,
+        sender_id: msg.sender_id,
+        receiver_id: msg.receiver_id,
+        content: content,
+        message_type: msg.message_type,
+        media_url: msg.media_url,
+        is_encrypted: msg.is_encrypted,
+        is_read: msg.is_read,
+        created_at: msg.created_at,
+        sender_name: msg.sender_name,
+        sender_avatar: msg.sender_avatar,
+        receiver_name: msg.receiver_name,
+        receiver_avatar: msg.receiver_avatar
+      };
     });
 
     return NextResponse.json({ messages: decryptedMessages });

@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
         sameSite: 'lax',
         maxAge: 0, // Expire immediately
         path: '/',
-        domain: isVercel ? 'light-web-project.vercel.app' : undefined,
       });
     });
 

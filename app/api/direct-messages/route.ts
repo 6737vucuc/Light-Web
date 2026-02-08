@@ -136,31 +136,34 @@ export async function POST(request: NextRequest) {
     });
 
     // Broadcast via Supabase Realtime for real-time delivery
+    // The frontend listens on channel: chat-minId-maxId
+    const channelId = `chat-${Math.min(user.userId, receiverId)}-${Math.max(user.userId, receiverId)}`;
     const supabaseAdmin = getSupabaseAdmin();
-    const channel = supabaseAdmin.channel(`user-${receiverId}`);
+    const channel = supabaseAdmin.channel(channelId);
     
+    // Format message for frontend (snake_case)
+    const formattedMessage = {
+      id: newMessage.id,
+      sender_id: newMessage.sender_id,
+      receiver_id: newMessage.receiver_id,
+      content: content, // Send original content for immediate display
+      message_type: newMessage.message_type,
+      media_url: newMessage.media_url,
+      is_encrypted: true,
+      is_read: false,
+      created_at: newMessage.created_at,
+      sender_name: sender?.name,
+      sender_avatar: sender?.avatar
+    };
+
     await channel.send({
       type: 'broadcast',
       event: 'private-message',
-      payload: {
-        message: {
-          ...newMessage,
-          content: content,
-          is_encrypted: true,
-          sender_name: sender?.name,
-          sender_avatar: sender?.avatar
-        }
-      }
+      payload: { message: formattedMessage }
     });
 
-    // Return decrypted message
-    return NextResponse.json({ 
-      message: {
-        ...newMessage,
-        content: content, // Send original content
-        is_encrypted: true
-      }
-    }, { status: 201 });
+    // Return formatted message
+    return NextResponse.json({ message: formattedMessage }, { status: 201 });
   } catch (error) {
     console.error('Error sending message:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
