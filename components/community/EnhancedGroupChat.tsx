@@ -283,14 +283,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         isOpen={avatarMenu.isOpen}
         userId={avatarMenu.userId}
         userName={avatarMenu.userName}
+        avatar={avatarMenu.avatar}
         position={avatarMenu.position}
         onClose={() => setAvatarMenu(prev => ({ ...prev, isOpen: false }))}
-        onSendMessage={() => {
-          setActivePrivateChat({
-            id: avatarMenu.userId,
-            name: avatarMenu.userName,
-            avatar: avatarMenu.avatar
-          });
+        onSendMessage={(userData) => {
+          setActivePrivateChat(userData);
           setAvatarMenu(prev => ({ ...prev, isOpen: false }));
         }}
       />
