@@ -12,6 +12,8 @@ if (typeof window !== 'undefined') {
   });
 }
 import CallOverlay from './CallOverlay';
+import ModernMessenger from './ModernMessenger';
+import UserAvatarMenu from './UserAvatarMenu';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
 import { supabase } from '@/lib/supabase/client';
@@ -48,6 +50,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'incoming' | 'connected' | 'ended'>('idle');
   const [callOtherUser, setCallOtherUser] = useState({ name: '', avatar: '' as string | null });
   const [peerId, setPeerId] = useState<string | null>(null);
+  const [activePrivateChat, setActivePrivateChat] = useState<any>(null);
+  const [avatarMenu, setAvatarMenu] = useState<{ isOpen: boolean; userId: number; userName: string; avatar: string | null; position: { x: number; y: number } }>({
+    isOpen: false,
+    userId: 0,
+    userName: '',
+    avatar: null,
+    position: { x: 0, y: 0 }
+  });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -711,6 +721,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     return new Date(date).toLocaleTimeString(locale === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
+  const handleAvatarClick = (e: React.MouseEvent, userId: number, userName: string, avatar: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAvatarMenu({
+      isOpen: true,
+      userId,
+      userName,
+      avatar,
+      position: { x: e.clientX, y: e.clientY }
+    });
+  };
+
   const getAvatarUrl = (avatar?: string | null) => {
     if (!avatar) return '/default-avatar.png';
     if (avatar.startsWith('data:') || avatar.startsWith('http')) return avatar;
@@ -727,6 +749,29 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
   return (
     <div className="flex h-full bg-[#f0f2f5] overflow-hidden relative" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* Avatar Menu */}
+      <UserAvatarMenu 
+        isOpen={avatarMenu.isOpen}
+        userId={avatarMenu.userId}
+        userName={avatarMenu.userName}
+        avatar={avatarMenu.avatar}
+        position={avatarMenu.position}
+        onClose={() => setAvatarMenu(prev => ({ ...prev, isOpen: false }))}
+        onSendMessage={(userData) => {
+          setActivePrivateChat(userData);
+          setAvatarMenu(prev => ({ ...prev, isOpen: false }));
+        }}
+      />
+
+      {/* Private Chat Modal (ModernMessenger) */}
+      {activePrivateChat && (
+        <ModernMessenger 
+          recipient={activePrivateChat}
+          currentUser={currentUser}
+          onClose={() => setActivePrivateChat(null)}
+        />
+      )}
+
       <CallOverlay 
         callStatus={callStatus} 
         otherUser={callOtherUser} 
@@ -761,7 +806,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
                 className={`w-full px-4 py-4 flex items-center gap-4 hover:bg-[#f5f6f6] border-b border-gray-100 transition-all ${selectedConversation?.other_user_id === conv.other_user_id ? 'bg-[#f0f2f5] border-l-4 border-l-purple-600' : ''}`}
               >
                 <div className="relative flex-shrink-0">
-                  <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-200 shadow-md border-2 border-white">
+                  <div 
+                    onClick={(e) => handleAvatarClick(e, conv.other_user_id, conv.name, conv.avatar)}
+                    className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-200 shadow-md border-2 border-white hover:ring-2 hover:ring-purple-400 transition-all cursor-pointer"
+                  >
                     <Image src={getAvatarUrl(conv.avatar)} alt={conv.name} width={56} height={56} className="object-cover" unoptimized />
                   </div>
                   {conv.is_online && (
@@ -799,9 +847,12 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               <button onClick={() => setSelectedConversation(null)} className="md:hidden p-2 hover:bg-gray-200 rounded-full">
                 <ArrowLeft className="w-6 h-6 text-gray-600" />
               </button>
-              <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gray-200 shadow-sm border-2 border-white">
+              <button 
+                onClick={(e) => handleAvatarClick(e, selectedConversation.other_user_id, selectedConversation.name, selectedConversation.avatar)}
+                className="w-12 h-12 rounded-2xl overflow-hidden bg-gray-200 shadow-sm border-2 border-white hover:ring-2 hover:ring-purple-400 transition-all"
+              >
                 <Image src={getAvatarUrl(selectedConversation.avatar)} alt={selectedConversation.name} width={48} height={48} className="object-cover" unoptimized />
-              </div>
+              </button>
               <div className="flex-1 min-w-0">
                 <h3 className="font-black text-gray-900 truncate">{selectedConversation.name}</h3>
                 <div className="flex items-center gap-1.5">
