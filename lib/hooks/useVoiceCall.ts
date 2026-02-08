@@ -3,7 +3,10 @@ import Peer from 'peerjs';
 import { supabase } from '@/lib/supabase/client';
 import { ChatEvent } from '@/lib/realtime/chat';
 import { peerJSConfig, audioConstraints, getErrorMessage } from '@/lib/webrtc/config';
+import { videoConstraints, getVideoConstraints } from '@/lib/webrtc/video-config';
 import { WebRTCStatsMonitor, CallQuality } from '@/lib/webrtc/stats';
+import { CallHistoryService } from '@/lib/services/call-history';
+import { NotificationService } from '@/lib/services/notifications';
 
 interface CallState {
   isCalling: boolean;
@@ -16,6 +19,7 @@ interface CallState {
   callType: 'voice' | 'video';
   isMuted: boolean;
   isSpeaker: boolean;
+  isVideoEnabled: boolean;
   duration: number;
 }
 
@@ -30,6 +34,7 @@ const initialState: CallState = {
   callType: 'voice',
   isMuted: false,
   isSpeaker: false,
+  isVideoEnabled: false,
   duration: 0,
 };
 
@@ -39,9 +44,11 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<any>(null);
   const statsMonitorRef = useRef<WebRTCStatsMonitor | null>(null);
+  const callStartTimeRef = useRef<number>(0);
 
   const cleanup = useCallback(() => {
     if (localStreamRef.current) {
@@ -69,6 +76,11 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
     call.on('stream', (remoteStream: MediaStream) => {
       console.log('[Call] Received remote stream:', remoteStream);
       remoteStreamRef.current = remoteStream;
+      
+      // Handle video stream if video call
+      if (remoteVideoRef.current && callState.callType === 'video') {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
       
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
@@ -148,6 +160,13 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
           callerAvatar: payload.callerAvatar,
           callType: payload.callType,
         }));
+        
+        // Show incoming call notification
+        NotificationService.showIncomingCallNotification(
+          payload.callerName,
+          payload.callerAvatar,
+          payload.callType
+        );
       })
       .on('broadcast', { event: ChatEvent.CALL_ACCEPTED }, async ({ payload }) => {
         if (callState.isCalling || callState.receiverId === payload.acceptorId) {
@@ -187,6 +206,7 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
   }, [currentUserId, cleanup, callState.isCalling, callState.receiverId, callState.callType, setupCallEvents]);
 
   const startTimer = () => {
+    callStartTimeRef.current = Date.now();
     timerRef.current = setInterval(() => {
       setCallState(prev => ({ ...prev, duration: prev.duration + 1 }));
     }, 1000);
@@ -194,6 +214,23 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
 
   const initiateCall = async (receiverId: number, callType: 'voice' | 'video' = 'voice') => {
     setCallState(prev => ({ ...prev, isCalling: true, receiverId, callType }));
+    
+    try {
+      // Get media constraints based on call type
+      const constraints = callType === 'video' ? getVideoConstraints() : { audio: audioConstraints };
+      
+      // Request permission for media
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
+      
+      // If video call, set up local video
+      if (callType === 'video' && remoteVideoRef.current) {
+        // Local video would be displayed in a separate element
+        console.log('Local video stream ready for video call');
+      }
+    } catch (err) {
+      console.error('Failed to get media for call initiation:', err);
+    }
     
     await fetch('/api/calls/initiate', {
       method: 'POST',
@@ -211,10 +248,8 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
 
   const acceptCall = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: audioConstraints, 
-        video: callState.callType === 'video' 
-      });
+      const constraints = callState.callType === 'video' ? getVideoConstraints() : { audio: audioConstraints };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
 
       peerRef.current!.on('call', (call) => {
@@ -251,7 +286,24 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
 
   const endCall = async () => {
     const targetId = callState.receiverId || callState.callerId;
+    const callDuration = callState.duration;
+    
     if (targetId) {
+      // Log the call to history
+      const callStatus = callState.isInCall ? 'completed' : 'rejected';
+      await CallHistoryService.logCall({
+        callerId: callState.callerId || currentUserId,
+        callerName: currentUserName,
+        callerAvatar: currentUserAvatar,
+        receiverId: targetId,
+        receiverName: '',
+        callType: callState.callType,
+        status: callStatus,
+        duration: callDuration,
+        startedAt: new Date(Date.now() - callDuration * 1000).toISOString(),
+        endedAt: new Date().toISOString(),
+      });
+
       await fetch('/api/calls/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -271,6 +323,20 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
     }
   };
 
+  const toggleVideo = () => {
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setCallState(prev => ({ ...prev, isVideoEnabled: videoTrack.enabled }));
+      }
+    }
+  };
+
+  const toggleSpeaker = () => {
+    setCallState(prev => ({ ...prev, isSpeaker: !prev.isSpeaker }));
+  };
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -284,7 +350,10 @@ export function useVoiceCall(currentUserId: number, currentUserName: string, cur
     rejectCall,
     endCall,
     toggleMute,
+    toggleVideo,
+    toggleSpeaker,
     formatDuration,
     remoteAudioRef,
+    remoteVideoRef,
   };
 }
