@@ -3,28 +3,21 @@ import { db } from '@/lib/db';
 import { groupMessagePinned, groupMessages } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/verify';
-import Pusher from 'pusher';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID!,
-  key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-  secret: process.env.PUSHER_SECRET!,
-  cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-  useTLS: true,
-});
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(request);
-    
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const groupId = parseInt(params.id);
+    const { id } = await params;
+    const groupId = parseInt(id);
     const { messageId } = await request.json();
 
     // Check if message exists
@@ -38,6 +31,9 @@ export async function POST(
     if (!message) {
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
+
+    const supabase = getSupabaseAdmin();
+    const channel = supabase.channel(`group-${groupId}`);
 
     // Check if already pinned
     const existingPin = await db.query.groupMessagePinned.findFirst({
@@ -55,13 +51,12 @@ export async function POST(
           eq(groupMessagePinned.groupId, groupId)
         ));
 
-      // Trigger real-time update
-      try {
-        await pusher.trigger(`group-${groupId}`, 'message-unpinned', {
-          messageId,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (e) {}
+      // Trigger real-time update via Supabase
+      await channel.send({
+        type: 'broadcast',
+        event: 'message-unpinned',
+        payload: { messageId, timestamp: new Date().toISOString() },
+      });
 
       return NextResponse.json({ message: 'Message unpinned' });
     } else {
@@ -73,13 +68,12 @@ export async function POST(
         pinnedAt: new Date(),
       });
 
-      // Trigger real-time update
-      try {
-        await pusher.trigger(`group-${groupId}`, 'message-pinned', {
-          messageId,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (e) {}
+      // Trigger real-time update via Supabase
+      await channel.send({
+        type: 'broadcast',
+        event: 'message-pinned',
+        payload: { messageId, timestamp: new Date().toISOString() },
+      });
 
       return NextResponse.json({ message: 'Message pinned' });
     }

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import SignalMessenger from '@/components/community/SignalMessenger';
+import ModernMessenger from '@/components/community/ModernMessenger';
 import SecurityLoading from '@/components/SecurityLoading';
-import { ArrowLeft, MessageSquare, Shield, Sparkles, Home, User } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Home } from 'lucide-react';
 import Image from 'next/image';
 
 function MessagesContent() {
@@ -15,6 +15,7 @@ function MessagesContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [recipient, setRecipient] = useState<any>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -22,9 +23,18 @@ function MessagesContent() {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
-          // Ensure user data is correctly set for the messenger
           setCurrentUser(data.user || data);
           setIsAuthenticated(true);
+          
+          // If userId is provided, fetch recipient info
+          if (userId) {
+            const userRes = await fetch(`/api/community/profile/${userId}`);
+            if (userRes.ok) {
+              const userData = await userRes.json();
+              setRecipient(userData.user || userData);
+            }
+          }
+          
           setIsLoading(false);
         } else {
           router.push('/auth/login?redirect=/messages');
@@ -36,7 +46,7 @@ function MessagesContent() {
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, userId]);
 
   const getAvatarUrl = (avatar?: string) => {
     if (!avatar) return '/default-avatar.png';
@@ -56,7 +66,6 @@ function MessagesContent() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      {/* Redesigned Header matching Community Page */}
       <header className="bg-gradient-to-r from-purple-700 via-purple-600 to-blue-600 shadow-lg py-4 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
@@ -72,8 +81,8 @@ function MessagesContent() {
                   <MessageSquare className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-black text-white tracking-tight">Signal Private Messenger</h1>
-                  <p className="text-purple-100 text-[10px] font-bold uppercase tracking-widest opacity-80">State-of-the-art Encryption</p>
+                  <h1 className="text-xl font-black text-white tracking-tight">Modern Messenger</h1>
+                  <p className="text-purple-100 text-[10px] font-bold uppercase tracking-widest opacity-80">Powered by Supabase Realtime</p>
                 </div>
               </div>
             </div>
@@ -99,14 +108,29 @@ function MessagesContent() {
         </div>
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-1 overflow-hidden max-w-7xl mx-auto w-full px-0 md:px-4 lg:px-8 py-0 md:py-6">
-        <div className="bg-white md:rounded-3xl shadow-2xl border border-gray-100 overflow-hidden h-full flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <SignalMessenger 
-            currentUser={currentUser} 
-            initialUserId={userId ? parseInt(userId) : undefined}
-            fullPage={true}
-          />
+        <div className="bg-white md:rounded-3xl shadow-2xl border border-gray-100 overflow-hidden h-full flex flex-col relative">
+          {recipient ? (
+            <ModernMessenger 
+              recipient={recipient} 
+              currentUser={currentUser} 
+              onClose={() => router.push('/community')}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <MessageSquare size={40} className="text-gray-300" />
+              </div>
+              <h2 className="text-xl font-black text-gray-800 mb-2">Select a conversation</h2>
+              <p className="max-w-xs font-medium">Go back to community and click on a user's avatar to start a private chat.</p>
+              <button 
+                onClick={() => router.push('/community')}
+                className="mt-6 px-6 py-3 bg-purple-600 text-white rounded-2xl font-black shadow-lg shadow-purple-200 hover:scale-105 transition-all"
+              >
+                Back to Community
+              </button>
+            </div>
+          )}
         </div>
       </main>
     </div>

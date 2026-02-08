@@ -8,17 +8,21 @@ import { useTranslations } from 'next-intl';
 interface UserAvatarMenuProps {
   userId: number;
   userName: string;
+  avatar: string | null;
   isOpen: boolean;
   onClose: () => void;
   position: { x: number; y: number };
+  onSendMessage?: (data: { id: number; name: string; avatar: string | null }) => void;
 }
 
 export default function UserAvatarMenu({ 
   userId, 
   userName, 
+  avatar,
   isOpen, 
   onClose, 
-  position 
+  position,
+  onSendMessage
 }: UserAvatarMenuProps) {
   const router = useRouter();
   const t = useTranslations('community');
@@ -54,8 +58,12 @@ export default function UserAvatarMenu({
   };
 
   const handleSendMessage = () => {
-    router.push(`/messages?userId=${userId}`);
-    onClose();
+    if (onSendMessage) {
+      onSendMessage({ id: userId, name: userName, avatar: avatar });
+    } else {
+      router.push(`/messages?userId=${userId}`);
+      onClose();
+    }
   };
 
   const handleReport = async () => {

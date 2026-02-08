@@ -21,6 +21,7 @@ import Image from 'next/image';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { supabase } from '@/lib/supabase/client';
 import UserAvatarMenu from './UserAvatarMenu';
+import ModernMessenger from './ModernMessenger';
 
 interface EnhancedGroupChatProps {
   group: any;
@@ -44,12 +45,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const [showUserProfile, setShowUserProfile] = useState<any>(null);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
-  const [avatarMenu, setAvatarMenu] = useState<{ isOpen: boolean; userId: number; userName: string; position: { x: number; y: number } }>({
+  const [avatarMenu, setAvatarMenu] = useState<{ isOpen: boolean; userId: number; userName: string; avatar: string | null; position: { x: number; y: number } }>({
     isOpen: false,
     userId: 0,
     userName: '',
+    avatar: null,
     position: { x: 0, y: 0 }
   });
+  const [activePrivateChat, setActivePrivateChat] = useState<any>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<any>(null);
@@ -241,12 +244,13 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     }
   };
 
-  const handleAvatarClick = (e: React.MouseEvent, userId: number, userName: string) => {
+  const handleAvatarClick = (e: React.MouseEvent, userId: number, userName: string, avatar: string | null) => {
     e.preventDefault();
     setAvatarMenu({
       isOpen: true,
       userId,
       userName,
+      avatar,
       position: { x: e.clientX, y: e.clientY }
     });
   };
@@ -279,9 +283,23 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         isOpen={avatarMenu.isOpen}
         userId={avatarMenu.userId}
         userName={avatarMenu.userName}
+        avatar={avatarMenu.avatar}
         position={avatarMenu.position}
         onClose={() => setAvatarMenu(prev => ({ ...prev, isOpen: false }))}
+        onSendMessage={(userData) => {
+          setActivePrivateChat(userData);
+          setAvatarMenu(prev => ({ ...prev, isOpen: false }));
+        }}
       />
+
+      {/* Private Chat Modal */}
+      {activePrivateChat && (
+        <ModernMessenger 
+          recipient={activePrivateChat}
+          currentUser={currentUser}
+          onClose={() => setActivePrivateChat(null)}
+        />
+      )}
 
       {/* Header */}
       <div className="bg-[#f0f2f5] p-3 flex items-center justify-between border-b border-gray-200 z-20 shadow-sm">
@@ -360,7 +378,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
               <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2 group/msg`}>
                 {!isOwn && (
                   <button 
-                    onClick={(e) => handleAvatarClick(e, msg.userId || msg.user_id, userName)}
+                    onClick={(e) => handleAvatarClick(e, msg.userId || msg.user_id, userName, userAvatar)}
                     className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm hover:ring-2 hover:ring-purple-400 transition-all"
                   >
                     <Image src={getAvatarUrl(userAvatar)} alt={userName} width={32} height={32} className="object-cover" unoptimized />
