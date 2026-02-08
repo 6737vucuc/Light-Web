@@ -5,7 +5,7 @@ import { Link, useRouter, usePathname } from '@/i18n/navigation';
 import { Users, MessageCircle, Home, User, Sparkles, BookOpen, Heart, Shield, ArrowLeft, Loader2, Info, Search, Filter } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import Image from 'next/image';
-import EnhancedGroupChat from '@/components/community/EnhancedGroupChat';
+// EnhancedGroupChat was removed in favor of the new messaging system
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/lib/contexts/ToastContext';
 
@@ -163,15 +163,21 @@ export default function CommunityPage() {
 
       <main className={`max-w-7xl mx-auto ${selectedGroup ? 'p-0 h-[calc(100vh-64px)]' : 'px-4 sm:px-6 lg:px-8 py-8'}`}>
         {selectedGroup ? (
-          <div className="bg-white md:rounded-3xl shadow-2xl border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 h-full">
-            <EnhancedGroupChat
-              group={selectedGroup}
-              currentUser={currentUser}
-              onBack={() => {
-                setSelectedGroup(null);
-                localStorage.removeItem('selectedGroupId');
-              }}
-            />
+          <div className="bg-white md:rounded-3xl shadow-2xl border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 h-full flex flex-col items-center justify-center p-12 text-center">
+            <div className="w-24 h-24 bg-purple-50 rounded-[2rem] flex items-center justify-center mb-6">
+              <MessageCircle size={48} className="text-purple-600" />
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 mb-4">Group Chat is being upgraded!</h3>
+            <p className="text-gray-500 font-bold max-w-md mb-8 leading-relaxed">
+              We are currently moving our group chats to the new high-speed messaging system. 
+              Please use the private messaging for now.
+            </p>
+            <button 
+              onClick={() => router.push('/messages')}
+              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-black shadow-xl shadow-purple-200 hover:scale-105 transition-all"
+            >
+              Go to Messages
+            </button>
           </div>
         ) : (
           <div className="space-y-8 animate-in fade-in duration-700">
