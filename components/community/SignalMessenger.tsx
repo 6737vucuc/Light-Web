@@ -50,6 +50,7 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [callOtherUser, setCallOtherUser] = useState({ name: '', avatar: '' as string | null });
   const [peerId, setPeerId] = useState<string | null>(null);
   const [isPeerReady, setIsPeerReady] = useState(false);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
@@ -417,11 +418,14 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
     channel.subscribe(async (status) => {
       console.log('[Signal] Channel status:', status);
       if (status === 'SUBSCRIBED') {
+        setIsSupabaseConnected(true);
         // Track presence
         await channel.track({
           userId: currentUser.id,
           online_at: new Date().toISOString()
         });
+      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        setIsSupabaseConnected(false);
       }
     });
 
@@ -906,10 +910,10 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
 
         {/* Connection Status */}
         <div className="px-4 mb-3">
-          <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${isPeerReady ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'}`}>
-            {isPeerReady ? <Wifi size={16} /> : <WifiOff size={16} />}
+      <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${isSupabaseConnected ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'}`}>
+914	            {isSupabaseConnected ? <Wifi size={16} /> : <WifiOff size={16} />}
             <span className="font-medium">
-              {isPeerReady ? t('callReady') : t('connecting')}
+              {isSupabaseConnected ? t('callReady') : t('connecting')}
             </span>
             <button 
               onClick={refreshConnection}
@@ -1000,9 +1004,9 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                 <div className="min-w-0">  
                   <h2 className="font-bold text-[15px] truncate">{selectedConversation.name}</h2>  
                   <p className="text-[11px] text-gray-500 font-medium flex items-center gap-2">  
-                    <span className={`inline-flex items-center gap-1 ${isPeerReady ? 'text-green-600' : 'text-yellow-600'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isPeerReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
-                      {isPeerReady ? t('readyForCalls') : t('connecting')}
+                    <span className={`inline-flex items-center gap-1 ${isSupabaseConnected ? 'text-green-600' : 'text-yellow-600'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${isSupabaseConnected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
+                      {isSupabaseConnected ? t('readyForCalls') : t('connecting')}
                     </span>
                     {otherUserTyping ? (  
                       <span className="text-blue-600 animate-pulse">• typing...</span>  
