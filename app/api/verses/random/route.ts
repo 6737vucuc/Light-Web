@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { dailyVerses, users } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq, or } from 'drizzle-orm';
+import { eq, or, sql, and, isNull } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,20 +19,49 @@ export async function GET(request: NextRequest) {
       userReligion = userDetails?.religion || 'all';
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    // Get all verses from admin panel filtered by user's religion
-    const verses = await db.select()
+    const today = new Date().toISOString().split('T')[0];
+    
+    // 1. Try to fetch verse explicitly scheduled for today
+    let targetVerse = await db.select()
       .from(dailyVerses)
       .where(
-        or(
-          eq(dailyVerses.religion, userReligion),
-          eq(dailyVerses.religion, 'all')
+        and(
+          eq(dailyVerses.displayDate, today),
+          or(
+            eq(dailyVerses.religion, userReligion),
+            eq(dailyVerses.religion, 'all')
+          )
         )
-      );
+      )
+      .limit(1);
 
-    if (verses.length === 0) {
-      // Fallback if no verses available
+    // 2. If no verse scheduled for today, pick one deterministically based on the date seed
+    // but only from verses that don't have a specific displayDate set for another day
+    if (targetVerse.length === 0) {
+      const allVerses = await db.select()
+        .from(dailyVerses)
+        .where(
+          and(
+            or(
+              eq(dailyVerses.religion, userReligion),
+              eq(dailyVerses.religion, 'all')
+            ),
+            or(
+              isNull(dailyVerses.displayDate),
+              eq(dailyVerses.displayDate, '')
+            )
+          )
+        );
+
+      if (allVerses.length > 0) {
+        const dateSeed = parseInt(today.replace(/-/g, ''));
+        const index = dateSeed % allVerses.length;
+        targetVerse = [allVerses[index]];
+      }
+    }
+
+    if (targetVerse.length === 0) {
+      // Fallback if no verses found in database at all
       return NextResponse.json({
         verse: {
           content: "Let your light shine before others.",
@@ -42,18 +71,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Deterministic daily verse using date as seed
-    const dateSeed = parseInt(todayStr.replace(/-/g, ''));
-    const index = dateSeed % verses.length;
-    const verse = verses[index];
-
+    const verse = targetVerse[0];
     return NextResponse.json({ 
       verse: {
         id: verse.id,
         content: verse.verseText,
         reference: verse.verseReference,
         religion: verse.religion,
-        displayDate: todayStr
+        displayDate: verse.displayDate || today
       } 
     });
   } catch (error) {

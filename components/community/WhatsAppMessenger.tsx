@@ -730,6 +730,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
               <MessageCircle className="w-16 h-16 text-purple-600" />
             </div>
             <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">WhatsApp Real-time</h2>
+            <p className="max-w-md font-bold text-lg text-gray-400 leading-relaxed">Select a contact to start a secure, real-time conversation. Powered by Supabase & Pusher.</p>
             <div className="mt-12 flex items-center gap-2 text-gray-300 font-black uppercase tracking-widest text-[10px] bg-white/50 backdrop-blur px-4 py-2 rounded-full border border-white">
               <Shield className="w-3 h-3" /> End-to-End Encrypted
             </div>

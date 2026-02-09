@@ -5,6 +5,7 @@ import { ArrowLeft, Send, Image as ImageIcon, Smile, MoreVertical, Trash2, Messa
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import Pusher from 'pusher-js';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { supabase } from '@/lib/supabase/client';
 
@@ -32,6 +33,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   const [reportingMessage, setReportingMessage] = useState<any>(null);
   const [reportReason, setReportReason] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pusherRef = useRef<Pusher | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -43,9 +45,23 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
     // Poll for stats every 30 seconds
     const statsInterval = setInterval(loadGroupStats, 30000);
 
+    // Initialize Pusher
     if (typeof window !== 'undefined') {
-      
+      pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
+        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
+      });
 
+      const channel = pusherRef.current.subscribe(`group-${group.id}`);
+      
+      channel.bind('new-message', (data: any) => {
+        setMessages((prev) => [...prev, data.message]);
+        scrollToBottom();
+      });
+
+      channel.bind('delete-message', (data: any) => {
+        setMessages((prev) => prev.filter(m => m.id !== data.messageId));
+      });
+      
       // Real-time typing status using Supabase Broadcast
       const typingChannel = supabase.channel(`group-typing-${group.id}`);
       
@@ -68,25 +84,42 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
 
       // Store channel for cleanup
       (window as any).groupTypingChannel = typingChannel;
+
+      // Listen for member presence updates
+      channel.bind('pusher:subscription_succeeded', (members: any) => {
+        setOnlineMembers(members.count || 0);
+      });
+
+      channel.bind('pusher:member_added', () => {
+        setOnlineMembers((prev) => prev + 1);
+      });
+
+      channel.bind('pusher:member_removed', () => {
+        setOnlineMembers((prev) => Math.max(0, prev - 1));
+      });
     }
 
     return () => {
-      if ((window as any).groupTypingChannel) {
-        supabase.removeChannel((window as any).groupTypingChannel);
-      }
-      clearInterval(statsInterval);
-    };
+    if (pusherRef.current) {
+      pusherRef.current.unsubscribe(`group-${group.id}`);
+      pusherRef.current.disconnect();
+    }
+    if ((window as any).groupTypingChannel) {
+      supabase.removeChannel((window as any).groupTypingChannel);
+    }
+    clearInterval(statsInterval);
+  };
 }, [group.id, currentUser.id]);
 
 // Handle typing broadcast
 useEffect(() => {
   if (!group || !currentUser) return;
   
-  const groupChannel = (window as any).groupTypingChannel;
-  if (!groupChannel) return;
+  const channel = (window as any).groupTypingChannel;
+  if (!channel) return;
   
   const sendTypingStatus = (typing: boolean) => {
-    groupChannel.send({
+    channel.send({
       type: 'broadcast',
       event: 'typing',
       payload: { userId: currentUser.id, userName: currentUser.name, isTyping: typing },

@@ -5,19 +5,17 @@ import { detectVPN, logVPNDetection, shouldBlockVPN, getClientIP } from '@/lib/s
 export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
-
-    // بدل 401، نرجع response آمن للمستخدم غير موثق
+    
     if (!user) {
-      return NextResponse.json({
-        blocked: false,
-        detection: null,
-        user: null
-      });
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const ipAddress = getClientIP(request.headers);
     const userAgent = request.headers.get('user-agent') || 'unknown';
-
+    
     // Detect VPN
     const detection = await detectVPN(ipAddress);
     const blocked = shouldBlockVPN(detection);
@@ -50,7 +48,7 @@ export async function POST(request: NextRequest) {
             detection,
           }),
         });
-
+        
         const emailResult = await emailResponse.json();
         if (emailResponse.ok) {
           console.log('VPN alert email sent successfully:', emailResult);

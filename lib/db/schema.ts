@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, integer, boolean, timestamp, date, jsonb, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, integer, boolean, timestamp, date, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Users table
@@ -201,68 +201,6 @@ export const groupMessageReadReceipts = pgTable('group_message_read_receipts', {
 });
 
 // ========================================
-// NEW SUPABASE REALTIME MESSAGING SYSTEM
-// ========================================
-
-// Conversations table - manages 1-on-1 and group conversations
-export const conversations = pgTable('conversations', {
-  id: serial('id').primaryKey(),
-  type: varchar('type', { length: 20 }).default('direct'), // 'direct' or 'group'
-  name: varchar('name', { length: 255 }), // For group conversations
-  avatar: text('avatar'), // For group conversations
-  createdBy: integer('created_by').references(() => users.id),
-  lastMessageAt: timestamp('last_message_at').defaultNow(),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// Conversation Participants table - manages who is in each conversation
-export const conversationParticipants = pgTable('conversation_participants', {
-  id: serial('id').primaryKey(),
-  conversationId: integer('conversation_id').references(() => conversations.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  role: varchar('role', { length: 20 }).default('member'), // 'admin', 'member'
-  lastReadAt: timestamp('last_read_at').defaultNow(),
-  joinedAt: timestamp('joined_at').defaultNow(),
-  leftAt: timestamp('left_at'),
-  isActive: boolean('is_active').default(true),
-});
-
-// Messages table - stores all conversation messages
-export const messages = pgTable('messages', {
-  id: serial('id').primaryKey(),
-  conversationId: integer('conversation_id').references(() => conversations.id).notNull(),
-  senderId: integer('sender_id').references(() => users.id).notNull(),
-  content: text('content'),
-  messageType: varchar('message_type', { length: 20 }).default('text'), // 'text', 'image', 'video', 'audio', 'file'
-  mediaUrl: text('media_url'),
-  isEncrypted: boolean('is_encrypted').default(true),
-  isEdited: boolean('is_edited').default(false),
-  isDeleted: boolean('is_deleted').default(false),
-  deletedAt: timestamp('deleted_at'),
-  replyToId: integer('reply_to_id').references((): any => messages.id),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// Message Read Receipts table - tracks who read which messages
-export const messageReadReceipts = pgTable('message_read_receipts', {
-  id: serial('id').primaryKey(),
-  messageId: integer('message_id').references(() => messages.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  readAt: timestamp('read_at').defaultNow(),
-});
-
-// Typing Indicators table - real-time typing status
-export const typingIndicators = pgTable('typing_indicators', {
-  id: serial('id').primaryKey(),
-  conversationId: integer('conversation_id').references(() => conversations.id).notNull(),
-  userId: integer('user_id').references(() => users.id).notNull(),
-  isTyping: boolean('is_typing').default(false),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-// ========================================
 // RELATIONS
 // ========================================
 
@@ -276,9 +214,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   activityLogs: many(groupActivityLog),
   readReceipts: many(groupMessageReadReceipts),
   supportTickets: many(supportTickets),
-  conversationParticipants: many(conversationParticipants),
-  sentMessages: many(messages),
-  messageReadReceipts: many(messageReadReceipts),
 }));
 
 export const communityGroupsRelations = relations(communityGroups, ({ many }) => ({
@@ -321,54 +256,6 @@ export const groupMessagesRelations = relations(groupMessages, ({ one, many }) =
   starredBy: many(starredMessages),
   mentions: many(messageMentions),
   readBy: many(groupMessageReadReceipts),
-}));
-
-export const conversationsRelations = relations(conversations, ({ many }) => ({
-  participants: many(conversationParticipants),
-  messages: many(messages),
-  typingIndicators: many(typingIndicators),
-}));
-
-export const conversationParticipantsRelations = relations(conversationParticipants, ({ one }) => ({
-  conversation: one(conversations, {
-    fields: [conversationParticipants.conversationId],
-    references: [conversations.id],
-  }),
-  user: one(users, {
-    fields: [conversationParticipants.userId],
-    references: [users.id],
-  }),
-}));
-
-export const messagesRelations = relations(messages, ({ one, many }) => ({
-  conversation: one(conversations, {
-    fields: [messages.conversationId],
-    references: [conversations.id],
-  }),
-  sender: one(users, {
-    fields: [messages.senderId],
-    references: [users.id],
-  }),
-  parentMessage: one(messages, {
-    fields: [messages.replyToId],
-    references: [messages.id],
-    relationName: 'messageReplies',
-  }),
-  childReplies: many(messages, {
-    relationName: 'messageReplies',
-  }),
-  readReceipts: many(messageReadReceipts),
-}));
-
-export const messageReadReceiptsRelations = relations(messageReadReceipts, ({ one }) => ({
-  message: one(messages, {
-    fields: [messageReadReceipts.messageId],
-    references: [messages.id],
-  }),
-  user: one(users, {
-    fields: [messageReadReceipts.userId],
-    references: [users.id],
-  }),
 }));
 
 export const pinnedMessagesRelations = relations(pinnedMessages, ({ one }) => ({
@@ -520,6 +407,41 @@ export const lessonRatings = pgTable('lesson_ratings', {
 });
 
 // ========================================
+// DIRECT MESSAGES SYSTEM
+// ========================================
+
+// Direct messages table
+export const directMessages = pgTable('direct_messages', {
+  id: serial('id').primaryKey(),
+  senderId: integer('sender_id').references(() => users.id).notNull(),
+  receiverId: integer('receiver_id').references(() => users.id).notNull(),
+  content: text('content'),
+  messageType: varchar('message_type', { length: 20 }).default('text'),
+  mediaUrl: text('media_url'),
+  isEncrypted: boolean('is_encrypted').default(true),
+  isRead: boolean('is_read').default(false),
+  readAt: timestamp('read_at'),
+  isDeleted: boolean('is_deleted').default(false),
+  deletedAt: timestamp('deleted_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Calls table
+export const calls = pgTable('calls', {
+  id: serial('id').primaryKey(),
+  callerId: integer('caller_id').references(() => users.id).notNull(),
+  receiverId: integer('receiver_id').references(() => users.id).notNull(),
+  callerPeerId: varchar('caller_peer_id', { length: 255 }),
+  receiverPeerId: varchar('receiver_peer_id', { length: 255 }),
+  status: varchar('status', { length: 50 }).default('ringing'), // 'ringing', 'connected', 'ended', 'rejected'
+  callType: varchar('call_type', { length: 20 }).default('voice'),
+  startedAt: timestamp('started_at'),
+  endedAt: timestamp('ended_at'),
+  duration: integer('duration').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ========================================
 // TESTIMONIES SYSTEM
 // ========================================
 
@@ -608,3 +530,6 @@ export const verses = pgTable('verses', {
   createdAt: timestamp('createdat').defaultNow(),
   updatedAt: timestamp('updatedat').defaultNow(),
 });
+
+// NextAuth.js OAuth accounts table
+// Removed circular export causing build error
