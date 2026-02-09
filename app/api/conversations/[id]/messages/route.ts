@@ -11,12 +11,12 @@ export async function GET(
 ) {
   try {
     const authResult = await verifyAuth(req);
-    if (!authResult.valid || !authResult.user) {
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const conversationId = parseInt(params.id);
-    const userId = authResult.user.id;
+    const userId = authResult.userId;
 
     // Verify user is a participant
     const participant = await db
@@ -78,12 +78,12 @@ export async function POST(
 ) {
   try {
     const authResult = await verifyAuth(req);
-    if (!authResult.valid || !authResult.user) {
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const conversationId = parseInt(params.id);
-    const userId = authResult.user.id;
+    const userId = authResult.userId;
     const { content, messageType = 'text', mediaUrl, replyToId } = await req.json();
 
     // Verify user is a participant
@@ -160,12 +160,12 @@ export async function DELETE(
 ) {
   try {
     const authResult = await verifyAuth(req);
-    if (!authResult.valid || !authResult.user) {
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const conversationId = parseInt(params.id);
-    const userId = authResult.user.id;
+    const userId = authResult.userId;
     const { messageId } = await req.json();
 
     if (!messageId) {

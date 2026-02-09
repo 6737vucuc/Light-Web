@@ -11,12 +11,12 @@ export async function POST(
 ) {
   try {
     const authResult = await verifyAuth(req);
-    if (!authResult.valid || !authResult.user) {
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const conversationId = parseInt(params.id);
-    const userId = authResult.user.id;
+    const userId = authResult.userId;
 
     // Update last_read_at timestamp
     await db

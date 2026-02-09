@@ -8,11 +8,11 @@ import { verifyAuth } from '@/lib/auth/verify';
 export async function GET(req: NextRequest) {
   try {
     const authResult = await verifyAuth(req);
-    if (!authResult.valid || !authResult.user) {
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = authResult.user.id;
+    const userId = authResult.userId;
 
     // Get all conversations where user is a participant
     const userConversations = await db
@@ -104,12 +104,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const authResult = await verifyAuth(req);
-    if (!authResult.valid || !authResult.user) {
+    if (!authResult) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { participantIds, type = 'direct', name, avatar } = await req.json();
-    const userId = authResult.user.id;
+    const userId = authResult.userId;
 
     if (!participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
       return NextResponse.json({ error: 'Participant IDs required' }, { status: 400 });
