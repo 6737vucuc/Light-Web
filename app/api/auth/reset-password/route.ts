@@ -48,11 +48,11 @@ export async function POST(request: NextRequest) {
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update user password
+    // Update user password using user_id from resetRecord
     await db
       .update(users)
       .set({ password: hashedPassword })
-      .where(eq(users.email, resetRecord.email));
+      .where(eq(users.id, resetRecord.user_id));
 
     // Delete used reset token
     await db
