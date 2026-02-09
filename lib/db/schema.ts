@@ -549,6 +549,8 @@ export const trustedDevices = pgTable('trusted_devices', {
   browser: varchar('browser', { length: 100 }),
   os: varchar('os', { length: 100 }),
   ipAddress: varchar('ip_address', { length: 45 }),
+  lastIp: varchar('last_ip', { length: 45 }),
+  location: varchar('location', { length: 255 }),
   lastUsed: timestamp('last_used').defaultNow(),
   isTrusted: boolean('is_trusted').default(true),
   createdAt: timestamp('created_at').defaultNow(),

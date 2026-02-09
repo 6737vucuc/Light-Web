@@ -13,6 +13,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -22,12 +23,18 @@ export default function Navbar() {
   }, [pathname]);
 
   const checkAuth = async () => {
+    setLoading(true);
     try {
       const response = await fetch('/api/auth/me');
       if (response.ok) {
         const data = await response.json();
-        setUser(data.user);
-        setIsAuthenticated(true);
+        if (data.user) {
+          setUser(data.user);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
       } else {
         setIsAuthenticated(false);
         setUser(null);
@@ -35,6 +42,8 @@ export default function Navbar() {
     } catch (error) {
       setIsAuthenticated(false);
       setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,7 +129,9 @@ export default function Navbar() {
             {/* Language Switcher */}
             <LanguageSwitcher />
             
-            {!isAuthenticated ? (
+            {loading ? (
+              <div className="h-10 w-24 bg-gray-100 animate-pulse rounded-lg"></div>
+            ) : !isAuthenticated ? (
               <>
                 <Link
                   href="/auth/register"
@@ -173,7 +184,9 @@ export default function Navbar() {
                 </Link>
               ))}
               
-              {!isAuthenticated ? (
+              {loading ? (
+                <div className="h-10 w-full bg-gray-100 animate-pulse rounded-lg"></div>
+              ) : !isAuthenticated ? (
                 <>
                   <Link
                     href="/auth/register"
