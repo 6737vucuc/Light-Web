@@ -45,15 +45,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
 
     if (typeof window !== 'undefined') {
       
-      channel.bind('new-message', (data: any) => {
-        setMessages((prev) => [...prev, data.message]);
-        scrollToBottom();
-      });
 
-      channel.bind('delete-message', (data: any) => {
-        setMessages((prev) => prev.filter(m => m.id !== data.messageId));
-      });
-      
       // Real-time typing status using Supabase Broadcast
       const typingChannel = supabase.channel(`group-typing-${group.id}`);
       
@@ -101,11 +93,11 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
 useEffect(() => {
   if (!group || !currentUser) return;
   
-  const channel = (window as any).groupTypingChannel;
-  if (!channel) return;
+  const groupChannel = (window as any).groupTypingChannel;
+  if (!groupChannel) return;
   
   const sendTypingStatus = (typing: boolean) => {
-    channel.send({
+    groupChannel.send({
       type: 'broadcast',
       event: 'typing',
       payload: { userId: currentUser.id, userName: currentUser.name, isTyping: typing },
