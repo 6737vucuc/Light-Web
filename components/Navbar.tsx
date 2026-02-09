@@ -41,12 +41,33 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      
+      // Clear all local storage and session storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear any indexed DB if used
+      if (window.indexedDB) {
+        const databases = await window.indexedDB.databases();
+        databases.forEach(db => {
+          if (db.name) {
+            window.indexedDB.deleteDatabase(db.name);
+          }
+        });
+      }
+      
       setIsAuthenticated(false);
       setUser(null);
       router.push('/');
       router.refresh();
     } catch (error) {
       console.error('Logout failed:', error);
+      // Still clear local data even if API call fails
+      localStorage.clear();
+      sessionStorage.clear();
+      setIsAuthenticated(false);
+      setUser(null);
+      router.push('/');
     }
   };
 

@@ -216,9 +216,28 @@ export default function SettingsPage() {
     if (confirmed) {
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
+        
+        // Clear all local storage and session storage
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Clear any indexed DB if used
+        if (window.indexedDB) {
+          const databases = await window.indexedDB.databases();
+          databases.forEach(db => {
+            if (db.name) {
+              window.indexedDB.deleteDatabase(db.name);
+            }
+          });
+        }
+        
         router.push('/auth/login');
       } catch (error) {
         console.error('Error logging out:', error);
+        // Still clear local data even if API call fails
+        localStorage.clear();
+        sessionStorage.clear();
+        router.push('/auth/login');
       }
     }
   };

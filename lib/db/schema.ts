@@ -33,6 +33,12 @@ export const users = pgTable('users', {
   authProvider: varchar('auth_provider', { length: 50 }).default('credentials'),
   emailVerifiedAt: timestamp('email_verified_at'),
   oauthData: jsonb('oauth_data'),
+  // Two-Factor Authentication
+  twoFactorEnabled: boolean('two_factor_enabled').default(false),
+  twoFactorSecret: text('two_factor_secret'),
+  twoFactorBackupCodes: jsonb('two_factor_backup_codes'),
+  twoFactorMethod: varchar('two_factor_method', { length: 20 }).default('authenticator'), // 'authenticator' or 'email'
+  twoFactorVerifiedAt: timestamp('two_factor_verified_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

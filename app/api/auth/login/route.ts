@@ -10,6 +10,7 @@ import { createToken } from '@/lib/auth/jwt';
 import { sendAccountLockoutAlert } from '@/lib/security-email';
 import { detectVPN, shouldBlockConnection, getBlockReason } from '@/lib/utils/vpn-detection';
 import { vpnLogs } from '@/lib/db/schema';
+import { TwoFactorAuth } from '@/lib/auth/two-factor';
 
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
-    const { email, password } = body;
+    const { email, password, twoFactorCode } = body;
 
     // Input validation
     if (!email || !password) {
@@ -254,7 +255,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Password is correct - reset failed attempts and unlock if needed
+    // Password is correct - Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+      // If 2FA code is not provided, request it
+      if (!twoFactorCode) {
+        return NextResponse.json(
+          {
+            requires2FA: true,
+            message: 'Two-factor authentication code required',
+            method: user.twoFactorMethod || 'authenticator',
+          },
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Verify 2FA code
+      const is2FAValid = await TwoFactorAuth.verify2FALogin(user.id, twoFactorCode);
+      
+      if (!is2FAValid) {
+        return NextResponse.json(
+          { error: 'Invalid two-factor authentication code' },
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Password is correct and 2FA verified (if enabled) - reset failed attempts and unlock if needed
     await db
       .update(users)
       .set({
@@ -285,6 +311,7 @@ export async function POST(request: NextRequest) {
           email: user.email,
           avatar: user.avatar,
           isAdmin: user.isAdmin,
+          twoFactorEnabled: user.twoFactorEnabled,
         },
       },
       {

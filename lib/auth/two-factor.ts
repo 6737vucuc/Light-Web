@@ -4,18 +4,7 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { send2FACodeAlert } from '@/lib/security-email';
 
-// Two-Factor Authentication Implementation
-interface TwoFactorStore {
-  [userId: string]: {
-    secret: string;
-    backupCodes: string[];
-    enabled: boolean;
-    verifiedAt?: Date;
-  };
-}
-
-const twoFactorStore: TwoFactorStore = {};
-
+// Two-Factor Authentication Implementation with Database Storage
 export class TwoFactorAuth {
   // Generate secret key for TOTP
   static generateSecret(): string {
@@ -72,12 +61,15 @@ export class TwoFactorAuth {
     const secret = this.generateSecret();
     const backupCodes = this.generateBackupCodes();
     
-    // Store in memory (should be stored in database in production)
-    twoFactorStore[userId.toString()] = {
-      secret,
-      backupCodes,
-      enabled: false, // Will be enabled after verification
-    };
+    // Store in database (not enabled yet, will be enabled after verification)
+    await db
+      .update(users)
+      .set({
+        twoFactorSecret: secret,
+        twoFactorBackupCodes: backupCodes as any,
+        twoFactorEnabled: false, // Will be enabled after verification
+      })
+      .where(eq(users.id, userId));
 
     // Generate QR code data
     const qrCode = `otpauth://totp/LightOfLife:user${userId}?secret=${secret}&issuer=LightOfLife`;
@@ -87,15 +79,23 @@ export class TwoFactorAuth {
 
   // Verify and activate 2FA
   static async verify2FA(userId: number, token: string): Promise<boolean> {
-    const userRecord = twoFactorStore[userId.toString()];
-    if (!userRecord) {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!user || !user.twoFactorSecret) {
       return false;
     }
 
-    const isValid = this.verifyTOTP(userRecord.secret, token);
+    const isValid = this.verifyTOTP(user.twoFactorSecret, token);
     if (isValid) {
-      userRecord.enabled = true;
-      userRecord.verifiedAt = new Date();
+      await db
+        .update(users)
+        .set({
+          twoFactorEnabled: true,
+          twoFactorVerifiedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
       return true;
     }
 
@@ -104,14 +104,25 @@ export class TwoFactorAuth {
 
   // Disable 2FA
   static async disable2FA(userId: number, token: string): Promise<boolean> {
-    const userRecord = twoFactorStore[userId.toString()];
-    if (!userRecord || !userRecord.enabled) {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
       return false;
     }
 
-    const isValid = this.verifyTOTP(userRecord.secret, token);
+    const isValid = this.verifyTOTP(user.twoFactorSecret, token);
     if (isValid) {
-      delete twoFactorStore[userId.toString()];
+      await db
+        .update(users)
+        .set({
+          twoFactorEnabled: false,
+          twoFactorSecret: null,
+          twoFactorBackupCodes: null,
+          twoFactorVerifiedAt: null,
+        })
+        .where(eq(users.id, userId));
       return true;
     }
 
@@ -119,16 +130,27 @@ export class TwoFactorAuth {
   }
 
   // Verify backup code
-  static verifyBackupCode(userId: number, code: string): boolean {
-    const userRecord = twoFactorStore[userId.toString()];
-    if (!userRecord || !userRecord.enabled) {
+  static async verifyBackupCode(userId: number, code: string): Promise<boolean> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!user || !user.twoFactorEnabled || !user.twoFactorBackupCodes) {
       return false;
     }
 
-    const index = userRecord.backupCodes.indexOf(code.toUpperCase());
+    const backupCodes = user.twoFactorBackupCodes as string[];
+    const index = backupCodes.findIndex((c: string) => c === code.toUpperCase());
+    
     if (index !== -1) {
       // Remove used backup code
-      userRecord.backupCodes.splice(index, 1);
+      const updatedCodes = backupCodes.filter((_: string, i: number) => i !== index);
+      await db
+        .update(users)
+        .set({
+          twoFactorBackupCodes: updatedCodes as any,
+        })
+        .where(eq(users.id, userId));
       return true;
     }
 
@@ -136,15 +158,38 @@ export class TwoFactorAuth {
   }
 
   // Check if 2FA is enabled for user
-  static is2FAEnabled(userId: number): boolean {
-    const userRecord = twoFactorStore[userId.toString()];
-    return userRecord?.enabled || false;
+  static async is2FAEnabled(userId: number): Promise<boolean> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+    return user?.twoFactorEnabled || false;
   }
 
   // Get remaining backup codes
-  static getRemainingBackupCodes(userId: number): string[] {
-    const userRecord = twoFactorStore[userId.toString()];
-    return userRecord?.backupCodes || [];
+  static async getRemainingBackupCodes(userId: number): Promise<string[]> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+    return (user?.twoFactorBackupCodes as string[]) || [];
+  }
+
+  // Verify 2FA during login
+  static async verify2FALogin(userId: number, token: string): Promise<boolean> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+      return false;
+    }
+
+    // Try TOTP first
+    if (this.verifyTOTP(user.twoFactorSecret, token)) {
+      return true;
+    }
+
+    // Try backup code
+    return await this.verifyBackupCode(userId, token);
   }
 }
 
