@@ -46,12 +46,17 @@ const nextConfig = {
     ];
   },
 
-  // Image optimization with Cloudinary support (using remotePatterns)
+  // Image optimization with Cloudinary and Supabase support
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lzqyucohnjtubivlmdkw.supabase.co',
         pathname: '/**',
       },
       {
