@@ -32,3 +32,15 @@ export const createAuthenticatedClient = (token: string) => {
     },
   });
 };
+
+// Server-side admin client (for backward compatibility)
+// Note: This should only be used in server-side code
+export const getSupabaseAdmin = () => {
+  if (typeof window !== 'undefined') {
+    console.warn('getSupabaseAdmin should not be called on client side');
+    return supabase;
+  }
+  
+  // Return regular client - admin operations should use server.ts instead
+  return supabase;
+};

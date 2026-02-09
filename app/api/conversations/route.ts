@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { conversations, conversationParticipants, messages, users } from '@/lib/db/schema';
 import { eq, and, or, desc, sql } from 'drizzle-orm';
-import { verifyAuth } from '@/lib/auth/middleware';
+import { verifyAuth } from '@/lib/auth/verify';
 
 // GET /api/conversations - Get all conversations for current user
 export async function GET(req: NextRequest) {

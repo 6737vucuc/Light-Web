@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { conversationParticipants } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { verifyAuth } from '@/lib/auth/middleware';
+import { verifyAuth } from '@/lib/auth/verify';
 
 // POST /api/conversations/[id]/read - Mark conversation as read
 export async function POST(

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { messages, users, conversations, conversationParticipants } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { verifyAuth } from '@/lib/auth/middleware';
+import { verifyAuth } from '@/lib/auth/verify';
 
 // GET /api/conversations/[id]/messages - Get messages for a conversation
 export async function GET(
