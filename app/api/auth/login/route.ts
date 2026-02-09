@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           event: 'account_locked',
           ipAddress: clientIp,
-          userAgent: userAgent,
+          userAgent: userAgentHeader,
           details: { attempts: newFailedAttempts }
         });
 
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           event: 'login_failed',
           ipAddress: clientIp,
-          userAgent: userAgent,
+          userAgent: userAgentHeader,
           details: { attempt: newFailedAttempts }
         });
 
