@@ -539,3 +539,27 @@ export const verses = pgTable('verses', {
 
 // NextAuth.js OAuth accounts table
 // Removed circular export causing build error
+
+// Trusted Devices/Sessions table
+export const trustedDevices = pgTable('trusted_devices', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  deviceId: varchar('device_id', { length: 255 }).notNull(),
+  deviceName: varchar('device_name', { length: 255 }),
+  browser: varchar('browser', { length: 100 }),
+  os: varchar('os', { length: 100 }),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  lastUsed: timestamp('last_used').defaultNow(),
+  isTrusted: boolean('is_trusted').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Internal 2FA Codes table (Email based)
+export const internalTwoFactorCodes = pgTable('internal_2fa_codes', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  code: varchar('code', { length: 6 }).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  isUsed: boolean('is_used').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});

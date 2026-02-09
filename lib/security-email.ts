@@ -650,3 +650,125 @@ export async function send2FACodeAlert(
   
   console.log(`2FA code email sent to: ${userEmail}`);
 }
+
+/**
+ * Send Internal 2FA Code (Email Based)
+ */
+export async function sendInternal2FACode(
+  userName: string,
+  userEmail: string,
+  code: string,
+  location?: string,
+  browser?: string
+) {
+  try {
+    const transporter = createSecurityTransporter();
+    
+    const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #f3f4f6; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 25px;">
+      <p style="color: #4b5563; margin: 0 0 15px 0; font-size: 16px;">Your security verification code is:</p>
+      <h1 style="color: #9333ea; font-size: 48px; letter-spacing: 10px; margin: 0; font-weight: bold;">${code}</h1>
+      <p style="color: #9ca3af; margin: 15px 0 0 0; font-size: 14px;">This code will expire in 10 minutes.</p>
+    </div>
+
+    <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+      <h3 style="color: #1f2937; font-size: 16px; margin: 0 0 10px 0;">Attempt Details:</h3>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Location:</strong> ${location || 'Unknown'}</p>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Browser:</strong> ${browser || 'Unknown'}</p>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+    </div>
+
+    <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+      If you did not request this code, someone may be trying to access your account. 
+      Please change your password immediately and contact support.
+    </p>
+    `;
+    
+    const emailHtml = createSecurityEmailTemplate(
+      'Security Verification',
+      '🔐',
+      content,
+      '#9333ea'
+    );
+    
+    await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: `🔐 ${code} is your security code`,
+      html: emailHtml,
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to send internal 2FA email:', error);
+    return false;
+  }
+}
+
+/**
+ * Send New Trusted Device Alert
+ */
+export async function sendNewDeviceAlert(
+  userName: string,
+  userEmail: string,
+  deviceInfo: {
+    browser: string;
+    os: string;
+    ip: string;
+    location: string;
+  }
+) {
+  try {
+    const transporter = createSecurityTransporter();
+    
+    const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <p style="color: #065f46; margin: 0; font-size: 16px; line-height: 1.6;">
+        <strong>A new device has been added to your trusted devices list.</strong>
+      </p>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">Device:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${deviceInfo.browser} on ${deviceInfo.os}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">IP Address:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${deviceInfo.ip}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">Location:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${deviceInfo.location}</td>
+      </tr>
+    </table>
+
+    <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+      If this was you, you can ignore this email. If not, please secure your account immediately.
+    </p>
+    `;
+    
+    const emailHtml = createSecurityEmailTemplate(
+      'New Trusted Device',
+      '📱',
+      content,
+      '#10b981'
+    );
+    
+    await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: '📱 New Trusted Device Added',
+      html: emailHtml,
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to send new device alert email:', error);
+    return false;
+  }
+}
