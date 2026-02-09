@@ -49,8 +49,11 @@ export default function LessonsPage() {
             .map((p: any) => p.lessonId)
         );
 
-        const lessonsWithProgress = (data.lessons || []).map((l: Lesson) => ({
+        const lessonsWithProgress = (data.lessons || []).map((l: any) => ({
           ...l,
+          imageUrl: l.imageUrl || l.imageurl,
+          videoUrl: l.videoUrl || l.videourl,
+          createdAt: l.createdAt || l.createdat,
           completed: completedIds.has(l.id)
         }));
 
