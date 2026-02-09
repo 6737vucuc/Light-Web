@@ -150,13 +150,19 @@ function LessonsManager() {
       const fData = new FormData();
       fData.append('file', file);
       const response = await fetch('/api/upload', { method: 'POST', body: fData });
-      if (response.ok) {
-        const data = await response.json();
+      const data = await response.json();
+      
+      if (response.ok && data.url) {
         if (type === 'image') setFormData(prev => ({ ...prev, imageUrl: data.url }));
         else setFormData(prev => ({ ...prev, videoUrl: data.url }));
-        toast.success('Uploaded successfully');
+        toast.success(type === 'image' ? 'Image uploaded successfully' : 'Video uploaded successfully');
+      } else {
+        throw new Error(data.error || 'Upload failed');
       }
-    } catch (error) { toast.error('Upload failed'); } finally { setUploading(false); }
+    } catch (error: any) { 
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Upload failed'); 
+    } finally { setUploading(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -281,8 +287,15 @@ function LessonsManager() {
                     <BookOpen size={64} />
                   </div>
                 )}
-                <div className="absolute top-4 right-4 px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-purple-600 shadow-sm">
-                  {lesson.religion}
+                <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                  <div className="px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-purple-600 shadow-sm">
+                    {lesson.religion}
+                  </div>
+                  {lesson.videourl && (
+                    <div className="p-2 bg-purple-600 rounded-full text-white shadow-lg animate-pulse">
+                      <Video size={12} />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="p-6">
