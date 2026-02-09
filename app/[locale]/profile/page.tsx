@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Camera, Settings, BookOpen, Lock, User, Mail, Calendar, 
   Users, Heart, CheckCircle, Clock, Award, Eye, EyeOff, ArrowLeft,
-  Shield, Smartphone, History, Globe, Trash2, AlertTriangle, Loader2
+  Shield, Smartphone, History, Globe, Trash2, AlertTriangle, Loader2, ChevronRight
 } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/lib/contexts/ToastContext';
