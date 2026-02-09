@@ -68,25 +68,14 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
 
       // Store channel for cleanup
       (window as any).groupTypingChannel = typingChannel;
-
-      // Listen for member presence updates
-        setOnlineMembers(members.count || 0);
-      });
-
-        setOnlineMembers((prev) => prev + 1);
-      });
-
-        setOnlineMembers((prev) => Math.max(0, prev - 1));
-      });
     }
 
     return () => {
-    }
-    if ((window as any).groupTypingChannel) {
-      supabase.removeChannel((window as any).groupTypingChannel);
-    }
-    clearInterval(statsInterval);
-  };
+      if ((window as any).groupTypingChannel) {
+        supabase.removeChannel((window as any).groupTypingChannel);
+      }
+      clearInterval(statsInterval);
+    };
 }, [group.id, currentUser.id]);
 
 // Handle typing broadcast
