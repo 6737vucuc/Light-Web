@@ -33,10 +33,14 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // Get stored device ID to maintain persistent trust
+      const storedDeviceId = localStorage.getItem('device_fingerprint');
+
       const payload = {
         ...formData,
         twoFactorCode: requires2FA ? twoFactorCode : undefined,
-        trustDevice: trustDevice
+        trustDevice: trustDevice,
+        persistentDeviceId: storedDeviceId
       };
 
       const response = await fetch('/api/auth/login', {
@@ -60,6 +64,9 @@ export default function LoginPage() {
       }
 
       // Successful login
+      if (data.deviceId) {
+        localStorage.setItem('device_fingerprint', data.deviceId);
+      }
       router.push(redirectUrl);
       router.refresh();
     } catch (err: any) {

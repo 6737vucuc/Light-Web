@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight, User, Lock, Bell, Eye,
-  Ban, Info, LogOut, Check, UserX
+  Ban, Info, LogOut, Check, UserX, Shield, Smartphone, History, Globe, Clock, Trash2, AlertTriangle, Loader2
 } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/lib/contexts/ToastContext';
@@ -26,6 +26,11 @@ export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  
+  // Security Data States
+  const [securityData, setSecurityData] = useState<{devices: any[], logs: any[]}>({devices: [], logs: []});
+  const [isSecurityLoading, setIsSecurityLoading] = useState(false);
+  const [isRevokingAll, setIsRevokingAll] = useState(false);
   
   // Edit Profile States
   const [name, setName] = useState('');
@@ -56,6 +61,74 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  const fetchSecurityData = async () => {
+    setIsSecurityLoading(true);
+    try {
+      const res = await fetch('/api/auth/security');
+      if (res.ok) {
+        const data = await res.json();
+        setSecurityData(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch security data');
+    } finally {
+      setIsSecurityLoading(false);
+    }
+  };
+
+  const handleRevokeDevice = async (id: number) => {
+    const confirmed = await toast.confirm({
+      title: 'Revoke Trust',
+      message: 'This device will require a verification code next time it tries to log in.',
+      type: 'warning'
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch('/api/auth/security', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: id })
+      });
+
+      if (res.ok) {
+        setSecurityData({
+          ...securityData,
+          devices: securityData.devices.filter(d => d.id !== id)
+        });
+        toast.success('Device trust revoked');
+      }
+    } catch (err) {
+      toast.error('Failed to revoke device');
+    }
+  };
+
+  const handleLogoutAll = async () => {
+    const confirmed = await toast.confirm({
+      title: 'Logout from all devices?',
+      message: 'This will revoke all trusted devices and log you out everywhere. Use this if you suspect unauthorized access.',
+      type: 'danger'
+    });
+
+    if (!confirmed) return;
+
+    setIsRevokingAll(true);
+    try {
+      const res = await fetch('/api/auth/logout-all', { method: 'POST' });
+      if (res.ok) {
+        toast.success('Global logout successful');
+        localStorage.clear();
+        sessionStorage.clear();
+        router.push('/auth/login');
+      }
+    } catch (err) {
+      toast.error('Failed to perform global logout');
+    } finally {
+      setIsRevokingAll(false);
+    }
+  };
 
   const fetchUserData = async () => {
     try {
@@ -317,7 +390,21 @@ export default function SettingsPage() {
             >
               <div className="flex items-center gap-3">
                 <Lock className="w-5 h-5 text-gray-700" />
-                <span className="text-sm">{t('passwordSecurity')}</span>
+                <span className="text-sm">{t('changePassword')}</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400 rtl:rotate-180" />
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveSection('security');
+                fetchSecurityData();
+              }}
+              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Shield className="w-5 h-5 text-gray-700" />
+                <span className="text-sm">Security & Devices</span>
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 rtl:rotate-180" />
             </button>
@@ -837,3 +924,137 @@ export default function SettingsPage() {
 
   return null;
 }
+
+  // Security & Devices Section
+  if (activeSection === 'security') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+          <div className="w-full px-4">
+            <div className="flex items-center justify-between h-14">
+              <button
+                onClick={() => setActiveSection(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6 rtl:rotate-180" />
+              </button>
+              <h1 className="text-base font-semibold">Security & Devices</h1>
+              <div className="w-10"></div>
+            </div>
+          </div>
+        </header>
+
+        <div className="p-4 space-y-6">
+          {/* Trusted Devices */}
+          <section>
+            <div className="flex items-center gap-2 mb-3 text-gray-600">
+              <Smartphone className="w-5 h-5" />
+              <h2 className="text-sm font-semibold uppercase tracking-wider">Trusted Devices</h2>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              {isSecurityLoading ? (
+                <div className="p-8 flex justify-center">
+                  <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
+                </div>
+              ) : securityData.devices.length === 0 ? (
+                <div className="p-8 text-center">
+                  <p className="text-sm text-gray-500">No trusted devices found.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {securityData.devices.map((device) => (
+                    <div key={device.id} className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-50 rounded-lg">
+                          <Smartphone className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{device.deviceName}</div>
+                          <div className="text-xs text-gray-500 flex items-center gap-2">
+                            <Globe className="w-3 h-3" /> {device.location || 'Unknown'} • <Clock className="w-3 h-3" /> {new Date(device.lastUsed).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => handleRevokeDevice(device.id)}
+                        className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Security Activity */}
+          <section>
+            <div className="flex items-center gap-2 mb-3 text-gray-600">
+              <History className="w-5 h-5" />
+              <h2 className="text-sm font-semibold uppercase tracking-wider">Recent Security Activity</h2>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              {isSecurityLoading ? (
+                <div className="p-8 flex justify-center">
+                  <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
+                </div>
+              ) : securityData.logs.length === 0 ? (
+                <div className="p-8 text-center">
+                  <p className="text-sm text-gray-500">No recent activity.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {securityData.logs.map((log) => (
+                    <div key={log.id} className="p-4 flex items-center gap-3">
+                      <div className={`p-2 rounded-full ${
+                        log.event.includes('success') || log.event.includes('verified') 
+                        ? 'bg-green-50 text-green-600' 
+                        : 'bg-blue-50 text-blue-600'
+                      }`}>
+                        {log.event.includes('login') ? <User className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">
+                          {log.event.replace(/_/g, ' ').toUpperCase()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {log.ipAddress} • {new Date(log.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Global Logout */}
+          <div className="pt-4">
+            <button
+              onClick={handleLogoutAll}
+              disabled={isRevokingAll}
+              className="w-full p-4 bg-white border border-red-100 rounded-xl flex items-center justify-between hover:bg-red-50 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-50 rounded-lg group-hover:bg-red-100">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-red-600">Sign Out from All Devices</div>
+                  <div className="text-xs text-gray-500">Revoke all trusted sessions immediately</div>
+                </div>
+              </div>
+              {isRevokingAll ? (
+                <Loader2 className="w-5 h-5 text-red-600 animate-spin" />
+              ) : (
+                <ChevronRight className="w-5 h-5 text-red-400 rtl:rotate-180" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }

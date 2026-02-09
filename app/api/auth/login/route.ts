@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
-    const { email, password, twoFactorCode, trustDevice } = body;
+    const { email, password, twoFactorCode, trustDevice, persistentDeviceId } = body;
 
     // Input validation
     if (!email || !password) {
@@ -135,8 +135,8 @@ export async function POST(request: NextRequest) {
 
     // --- NEW INTERNAL 2FA SYSTEM ---
     
-    // Generate Device ID
-    const deviceId = Internal2FA.generateDeviceId(userAgent, clientIp);
+    // Use persistent device ID from client if available, otherwise generate one
+    const deviceId = persistentDeviceId || Internal2FA.generateDeviceId(userAgent, clientIp);
     const isTrusted = await Internal2FA.isDeviceTrusted(user.id, deviceId);
 
     // If 2FA is enabled for all users (or this user) and device is NOT trusted
@@ -197,6 +197,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       message: 'Login successful',
       user: { id: user.id, name: user.name, email: user.email, isAdmin: user.isAdmin },
+      deviceId: deviceId // Return the deviceId to be stored on client
     });
 
     // Set Cookies
