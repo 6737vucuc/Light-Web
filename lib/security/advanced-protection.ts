@@ -310,11 +310,9 @@ export function verifyCSRFToken(token: string, expected: string): boolean {
 export function generateCSPHeader(): string {
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.pusher.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https://sockjs-us2.pusher.com wss://ws-us2.pusher.com https://*.neon.tech",
     "media-src 'self' https:",
     "object-src 'none'",
     "frame-ancestors 'none'",

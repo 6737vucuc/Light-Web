@@ -5,7 +5,6 @@ import { ArrowLeft, Send, Image as ImageIcon, Smile, MoreVertical, Trash2, Messa
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import Pusher from 'pusher-js';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { supabase } from '@/lib/supabase/client';
 
@@ -33,7 +32,6 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
   const [reportingMessage, setReportingMessage] = useState<any>(null);
   const [reportReason, setReportReason] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pusherRef = useRef<Pusher | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -45,13 +43,7 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
     // Poll for stats every 30 seconds
     const statsInterval = setInterval(loadGroupStats, 30000);
 
-    // Initialize Pusher
     if (typeof window !== 'undefined') {
-      pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
-        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
-      });
-
-      const channel = pusherRef.current.subscribe(`group-${group.id}`);
       
       channel.bind('new-message', (data: any) => {
         setMessages((prev) => [...prev, data.message]);
@@ -86,23 +78,17 @@ export default function GroupChat({ group, currentUser, onBack }: GroupChatProps
       (window as any).groupTypingChannel = typingChannel;
 
       // Listen for member presence updates
-      channel.bind('pusher:subscription_succeeded', (members: any) => {
         setOnlineMembers(members.count || 0);
       });
 
-      channel.bind('pusher:member_added', () => {
         setOnlineMembers((prev) => prev + 1);
       });
 
-      channel.bind('pusher:member_removed', () => {
         setOnlineMembers((prev) => Math.max(0, prev - 1));
       });
     }
 
     return () => {
-    if (pusherRef.current) {
-      pusherRef.current.unsubscribe(`group-${group.id}`);
-      pusherRef.current.disconnect();
     }
     if ((window as any).groupTypingChannel) {
       supabase.removeChannel((window as any).groupTypingChannel);

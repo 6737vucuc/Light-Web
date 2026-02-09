@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getPusherClient } from '@/lib/realtime/pusher-client';
 
 interface OnlineMember {
   userId: number;
@@ -23,7 +22,7 @@ interface PresenceStats {
 
 /**
  * Hook for managing real-time presence in a group
- * Tracks online/offline status and broadcasts updates
+ * Tracks online/offline status with polling 
  */
 export function usePresence(groupId: number, userId: number) {
   const [onlineMembers, setOnlineMembers] = useState<OnlineMember[]>([]);
@@ -31,7 +30,6 @@ export function usePresence(groupId: number, userId: number) {
   const [presenceStats, setPresenceStats] = useState<PresenceStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const pusherRef = useRef<any>(null);
   const sessionIdRef = useRef<string>(`${userId}-${Date.now()}`);
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -59,12 +57,10 @@ export function usePresence(groupId: number, userId: number) {
       // Update user's presence
       await updatePresence(true);
 
-      // Setup Pusher for real-time updates
-      setupPusherListeners();
-
       // Poll for presence updates every 30 seconds
       presenceIntervalRef.current = setInterval(() => {
         updatePresence(true);
+        refreshPresenceStats();
       }, 30000);
     } catch (error) {
       console.error('Error initializing presence:', error);
@@ -89,34 +85,6 @@ export function usePresence(groupId: number, userId: number) {
       console.error('Error updating presence:', error);
     }
   }, [groupId, userId]);
-
-  const setupPusherListeners = () => {
-    try {
-      const pusher = getPusherClient();
-      if (!pusher) {
-        console.warn('Pusher client not available');
-        return;
-      }
-      const channelName = `group-${groupId}`;
-      const channel = pusher.subscribe(channelName);
-
-      // Listen for presence updates
-      channel.bind('presence-update', (data: any) => {
-        // Refresh presence stats
-        refreshPresenceStats();
-      });
-
-      // Listen for members online update
-      channel.bind('members-online-update', (data: any) => {
-        setOnlineMembers(data.members || []);
-        setOnlineMembersCount(data.totalOnline || 0);
-      });
-
-      pusherRef.current = channel;
-    } catch (error) {
-      console.error('Error setting up Pusher listeners:', error);
-    }
-  };
 
   const refreshPresenceStats = async () => {
     try {
@@ -149,11 +117,6 @@ export function usePresence(groupId: number, userId: number) {
       if (presenceIntervalRef.current) {
         clearInterval(presenceIntervalRef.current);
       }
-
-      // Unsubscribe from Pusher
-      if (pusherRef.current) {
-        pusherRef.current.unbind_all();
-      }
     } catch (error) {
       console.error('Error cleaning up presence:', error);
     }
@@ -180,29 +143,37 @@ export function usePresence(groupId: number, userId: number) {
 }
 
 /**
- * Hook for listening to presence changes in a group
+ * Hook for listening to presence changes in a group (polling-based)
  */
 export function usePresenceListener(groupId: number, onPresenceChange?: (members: OnlineMember[]) => void) {
   const [onlineMembers, setOnlineMembers] = useState<OnlineMember[]>([]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const pusher = getPusherClient();
-    if (!pusher) {
-      console.warn('Pusher client not available');
-      return;
-    }
-    const channel = pusher.subscribe(`group-${groupId}`);
-
-    const handlePresenceUpdate = (data: any) => {
-      setOnlineMembers(data.members || []);
-      onPresenceChange?.(data.members || []);
+    const fetchPresence = async () => {
+      try {
+        const response = await fetch(`/api/groups/${groupId}/presence`);
+        if (response.ok) {
+          const data = await response.json();
+          const members = data.members || [];
+          setOnlineMembers(members);
+          onPresenceChange?.(members);
+        }
+      } catch (error) {
+        console.error('Error fetching presence:', error);
+      }
     };
 
-    channel.bind('members-online-update', handlePresenceUpdate);
+    // Initial fetch
+    fetchPresence();
+
+    // Poll every 15 seconds
+    intervalRef.current = setInterval(fetchPresence, 15000);
 
     return () => {
-      channel.unbind('members-online-update', handlePresenceUpdate);
-      pusher.unsubscribe(`group-${groupId}`);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
   }, [groupId, onPresenceChange]);
 
