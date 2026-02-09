@@ -29,7 +29,6 @@ export default function LessonsPage() {
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterReligion, setFilterReligion] = useState('all');
 
   useEffect(() => {
     fetchLessons();
@@ -122,8 +121,7 @@ export default function LessonsPage() {
   const filteredLessons = lessons.filter(lesson => {
     const matchesSearch = lesson.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          lesson.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesReligion = filterReligion === 'all' || lesson.religion === filterReligion;
-    return matchesSearch && matchesReligion;
+    return matchesSearch;
   });
 
   return (
@@ -155,30 +153,17 @@ export default function LessonsPage() {
           </div>
         )}
 
-        {/* Search and Filter Bar */}
+        {/* Search Bar */}
         <div className="mb-10 flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-          <div className="relative w-full md:w-96">
+          <div className="relative w-full">
             <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search lessons..."
+              placeholder="Search your lessons..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
             />
-          </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <span className="text-sm font-bold text-gray-500 whitespace-nowrap">Filter by:</span>
-            <select
-              value={filterReligion}
-              onChange={(e) => setFilterReligion(e.target.value)}
-              className="w-full md:w-48 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-medium text-gray-700 transition-all"
-            >
-              <option value="all">All Religions</option>
-              <option value="christianity">Christianity</option>
-              <option value="islam">Islam</option>
-              <option value="judaism">Judaism</option>
-            </select>
           </div>
         </div>
 
