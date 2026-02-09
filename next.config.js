@@ -7,14 +7,6 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 const nextConfig = {
   reactStrictMode: true,
   
-  // تجاهل أخطاء TypeScript و ESLint أثناء البناء
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  
   // Security headers
   async headers() {
     return [

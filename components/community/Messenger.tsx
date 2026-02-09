@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Send, Image as ImageIcon, Phone, Video, Info } from 'lucide-react';
 import Image from 'next/image';
+import Pusher from 'pusher-js';
 
 interface MessengerProps {
   currentUser: any;
@@ -17,23 +18,31 @@ export default function Messenger({ currentUser, recipient, onClose }: Messenger
   const [isSending, setIsSending] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pusherRef = useRef<Pusher | null>(null);
 
   useEffect(() => {
     loadConversation();
     
+    // Initialize Pusher
     if (typeof window !== 'undefined') {
+      pusherRef.current = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
+        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
       });
     }
 
     return () => {
+      if (pusherRef.current) {
+        pusherRef.current.disconnect();
       }
     };
   }, [recipient.id]);
 
   useEffect(() => {
+    if (recipient && pusherRef.current && currentUser) {
       // Use the same channel format as the API: private-chat-{id1}-{id2}
       const [id1, id2] = [currentUser.id, recipient.id].sort((a, b) => a - b);
       const channelName = `private-chat-${id1}-${id2}`;
+      const channel = pusherRef.current.subscribe(channelName);
       
       channel.bind('new-message', (data: any) => {
         setMessages((prev) => [...prev, data.message]);

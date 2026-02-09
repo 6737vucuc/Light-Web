@@ -186,7 +186,7 @@ export default function CommunityPage() {
                 </div>
                 <div className="text-center md:text-start flex-1">
                   <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3 tracking-tight">
-                    {t('welcome')} {currentUser?.name?.split(' ')[0]}!
+                    {t('welcome')} {currentUser?.name?.split(' ')[0]}! 👋
                   </h2>
                   <p className="text-gray-500 text-lg font-medium max-w-2xl leading-relaxed">
                     {t('joinGroups')}
@@ -299,87 +299,25 @@ export default function CommunityPage() {
         )}
       </main>
 
-      {/* Enhanced Modern Bottom Navigation */}
+      {/* Modern Bottom Navigation */}
       {!selectedGroup && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
-          {/* Gradient Background Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/5 via-transparent to-transparent pointer-events-none h-32 -top-32"></div>
-          
-          {/* Main Navigation Container */}
-          <div className="relative mx-4 mb-6 bg-white/95 backdrop-blur-2xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 rounded-[2rem] overflow-visible">
-            <div className="flex items-center justify-around h-20 px-2 relative">
-              {/* Lessons Button */}
-              <button 
-                onClick={() => router.push('/lessons')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 group transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 rounded-2xl transition-all duration-300 group-hover:bg-purple-50">
-                  <BookOpen size={22} className="text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </div>
-                <span className="text-[9px] font-bold text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-wider">
-                  Lessons
-                </span>
-              </button>
-
-              {/* Community Button (Active) */}
-              <button 
-                onClick={() => router.push('/community')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 bg-purple-100 rounded-2xl shadow-lg shadow-purple-200/50 transition-all duration-300">
-                  <Users size={22} className="text-purple-600" />
-                </div>
-                <span className="text-[9px] font-black text-purple-600 uppercase tracking-wider">
-                  {tCommon('community')}
-                </span>
-                {/* Active Indicator */}
-                <div className="absolute -bottom-0.5 w-10 h-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-t-full shadow-lg"></div>
-              </button>
-
-              {/* Floating Home Button */}
-              <div className="flex-1 flex items-center justify-center">
-                <button 
-                  onClick={() => router.push('/')} 
-                  className="absolute -top-8 w-16 h-16 bg-gradient-to-br from-purple-600 via-purple-500 to-blue-600 rounded-[1.2rem] shadow-2xl shadow-purple-500/40 flex items-center justify-center transform transition-all duration-300 hover:scale-110 hover:rotate-6 active:scale-95 border-4 border-white group"
-                >
-                  <Home size={28} className="text-white group-hover:scale-110 transition-transform" />
-                  {/* Glow Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-[1rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                </button>
-              </div>
-
-              {/* Support Button */}
-              <button 
-                onClick={() => router.push('/support')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 group transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 rounded-2xl transition-all duration-300 group-hover:bg-purple-50">
-                  <Heart size={22} className="text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </div>
-                <span className="text-[9px] font-bold text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-wider">
-                  Support
-                </span>
-              </button>
-
-              {/* Profile Button */}
-              <button 
-                onClick={() => router.push('/profile?from=community')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 group transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 rounded-2xl transition-all duration-300 group-hover:bg-purple-50">
-                  <User size={22} className="text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </div>
-                <span className="text-[9px] font-bold text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-wider">
-                  Profile
-                </span>
-              </button>
-            </div>
-
-            {/* Bottom Safe Area for iOS */}
-            <div className="h-2 bg-transparent"></div>
+        <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-white/90 backdrop-blur-xl border border-gray-100 z-50 shadow-2xl rounded-3xl overflow-hidden">
+          <div className="flex items-center justify-around h-20">
+            <button onClick={() => router.push('/community')} className="flex flex-col items-center justify-center flex-1 h-full relative">
+              <div className="p-2 bg-purple-100 rounded-xl text-purple-600 mb-1"><Users size={24} /></div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">{tCommon('community')}</span>
+              <div className="absolute bottom-0 w-8 h-1 bg-purple-600 rounded-t-full"></div>
+            </button>
+            <button onClick={() => router.push('/')} className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl text-white shadow-xl shadow-purple-200 -mt-8 border-4 border-gray-50">
+              <Home size={28} />
+            </button>
+            <button onClick={() => router.push('/profile')} className="flex flex-col items-center justify-center flex-1 h-full">
+              <div className="p-2 text-gray-400 mb-1"><User size={24} /></div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{tCommon('profile')}</span>
+            </button>
           </div>
         </nav>
       )}
     </div>
   );
-                  }
+}

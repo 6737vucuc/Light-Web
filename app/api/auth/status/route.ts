@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth/verify';
+import { RealtimeChatService } from '@/lib/realtime/chat';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,17 @@ export async function POST(request: NextRequest) {
         lastSeen: new Date()
       })
       .where(eq(users.id, user.userId));
+
+    // Broadcast status change via Pusher
+    try {
+      await RealtimeChatService.updateOnlineStatus(user.userId, {
+        userId: user.userId,
+        isOnline,
+        lastSeen: new Date()
+      });
+    } catch (pError) {
+      console.error('Pusher status broadcast error:', pError);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

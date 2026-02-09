@@ -31,6 +31,8 @@ export function generateCSP(): string {
     'connect-src': [
       "'self'",
       'https://api.cloudinary.com',
+      'wss://*.pusher.com',
+      'https://*.pusher.com',
       'https://vercel.live',
     ],
     'media-src': [
