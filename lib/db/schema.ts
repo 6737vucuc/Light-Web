@@ -563,3 +563,18 @@ export const internalTwoFactorCodes = pgTable('internal_2fa_codes', {
   isUsed: boolean('is_used').default(false),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+// Security Activity Logs table
+export const securityLogs = pgTable('security_logs', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  event: varchar('event', { length: 100 }).notNull(), // 'login_success', 'login_failed', '2fa_verified', 'device_trusted', 'password_changed', 'global_logout'
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  location: varchar('location', { length: 255 }),
+  details: jsonb('details'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Add lastLoginIp to users table for quick check
+// (Note: This would ideally be an alter table in a real migration)

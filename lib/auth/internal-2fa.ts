@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { internalTwoFactorCodes, trustedDevices, users } from '@/lib/db/schema';
+import { internalTwoFactorCodes, trustedDevices, users, securityLogs } from '@/lib/db/schema';
 import { eq, and, gte, desc } from 'drizzle-orm';
 import { sendInternal2FACode, sendNewDeviceAlert } from '@/lib/security-email';
 import crypto from 'crypto';
@@ -57,6 +57,13 @@ export class Internal2FA {
         .update(internalTwoFactorCodes)
         .set({ isUsed: true })
         .where(eq(internalTwoFactorCodes.id, record.id));
+
+      // Log security event
+      await db.insert(securityLogs).values({
+        userId,
+        event: '2fa_verified',
+        details: { code: '******' }
+      });
 
       return true;
     } catch (error) {
@@ -118,6 +125,17 @@ export class Internal2FA {
         browser: info.browser,
         os: info.os,
         ipAddress: info.ip,
+        location: info.location
+      });
+
+      // Log security event
+      await db.insert(securityLogs).values({
+        userId,
+        event: 'device_trusted',
+        ipAddress: info.ip,
+        location: info.location,
+        userAgent: info.browser,
+        details: { device: info.os }
       });
 
       // Send alert email

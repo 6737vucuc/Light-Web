@@ -9,7 +9,7 @@ import { eq } from 'drizzle-orm';
 import { createToken } from '@/lib/auth/jwt';
 import { sendAccountLockoutAlert } from '@/lib/security-email';
 import { detectVPN, shouldBlockConnection, getBlockReason } from '@/lib/utils/vpn-detection';
-import { vpnLogs } from '@/lib/db/schema';
+import { vpnLogs, securityLogs } from '@/lib/db/schema';
 import { Internal2FA } from '@/lib/auth/internal-2fa';
 
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
@@ -105,10 +105,30 @@ export async function POST(request: NextRequest) {
       if (newFailedAttempts >= MAX_FAILED_ATTEMPTS) {
         const lockedUntil = new Date(now.getTime() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
         await db.update(users).set({ failedLoginAttempts: newFailedAttempts, lockedUntil }).where(eq(users.id, user.id));
+        
+        // Log security event
+        await db.insert(securityLogs).values({
+          userId: user.id,
+          event: 'account_locked',
+          ipAddress: clientIp,
+          userAgent: userAgent,
+          details: { attempts: newFailedAttempts }
+        });
+
         await sendAccountLockoutAlert(user.name, user.email, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES);
         return NextResponse.json({ error: 'Account locked' }, { status: 423 });
       } else {
         await db.update(users).set({ failedLoginAttempts: newFailedAttempts }).where(eq(users.id, user.id));
+        
+        // Log security event
+        await db.insert(securityLogs).values({
+          userId: user.id,
+          event: 'login_failed',
+          ipAddress: clientIp,
+          userAgent: userAgent,
+          details: { attempt: newFailedAttempts }
+        });
+
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
     }
@@ -155,6 +175,15 @@ export async function POST(request: NextRequest) {
       lockedUntil: null,
       lastSeen: new Date(),
     }).where(eq(users.id, user.id));
+
+    // Log security event
+    await db.insert(securityLogs).values({
+      userId: user.id,
+      event: 'login_success',
+      ipAddress: clientIp,
+      userAgent: userAgent,
+      location: 'Detected'
+    });
 
     // Create JWT token
     const token = await createToken({

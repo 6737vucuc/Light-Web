@@ -80,6 +80,7 @@ export default function Navbar() {
 
   if (isAuthenticated) {
     navLinks.push({ href: '/profile', label: t('common.profile') });
+    navLinks.push({ href: '/settings/security', label: 'Security' });
     if (user?.isAdmin) {
       navLinks.push({ href: '/admin', label: t('common.admin') });
     }
