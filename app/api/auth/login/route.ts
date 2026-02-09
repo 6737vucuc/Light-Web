@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     if (!isTrusted) {
       // If code not provided, send it and ask for it
       if (!twoFactorCode) {
-        await Internal2FA.sendCode(user.id, user.email, user.name, 'Unknown', userAgent);
+        await Internal2FA.sendCode(user.id, user.email, user.name, clientIp, userAgent);
         return NextResponse.json({
           requires2FA: true,
           method: 'email',

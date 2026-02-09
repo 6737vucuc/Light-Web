@@ -772,3 +772,115 @@ export async function sendNewDeviceAlert(
     return false;
   }
 }
+
+/**
+ * Send Alert when a trusted device is removed/revoked
+ */
+export async function sendDeviceRevokedAlert(
+  userName: string,
+  userEmail: string,
+  deviceInfo: {
+    name: string;
+    location: string;
+  }
+) {
+  try {
+    const transporter = createSecurityTransporter();
+    
+    const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <p style="color: #9a3412; margin: 0; font-size: 16px; line-height: 1.6;">
+        <strong>A device has been removed from your trusted devices list.</strong>
+      </p>
+    </div>
+
+    <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Device:</strong> ${deviceInfo.name}</p>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Location:</strong> ${deviceInfo.location}</p>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Action:</strong> Trust Revoked</p>
+    </div>
+
+    <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+      This device will now require a security code for any future login attempts. 
+      If you did not perform this action, please review your security settings immediately.
+    </p>
+    `;
+    
+    const emailHtml = createSecurityEmailTemplate(
+      'Device Trust Revoked',
+      '🔓',
+      content,
+      '#f97316'
+    );
+    
+    await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: '🔓 Security Alert: Device Trust Revoked',
+      html: emailHtml,
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to send device revoked alert:', error);
+    return false;
+  }
+}
+
+/**
+ * Send Alert when account is frozen/locked by user
+ */
+export async function sendAccountFrozenAlert(
+  userName: string,
+  userEmail: string,
+  until?: string
+) {
+  try {
+    const transporter = createSecurityTransporter();
+    
+    const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <p style="color: #991b1b; margin: 0; font-size: 16px; line-height: 1.6;">
+        <strong>Your account has been frozen as requested.</strong>
+      </p>
+    </div>
+
+    <p style="color: #4b5563; line-height: 1.8; margin-bottom: 25px;">
+      As per your security request, we have temporarily disabled access to your account. 
+      No one (including you) will be able to log in until the freeze period expires.
+    </p>
+
+    <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Status:</strong> Frozen (Self-Locked)</p>
+      ${until ? `<p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Unlocks On:</strong> ${until}</p>` : ''}
+    </div>
+
+    <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+      This is a protective measure. If you did not request this, please contact our support team immediately.
+    </p>
+    `;
+    
+    const emailHtml = createSecurityEmailTemplate(
+      'Account Frozen',
+      '❄️',
+      content,
+      '#dc2626'
+    );
+    
+    await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: '❄️ Security Alert: Account Frozen',
+      html: emailHtml,
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to send account frozen alert:', error);
+    return false;
+  }
+}

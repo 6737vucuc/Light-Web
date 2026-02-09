@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { trustedDevices, securityLogs } from '@/lib/db/schema';
 import { requireAuth } from '@/lib/auth/middleware';
 import { eq, and, desc } from 'drizzle-orm';
+import { sendDeviceRevokedAlert } from '@/lib/security-email';
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
@@ -49,21 +50,34 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Device ID is required' }, { status: 400 });
     }
 
+    // Find device before deletion to get info for email
+    const device = await db.query.trustedDevices.findFirst({
+      where: and(
+        eq(trustedDevices.userId, authResult.user.id),
+        eq(trustedDevices.id, parseInt(deviceId))
+      )
+    });
+
+    if (!device) {
+      return NextResponse.json({ error: 'Device not found' }, { status: 404 });
+    }
+
     // Delete the trusted device
     await db
       .delete(trustedDevices)
-      .where(
-        and(
-          eq(trustedDevices.userId, authResult.user.id),
-          eq(trustedDevices.id, parseInt(deviceId))
-        )
-      );
+      .where(eq(trustedDevices.id, parseInt(deviceId)));
 
     // Log the action
     await db.insert(securityLogs).values({
       userId: authResult.user.id,
       event: 'device_untrusted',
-      details: { deviceId },
+      details: { deviceId, deviceName: device.deviceName },
+    });
+
+    // Send email alert
+    await sendDeviceRevokedAlert(authResult.user.name, authResult.user.email, {
+      name: device.deviceName || 'Unknown Device',
+      location: device.location || 'Unknown'
     });
 
     return NextResponse.json({ success: true });

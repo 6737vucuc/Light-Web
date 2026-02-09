@@ -3,6 +3,7 @@ import { internalTwoFactorCodes, trustedDevices, users, securityLogs } from '@/l
 import { eq, and, gte, desc } from 'drizzle-orm';
 import { sendInternal2FACode, sendNewDeviceAlert } from '@/lib/security-email';
 import crypto from 'crypto';
+import { getGeoLocation } from '@/lib/utils/geolocation';
 
 export class Internal2FA {
   /**
@@ -15,9 +16,16 @@ export class Internal2FA {
   /**
    * Create and send a 2FA code via email
    */
-  static async sendCode(userId: number, email: string, name: string, location?: string, browser?: string): Promise<boolean> {
+  static async sendCode(userId: number, email: string, name: string, ip?: string, browser?: string): Promise<boolean> {
     const code = this.generateCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Get real location if IP is provided
+    let location = 'Unknown';
+    if (ip) {
+      const geo = await getGeoLocation(ip);
+      location = geo.formatted || 'Unknown';
+    }
 
     try {
       // Store in database
@@ -118,6 +126,13 @@ export class Internal2FA {
     userName: string
   ): Promise<boolean> {
     try {
+      // Get real location if IP is provided and location is not specific
+      let finalLocation = info.location || 'Unknown';
+      if (info.ip && (!info.location || info.location === 'Detected' || info.location === 'Unknown')) {
+        const geo = await getGeoLocation(info.ip);
+        finalLocation = geo.formatted || 'Unknown';
+      }
+
       await db.insert(trustedDevices).values({
         userId,
         deviceId,
@@ -125,7 +140,7 @@ export class Internal2FA {
         browser: info.browser,
         os: info.os,
         ipAddress: info.ip,
-        location: info.location
+        location: finalLocation
       });
 
       // Log security event
@@ -143,7 +158,7 @@ export class Internal2FA {
         browser: info.browser || 'Unknown',
         os: info.os || 'Unknown',
         ip: info.ip || 'Unknown',
-        location: info.location || 'Unknown',
+        location: finalLocation,
       });
 
       return true;
