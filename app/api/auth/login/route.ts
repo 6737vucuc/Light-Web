@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
               isVPN: vpnResult.isVPN || false,
               isBlocked: shouldBlock,
               blockReason: shouldBlock ? getBlockReason(vpnResult) : null,
-              userAgent: userAgent,
+              userAgent: userAgentHeader,
               requestPath: '/api/auth/login',
               requestMethod: 'POST',
             });
