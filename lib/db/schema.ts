@@ -75,7 +75,7 @@ export const supportReplies = pgTable('support_replies', {
 // Password Resets table
 export const passwordResets = pgTable('password_resets', {
   id: serial('id').primaryKey(),
-  integer('user_id').notNull(),
+  integer('user_id') .notNull(),
   email: varchar('email', { length: 255 }).notNull(),
   token: varchar('token', { length: 255 }).notNull(),
   expiresAt: timestamp('expires_at').notNull(),
