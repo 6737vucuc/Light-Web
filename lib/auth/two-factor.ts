@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { send2FACodeAlert } from '@/lib/security-email';
 
 // Two-Factor Authentication Implementation
 interface TwoFactorStore {
@@ -153,6 +154,7 @@ interface EmailCodeStore {
     code: string;
     expiresAt: number;
     attempts: number;
+    userName: string;
   };
 }
 
@@ -165,7 +167,7 @@ export class Email2FA {
   }
 
   // Send verification code via email
-  static async sendCode(email: string): Promise<boolean> {
+  static async sendCode(email: string, userName: string = 'User'): Promise<boolean> {
     const code = this.generateCode();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
@@ -173,12 +175,16 @@ export class Email2FA {
       code,
       expiresAt,
       attempts: 0,
+      userName,
     };
 
-    // TODO: Send email with code
-    console.log(`2FA Code for ${email}: ${code}`);
-
-    return true;
+    try {
+      await send2FACodeAlert(userName, email, code);
+      return true;
+    } catch (error) {
+      console.error('Failed to send 2FA email:', error);
+      return false;
+    }
   }
 
   // Verify code
@@ -195,7 +201,7 @@ export class Email2FA {
     }
 
     // Check attempts
-    if (record.attempts >= 3) {
+    if (record.attempts >= 5) {
       delete emailCodeStore[email];
       return false;
     }
@@ -208,20 +214,5 @@ export class Email2FA {
 
     record.attempts++;
     return false;
-  }
-}
-
-// SMS-based 2FA (for future implementation)
-export class SMS2FA {
-  static async sendCode(phoneNumber: string): Promise<boolean> {
-    // TODO: Implement SMS sending via Twilio or similar service
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log(`SMS Code for ${phoneNumber}: ${code}`);
-    return true;
-  }
-
-  static verifyCode(phoneNumber: string, code: string): boolean {
-    // TODO: Implement verification
-    return true;
   }
 }

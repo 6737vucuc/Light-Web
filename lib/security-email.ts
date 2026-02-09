@@ -594,3 +594,59 @@ export async function sendAccountUnbannedAlert(
   
   console.log(`Account unban email sent to: ${userEmail}`);
 }
+
+// Send 2FA Verification Code
+export async function send2FACodeAlert(
+  userName: string,
+  userEmail: string,
+  code: string
+) {
+  const transporter = createSecurityTransporter();
+  
+  const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #f3f4f6; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 25px; border: 1px solid #e5e7eb;">
+      <p style="color: #4b5563; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">Your Verification Code:</p>
+      <div style="font-size: 42px; font-weight: 900; letter-spacing: 10px; color: #9333ea; margin: 0;">${code}</div>
+      <p style="color: #9ca3af; margin: 15px 0 0 0; font-size: 14px;">This code will expire in 10 minutes.</p>
+    </div>
+
+    <h2 style="color: #1f2937; font-size: 20px; margin: 30px 0 15px 0;">🛡️ Security Information:</h2>
+    
+    <ul style="color: #4b5563; line-height: 1.8; margin-bottom: 25px;">
+      <li><strong>Purpose:</strong> Two-Factor Authentication (2FA)</li>
+      <li><strong>Time:</strong> ${new Date().toLocaleString()}</li>
+      <li><strong>Action:</strong> If you didn't request this code, please secure your account immediately.</li>
+    </ul>
+
+    <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+      <p style="color: #991b1b; margin: 0; font-size: 14px; line-height: 1.6;">
+        <strong>⚠️ Important:</strong> Never share this code with anyone. Our team will never ask for your 2FA code.
+      </p>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://light-of-life.com'}" 
+         style="display: inline-block; background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%); color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+        Go to Website
+      </a>
+    </div>
+  `;
+  
+  const emailHtml = createSecurityEmailTemplate(
+    'Verification Code',
+    '🔑',
+    content,
+    '#9333ea'
+  );
+  
+  await transporter.sendMail({
+    from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+    to: userEmail,
+    subject: `🔑 ${code} is your verification code`,
+    html: emailHtml,
+  });
+  
+  console.log(`2FA code email sent to: ${userEmail}`);
+}
