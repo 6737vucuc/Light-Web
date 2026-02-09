@@ -244,19 +244,36 @@ function LessonsManager() {
                     <option value="all">All Religions</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Media Upload</label>
-                  <div className="flex gap-2">
-                    <label className="flex-1 flex items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-2xl hover:border-purple-500 hover:bg-purple-50 cursor-pointer transition-all">
-                      <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'image')} className="hidden" />
-                      <ImageIcon className="w-5 h-5 mr-2 text-gray-400" />
-                      <span className="text-xs font-bold text-gray-500">Image</span>
-                    </label>
-                    <label className="flex-1 flex items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-2xl hover:border-purple-500 hover:bg-purple-50 cursor-pointer transition-all">
-                      <input type="file" accept="video/*" onChange={e => handleFileUpload(e, 'video')} className="hidden" />
-                      <Video className="w-5 h-5 mr-2 text-gray-400" />
-                      <span className="text-xs font-bold text-gray-500">Video</span>
-                    </label>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Media Upload</label>
+                    <div className="flex gap-2">
+                      <label className="flex-1 flex items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-2xl hover:border-purple-500 hover:bg-purple-50 cursor-pointer transition-all">
+                        <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'image')} className="hidden" />
+                        <ImageIcon className="w-5 h-5 mr-2 text-gray-400" />
+                        <span className="text-xs font-bold text-gray-500">Upload Image</span>
+                      </label>
+                      <label className="flex-1 flex items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-2xl hover:border-purple-500 hover:bg-purple-50 cursor-pointer transition-all">
+                        <input type="file" accept="video/*" onChange={e => handleFileUpload(e, 'video')} className="hidden" />
+                        <Video className="w-5 h-5 mr-2 text-gray-400" />
+                        <span className="text-xs font-bold text-gray-500">Upload Video</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Or Paste Video Link (YouTube / Vimeo)</label>
+                    <div className="relative">
+                      <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input 
+                        type="text" 
+                        placeholder="https://www.youtube.com/watch?v=..." 
+                        value={formData.videoUrl} 
+                        onChange={e => setFormData({...formData, videoUrl: e.target.value})} 
+                        className="w-full pl-12 pr-4 py-4 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:ring-0 transition-all text-gray-900 text-sm" 
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-medium px-2 italic">* Use links for large videos to avoid upload limits.</p>
                   </div>
                 </div>
               </div>
@@ -292,8 +309,8 @@ function LessonsManager() {
                     {lesson.religion}
                   </div>
                   {lesson.videourl && (
-                    <div className="p-2 bg-purple-600 rounded-full text-white shadow-lg animate-pulse">
-                      <Video size={12} />
+                    <div className="p-2 bg-purple-600 rounded-full text-white shadow-lg animate-pulse" title={lesson.videourl.includes('youtube') ? 'YouTube Video' : lesson.videourl.includes('vimeo') ? 'Vimeo Video' : 'Direct Video'}>
+                      {lesson.videourl.includes('youtube') || lesson.videourl.includes('vimeo') ? <Globe size={12} /> : <Video size={12} />}
                     </div>
                   )}
                 </div>
