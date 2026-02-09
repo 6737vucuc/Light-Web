@@ -24,7 +24,21 @@ export async function POST(request: NextRequest) {
     const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || 
                      request.headers.get('x-real-ip') || 
                      'unknown';
-    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const userAgentHeader = request.headers.get('user-agent') || 'unknown';
+    
+    // Parse simple OS and Browser info for better device naming
+    let os = 'Unknown OS';
+    if (userAgentHeader.includes('Windows')) os = 'Windows';
+    else if (userAgentHeader.includes('Macintosh')) os = 'Mac OS';
+    else if (userAgentHeader.includes('Android')) os = 'Android';
+    else if (userAgentHeader.includes('iPhone') || userAgentHeader.includes('iPad')) os = 'iOS';
+    else if (userAgentHeader.includes('Linux')) os = 'Linux';
+
+    let browser = 'Unknown Browser';
+    if (userAgentHeader.includes('Chrome')) browser = 'Chrome';
+    else if (userAgentHeader.includes('Firefox')) browser = 'Firefox';
+    else if (userAgentHeader.includes('Safari') && !userAgentHeader.includes('Chrome')) browser = 'Safari';
+    else if (userAgentHeader.includes('Edge')) browser = 'Edge';
     
     // VPN Detection - Run in background
     const performVPNDetection = async () => {
@@ -136,14 +150,14 @@ export async function POST(request: NextRequest) {
     // --- NEW INTERNAL 2FA SYSTEM ---
     
     // Use persistent device ID from client if available, otherwise generate one
-    const deviceId = persistentDeviceId || Internal2FA.generateDeviceId(userAgent, clientIp);
+    const deviceId = persistentDeviceId || Internal2FA.generateDeviceId(userAgentHeader, clientIp);
     const isTrusted = await Internal2FA.isDeviceTrusted(user.id, deviceId);
 
-    // If 2FA is enabled for all users (or this user) and device is NOT trusted
+    // If device is NOT trusted, require 2FA
     if (!isTrusted) {
       // If code not provided, send it and ask for it
       if (!twoFactorCode) {
-        await Internal2FA.sendCode(user.id, user.email, user.name, clientIp, userAgent);
+        await Internal2FA.sendCode(user.id, user.email, user.name, clientIp, userAgentHeader);
         return NextResponse.json({
           requires2FA: true,
           method: 'email',
@@ -160,7 +174,8 @@ export async function POST(request: NextRequest) {
       // If user checked "Trust this device", add it to trusted devices
       if (trustDevice) {
         await Internal2FA.trustDevice(user.id, deviceId, {
-          browser: userAgent,
+          browser: browser,
+          os: os,
           ip: clientIp,
           location: 'Detected'
         }, user.email, user.name);
@@ -181,7 +196,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       event: 'login_success',
       ipAddress: clientIp,
-      userAgent: userAgent,
+      userAgent: userAgentHeader,
       location: 'Detected'
     });
 
