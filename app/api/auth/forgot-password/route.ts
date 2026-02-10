@@ -4,12 +4,21 @@ import { users, passwordResets } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
 import { sendPasswordResetEmail } from '@/lib/email';
+import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting
+    const clientId = getClientIdentifier(request);
+    const rateLimit = checkRateLimit(clientId, RateLimitConfigs.AUTH);
+    
+    if (!rateLimit.allowed) {
+      return createRateLimitResponse(rateLimit.resetTime);
+    }
+
     const body = await request.json();
     const { email } = body;
 

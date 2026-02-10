@@ -3,25 +3,17 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { users } from '@/lib/db/schema';
-import { verifyToken } from '@/lib/auth/jwt';
+import { users, securityLogs as securityLogsTable } from '@/lib/db/schema';
+import { verifyAuth } from '@/lib/auth/verify';
 import { desc, sql, and, gte } from 'drizzle-orm';
+import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
 export async function GET(request: NextRequest) {
   try {
     // Verify admin authentication
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    
-    if (!decoded || !decoded.isAdmin) {
+    if (!user || !user.isAdmin) {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -64,21 +56,24 @@ export async function GET(request: NextRequest) {
     // Add time range filter
     conditions.push(gte(users.createdAt, timeThreshold));
 
-    // Fetch users with failed login attempts
+    // Fetch security logs from the dedicated table
     const securityLogs = await db
       .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        avatar: users.avatar,
-        failedLoginAttempts: users.failedLoginAttempts,
-        lastFailedLogin: users.lastFailedLogin,
-        lockedUntil: users.lockedUntil,
-        createdAt: users.createdAt,
+        id: securityLogsTable.id,
+        userId: securityLogsTable.userId,
+        event: securityLogsTable.event,
+        ipAddress: securityLogsTable.ipAddress,
+        userAgent: securityLogsTable.userAgent,
+        location: securityLogsTable.location,
+        details: securityLogsTable.details,
+        createdAt: securityLogsTable.createdAt,
+        userName: users.name,
+        userEmail: users.email,
       })
-      .from(users)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(users.createdAt))
+      .from(securityLogsTable)
+      .leftJoin(users, sql`${securityLogsTable.userId} = ${users.id}`)
+      .where(gte(securityLogsTable.createdAt, timeThreshold))
+      .orderBy(desc(securityLogsTable.createdAt))
       .limit(100);
 
     // Get statistics
@@ -134,19 +129,18 @@ export async function GET(request: NextRequest) {
 // Unlock user account (admin action)
 export async function POST(request: NextRequest) {
   try {
-    // Verify admin authentication
-    const token = request.cookies.get('token')?.value;
+    // Apply rate limiting
+    const clientId = getClientIdentifier(request);
+    const rateLimit = checkRateLimit(clientId, RateLimitConfigs.API);
     
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    if (!rateLimit.allowed) {
+      return createRateLimitResponse(rateLimit.resetTime);
     }
 
-    const decoded = await verifyToken(token);
+    // Verify admin authentication
+    const user = await verifyAuth(request);
     
-    if (!decoded || !decoded.isAdmin) {
+    if (!user || !user.isAdmin) {
       return NextResponse.json(
         { error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -172,7 +166,7 @@ export async function POST(request: NextRequest) {
       })
       .where(sql`${users.id} = ${userId}`);
 
-    console.log(`Admin ${decoded.email} unlocked account for user ID: ${userId}`);
+    console.log(`Admin ${user.email} unlocked account for user ID: ${userId}`);
 
     return NextResponse.json({
       message: 'Account unlocked successfully',

@@ -4,24 +4,16 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { vpnLogs, users } from '@/lib/db/schema';
-import { verifyToken } from '@/lib/auth/jwt';
+import { verifyAuth } from '@/lib/auth/verify';
 import { desc, sql, eq, and, gte } from 'drizzle-orm';
+import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
 export async function GET(request: NextRequest) {
   try {
     // Verify admin authentication
-    const token = request.cookies.get('token')?.value;
+    const user = await verifyAuth(request);
     
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = await verifyToken(token);
-    
-    if (!decoded || !decoded.isAdmin) {
+    if (!user || !user.isAdmin) {
       return NextResponse.json(
         { success: false, error: 'Forbidden - Admin access required' },
         { status: 403 }
@@ -192,6 +184,14 @@ export async function GET(request: NextRequest) {
 // Log VPN detection (for internal use)
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting
+    const clientId = getClientIdentifier(request);
+    const rateLimit = checkRateLimit(clientId, RateLimitConfigs.API);
+    
+    if (!rateLimit.allowed) {
+      return createRateLimitResponse(rateLimit.resetTime);
+    }
+
     const body = await request.json();
     const {
       userId,

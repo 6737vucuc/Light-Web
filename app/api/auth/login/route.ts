@@ -11,6 +11,7 @@ import { sendAccountLockoutAlert } from '@/lib/security-email';
 import { detectVPN, shouldBlockConnection, getBlockReason } from '@/lib/utils/vpn-detection';
 import { vpnLogs, securityLogs } from '@/lib/db/schema';
 import { Internal2FA } from '@/lib/auth/internal-2fa';
+import { getGeoLocation } from '@/lib/utils/geolocation';
 
 import { checkRateLimit, getClientIdentifier, createRateLimitResponse, RateLimitConfigs } from '@/lib/security/rate-limit';
 
@@ -116,6 +117,9 @@ export async function POST(request: NextRequest) {
       const newFailedAttempts = (user.failedLoginAttempts || 0) + 1;
       const now = new Date();
       
+      const geo = await getGeoLocation(clientIp);
+      const location = geo.formatted || 'Unknown';
+
       if (newFailedAttempts >= MAX_FAILED_ATTEMPTS) {
         const lockedUntil = new Date(now.getTime() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
         await db.update(users).set({ failedLoginAttempts: newFailedAttempts, lockedUntil }).where(eq(users.id, user.id));
@@ -126,7 +130,8 @@ export async function POST(request: NextRequest) {
           event: 'account_locked',
           ipAddress: clientIp,
           userAgent: userAgentHeader,
-          details: { attempts: newFailedAttempts }
+          location: location,
+          details: { attempts: newFailedAttempts, browser, os }
         });
 
         await sendAccountLockoutAlert(user.name, user.email, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION_MINUTES);
@@ -140,7 +145,8 @@ export async function POST(request: NextRequest) {
           event: 'login_failed',
           ipAddress: clientIp,
           userAgent: userAgentHeader,
-          details: { attempt: newFailedAttempts }
+          location: location,
+          details: { attempt: newFailedAttempts, browser, os }
         });
 
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
@@ -192,12 +198,14 @@ export async function POST(request: NextRequest) {
     }).where(eq(users.id, user.id));
 
     // Log security event
+    const geo = await getGeoLocation(clientIp);
     await db.insert(securityLogs).values({
       userId: user.id,
       event: 'login_success',
       ipAddress: clientIp,
       userAgent: userAgentHeader,
-      location: 'Detected'
+      location: geo.formatted || 'Unknown',
+      details: { browser, os }
     });
 
     // Create JWT token
