@@ -33,21 +33,31 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   useEffect(() => {
     fetchMessages();
     
-    // Subscribe to Pusher private channel for instant events
+    // Subscribe to Pusher private channel
     const channelName = `private-chat-${group.id}`;
     const channel = pusherClient.subscribe(channelName);
 
     // Listen for new messages
     channel.bind('new-message', (data: any) => {
+      console.log('Pusher message received:', data);
+      // Avoid duplicate messages for the sender
       setMessages(prev => {
-        if (prev.some(m => m.id === data.id || (m.tempId && m.tempId === data.tempId))) return prev;
-        return [...prev, data];
+        if (prev.some(m => m.id === data.id)) return prev;
+        // If it's a temp message being replaced, we handle it in sendMessage
+        // But if it's from another user, we add it
+        if (data.userId !== currentUser?.id) {
+          return [...prev, data];
+        }
+        return prev;
       });
       setTimeout(scrollToBottom, 50);
     });
 
     // Listen for typing status (Client-side event)
     channel.bind('client-typing', (data: any) => {
+      console.log('Typing event received:', data);
+      if (data.userId === currentUser?.id) return;
+      
       setTypingUsers(prev => {
         const filtered = prev.filter(u => u.userId !== data.userId);
         const newList = data.isTyping ? [...filtered, { userId: data.userId, name: data.userName }] : filtered;
@@ -80,6 +90,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     if (!currentUser || !channelRef.current) return;
     
     // Trigger client-side event for instant typing indicator
+    // Note: Pusher client events must be prefixed with 'client-'
     channelRef.current.trigger('client-typing', {
       userId: currentUser.id,
       userName: currentUser.name,
@@ -98,6 +109,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     const tempId = Date.now();
     setNewMessage('');
     handleTyping(false);
+    setIsSending(true);
 
     const msgObj = {
       id: tempId,
@@ -139,10 +151,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
         // Replace temp message with final message from DB
         setMessages(prev => prev.map(m => m.tempId === tempId ? { ...data.message, user: msgObj.user } : m));
       }
-      setReplyTo(null);
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Error sending message');
+    } finally {
+      setIsSending(false);
+      setReplyTo(null);
     }
   };
 
