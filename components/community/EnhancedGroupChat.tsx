@@ -103,6 +103,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
 
     const channel = supabase.channel(`group-chat-${group.id}`, {
       config: {
+        presence: { key: currentUser?.id || 'anonymous' },
         broadcast: { self: false },
       }
     });
@@ -110,9 +111,22 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
     channel
       .on('presence', { event: 'sync' }, () => {
         const newState = channel.presenceState();
-        const ids = Object.values(newState).flat().map((p: any) => p.userId);
+        const ids: string[] = [];
+        Object.values(newState).forEach((presences: any) => {
+          presences.forEach((p: any) => {
+            if (p.userId && !ids.includes(p.userId)) {
+              ids.push(p.userId);
+            }
+          });
+        });
         setOnlineUsers(ids);
         setOnlineMembersCount(ids.length);
+      })
+      .on('presence', { event: 'join' }, ({ newPresences }) => {
+        console.log('New users joined:', newPresences);
+      })
+      .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+        console.log('Users left:', leftPresences);
       })
       .on('postgres_changes', { 
         event: 'INSERT', 
@@ -164,10 +178,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED' && currentUser) {
-          await channel.track({
+          const presenceTrackStatus = await channel.track({
             userId: currentUser.id,
+            userName: currentUser.name,
             online_at: new Date().toISOString(),
           });
+          console.log('Presence track status:', presenceTrackStatus);
         }
       });
 
