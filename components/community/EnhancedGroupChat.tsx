@@ -26,35 +26,29 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
-  const channelRef = useRef<any>(null);
   const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', position: { x: 0, y: 0 } });
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMessages();
     
-    // Subscribe to Pusher private channel
-    const channelName = `private-chat-${group.id}`;
+    // Use a public channel for maximum reliability during testing
+    const channelName = `chat-${group.id}`;
     const channel = pusherClient.subscribe(channelName);
 
     // Listen for new messages
     channel.bind('new-message', (data: any) => {
       console.log('Pusher message received:', data);
-      // Avoid duplicate messages for the sender
       setMessages(prev => {
+        // Avoid duplicate messages for the sender
         if (prev.some(m => m.id === data.id)) return prev;
-        // If it's a temp message being replaced, we handle it in sendMessage
-        // But if it's from another user, we add it
-        if (data.userId !== currentUser?.id) {
-          return [...prev, data];
-        }
-        return prev;
+        return [...prev, data];
       });
       setTimeout(scrollToBottom, 50);
     });
 
-    // Listen for typing status (Client-side event)
-    channel.bind('client-typing', (data: any) => {
+    // Listen for typing status
+    channel.bind('typing', (data: any) => {
       console.log('Typing event received:', data);
       if (data.userId === currentUser?.id) return;
       
@@ -65,8 +59,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
         return newList;
       });
     });
-
-    channelRef.current = channel;
 
     return () => {
       pusherClient.unsubscribe(channelName);
@@ -86,16 +78,19 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     }
   };
 
-  const handleTyping = (isTyping: boolean) => {
-    if (!currentUser || !channelRef.current) return;
+  const handleTyping = async (isTyping: boolean) => {
+    if (!currentUser) return;
     
-    // Trigger client-side event for instant typing indicator
-    // Note: Pusher client events must be prefixed with 'client-'
-    channelRef.current.trigger('client-typing', {
-      userId: currentUser.id,
-      userName: currentUser.name,
-      isTyping
-    });
+    // Broadcast typing status via API for maximum reliability
+    try {
+      fetch(`/api/groups/${group.id}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isTyping }),
+      });
+    } catch (error) {
+      console.error('Error broadcasting typing:', error);
+    }
     
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -111,7 +106,8 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     handleTyping(false);
     setIsSending(true);
 
-    const msgObj = {
+    // Update local UI immediately (Optimistic UI)
+    const tempMsg = {
       id: tempId,
       tempId: tempId,
       content,
@@ -130,8 +126,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
       reply_to_user_name: replyTo?.userName
     };
 
-    // Update local UI immediately (Optimistic UI)
-    setMessages(prev => [...prev, msgObj]);
+    setMessages(prev => [...prev, tempMsg]);
     setTimeout(scrollToBottom, 50);
 
     try {
@@ -149,7 +144,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
       if (res.ok) {
         const data = await res.json();
         // Replace temp message with final message from DB
-        setMessages(prev => prev.map(m => m.tempId === tempId ? { ...data.message, user: msgObj.user } : m));
+        setMessages(prev => prev.map(m => m.tempId === tempId ? { ...data.message, user: tempMsg.user } : m));
       }
     } catch (error) {
       console.error('Error sending message:', error);

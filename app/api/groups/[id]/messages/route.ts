@@ -113,7 +113,7 @@ export async function POST(
       .eq('id', user.userId)
       .single();
 
-    // 3. Broadcast via Pusher
+    // 3. Broadcast via Pusher - Use a public channel for maximum reliability
     const formattedMessage = {
       id: newMessage.id,
       content: newMessage.content,
@@ -133,8 +133,11 @@ export async function POST(
       reply_to_user_name: replyToUserName
     };
 
-    // Use the same channel name as client
-    await pusherServer.trigger(`private-chat-${groupId}`, 'new-message', formattedMessage);
+    try {
+      await pusherServer.trigger(`chat-${groupId}`, 'new-message', formattedMessage);
+    } catch (pusherError) {
+      console.error('Pusher Broadcast Error:', pusherError);
+    }
 
     return NextResponse.json({ success: true, message: formattedMessage });
   } catch (error: any) {
