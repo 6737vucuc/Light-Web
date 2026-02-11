@@ -549,14 +549,14 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const broadcastTyping = (typing: boolean) => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || !channelRef.current) return;
     
-    // Create or use a dedicated channel for broadcasting to the recipient
-    const targetChannel = supabase.channel(`user-${selectedConversation.other_user_id}`);
-    
-    targetChannel.subscribe((status) => {
+    // Use the existing channel to broadcast typing status
+    // The recipient is listening on 'user-{recipientId}', so we broadcast to that specific channel
+    const typingChannel = supabase.channel(`user-${selectedConversation.other_user_id}`);
+    typingChannel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        targetChannel.send({
+        typingChannel.send({
           type: 'broadcast',
           event: 'typing',
           payload: {
@@ -564,6 +564,9 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
             isTyping: typing 
           }
         });
+        // We can unsubscribe after sending to keep connections clean, 
+        // but for typing it's better to keep it or use the main channel.
+        // For now, let's ensure it sends.
       }
     });
   };

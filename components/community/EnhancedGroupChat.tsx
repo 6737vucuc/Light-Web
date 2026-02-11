@@ -34,6 +34,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const toast = useToast();
   const locale = params?.locale as string || 'ar';
   const t = useTranslations('community');
+  const tMessages = useTranslations('messages');
   const tCommon = useTranslations('common');
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -110,7 +111,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
     const channel = supabase.channel(`group-${group.id}`, {
       config: {
-        broadcast: { self: false },
+        broadcast: { self: true }, // Enable self-broadcast for testing and confirmation
       }
     });
 
@@ -132,14 +133,15 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         setMessages((prev) => prev.filter(m => m.id !== payload.messageId));
       })
       .on('broadcast', { event: 'user-typing' }, ({ payload }) => {
+        console.log('Typing event received:', payload);
         if (payload.userId !== currentUser?.id) {
           if (payload.isTyping) {
-            setTypingUsers((prev) => {
-              if (prev.find(u => u.userId === payload.userId)) return prev;
+            setTypingUsers((prev: any[]) => {
+              if (prev.find((u: any) => u.userId === payload.userId)) return prev;
               return [...prev, { userId: payload.userId, name: payload.name }];
             });
           } else {
-            setTypingUsers((prev) => prev.filter(u => u.userId !== payload.userId));
+            setTypingUsers((prev: any[]) => prev.filter((u: any) => u.userId !== payload.userId));
           }
         }
       })
@@ -308,7 +310,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                 </p>
               ) : (
                 <p className="text-[11px] text-gray-500 font-black truncate">
-                  <span className="text-green-600">●</span> {onlineMembersCount} {t('online')} • {totalMembers} {t('members')}
+                  <span className="text-green-600">●</span> {onlineMembersCount} {tMessages('online')} • {totalMembers} {t('members')}
                 </p>
               )}
             </div>
@@ -420,7 +422,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
               handleTyping(true);
             }}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder={t('typeMessage')}
+            placeholder={tMessages('typeMessage')}
             className="w-full bg-white px-5 py-3 rounded-2xl text-sm focus:outline-none shadow-sm font-black text-gray-900 placeholder:text-gray-400"
           />
         </div>
