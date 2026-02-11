@@ -110,10 +110,10 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         console.log('Real-time message received:', newMsg);
         
         // Force state update by checking IDs correctly
-        setSelectedConversation(currentConv => {
+        setSelectedConversation((currentConv: any) => {
           if (currentConv && (newMsg.sender_id === currentConv.other_user_id || newMsg.receiver_id === currentConv.other_user_id)) {
-            setMessages(prev => {
-              const exists = prev.some(m => m.id === newMsg.id);
+            setMessages((prev: any[]) => {
+              const exists = prev.some((m: any) => m.id === newMsg.id);
               if (exists) return prev;
               const updated = [...prev, newMsg];
               console.log('Messages updated in state:', updated.length);
@@ -182,7 +182,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       .on('broadcast', { event: 'messages-read' }, ({ payload }) => {
         console.log('Messages read by other user:', payload);
         if (selectedConversation && payload.readerId === selectedConversation.other_user_id) {
-          setMessages(prev => prev.map(msg => ({ ...msg, is_read: true })));
+          setMessages((prev: any[]) => prev.map((msg: any) => ({ ...msg, is_read: true })));
         }
       })
       .subscribe((status) => {
@@ -528,7 +528,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
       if (res.ok) {
         const data = await res.json();
-        setMessages(prev => [...prev, data.message]);
+        setMessages((prev: any[]) => [...prev, data.message]);
         setTimeout(scrollToBottom, 100);
         loadConversations();
       }
