@@ -1,34 +1,41 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import {
-  ArrowLeft,
-  Send,
-  Image as ImageIcon,
-  MoreVertical,
-  Trash2,
-  Users,
-  X,
-  CheckCheck,
-  MessageSquare,
-  Phone,
-  LogOut,
-  Info
-} from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
-import { useToast } from '@/lib/contexts/ToastContext';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase/client';
-import UserAvatarMenu from './UserAvatarMenu';
+import { 
+  Send, 
+  ArrowLeft, 
+  Users, 
+  Image as ImageIcon, 
+  CheckCheck,
+  MoreVertical,
+  LogOut,
+  User,
+  Trash2
+} from 'lucide-react';
+import Image from 'next/image';
+import { UserAvatarMenu } from './UserAvatarMenu';
 
-interface EnhancedGroupChatProps {
-  group: any;
-  currentUser: any;
-  onBack: () => void;
+interface Message {
+  id: number;
+  content: string;
+  media_url?: string;
+  created_at: string;
+  userId: string;
+  user_id?: string;
+  userName?: string;
+  userAvatar?: string;
+  user?: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
 }
 
-export default function EnhancedGroupChat({ group, currentUser, onBack }: EnhancedGroupChatProps) {
+export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   const router = useRouter();
   const params = useParams();
   const toast = useToast();
@@ -40,27 +47,27 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const [onlineMembersCount, setOnlineMembersCount] = useState(0);
   const [totalMembers, setTotalMembers] = useState(group.membersCount || 0);
-  const [typingUsers, setTypingUsers] = useState<any[]>([]);
-  const [showUserProfile, setShowUserProfile] = useState<any>(null);
-  const [showGroupMenu, setShowGroupMenu] = useState(false);
-  const [avatarMenu, setAvatarMenu] = useState<{ isOpen: boolean; userId: number; userName: string; position: { x: number; y: number } }>({
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const channelRef = useRef<any>(null);
+  const typingTimeoutRef = useRef<any>(null);
+  const [avatarMenu, setAvatarMenu] = useState<{
+    isOpen: boolean;
+    userId: string;
+    userName: string;
+    position: { x: number; y: number };
+  }>({
     isOpen: false,
-    userId: 0,
+    userId: '',
     userName: '',
     position: { x: 0, y: 0 }
   });
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const channelRef = useRef<any>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadInitialData();
+    fetchMessages();
     initializeRealtime();
-    
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
@@ -68,77 +75,64 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     };
   }, [group.id]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowGroupMenu(false);
-      }
-    };
-    if (showGroupMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showGroupMenu]);
-
-  const loadInitialData = async () => {
-    setIsLoading(true);
+  const fetchMessages = async () => {
     try {
       const res = await fetch(`/api/groups/${group.id}/messages`);
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
       }
-
-      const statsRes = await fetch(`/api/groups/${group.id}/stats`);
-      if (statsRes.ok) {
-        const stats = await statsRes.json();
-        setTotalMembers(stats.totalMembers || 0);
-        setOnlineMembersCount(stats.onlineMembers || 0);
-      }
     } catch (error) {
-      console.error('Error loading initial data:', error);
+      console.error('Error fetching messages:', error);
     } finally {
       setIsLoading(false);
+      setTimeout(scrollToBottom, 100);
     }
   };
 
   const initializeRealtime = () => {
     if (channelRef.current) return;
 
-    const channel = supabase.channel(`group-${group.id}`, {
+    const channel = supabase.channel(`group-chat-${group.id}`, {
       config: {
-        broadcast: { self: true }, // Enable self-broadcast for testing and confirmation
+        broadcast: { self: false },
       }
     });
 
     channel
-      .on('broadcast', { event: 'new-message' }, ({ payload }) => {
-        setMessages((prev) => {
-          if (prev.find(m => m.id === payload.id)) return prev;
-          const formattedMessage = {
-            ...payload,
-            user_id: payload.userId || payload.user_id,
-            created_at: payload.timestamp || payload.created_at,
-            user: payload.user || null
-          };
-          return [...prev, formattedMessage];
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'group_messages',
+        filter: `group_id=eq.${group.id}` 
+      }, async (payload) => {
+        console.log('New group message via Postgres:', payload.new);
+        const newMsg = payload.new;
+        
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id, name, avatar')
+          .eq('id', newMsg.user_id)
+          .single();
+
+        setMessages((prev: any[]) => {
+          if (prev.some((m: any) => m.id === newMsg.id)) return prev;
+          return [...prev, {
+            ...newMsg,
+            userId: newMsg.user_id,
+            timestamp: newMsg.created_at,
+            user: userData
+          }];
         });
-        scrollToBottom();
+        setTimeout(scrollToBottom, 100);
       })
-      .on('broadcast', { event: 'message-deleted' }, ({ payload }) => {
-        setMessages((prev) => prev.filter(m => m.id !== payload.messageId));
-      })
-      .on('broadcast', { event: 'user-typing' }, ({ payload }) => {
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
         console.log('Typing event received:', payload);
         if (payload.userId !== currentUser?.id) {
           if (payload.isTyping) {
             setTypingUsers((prev: any[]) => {
               if (prev.find((u: any) => u.userId === payload.userId)) return prev;
-              return [...prev, { userId: payload.userId, name: payload.name }];
+              return [...prev, { userId: payload.userId, name: payload.userName }];
             });
           } else {
             setTypingUsers((prev: any[]) => prev.filter((u: any) => u.userId !== payload.userId));
@@ -165,18 +159,17 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
   const handleTyping = (isTyping: boolean) => {
     if (channelRef.current) {
-      console.log('Broadcasting group typing:', isTyping);
       channelRef.current.send({
         type: 'broadcast',
-        event: 'user-typing',
+        event: 'typing',
         payload: {
-          userId: currentUser.id,
-          name: currentUser.name,
+          userId: currentUser?.id,
+          userName: currentUser?.name,
           isTyping
         }
       });
     }
-
+    
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => handleTyping(false), 3000);
@@ -186,42 +179,45 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
     setIsSending(true);
-    
+    const content = newMessage.trim();
+    setNewMessage('');
+    handleTyping(false);
+
     try {
       const res = await fetch(`/api/groups/${group.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newMessage.trim() }),
+        body: JSON.stringify({ content }),
       });
 
-      if (res.ok) {
-        setNewMessage('');
-        handleTyping(false);
+      if (!res.ok) {
+        toast.error('Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Error sending message');
     } finally {
       setIsSending(false);
     }
   };
 
   const deleteMessage = async (messageId: number) => {
-    const confirmed = await toast.confirm({
-      title: t('deleteMessage'),
-      message: t('deleteMessageConfirm'),
-      type: 'danger'
-    });
-    if (!confirmed) return;
-    
+    if (!confirm(t('deleteMessageConfirm'))) return;
+
     try {
       const res = await fetch(`/api/groups/${group.id}/messages/${messageId}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deleteForEveryone: true }),
       });
 
       if (res.ok) {
-        setMessages((prev) => prev.filter(m => m.id !== messageId));
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'message-deleted',
+            payload: { messageId }
+          });
+        }
       }
     } catch (error) {
       console.error('Error deleting message:', error);
@@ -229,17 +225,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   const handleLeaveGroup = async () => {
-    const confirmed = await toast.confirm({
-      title: t('leaveGroup'),
-      message: t('leaveGroupConfirm'),
-      type: 'danger'
-    });
-    if (!confirmed) return;
-    
+    if (!confirm(t('leaveGroupConfirm'))) return;
+
     try {
       const res = await fetch(`/api/groups/${group.id}/leave`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
       });
 
       if (res.ok) {
@@ -250,7 +240,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     }
   };
 
-  const handleAvatarClick = (e: React.MouseEvent, userId: number, userName: string) => {
+  const handleAvatarClick = (e: React.MouseEvent, userId: string, userName: string) => {
     e.preventDefault();
     setAvatarMenu({
       isOpen: true,
@@ -264,21 +254,19 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const getAvatarUrl = (avatar?: string | null) => {
-    if (!avatar) return '/default-avatar.png';
-    if (avatar.startsWith('data:') || avatar.startsWith('http')) return avatar;
-    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
+  const formatTime = (date: string) => {
+    if (!date) return '';
+    return new Date(date).toLocaleTimeString(locale === 'ar' ? 'ar-SA' : 'en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
-  const formatTime = (date: any) => {
-    if (!date) return '';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString(locale === 'ar' ? 'ar-SA' : 'en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
-    });
+  const getAvatarUrl = (avatar: string | null) => {
+    if (!avatar) return '/default-avatar.png';
+    if (avatar.startsWith('http')) return avatar;
+    return avatar;
   };
 
   return (
@@ -320,36 +308,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         <div className="flex items-center gap-1">
           <button 
             onClick={handleLeaveGroup}
-            className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-all md:hidden"
+            className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
             title={t('leaveGroup')}
           >
             <LogOut className="w-5 h-5" />
           </button>
-          <div className="relative">
-            <button 
-              onClick={() => setShowGroupMenu(!showGroupMenu)}
-              className="p-2.5 hover:bg-gray-200 rounded-xl text-gray-600 transition-all"
-            >
-              <MoreVertical className="w-5 h-5" />
-            </button>
-            
-            {showGroupMenu && (
-              <div ref={menuRef} className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-30 animate-in fade-in zoom-in-95 duration-200">
-                <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-gray-700 transition-colors">
-                  <Info className="w-5 h-5 text-purple-500" />
-                  <span className="text-sm font-black">{t('groupInfo')}</span>
-                </button>
-                <div className="h-px bg-gray-50 my-1 mx-2" />
-                <button 
-                  onClick={handleLeaveGroup}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600 transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="text-sm font-black">{t('leaveGroup')}</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <button className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
+            <MoreVertical className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
@@ -386,7 +352,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
                     <p className="text-sm font-medium whitespace-pre-wrap break-words">{msg.content}</p>
                     <div className="flex items-center justify-end gap-1 mt-1">
                       <span className="text-[9px] text-gray-500 font-bold">
-                        {formatTime(msg.created_at)}
+                        {formatTime(msg.created_at || msg.timestamp)}
                       </span>
                       {isOwn && <CheckCheck className="w-3 h-3 text-blue-500" />}
                     </div>

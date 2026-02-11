@@ -105,28 +105,17 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     });
 
     channel
-      .on('broadcast', { event: 'private-message' }, ({ payload }) => {
-        const newMsg = payload.message;
-        console.log('Real-time message received:', newMsg);
-        
-        // Force state update by checking IDs correctly
-        setSelectedConversation((currentConv: any) => {
-          if (currentConv && (newMsg.sender_id === currentConv.other_user_id || newMsg.receiver_id === currentConv.other_user_id)) {
-            setMessages((prev: any[]) => {
-              const exists = prev.some((m: any) => m.id === newMsg.id);
-              if (exists) return prev;
-              const updated = [...prev, newMsg];
-              console.log('Messages updated in state:', updated.length);
-              return updated;
-            });
-            setTimeout(scrollToBottom, 100);
-          }
-          return currentConv;
-        });
-        
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'direct_messages',
+        filter: `receiver_id=eq.${currentUser.id}`
+      }, (payload) => {
+        console.log('New private message via Postgres:', payload.new);
         loadConversations();
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        console.log('Typing event received:', payload);
         if (selectedConversation && payload.senderId === selectedConversation.other_user_id) {
           setOtherUserTyping(payload.isTyping);
         }
