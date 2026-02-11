@@ -1,8 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Users, MessageCircle, Home, User, Sparkles, BookOpen, Heart, Shield, ArrowLeft, Loader2, Info, Search, Filter } from 'lucide-react';
+import { useRouter, useParams } from 'next/navigation';
+import { 
+  Users, 
+  MessageCircle, 
+  Home, 
+  User, 
+  Sparkles, 
+  BookOpen, 
+  Heart, 
+  Shield, 
+  ArrowLeft, 
+  Loader2, 
+  Info, 
+  Search, 
+  Filter, 
+  LogOut 
+} from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import Image from 'next/image';
 import EnhancedGroupChat from '@/components/community/EnhancedGroupChat';
@@ -14,6 +29,7 @@ export default function CommunityPage() {
   const t = useTranslations('community');
   const tCommon = useTranslations('common');
   const router = useRouter();
+  const params = useParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -33,7 +49,6 @@ export default function CommunityPage() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    // Restore selected group from localStorage after groups are loaded
     if (groups.length > 0 && !selectedGroup) {
       const savedGroupId = localStorage.getItem('selectedGroupId');
       if (savedGroupId) {
@@ -100,12 +115,11 @@ export default function CommunityPage() {
 
   return (
     <div className={`min-h-screen bg-gray-50 ${selectedGroup ? 'h-screen overflow-hidden' : 'pb-20 md:pb-0'}`}>
-      {/* Dynamic Header based on selection */}
       <header className={`sticky top-0 z-50 transition-all duration-300 ${selectedGroup ? 'bg-white shadow-md' : 'bg-gradient-to-r from-purple-700 via-purple-600 to-blue-600 shadow-lg py-6'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {selectedGroup ? (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
                 <button 
                   onClick={() => {
                     setSelectedGroup(null);
@@ -209,7 +223,6 @@ export default function CommunityPage() {
           </div>
         ) : (
           <div className="space-y-8 animate-in fade-in duration-700">
-            {/* Redesigned Welcome Banner */}
             <div className="relative bg-white rounded-[2rem] p-8 md:p-12 shadow-xl shadow-purple-100/50 border border-gray-100 overflow-hidden group">
               <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-purple-50 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
               <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-80 h-80 bg-blue-50 rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
@@ -238,7 +251,6 @@ export default function CommunityPage() {
                 </div>
               </div>
               
-              {/* Alert Info */}
               <div className="mt-10 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-3 relative z-10">
                 <div className="p-2 bg-yellow-100 rounded-xl text-yellow-600"><Info size={20}/></div>
                 <p className="text-sm text-gray-600 font-bold leading-relaxed">
@@ -247,7 +259,6 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            {/* Section Header */}
             <div className="flex justify-between items-end">
               <div>
                 <h3 className="text-2xl font-black text-gray-900 tracking-tight">Active Circles</h3>
@@ -259,7 +270,6 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            {/* Redesigned Groups Grid */}
             {groups.length === 0 ? (
               <div className="bg-white rounded-[2rem] p-20 text-center border-2 border-dashed border-gray-100">
                 <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -269,151 +279,52 @@ export default function CommunityPage() {
                 <p className="text-gray-500 font-bold max-w-xs mx-auto leading-relaxed">{t('groupsComingSoon')}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {groups.map((group) => (
-                  <button
+                  <div 
                     key={group.id}
-                    onClick={async () => {
-                      setIsLoading(true);
-                      try {
-                        const response = await fetch(`/api/groups/${group.id}/join`, { method: 'POST' });
-                        if (response.ok) {
-                          setSelectedGroup(group);
-                          localStorage.setItem('selectedGroupId', group.id.toString());
-                        } else {
-                          const data = await response.json();
-                          toast.error(data.error || 'Failed to join group');
-                        }
-                      } catch (error) {
-                        console.error('Error joining group:', error);
-                        toast.error('Connection error');
-                      } finally {
-                        setIsLoading(false);
-                      }
+                    onClick={() => {
+                      setSelectedGroup(group);
+                      localStorage.setItem('selectedGroupId', group.id.toString());
                     }}
-                    className="group bg-white rounded-[2rem] shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 overflow-hidden flex flex-col text-start"
+                    className="group bg-white rounded-[2rem] p-6 shadow-lg shadow-gray-100 border border-gray-100 hover:border-purple-200 hover:shadow-2xl hover:shadow-purple-100 transition-all duration-500 cursor-pointer relative overflow-hidden"
                   >
-                    {/* Modern Group Header */}
-                    <div className="h-40 flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: group.color }}>
-                      <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent opacity-60"></div>
-                      <div className="relative z-10 p-6 bg-white/20 backdrop-blur-md rounded-3xl border border-white/30 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
-                        <DynamicIcon name={group.icon} className="w-12 h-12 text-white" size={48} />
-                      </div>
-                      <div className="absolute bottom-4 left-6 z-10">
-                        <span className="px-3 py-1 bg-white/90 backdrop-blur rounded-full text-[10px] font-black uppercase text-gray-900 shadow-sm">
-                          {group.members_count || 0} Members
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Modern Group Content */}
-                    <div className="p-8 flex-1 flex flex-col">
-                      <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">
-                        {group.name}
-                      </h3>
-                      <p className="text-gray-500 text-sm font-medium mb-8 line-clamp-2 leading-relaxed flex-1">
-                        {group.description || 'Join this circle to connect with others and share your spiritual journey.'}
-                      </p>
-
-                      <div className="pt-6 border-t border-gray-50 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <MessageCircle size={18} />
-                          <span className="text-sm font-black tracking-tight">{group.messages_count || 0} Chats</span>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16 group-hover:bg-purple-50 transition-colors duration-500"></div>
+                    
+                    <div className="relative z-10">
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500" style={{ backgroundColor: group.color }}>
+                          <DynamicIcon name={group.icon} size={28} />
                         </div>
-                        <div className="px-6 py-3 bg-purple-50 text-purple-700 rounded-2xl font-black text-sm group-hover:bg-purple-600 group-hover:text-white transition-all shadow-sm group-hover:shadow-xl group-hover:shadow-purple-100">
-                          {t('openChat')}
+                        <div className="flex -space-x-2">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 overflow-hidden">
+                              <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300"></div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <h4 className="text-xl font-black text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">{group.name}</h4>
+                      <p className="text-gray-500 text-sm font-bold mb-6 line-clamp-2 leading-relaxed">{group.description}</p>
+                      
+                      <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                          <span className="text-xs font-black text-gray-400 uppercase tracking-wider">{group.members_count || 0} Members</span>
+                        </div>
+                        <div className="p-2 bg-gray-50 rounded-xl text-gray-400 group-hover:bg-purple-600 group-hover:text-white transition-all duration-500">
+                          <ArrowLeft className="w-5 h-5 rotate-180" />
                         </div>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
           </div>
         )}
       </main>
-
-      {/* Enhanced Modern Bottom Navigation */}
-      {!selectedGroup && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
-          {/* Gradient Background Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/5 via-transparent to-transparent pointer-events-none h-32 -top-32"></div>
-          
-          {/* Main Navigation Container */}
-          <div className="relative mx-4 mb-6 bg-white/95 backdrop-blur-2xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 rounded-[2rem] overflow-visible">
-            <div className="flex items-center justify-around h-20 px-2 relative">
-              {/* Lessons Button */}
-              <button 
-                onClick={() => router.push('/lessons')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 group transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 rounded-2xl transition-all duration-300 group-hover:bg-purple-50">
-                  <BookOpen size={22} className="text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </div>
-                <span className="text-[9px] font-bold text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-wider">
-                  Lessons
-                </span>
-              </button>
-
-              {/* Community Button (Active) */}
-              <button 
-                onClick={() => router.push('/community')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 bg-purple-100 rounded-2xl shadow-lg shadow-purple-200/50 transition-all duration-300">
-                  <Users size={22} className="text-purple-600" />
-                </div>
-                <span className="text-[9px] font-black text-purple-600 uppercase tracking-wider">
-                  {tCommon('community')}
-                </span>
-                {/* Active Indicator */}
-                <div className="absolute -bottom-0.5 w-10 h-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-t-full shadow-lg"></div>
-              </button>
-
-              {/* Floating Home Button */}
-              <div className="flex-1 flex items-center justify-center">
-                <button 
-                  onClick={() => router.push('/')} 
-                  className="absolute -top-8 w-16 h-16 bg-gradient-to-br from-purple-600 via-purple-500 to-blue-600 rounded-[1.2rem] shadow-2xl shadow-purple-500/40 flex items-center justify-center transform transition-all duration-300 hover:scale-110 hover:rotate-6 active:scale-95 border-4 border-white group"
-                >
-                  <Home size={28} className="text-white group-hover:scale-110 transition-transform" />
-                  {/* Glow Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-[1rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                </button>
-              </div>
-
-              {/* Support Button */}
-              <button 
-                onClick={() => router.push('/support')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 group transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 rounded-2xl transition-all duration-300 group-hover:bg-purple-50">
-                  <Heart size={22} className="text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </div>
-                <span className="text-[9px] font-bold text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-wider">
-                  Support
-                </span>
-              </button>
-
-              {/* Profile Button */}
-              <button 
-                onClick={() => router.push('/profile?from=community')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 group transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 rounded-2xl transition-all duration-300 group-hover:bg-purple-50">
-                  <User size={22} className="text-gray-400 group-hover:text-purple-600 transition-colors" />
-                </div>
-                <span className="text-[9px] font-bold text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-wider">
-                  Profile
-                </span>
-              </button>
-            </div>
-
-            {/* Bottom Safe Area for iOS */}
-            <div className="h-2 bg-transparent"></div>
-          </div>
-        </nav>
-      )}
     </div>
   );
-                  }
+}
