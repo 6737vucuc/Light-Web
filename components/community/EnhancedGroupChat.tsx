@@ -105,7 +105,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     const channel = supabase.channel(channelId, {
       config: {
         presence: { key: currentUser?.id || `anon_${Math.random().toString(36).substring(2, 7)}` },
-        broadcast: { self: true, ack: false }, // self: true is critical for immediate local feedback
+        broadcast: { self: true },
       }
     });
 
@@ -131,65 +131,50 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
         filter: `group_id=eq.${group.id}` 
       }, async (payload) => {
         const newMsg = payload.new;
-        
-        // Check if message already exists (from broadcast)
         setMessages((prev: any[]) => {
-          if (prev.some((m: any) => m.id === newMsg.id)) return prev;
+          if (prev.some((m: any) => m.id === newMsg.id || (m.tempId && m.tempId === newMsg.id))) return prev;
           
-          // Fetch user data for the new message
-          supabase
-            .from('users')
-            .select('id, name, avatar')
-            .eq('id', newMsg.user_id)
-            .single()
+          // Fetch user data
+          supabase.from('users').select('id, name, avatar').eq('id', newMsg.user_id).single()
             .then(({ data: userData }) => {
-              setMessages(current => current.map(m => 
-                m.id === newMsg.id ? { ...m, user: userData } : m
-              ));
+              setMessages(current => current.map(m => m.id === newMsg.id ? { ...m, user: userData } : m));
             });
 
-          return [...prev, {
-            ...newMsg,
-            userId: newMsg.user_id,
-            timestamp: newMsg.created_at || new Date().toISOString(),
-          }];
+          return [...prev, { ...newMsg, userId: newMsg.user_id, timestamp: newMsg.created_at }];
         });
         setTimeout(scrollToBottom, 100);
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
         if (payload.userId !== currentUser?.id) {
-          if (payload.isTyping) {
-            setTypingUsers((prev: any[]) => {
-              if (prev.find((u: any) => u.userId === payload.userId)) return prev;
-              const newList = [...prev, { userId: payload.userId, name: payload.userName }];
-              if (onTypingChange) onTypingChange(newList);
-              return newList;
-            });
-          } else {
-            setTypingUsers((prev: any[]) => {
-              const newList = prev.filter((u: any) => u.userId !== payload.userId);
-              if (onTypingChange) onTypingChange(newList);
-              return newList;
-            });
-          }
+          setTypingUsers((prev: any[]) => {
+            const exists = prev.find((u: any) => u.userId === payload.userId);
+            let newList;
+            if (payload.isTyping) {
+              if (exists) return prev;
+              newList = [...prev, { userId: payload.userId, name: payload.userName }];
+            } else {
+              newList = prev.filter((u: any) => u.userId !== payload.userId);
+            }
+            if (onTypingChange) onTypingChange(newList);
+            return newList;
+          });
         }
       })
       .on('broadcast', { event: 'new-message' }, ({ payload }) => {
-        console.log('Broadcast message received:', payload);
-        setMessages((prev: any[]) => {
-          // Check if message already exists by ID or temporary ID
-          if (prev.some((m: any) => m.id === payload.message.id || (m.tempId && m.tempId === payload.message.tempId))) {
-            return prev;
-          }
-          return [...prev, payload.message];
-        });
-        setTimeout(scrollToBottom, 100);
+        if (payload.userId !== currentUser?.id) {
+          setMessages((prev: any[]) => {
+            if (prev.some((m: any) => m.id === payload.message.id || (m.tempId && m.tempId === payload.message.tempId))) return prev;
+            return [...prev, payload.message];
+          });
+          setTimeout(scrollToBottom, 100);
+        }
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
+        console.log('Channel status:', status);
+        if (status === 'SUBSCRIBED' && currentUser) {
           await channel.track({
-            userId: currentUser?.id || 'anonymous',
-            userName: currentUser?.name || 'Guest',
+            userId: currentUser.id,
+            userName: currentUser.name,
             online_at: new Date().toISOString(),
           });
         }
