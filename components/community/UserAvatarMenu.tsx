@@ -6,7 +6,7 @@ import { AlertTriangle, User, X, MessageSquare } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface UserAvatarMenuProps {
-  userId: number;
+  userId: string | number;
   userName: string;
   isOpen: boolean;
   onClose: () => void;
