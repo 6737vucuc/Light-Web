@@ -14,7 +14,9 @@ import {
   MoreVertical,
   LogOut,
   User,
-  Trash2
+  Trash2,
+  Reply,
+  X
 } from 'lucide-react';
 import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
@@ -47,8 +49,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [replyTo, setReplyTo] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const [onlineMembersCount, setOnlineMembersCount] = useState(0);
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [totalMembers, setTotalMembers] = useState(group.membersCount || 0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<any>(null);
@@ -64,6 +68,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
     userName: '',
     position: { x: 0, y: 0 }
   });
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMessages();
@@ -100,6 +105,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
     });
 
     channel
+      .on('presence', { event: 'sync' }, () => {
+        const newState = channel.presenceState();
+        const ids = Object.values(newState).flat().map((p: any) => p.userId);
+        setOnlineUsers(ids);
+        setOnlineMembersCount(ids.length);
+      })
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -149,10 +160,16 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
           .then(res => res.json())
           .then(stats => {
             setTotalMembers(stats.totalMembers || 0);
-            setOnlineMembersCount(stats.onlineMembers || 0);
           });
       })
-      .subscribe();
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED' && currentUser) {
+          await channel.track({
+            userId: currentUser.id,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
 
     channelRef.current = channel;
   };
@@ -187,8 +204,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
       const res = await fetch(`/api/groups/${group.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ 
+          content,
+          replyToId: replyTo?.id,
+          replyToContent: replyTo?.content,
+          replyToUserName: replyTo?.userName
+        }),
       });
+      setReplyTo(null);
 
       if (!res.ok) {
         toast.error('Failed to send message');
@@ -284,6 +307,27 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         onClose={() => setAvatarMenu(prev => ({ ...prev, isOpen: false }))}
       />
 
+      {/* Image Modal */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+            <X className="w-8 h-8" />
+          </button>
+          <div className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            <Image 
+              src={selectedImage} 
+              alt="Full size" 
+              fill
+              className="object-contain"
+              unoptimized
+            />
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-[#f0f2f5] p-3 flex items-center justify-between border-b border-gray-200 z-20 shadow-sm">
         <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
@@ -338,12 +382,17 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
             return (
               <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2 group/msg`}>
                 {!isOwn && (
-                  <button 
-                    onClick={(e) => handleAvatarClick(e, msg.userId || msg.user_id, userName)}
-                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm hover:ring-2 hover:ring-purple-400 transition-all"
-                  >
-                    <Image src={getAvatarUrl(userAvatar)} alt={userName} width={32} height={32} className="object-cover" unoptimized />
-                  </button>
+                  <div className="relative flex-shrink-0">
+                    <button 
+                      onClick={(e) => handleAvatarClick(e, msg.userId || msg.user_id, userName)}
+                      className="w-8 h-8 rounded-full overflow-hidden shadow-sm hover:ring-2 hover:ring-purple-400 transition-all"
+                    >
+                      <Image src={getAvatarUrl(userAvatar)} alt={userName} width={32} height={32} className="object-cover" unoptimized />
+                    </button>
+                    {onlineUsers.includes(msg.userId || msg.user_id) && (
+                      <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full shadow-sm"></div>
+                    )}
+                  </div>
                 )}
                 
                 <div className={`max-w-[80%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
@@ -353,6 +402,27 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
                       ? 'bg-[#dcf8c6] text-gray-800 rounded-tr-none' 
                       : 'bg-white text-gray-800 rounded-tl-none'
                   }`}>
+                    {msg.reply_to_content && (
+                      <div className="mb-2 p-2 bg-black/5 rounded-lg border-l-4 border-purple-500 text-[11px]">
+                        <p className="font-black text-purple-600 mb-0.5">{msg.reply_to_user_name}</p>
+                        <p className="text-gray-600 truncate">{msg.reply_to_content}</p>
+                      </div>
+                    )}
+                    {msg.media_url && (
+                      <div 
+                        className="mb-2 rounded-xl overflow-hidden cursor-zoom-in hover:opacity-95 transition-opacity"
+                        onClick={() => setSelectedImage(msg.media_url)}
+                      >
+                        <Image 
+                          src={msg.media_url} 
+                          alt="Attachment" 
+                          width={300} 
+                          height={200} 
+                          className="w-full h-auto object-cover max-h-60"
+                          unoptimized
+                        />
+                      </div>
+                    )}
                     <p className="text-sm font-medium whitespace-pre-wrap break-words">{msg.content}</p>
                     <div className="flex items-center justify-end gap-1 mt-1">
                       <span className="text-[9px] text-gray-500 font-bold">
@@ -361,14 +431,24 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
                       {isOwn && <CheckCheck className="w-3 h-3 text-blue-500" />}
                     </div>
                     
-                    {isOwn && (
+                    <div className={`absolute ${isOwn ? '-left-12' : '-right-12'} top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover/msg:opacity-100 transition-all`}>
                       <button 
-                        onClick={() => deleteMessage(msg.id)}
-                        className="absolute -left-10 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover/msg:opacity-100 transition-all"
+                        onClick={() => setReplyTo({ id: msg.id, content: msg.content, userName })}
+                        className="p-2 text-gray-400 hover:text-purple-500"
+                        title="Reply"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Reply className="w-4 h-4" />
                       </button>
-                    )}
+                      {isOwn && (
+                        <button 
+                          onClick={() => deleteMessage(msg.id)}
+                          className="p-2 text-gray-400 hover:text-red-500"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -379,7 +459,19 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
       </div>
 
       {/* Input Area */}
-      <div className="bg-[#f0f2f5] p-3 flex items-center gap-3 z-20">
+      <div className="bg-[#f0f2f5] p-3 flex flex-col gap-2 z-20">
+        {replyTo && (
+          <div className="flex items-center justify-between bg-white/50 p-2 rounded-xl border-l-4 border-purple-500 animate-in slide-in-from-bottom-2">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black text-purple-600">{replyTo.userName}</p>
+              <p className="text-xs text-gray-600 truncate">{replyTo.content}</p>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-gray-200 rounded-full">
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
+        )}
+        <div className="flex items-center gap-3">
         <button className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
           <ImageIcon className="w-6 h-6" />
         </button>
