@@ -115,12 +115,12 @@ export default function CommunityPage() {
                 >
                   <ArrowLeft size={24} />
                 </button>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black" style={{ backgroundColor: selectedGroup.color }}>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black flex-shrink-0" style={{ backgroundColor: selectedGroup.color }}>
                     <DynamicIcon name={selectedGroup.icon} size={20} />
                   </div>
-                  <div>
-                    <h1 className="text-lg font-black text-gray-900 leading-none">{selectedGroup.name}</h1>
+                  <div className="min-w-0">
+                    <h1 className="text-lg font-black text-gray-900 leading-none truncate">{selectedGroup.name}</h1>
                     <div className="h-4 flex items-center mt-1">
                       {typingUsers.length > 0 ? (
                         <p className="text-[11px] text-emerald-600 font-black animate-pulse truncate">
@@ -150,7 +150,27 @@ export default function CommunityPage() {
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {selectedGroup && (
+                <button 
+                  onClick={() => {
+                    if (confirm('Are you sure you want to leave this group?')) {
+                      fetch(`/api/groups/${selectedGroup.id}/leave`, { method: 'POST' })
+                        .then(res => {
+                          if (res.ok) {
+                            setSelectedGroup(null);
+                            localStorage.removeItem('selectedGroupId');
+                            loadGroups();
+                          }
+                        });
+                    }
+                  }}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                  title="Leave Group"
+                >
+                  <LogOut size={20} />
+                </button>
+              )}
               {!selectedGroup && (
                 <button onClick={() => router.push('/')} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white hidden md:flex">
                   <Home size={20} />
