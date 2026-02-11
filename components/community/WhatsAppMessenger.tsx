@@ -107,13 +107,18 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     channel
       .on('broadcast', { event: 'private-message' }, ({ payload }) => {
         const newMsg = payload.message;
-        if (selectedConversation && newMsg.sender_id === selectedConversation.other_user_id) {
+        console.log('Real-time message received:', newMsg);
+        
+        // If we are in the conversation with the sender, add the message
+        if (selectedConversation && (newMsg.sender_id === selectedConversation.other_user_id)) {
           setMessages(prev => {
             if (prev.find(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
           setTimeout(scrollToBottom, 100);
         }
+        
+        // Always refresh conversations list to show latest message preview/unread count
         loadConversations();
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
@@ -539,15 +544,17 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const broadcastTyping = (typing: boolean) => {
-    if (!selectedConversation) return;
-    fetch('/api/messages/typing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        receiverId: selectedConversation.other_user_id, 
+    if (!selectedConversation || !channelRef.current) return;
+    
+    // Broadcast directly to the other user's channel
+    supabase.channel(`user-${selectedConversation.other_user_id}`).send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: {
+        senderId: currentUser.id,
         isTyping: typing 
-      }),
-    }).catch(console.error);
+      }
+    });
   };
 
   const formatTime = (date: string) => {
