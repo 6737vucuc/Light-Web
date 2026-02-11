@@ -26,6 +26,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
+  const channelRef = useRef<any>(null);
   const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', position: { x: 0, y: 0 } });
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
