@@ -17,7 +17,7 @@ import {
   Trash2
 } from 'lucide-react';
 import Image from 'next/image';
-import { UserAvatarMenu } from './UserAvatarMenu';
+import UserAvatarMenu from './UserAvatarMenu';
 
 interface Message {
   id: number;
