@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/lib/contexts/ToastContext';
-import { supabase } from '@/lib/supabase/client';
+import { pusherClient } from '@/lib/pusher/client';
 import { 
   Send, 
   CheckCheck,
@@ -25,7 +25,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   const [replyTo, setReplyTo] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const channelRef = useRef<any>(null);
   const typingTimeoutRef = useRef<any>(null);
   const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', position: { x: 0, y: 0 } });
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -33,50 +32,33 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   useEffect(() => {
     fetchMessages();
     
-    // Use a simpler channel name and configuration for maximum reliability
-    const channelName = `chat_${group.id}`;
-    const channel = supabase.channel(channelName, {
-      config: {
-        presence: { key: currentUser?.id || 'anon' },
-        broadcast: { self: true, ack: true }
-      }
+    // Subscribe to Pusher channel
+    const channelName = `chat-${group.id}`;
+    const channel = pusherClient.subscribe(channelName);
+
+    // Listen for new messages
+    channel.bind('new-message', (data: any) => {
+      console.log('Pusher message received:', data);
+      setMessages(prev => {
+        if (prev.some(m => m.id === data.id || (m.tempId && m.tempId === data.tempId))) return prev;
+        return [...prev, data];
+      });
+      setTimeout(scrollToBottom, 50);
     });
 
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const count = Object.keys(state).length;
-        if (onOnlineChange) onOnlineChange(count);
-      })
-      .on('broadcast', { event: 'msg' }, ({ payload }) => {
-        console.log('Realtime message received:', payload);
-        setMessages(prev => {
-          if (prev.some(m => m.id === payload.id || (m.tempId && m.tempId === payload.tempId))) return prev;
-          return [...prev, payload];
-        });
-        setTimeout(scrollToBottom, 50);
-      })
-      .on('broadcast', { event: 'typ' }, ({ payload }) => {
-        if (payload.uid === currentUser?.id) return;
-        setTypingUsers(prev => {
-          const filtered = prev.filter(u => u.userId !== payload.uid);
-          const newList = payload.is ? [...filtered, { userId: payload.uid, name: payload.name }] : filtered;
-          if (onTypingChange) onTypingChange(newList);
-          return newList;
-        });
-      })
-      .subscribe(async (status) => {
-        console.log('Channel status:', status);
-        if (status === 'SUBSCRIBED' && currentUser) {
-          await channel.track({ userId: currentUser.id, name: currentUser.name });
-        }
+    // Listen for typing status
+    channel.bind('typing', (data: any) => {
+      if (data.userId === currentUser?.id) return;
+      setTypingUsers(prev => {
+        const filtered = prev.filter(u => u.userId !== data.userId);
+        const newList = data.isTyping ? [...filtered, { userId: data.userId, name: data.userName }] : filtered;
+        if (onTypingChange) onTypingChange(newList);
+        return newList;
       });
+    });
 
-    channelRef.current = channel;
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
+      pusherClient.unsubscribe(channelName);
     };
   }, [group.id, currentUser?.id]);
 
@@ -93,15 +75,21 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     }
   };
 
-  const handleTyping = (is: boolean) => {
-    if (!channelRef.current || !currentUser) return;
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'typ',
-      payload: { uid: currentUser.id, name: currentUser.name, is }
-    });
+  const handleTyping = async (isTyping: boolean) => {
+    if (!currentUser) return;
     
-    if (is) {
+    // Broadcast typing status via API
+    try {
+      await fetch(`/api/groups/${group.id}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isTyping }),
+      });
+    } catch (error) {
+      console.error('Error broadcasting typing:', error);
+    }
+    
+    if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => handleTyping(false), 3000);
     }
@@ -133,18 +121,9 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
       reply_to_user_name: replyTo?.userName
     };
 
-    // Update local UI immediately
+    // Update local UI immediately (Optimistic UI)
     setMessages(prev => [...prev, msgObj]);
     setTimeout(scrollToBottom, 50);
-
-    // Broadcast immediately to others
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'msg',
-        payload: msgObj
-      });
-    }
 
     try {
       const res = await fetch(`/api/groups/${group.id}/messages`, {
@@ -213,7 +192,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
                 {!isOwn && (
                   <button 
                     onClick={(e) => setAvatarMenu({ isOpen: true, userId: msg.userId, userName: msg.user?.name, position: { x: e.clientX, y: e.clientY } })} 
-                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
+                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm"
                   >
                     <Image 
                       src={msg.user?.avatar ? (msg.user.avatar.startsWith('http') ? msg.user.avatar : `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${msg.user.avatar}`) : '/default-avatar.png'} 
@@ -226,24 +205,24 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
                   </button>
                 )}
                 <div className={`max-w-[80%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-                  {!isOwn && <span className="text-[10px] font-black text-purple-600 ml-2 mb-1">{msg.user?.name}</span>}
-                  <div className={`relative px-4 py-2 rounded-2xl shadow-sm ${isOwn ? 'bg-[#dcf8c6] rounded-tr-none' : 'bg-white rounded-tl-none'}`}>
+                  {!isOwn && <span className="text-[11px] font-black text-purple-700 ml-2 mb-1">{msg.user?.name}</span>}
+                  <div className={`relative px-4 py-2.5 rounded-2xl shadow-md border ${isOwn ? 'bg-[#dcf8c6] border-[#c7e9b0] rounded-tr-none' : 'bg-white border-gray-100 rounded-tl-none'}`}>
                     {msg.reply_to_content && (
                       <div className="mb-2 p-2 bg-black/5 border-l-4 border-purple-500 text-[11px] rounded">
-                        <p className="font-bold text-purple-600">{msg.reply_to_user_name}</p>
-                        <p className="truncate">{msg.reply_to_content}</p>
+                        <p className="font-bold text-purple-700">{msg.reply_to_user_name}</p>
+                        <p className="text-gray-700 truncate">{msg.reply_to_content}</p>
                       </div>
                     )}
-                    <p className="text-sm font-medium break-words">{msg.content}</p>
-                    <div className="flex justify-end gap-1 mt-1">
-                      <span className="text-[9px] text-gray-500">{formatTime(msg.created_at || msg.timestamp)}</span>
-                      {isOwn && <CheckCheck className="w-3 h-3 text-blue-500" />}
+                    <p className="text-[15px] font-bold text-gray-900 break-words leading-relaxed">{msg.content}</p>
+                    <div className="flex justify-end items-center gap-1 mt-1.5">
+                      <span className="text-[10px] font-bold text-gray-500">{formatTime(msg.created_at || msg.timestamp)}</span>
+                      {isOwn && <CheckCheck className="w-3.5 h-3.5 text-blue-500" />}
                     </div>
                     <button 
                       onClick={() => setReplyTo({ id: msg.id, content: msg.content, userName: msg.user?.name })} 
-                      className={`absolute ${isOwn ? '-left-8' : '-right-8'} top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded-full`}
+                      className={`absolute ${isOwn ? '-left-10' : '-right-10'} top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition-all p-1.5 hover:bg-gray-200 rounded-full shadow-sm bg-white`}
                     >
-                      <Reply size={16} className="text-gray-500" />
+                      <Reply size={16} className="text-purple-600" />
                     </button>
                   </div>
                 </div>
@@ -256,13 +235,13 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
 
       <div className="bg-[#f0f2f5] p-3 border-t border-gray-200">
         {replyTo && (
-          <div className="flex justify-between items-center bg-white/80 p-2 rounded-lg border-l-4 border-purple-500 text-xs mb-2 animate-in slide-in-from-bottom-2">
+          <div className="flex justify-between items-center bg-white/90 p-2.5 rounded-xl border-l-4 border-purple-500 text-xs mb-2 animate-in slide-in-from-bottom-2 shadow-sm">
             <div className="truncate">
-              <p className="font-bold text-purple-600">{replyTo.userName}</p>
-              <p className="text-gray-500 truncate">{replyTo.content}</p>
+              <p className="font-black text-purple-700">{replyTo.userName}</p>
+              <p className="text-gray-600 font-medium truncate">{replyTo.content}</p>
             </div>
-            <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-gray-200 rounded-full">
-              <X size={14}/>
+            <button onClick={() => setReplyTo(null)} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors">
+              <X size={16} className="text-gray-500" />
             </button>
           </div>
         )}
@@ -273,14 +252,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
             onChange={(e) => { setNewMessage(e.target.value); handleTyping(true); }} 
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()} 
             placeholder={tMessages('typeMessage')} 
-            className="flex-1 bg-white px-4 py-2.5 rounded-xl text-sm outline-none shadow-sm" 
+            className="flex-1 bg-white px-4 py-3 rounded-2xl text-[15px] font-bold text-gray-900 outline-none shadow-sm border border-gray-100 focus:border-purple-300 transition-colors" 
           />
           <button 
             onClick={sendMessage} 
             disabled={!newMessage.trim() || isSending}
-            className={`p-2.5 rounded-full transition-all ${newMessage.trim() ? 'bg-purple-600 text-white shadow-md hover:scale-105' : 'bg-gray-300 text-gray-500'}`}
+            className={`p-3 rounded-full transition-all ${newMessage.trim() ? 'bg-purple-600 text-white shadow-lg hover:scale-110 active:scale-95' : 'bg-gray-300 text-gray-500'}`}
           >
-            <Send size={20}/>
+            <Send size={22}/>
           </button>
         </div>
       </div>

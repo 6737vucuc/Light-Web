@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
 import { verifyAuth } from '@/lib/auth/verify';
+import { pusherServer } from '@/lib/pusher/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -80,7 +81,7 @@ export async function POST(
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { content, messageType = 'text', mediaUrl = null } = body;
+    const { content, messageType = 'text', mediaUrl = null, replyToId = null, replyToContent = null, replyToUserName = null } = body;
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -92,7 +93,10 @@ export async function POST(
         user_id: user.userId,
         content,
         message_type: messageType,
-        media_url: mediaUrl
+        media_url: mediaUrl,
+        reply_to_id: replyToId,
+        reply_to_content: replyToContent,
+        reply_to_user_name: replyToUserName
       })
       .select()
       .single();
@@ -106,32 +110,33 @@ export async function POST(
       .eq('id', user.userId)
       .single();
 
-    // 3. Broadcast via Supabase Realtime
+    // 3. Broadcast via Pusher for real-time delivery
+    const formattedMessage = {
+      id: newMessage.id,
+      content: newMessage.content,
+      media_url: newMessage.media_url,
+      type: newMessage.message_type || 'text',
+      timestamp: newMessage.created_at,
+      created_at: newMessage.created_at,
+      userId: user.userId,
+      user_id: user.userId,
+      user: userData || {
+        id: user.userId,
+        name: user.name,
+        avatar: user.avatar
+      },
+      reply_to_id: replyToId,
+      reply_to_content: replyToContent,
+      reply_to_user_name: replyToUserName
+    };
+
     try {
-      const channel = supabaseAdmin.channel(`group-${groupId}`);
-      await channel.send({
-        type: 'broadcast',
-        event: 'new-message',
-        payload: {
-          id: newMessage.id,
-          content: newMessage.content,
-          media_url: newMessage.media_url,
-          type: newMessage.message_type || 'text',
-          timestamp: newMessage.created_at,
-          userId: user.userId,
-          user_id: user.userId,
-          user: userData || {
-            id: user.userId,
-            name: user.name,
-            avatar: user.avatar
-          }
-        }
-      });
-    } catch (broadcastError) {
-      console.error('Supabase Broadcast Error:', broadcastError);
+      await pusherServer.trigger(`chat-${groupId}`, 'new-message', formattedMessage);
+    } catch (pusherError) {
+      console.error('Pusher Broadcast Error:', pusherError);
     }
 
-    return NextResponse.json({ success: true, message: newMessage });
+    return NextResponse.json({ success: true, message: formattedMessage });
   } catch (error: any) {
     console.error('POST Message Admin Error:', error);
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
