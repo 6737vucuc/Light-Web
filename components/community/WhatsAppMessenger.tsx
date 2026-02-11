@@ -109,16 +109,21 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
         const newMsg = payload.message;
         console.log('Real-time message received:', newMsg);
         
-        // If we are in the conversation with the sender, add the message
-        if (selectedConversation && (newMsg.sender_id === selectedConversation.other_user_id)) {
-          setMessages(prev => {
-            if (prev.find(m => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-          setTimeout(scrollToBottom, 100);
-        }
+        // Force state update by checking IDs correctly
+        setSelectedConversation(currentConv => {
+          if (currentConv && (newMsg.sender_id === currentConv.other_user_id || newMsg.receiver_id === currentConv.other_user_id)) {
+            setMessages(prev => {
+              const exists = prev.some(m => m.id === newMsg.id);
+              if (exists) return prev;
+              const updated = [...prev, newMsg];
+              console.log('Messages updated in state:', updated.length);
+              return updated;
+            });
+            setTimeout(scrollToBottom, 100);
+          }
+          return currentConv;
+        });
         
-        // Always refresh conversations list to show latest message preview/unread count
         loadConversations();
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
@@ -544,15 +549,21 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const broadcastTyping = (typing: boolean) => {
-    if (!selectedConversation || !channelRef.current) return;
+    if (!selectedConversation) return;
     
-    // Broadcast directly to the other user's channel
-    supabase.channel(`user-${selectedConversation.other_user_id}`).send({
-      type: 'broadcast',
-      event: 'typing',
-      payload: {
-        senderId: currentUser.id,
-        isTyping: typing 
+    // Create or use a dedicated channel for broadcasting to the recipient
+    const targetChannel = supabase.channel(`user-${selectedConversation.other_user_id}`);
+    
+    targetChannel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        targetChannel.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: {
+            senderId: currentUser.id,
+            isTyping: typing 
+          }
+        });
       }
     });
   };

@@ -163,6 +163,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
 
   const handleTyping = (isTyping: boolean) => {
     if (channelRef.current) {
+      console.log('Broadcasting group typing:', isTyping);
       channelRef.current.send({
         type: 'broadcast',
         event: 'user-typing',
