@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/lib/contexts/ToastContext';
 import { supabase } from '@/lib/supabase/client';
 import { 
   Send, 
@@ -294,7 +294,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
               <h2 className="font-black text-gray-900 leading-tight truncate">{group.name}</h2>
               {typingUsers.length > 0 ? (
                 <p className="text-[11px] text-green-600 font-black animate-pulse truncate">
-                  {typingUsers[0].name} {tCommon('loading')}
+                  {typingUsers.map(u => u.name).join(', ')} {tMessages('typing')}
                 </p>
               ) : (
                 <p className="text-[11px] text-gray-500 font-black truncate">
