@@ -189,7 +189,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
     
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => handleTyping(false), 2000);
+      typingTimeoutRef.current = setTimeout(() => handleTyping(false), 3000);
     }
   };
 
@@ -338,17 +338,22 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0">
               <Users className="w-6 h-6" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex flex-col">
               <h2 className="font-black text-gray-900 leading-tight truncate">{group.name}</h2>
-              {typingUsers.length > 0 ? (
-                <p className="text-[11px] text-green-600 font-black animate-pulse truncate">
-                  {typingUsers.map(u => u.name).join(', ')} {tMessages('typing')}
-                </p>
-              ) : (
-                <p className="text-[11px] text-gray-500 font-black truncate">
-                  <span className="text-green-600">●</span> {onlineMembersCount} {tMessages('online')} • {totalMembers} {t('members')}
-                </p>
-              )}
+              <div className="h-4 flex items-center">
+                {typingUsers.length > 0 ? (
+                  <p className="text-[11px] text-green-600 font-black animate-pulse truncate">
+                    {typingUsers.length === 1 
+                      ? `${typingUsers[0].name} ${tMessages('typing')}`
+                      : `${typingUsers.length} ${tMessages('typingMultiple')}`}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-gray-500 font-black truncate flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    {onlineMembersCount} {tMessages('online')} • {totalMembers} {t('members')}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -380,7 +385,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
             const userAvatar = msg.user?.avatar || msg.userAvatar || null;
             
             return (
-              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2 group/msg`}>
+              <div key={msg.id} id={`msg-${msg.id}`} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2 group/msg transition-all duration-500 rounded-2xl`}>
                 {!isOwn && (
                   <div className="relative flex-shrink-0">
                     <button 
@@ -403,7 +408,15 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
                       : 'bg-white text-gray-800 rounded-tl-none'
                   }`}>
                     {msg.reply_to_content && (
-                      <div className="mb-2 p-2 bg-black/5 rounded-lg border-l-4 border-purple-500 text-[11px]">
+                      <div 
+                        className="mb-2 p-2 bg-black/5 rounded-lg border-l-4 border-purple-500 text-[11px] cursor-pointer hover:bg-black/10 transition-colors"
+                        onClick={() => {
+                          const element = document.getElementById(`msg-${msg.reply_to_id}`);
+                          element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          element?.classList.add('ring-2', 'ring-purple-400', 'ring-offset-2');
+                          setTimeout(() => element?.classList.remove('ring-2', 'ring-purple-400', 'ring-offset-2'), 2000);
+                        }}
+                      >
                         <p className="font-black text-purple-600 mb-0.5">{msg.reply_to_user_name}</p>
                         <p className="text-gray-600 truncate">{msg.reply_to_content}</p>
                       </div>
