@@ -30,6 +30,9 @@ interface Message {
   user_id?: string;
   userName?: string;
   userAvatar?: string;
+  reply_to_id?: number;
+  reply_to_content?: string;
+  reply_to_user_name?: string;
   user?: {
     id: string;
     name: string;
@@ -117,9 +120,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         table: 'group_messages',
         filter: `group_id=eq.${group.id}` 
       }, async (payload) => {
-        console.log('New group message via Postgres:', payload.new);
         const newMsg = payload.new;
-        
         const { data: userData } = await supabase
           .from('users')
           .select('id, name, avatar')
@@ -138,7 +139,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         setTimeout(scrollToBottom, 100);
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
-        console.log('Typing event received:', payload);
         if (payload.userId !== currentUser?.id) {
           if (payload.isTyping) {
             setTypingUsers((prev: any[]) => {
@@ -280,7 +280,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   const formatTime = (date: string) => {
     if (!date) return '';
     const d = new Date(date);
-    // If date is invalid, return empty
     if (isNaN(d.getTime())) return '';
     
     return d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', {
@@ -485,33 +484,34 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
           </div>
         )}
         <div className="flex items-center gap-3">
-        <button className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
-          <ImageIcon className="w-6 h-6" />
-        </button>
-        <div className="flex-1 relative">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => {
-              setNewMessage(e.target.value);
-              handleTyping(true);
-            }}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder={tMessages('typeMessage')}
-            className="w-full bg-white px-5 py-3 rounded-2xl text-sm focus:outline-none shadow-sm font-black text-gray-900 placeholder:text-gray-400"
-          />
+          <button className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
+            <ImageIcon className="w-6 h-6" />
+          </button>
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                handleTyping(true);
+              }}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              placeholder={tMessages('typeMessage')}
+              className="w-full bg-white px-5 py-3 rounded-2xl text-sm focus:outline-none shadow-sm font-black text-gray-900 placeholder:text-gray-400"
+            />
+          </div>
+          <button
+            onClick={sendMessage}
+            disabled={!newMessage.trim() || isSending}
+            className={`p-3 rounded-full transition-all shadow-md ${
+              newMessage.trim() && !isSending 
+                ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <Send className="w-5 h-5" />
+          </button>
         </div>
-        <button
-          onClick={sendMessage}
-          disabled={!newMessage.trim() || isSending}
-          className={`p-3 rounded-full transition-all shadow-md ${
-            newMessage.trim() && !isSending 
-              ? 'bg-purple-600 text-white hover:bg-purple-700' 
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          <Send className="w-5 h-5" />
-        </button>
       </div>
     </div>
   );
