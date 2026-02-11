@@ -105,7 +105,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     const channel = supabase.channel(channelId, {
       config: {
         presence: { key: currentUser?.id || `anon_${Math.random().toString(36).substring(2, 7)}` },
-        broadcast: { self: true, ack: true },
+        broadcast: { self: true, ack: false }, // self: true is critical for immediate local feedback
       }
     });
 
@@ -175,13 +175,15 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
         }
       })
       .on('broadcast', { event: 'new-message' }, ({ payload }) => {
-        if (payload.userId !== currentUser?.id) {
-          setMessages((prev: any[]) => {
-            if (prev.some((m: any) => m.id === payload.message.id)) return prev;
-            return [...prev, payload.message];
-          });
-          setTimeout(scrollToBottom, 100);
-        }
+        console.log('Broadcast message received:', payload);
+        setMessages((prev: any[]) => {
+          // Check if message already exists by ID or temporary ID
+          if (prev.some((m: any) => m.id === payload.message.id || (m.tempId && m.tempId === payload.message.tempId))) {
+            return prev;
+          }
+          return [...prev, payload.message];
+        });
+        setTimeout(scrollToBottom, 100);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -219,8 +221,43 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     if (!newMessage.trim()) return;
     setIsSending(true);
     const content = newMessage.trim();
+    const tempId = Date.now();
     setNewMessage('');
     handleTyping(false);
+
+    // Create a temporary message object for immediate UI update
+    const tempMsg = {
+      id: tempId,
+      tempId: tempId,
+      content,
+      userId: currentUser.id,
+      user_id: currentUser.id,
+      userName: currentUser.name,
+      userAvatar: currentUser.avatar,
+      created_at: new Date().toISOString(),
+      timestamp: new Date().toISOString(),
+      user: {
+        id: currentUser.id,
+        name: currentUser.name,
+        avatar: currentUser.avatar
+      },
+      reply_to_id: replyTo?.id,
+      reply_to_content: replyTo?.content,
+      reply_to_user_name: replyTo?.userName
+    };
+
+    // Update local UI immediately
+    setMessages(prev => [...prev, tempMsg]);
+    setTimeout(scrollToBottom, 50);
+
+    // Broadcast immediately to others
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'new-message',
+        payload: { message: tempMsg, userId: currentUser.id }
+      });
+    }
 
     try {
       const res = await fetch(`/api/groups/${group.id}/messages`, {
@@ -236,25 +273,9 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
       
       if (res.ok) {
         const data = await res.json();
-        const sentMsg = data.message;
-        
-        // Broadcast the message immediately for ultra-fast delivery
-        if (channelRef.current) {
-          channelRef.current.send({
-            type: 'broadcast',
-            event: 'new-message',
-            payload: { 
-              message: {
-                ...sentMsg,
-                userId: currentUser.id,
-                userName: currentUser.name,
-                userAvatar: currentUser.avatar,
-                timestamp: new Date().toISOString()
-              },
-              userId: currentUser.id
-            }
-          });
-        }
+        const finalMsg = data.message;
+        // Replace temp message with final message from DB
+        setMessages(prev => prev.map(m => m.tempId === tempId ? { ...finalMsg, user: tempMsg.user } : m));
       }
       
       setReplyTo(null);
