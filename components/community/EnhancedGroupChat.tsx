@@ -40,7 +40,7 @@ interface Message {
   };
 }
 
-export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
+export default function EnhancedGroupChat({ group, currentUser, onBack, onTypingChange, onOnlineChange }: any) {
   const router = useRouter();
   const params = useParams();
   const toast = useToast();
@@ -122,6 +122,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         });
         setOnlineUsers(ids);
         setOnlineMembersCount(ids.length);
+        if (onOnlineChange) onOnlineChange(ids.length);
       })
       .on('postgres_changes', { 
         event: 'INSERT', 
@@ -160,10 +161,16 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
           if (payload.isTyping) {
             setTypingUsers((prev: any[]) => {
               if (prev.find((u: any) => u.userId === payload.userId)) return prev;
-              return [...prev, { userId: payload.userId, name: payload.userName }];
+              const newList = [...prev, { userId: payload.userId, name: payload.userName }];
+              if (onTypingChange) onTypingChange(newList);
+              return newList;
             });
           } else {
-            setTypingUsers((prev: any[]) => prev.filter((u: any) => u.userId !== payload.userId));
+            setTypingUsers((prev: any[]) => {
+              const newList = prev.filter((u: any) => u.userId !== payload.userId);
+              if (onTypingChange) onTypingChange(newList);
+              return newList;
+            });
           }
         }
       })
@@ -335,38 +342,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-[#f0f2f5] p-3 flex items-center justify-between border-b border-gray-200 z-20 shadow-sm">
-        <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0">
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
-          </button>
-          <div className="flex items-center gap-2 md:gap-3 min-w-0">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0">
-              <Users className="w-6 h-6" />
-            </div>
-            <div className="min-w-0 flex flex-col">
-              <h2 className="font-black text-gray-900 leading-tight truncate">{group.name}</h2>
-              <div className="h-4 flex items-center">
-                {typingUsers.length > 0 ? (
-                  <p className="text-[11px] text-green-600 font-black animate-pulse truncate">
-                    {typingUsers.length === 1 ? `${typingUsers[0].name} ${tMessages('typing')}` : `${typingUsers.length} ${tMessages('typingMultiple')}`}
-                  </p>
-                ) : (
-                  <p className="text-[11px] text-gray-500 font-black truncate flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                    {onlineMembersCount} {tMessages('online')} • {totalMembers} {t('members')}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={handleLeaveGroup} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors" title={t('leaveGroup')}><LogOut className="w-5 h-5" /></button>
-          <button className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"><MoreVertical className="w-5 h-5" /></button>
-        </div>
-      </div>
+      {/* Header removed to avoid duplication with page.tsx */}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 relative z-10">

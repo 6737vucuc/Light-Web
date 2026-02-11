@@ -19,6 +19,8 @@ export default function CommunityPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [groups, setGroups] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
+  const [typingUsers, setTypingUsers] = useState<any[]>([]);
+  const [onlineCount, setOnlineCount] = useState(0);
 
   useEffect(() => {
     checkAuth();
@@ -119,10 +121,20 @@ export default function CommunityPage() {
                   </div>
                   <div>
                     <h1 className="text-lg font-black text-gray-900 leading-none">{selectedGroup.name}</h1>
-                    <p className="text-xs text-emerald-500 font-bold mt-1 flex items-center gap-1">
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                      {selectedGroup.members_count || 0} Members Online
-                    </p>
+                    <div className="h-4 flex items-center mt-1">
+                      {typingUsers.length > 0 ? (
+                        <p className="text-[11px] text-emerald-600 font-black animate-pulse truncate">
+                          {typingUsers.length === 1 
+                            ? `${typingUsers[0].name} is typing...`
+                            : `${typingUsers.length} people are typing...`}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-emerald-500 font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                          {onlineCount || selectedGroup.members_count || 0} Online
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -171,6 +183,8 @@ export default function CommunityPage() {
                 setSelectedGroup(null);
                 localStorage.removeItem('selectedGroupId');
               }}
+              onTypingChange={setTypingUsers}
+              onOnlineChange={setOnlineCount}
             />
           </div>
         ) : (
