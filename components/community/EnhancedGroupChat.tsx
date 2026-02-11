@@ -120,7 +120,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
           return [...prev, {
             ...newMsg,
             userId: newMsg.user_id,
-            timestamp: newMsg.created_at,
+            timestamp: newMsg.created_at || new Date().toISOString(),
             user: userData
           }];
         });
@@ -158,13 +158,13 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   };
 
   const handleTyping = (isTyping: boolean) => {
-    if (channelRef.current) {
+    if (channelRef.current && currentUser) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'typing',
         payload: {
-          userId: currentUser?.id,
-          userName: currentUser?.name,
+          userId: currentUser.id,
+          userName: currentUser.name,
           isTyping
         }
       });
@@ -172,7 +172,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
     
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => handleTyping(false), 3000);
+      typingTimeoutRef.current = setTimeout(() => handleTyping(false), 2000);
     }
   };
 
@@ -256,7 +256,11 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
 
   const formatTime = (date: string) => {
     if (!date) return '';
-    return new Date(date).toLocaleTimeString(locale === 'ar' ? 'ar-SA' : 'en-US', {
+    const d = new Date(date);
+    // If date is invalid, return empty
+    if (isNaN(d.getTime())) return '';
+    
+    return d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
