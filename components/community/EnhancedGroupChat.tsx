@@ -101,10 +101,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   const initializeRealtime = () => {
     if (channelRef.current) return;
 
-    const channel = supabase.channel(`group-chat-${group.id}`, {
+    // Use a more robust channel naming and configuration
+    const channelId = `group_${group.id}`;
+    const channel = supabase.channel(channelId, {
       config: {
-        presence: { key: currentUser?.id || 'anonymous' },
-        broadcast: { self: false },
+        presence: { key: currentUser?.id || `anon_${Math.random().toString(36).substring(2, 7)}` },
+        broadcast: { self: false, ack: true },
       }
     });
 
@@ -177,13 +179,23 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
           });
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED' && currentUser) {
-          const presenceTrackStatus = await channel.track({
-            userId: currentUser.id,
-            userName: currentUser.name,
+        console.log('Realtime subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          const trackData = {
+            userId: currentUser?.id || 'anonymous',
+            userName: currentUser?.name || 'Guest',
             online_at: new Date().toISOString(),
-          });
+          };
+          
+          const presenceTrackStatus = await channel.track(trackData);
           console.log('Presence track status:', presenceTrackStatus);
+          
+          // Force a broadcast to notify others immediately
+          channel.send({
+            type: 'broadcast',
+            event: 'presence-update',
+            payload: { userId: currentUser?.id }
+          });
         }
       });
 
