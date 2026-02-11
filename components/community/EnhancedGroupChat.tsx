@@ -32,13 +32,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   useEffect(() => {
     fetchMessages();
     
-    // Subscribe to Pusher channel
-    const channelName = `chat-${group.id}`;
+    // Subscribe to Pusher private channel for instant events
+    const channelName = `private-chat-${group.id}`;
     const channel = pusherClient.subscribe(channelName);
 
     // Listen for new messages
     channel.bind('new-message', (data: any) => {
-      console.log('Pusher message received:', data);
       setMessages(prev => {
         if (prev.some(m => m.id === data.id || (m.tempId && m.tempId === data.tempId))) return prev;
         return [...prev, data];
@@ -46,9 +45,8 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
       setTimeout(scrollToBottom, 50);
     });
 
-    // Listen for typing status
-    channel.bind('typing', (data: any) => {
-      if (data.userId === currentUser?.id) return;
+    // Listen for typing status (Client-side event)
+    channel.bind('client-typing', (data: any) => {
       setTypingUsers(prev => {
         const filtered = prev.filter(u => u.userId !== data.userId);
         const newList = data.isTyping ? [...filtered, { userId: data.userId, name: data.userName }] : filtered;
@@ -56,6 +54,8 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
         return newList;
       });
     });
+
+    channelRef.current = channel;
 
     return () => {
       pusherClient.unsubscribe(channelName);
@@ -75,19 +75,15 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     }
   };
 
-  const handleTyping = async (isTyping: boolean) => {
-    if (!currentUser) return;
+  const handleTyping = (isTyping: boolean) => {
+    if (!currentUser || !channelRef.current) return;
     
-    // Broadcast typing status via API
-    try {
-      await fetch(`/api/groups/${group.id}/typing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isTyping }),
-      });
-    } catch (error) {
-      console.error('Error broadcasting typing:', error);
-    }
+    // Trigger client-side event for instant typing indicator
+    channelRef.current.trigger('client-typing', {
+      userId: currentUser.id,
+      userName: currentUser.name,
+      isTyping
+    });
     
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);

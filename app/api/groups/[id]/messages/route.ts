@@ -131,7 +131,7 @@ export async function POST(
     };
 
     try {
-      await pusherServer.trigger(`chat-${groupId}`, 'new-message', formattedMessage);
+      await pusherServer.trigger(`private-chat-${groupId}`, 'new-message', formattedMessage);
     } catch (pusherError) {
       console.error('Pusher Broadcast Error:', pusherError);
     }
