@@ -17,11 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-<<<<<<< HEAD
-    // If 'ban' is not provided, assume it's true (for backward compatibility with UI)
-=======
     // Default to true if 'ban' is not provided, as this is the 'ban-user' endpoint
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
     const { userId, ban = true, reason, duration } = body;
 
     if (!userId) {

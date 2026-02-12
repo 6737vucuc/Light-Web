@@ -1,10 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-<<<<<<< HEAD
-import { Link, useRouter, usePathname } from '@/i18n/navigation';
-import { Users, MessageCircle, Home, User, Sparkles, BookOpen, Heart, Shield, ArrowLeft, Loader2, Info, Search, Filter } from 'lucide-react';
-=======
 import { useRouter, useParams } from 'next/navigation';
 import { 
   Users, 
@@ -22,7 +18,6 @@ import {
   Filter, 
   LogOut 
 } from 'lucide-react';
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
 import * as LucideIcons from 'lucide-react';
 import Image from 'next/image';
 import EnhancedGroupChat from '@/components/community/EnhancedGroupChat';
@@ -330,55 +325,6 @@ export default function CommunityPage() {
           </div>
         )}
       </main>
-<<<<<<< HEAD
-
-      {/* Enhanced Modern Bottom Navigation - Community & Home Only */}
-      {!selectedGroup && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
-          {/* Gradient Background Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/5 via-transparent to-transparent pointer-events-none h-32 -top-32"></div>
-          
-          {/* Main Navigation Container */}
-          <div className="relative mx-4 mb-6 bg-white/95 backdrop-blur-2xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 rounded-[2rem] overflow-visible">
-            <div className="flex items-center justify-around h-20 px-2 relative">
-              {/* Community Button */}
-              <button 
-                onClick={() => router.push('/community')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 bg-purple-100 rounded-2xl shadow-lg shadow-purple-200/50 transition-all duration-300">
-                  <Users size={22} className="text-purple-600" />
-                </div>
-                <span className="text-[9px] font-black text-purple-600 uppercase tracking-wider">
-                  {tCommon('community')}
-                </span>
-                {/* Active Indicator */}
-                <div className="absolute -bottom-0.5 w-10 h-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-t-full shadow-lg"></div>
-              </button>
-
-              {/* Home Button - Same style as Community */}
-              <button 
-                onClick={() => router.push('/')} 
-                className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative transition-all duration-300 active:scale-95"
-              >
-                <div className="p-2.5 bg-purple-100 rounded-2xl shadow-lg shadow-purple-200/50 transition-all duration-300">
-                  <Home size={22} className="text-purple-600" />
-                </div>
-                <span className="text-[9px] font-black text-purple-600 uppercase tracking-wider">
-                  Home
-                </span>
-                {/* Active Indicator */}
-                <div className="absolute -bottom-0.5 w-10 h-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-t-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </button>
-            </div>
-
-            {/* Bottom Safe Area for iOS */}
-            <div className="h-2 bg-transparent"></div>
-          </div>
-        </nav>
-      )}
-=======
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
     </div>
   );
 }

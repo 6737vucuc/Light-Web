@@ -28,27 +28,10 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(users.id, authResult.user.id));
 
-<<<<<<< HEAD
-    // Clear the auth cookie
-    const response = NextResponse.json({ success: true });
-    const host = request.headers.get('host');
-    const isVercel = host?.includes('vercel.app') || host?.includes('light-web-project.vercel.app');
-
-    // Clear both possible token names just in case
-    ['token', 'auth_token'].forEach(cookieName => {
-      response.cookies.set(cookieName, '', {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 0, // Expire immediately
-        path: '/',
-      });
-=======
     // Create response
     const response = NextResponse.json({ 
       success: true,
       message: 'Logged out successfully. All sessions have been cleared.',
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
     });
 
     // Clear all authentication data

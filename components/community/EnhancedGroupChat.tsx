@@ -25,20 +25,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   const [isSending, setIsSending] = useState(false);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
-<<<<<<< HEAD
-  const [showUserProfile, setShowUserProfile] = useState<any>(null);
-  const [showGroupMenu, setShowGroupMenu] = useState(false);
-  const [avatarMenu, setAvatarMenu] = useState<{ isOpen: boolean; userId: number; userName: string; avatar: string | null; position: { x: number; y: number } }>({
-    isOpen: false,
-    userId: 0,
-    userName: '',
-    avatar: null,
-    position: { x: 0, y: 0 }
-  });
-  const [activePrivateChat, setActivePrivateChat] = useState<any>(null);
-  
-=======
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', position: { x: 0, y: 0 } });
@@ -93,77 +79,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     }
   };
 
-<<<<<<< HEAD
-  const initializeRealtime = () => {
-    if (channelRef.current) return;
-
-    const channel = supabase.channel(`group-${group.id}`, {
-      config: {
-        broadcast: { self: false },
-      }
-    });
-
-    channel
-      .on('broadcast', { event: 'new-message' }, ({ payload }) => {
-        setMessages((prev) => {
-          if (prev.find(m => m.id === payload.id)) return prev;
-          const formattedMessage = {
-            ...payload,
-            user_id: payload.userId || payload.user_id,
-            created_at: payload.timestamp || payload.created_at,
-            user: payload.user || null
-          };
-          return [...prev, formattedMessage];
-        });
-        scrollToBottom();
-      })
-      .on('broadcast', { event: 'message-deleted' }, ({ payload }) => {
-        setMessages((prev) => prev.filter(m => m.id !== payload.messageId));
-      })
-      .on('broadcast', { event: 'user-typing' }, ({ payload }) => {
-        if (payload.userId !== currentUser?.id) {
-          if (payload.isTyping) {
-            setTypingUsers((prev) => {
-              if (prev.find(u => u.userId === payload.userId)) return prev;
-              return [...prev, { userId: payload.userId, name: payload.name }];
-            });
-          } else {
-            setTypingUsers((prev) => prev.filter(u => u.userId !== payload.userId));
-          }
-        }
-      })
-      .on('broadcast', { event: 'member-update' }, ({ payload }) => {
-        if (payload.membersCount !== undefined) {
-          setTotalMembers(payload.membersCount);
-        }
-      })
-      .on('broadcast', { event: 'presence-update' }, () => {
-        fetch(`/api/groups/${group.id}/stats`)
-          .then(res => res.json())
-          .then(stats => {
-            setTotalMembers(stats.totalMembers || 0);
-            setOnlineMembersCount(stats.onlineMembers || 0);
-          });
-      })
-      .subscribe();
-
-    channelRef.current = channel;
-  };
-
-  const handleTyping = (isTyping: boolean) => {
-    if (!channelRef.current || !currentUser) return;
-
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'user-typing',
-      payload: { 
-        userId: currentUser.id, 
-        name: currentUser.name,
-        isTyping 
-      }
-    });
-
-=======
   const handleTyping = async (isTyping: boolean) => {
     if (!currentUser) return;
     
@@ -178,7 +93,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
       console.error('Error broadcasting typing:', error);
     }
     
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => handleTyping(false), 3000);
@@ -242,65 +156,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     }
   };
 
-<<<<<<< HEAD
-  const deleteMessage = async (messageId: number) => {
-    const confirmed = await toast.confirm({
-      title: t('deleteMessage'),
-      message: t('deleteMessageConfirm'),
-      type: 'danger'
-    });
-    if (!confirmed) return;
-    
-    try {
-      const res = await fetch(`/api/groups/${group.id}/messages/${messageId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deleteForEveryone: true }),
-      });
-
-      if (res.ok) {
-        setMessages((prev) => prev.filter(m => m.id !== messageId));
-      }
-    } catch (error) {
-      console.error('Error deleting message:', error);
-    }
-  };
-
-  const handleLeaveGroup = async () => {
-    const confirmed = await toast.confirm({
-      title: t('leaveGroup'),
-      message: t('leaveGroupConfirm'),
-      type: 'danger'
-    });
-    if (!confirmed) return;
-    
-    try {
-      const res = await fetch(`/api/groups/${group.id}/leave`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (res.ok) {
-        onBack();
-      }
-    } catch (error) {
-      console.error('Error leaving group:', error);
-    }
-  };
-
-  const handleAvatarClick = (e: React.MouseEvent, userId: number, userName: string, avatar: string | null) => {
-    e.preventDefault();
-    setAvatarMenu({
-      isOpen: true,
-      userId,
-      userName,
-      avatar,
-      position: { x: e.clientX, y: e.clientY }
-    });
-  };
-
-=======
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -318,52 +173,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   return (
     <div className="flex flex-col h-full bg-[#efeae2] relative">
       <UserAvatarMenu 
-<<<<<<< HEAD
-        isOpen={avatarMenu.isOpen}
-        userId={avatarMenu.userId}
-        userName={avatarMenu.userName}
-        avatar={avatarMenu.avatar}
-        position={avatarMenu.position}
-        onClose={() => setAvatarMenu(prev => ({ ...prev, isOpen: false }))}
-        onSendMessage={(userData) => {
-          setActivePrivateChat(userData);
-          setAvatarMenu(prev => ({ ...prev, isOpen: false }));
-        }}
-      />
-
-      {/* Private Chat Modal */}
-      {activePrivateChat && (
-        <ModernMessenger 
-          recipient={activePrivateChat}
-          currentUser={currentUser}
-          onClose={() => setActivePrivateChat(null)}
-        />
-      )}
-
-      {/* Header */}
-      <div className="bg-[#f0f2f5] p-3 flex items-center justify-between border-b border-gray-200 z-20 shadow-sm">
-        <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0">
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
-          </button>
-          <div className="flex items-center gap-2 md:gap-3 min-w-0">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0">
-              <Users className="w-6 h-6" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="font-black text-gray-900 leading-tight truncate">{group.name}</h2>
-              {typingUsers.length > 0 ? (
-                <p className="text-[11px] text-green-600 font-black animate-pulse truncate">
-                  {typingUsers[0].name} {tCommon('loading')}
-                </p>
-              ) : (
-                <p className="text-[11px] text-gray-500 font-black truncate">
-                  <span className="text-green-600">●</span> {onlineMembersCount} {t('online')} • {totalMembers} {t('members')}
-                </p>
-              )}
-            </div>
-          </div>
-=======
         isOpen={avatarMenu.isOpen} 
         userId={avatarMenu.userId} 
         userName={avatarMenu.userName} 
@@ -374,7 +183,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
       {selectedImage && (
         <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
           <Image src={selectedImage} alt="Full" fill className="object-contain" unoptimized />
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
         </div>
       )}
 
@@ -390,13 +198,8 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
               <div key={msg.id} id={`msg-${msg.id}`} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2 group/msg`}>
                 {!isOwn && (
                   <button 
-<<<<<<< HEAD
-                    onClick={(e) => handleAvatarClick(e, msg.userId || msg.user_id, userName, userAvatar)}
-                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm hover:ring-2 hover:ring-purple-400 transition-all"
-=======
                     onClick={(e) => setAvatarMenu({ isOpen: true, userId: msg.userId, userName: msg.user?.name, position: { x: e.clientX, y: e.clientY } })} 
                     className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm"
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
                   >
                     <Image 
                       src={msg.user?.avatar ? (msg.user.avatar.startsWith('http') ? msg.user.avatar : `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${msg.user.avatar}`) : '/default-avatar.png'} 

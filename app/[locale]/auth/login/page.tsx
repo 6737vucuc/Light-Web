@@ -249,40 +249,9 @@ export default function LoginPage() {
             </>
           )}
 
-<<<<<<< HEAD
-            <div className="flex items-center justify-end mb-4">
-              <Link
-                href="/auth/forgot-password"
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
-              >
-                Forgot Password?
-              </Link>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 me-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">
-              Don&apos;t have an account?{' '}
-=======
           <div className="mt-8 pt-8 border-t border-slate-100 text-center">
             <p className="text-slate-600">
               Don't have an account?{' '}
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
               <Link
                 href="/auth/register"
                 className="text-purple-600 hover:text-purple-700 font-bold"

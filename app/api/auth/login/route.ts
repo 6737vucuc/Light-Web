@@ -239,41 +239,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error: any) {
     console.error('CRITICAL LOGIN ERROR:', error);
-<<<<<<< HEAD
-    
-    // Detailed error for debugging
-    const errorMessage = error?.message || 'Unknown error';
-    const errorStack = error?.stack || '';
-    const isDbError = errorMessage.toLowerCase().includes('database') || 
-                      errorMessage.toLowerCase().includes('connection') ||
-                      errorMessage.toLowerCase().includes('pool') ||
-                      errorMessage.toLowerCase().includes('pg');
-
-    // Log more details to server console
-    console.error('Error Details:', {
-      message: errorMessage,
-      stack: errorStack,
-      isDbError
-    });
-
-    return NextResponse.json(
-      { 
-        error: 'An error occurred during login',
-        message: errorMessage,
-        code: isDbError ? 'DB_ERROR' : 'AUTH_ERROR',
-        // Always include message for now to help user debug
-        details: errorMessage,
-        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
-      },
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-=======
     return NextResponse.json({ error: 'An error occurred during login' }, { status: 500 });
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
   }
 }
