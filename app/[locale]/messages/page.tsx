@@ -28,7 +28,7 @@ function MessagesContent() {
           
           // If userId is provided, fetch recipient info
           if (userId) {
-            const userRes = await fetch(`/api/community/profile/${userId}`);
+            const userRes = await fetch(`/api/users/${userId}`);
             if (userRes.ok) {
               const userData = await userRes.json();
               setRecipient(userData.user || userData);

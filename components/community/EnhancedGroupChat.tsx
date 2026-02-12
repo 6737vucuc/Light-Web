@@ -24,7 +24,6 @@ import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
-import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   const toast = useToast();
@@ -38,20 +37,23 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   const [checkingMembership, setCheckingMembership] = useState(true);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
-  const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', position: { x: 0, y: 0 } });
+  const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', avatar: null, position: { x: 0, y: 0 } });
 
   useEffect(() => {
     const init = async () => {
-      await checkMembership();
-      if (isMember) {
+      const member = await checkMembership();
+      if (member) {
         fetchMessages();
       }
     };
     init();
-    
+  }, [group.id, currentUser?.id]);
+
+  useEffect(() => {
+    if (!isMember) return;
+
     const channelName = RealtimeChatService.getGroupChannelName(group.id);
     const channel = supabase.channel(channelName, {
       config: {
@@ -68,35 +70,44 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         setTimeout(scrollToBottom, 50);
       })
       .on('broadcast', { event: ChatEvent.TYPING }, ({ payload }) => {
-        if (payload.userId === currentUser?.id) return;
+        const payloadUserId = payload.userId || payload.user_id;
+        const currentId = currentUser?.id || currentUser?.userId;
+        if (payloadUserId === currentId) return;
+        
         setTypingUsers(prev => {
-          const filtered = prev.filter(u => u.userId !== payload.userId);
+          const filtered = prev.filter(u => (u.userId || u.user_id) !== payloadUserId);
           if (payload.isTyping) {
-            return [...filtered, payload];
+            return [...filtered, { userId: payloadUserId, name: payload.userName || payload.name }];
           }
           return filtered;
         });
       })
       .on('broadcast', { event: 'MEMBER_JOINED' }, ({ payload }) => {
-        toast.show(`${payload.userName} joined the group`, 'info');
+        toast.show(`${payload.userName || payload.name} joined the group`, 'info');
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [group.id, currentUser?.id, isMember]);
+  }, [group.id, currentUser, isMember]);
 
   const checkMembership = async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setCheckingMembership(false);
+      return false;
+    }
     try {
       const res = await fetch(`/api/groups/${group.id}/membership`);
       if (res.ok) {
         const data = await res.json();
         setIsMember(data.isMember);
+        return data.isMember;
       }
+      return false;
     } catch (error) {
       console.error('Check membership error:', error);
+      return false;
     } finally {
       setCheckingMembership(false);
     }
@@ -157,11 +168,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
     const channelName = RealtimeChatService.getGroupChannelName(group.id);
     const channel = supabase.channel(channelName);
     
+    const currentId = currentUser?.id || currentUser?.userId;
     channel.send({
       type: 'broadcast',
       event: ChatEvent.TYPING,
       payload: { 
-        userId: currentUser.id, 
+        userId: currentId, 
         userName: currentUser.name, 
         isTyping 
       },
@@ -222,7 +234,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
               <span className="text-[10px] text-green-600 font-bold uppercase tracking-wider">{t('online')}</span>
               {typingUsers.length > 0 && (
                 <span className="text-[10px] text-purple-600 font-bold animate-pulse">
-                  {typingUsers[0].userName} {t('typing')}
+                  {typingUsers[0].name} {t('typing')}
                 </span>
               )}
             </div>
@@ -235,9 +247,8 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         </div>
       </div>
 
-      {/* Messages Area - WhatsApp Background Pattern would go here */}
+      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar bg-[#e5ddd5] relative">
-        {/* Simple Background Pattern Overlay */}
         <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
         
         <div className="relative z-10">
@@ -257,13 +268,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
               <MessageBubble 
                 key={msg.id || idx} 
                 message={msg} 
-                isOwn={msg.userId === currentUser?.id}
+                isMine={(msg.userId || msg.user_id) === (currentUser?.id || currentUser?.userId)}
                 onReply={setReplyTo}
-                onAvatarClick={(userId, userName, e) => {
+                onAvatarClick={(userId, userName, avatar, e) => {
                   setAvatarMenu({
                     isOpen: true,
                     userId,
                     userName,
+                    avatar,
                     position: { x: e.clientX, y: e.clientY }
                   });
                 }}
@@ -279,7 +291,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         {replyTo && (
           <div className="mb-3 p-3 bg-white/80 backdrop-blur-sm rounded-2xl border-l-4 border-purple-500 flex items-center justify-between animate-in slide-in-from-bottom-2">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-0.5">Replying to {replyTo.userName}</p>
+              <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-0.5">Replying to {replyTo.user?.name || replyTo.userName}</p>
               <p className="text-xs text-gray-500 truncate font-medium">{replyTo.content}</p>
             </div>
             <button onClick={() => setReplyTo(null)} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400">
@@ -342,7 +354,9 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         <UserAvatarMenu 
           userId={avatarMenu.userId}
           userName={avatarMenu.userName}
+          avatar={avatarMenu.avatar}
           position={avatarMenu.position}
+          isOpen={avatarMenu.isOpen}
           onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })}
         />
       )}

@@ -1,78 +1,94 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCheck, Reply, Trash2, Edit } from 'lucide-react';
+import { CheckCheck, Reply, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 
 interface MessageBubbleProps {
   message: any;
-  isMine: boolean;
+  isOwn: boolean;
   onReply?: (message: any) => void;
   onDelete?: (messageId: number) => void;
-  senderAvatar?: string;
-  senderName?: string;
+  onAvatarClick?: (userId: string | number, userName: string, avatar: string | null, e: React.MouseEvent) => void;
 }
 
 export default function MessageBubble({
   message,
-  isMine,
+  isOwn,
   onReply,
   onDelete,
-  senderAvatar,
-  senderName,
+  onAvatarClick,
 }: MessageBubbleProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   const formatTime = (date: string | Date) => {
+    if (!date) return '';
     const d = new Date(date);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getAvatarUrl = (avatar?: string) => {
+  const getAvatarUrl = (avatar?: string | null) => {
     if (!avatar) return '/default-avatar.png';
     if (avatar.startsWith('data:') || avatar.startsWith('http')) return avatar;
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  const user = message.user || {};
+  const userName = user.name || 'User';
+  const userAvatar = user.avatar || null;
+  const userId = message.userId || message.user_id;
+
   return (
     <div
-      className={`flex ${isMine ? 'justify-end' : 'justify-start'} group`}
+      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group mb-4`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className={`flex gap-3 ${isMine ? 'flex-row-reverse' : 'flex-row'} max-w-[85%] md:max-w-[70%]`}>
+      <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'} max-w-[85%] md:max-w-[70%]`}>
         {/* Avatar */}
-        {!isMine && senderAvatar && (
-          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm">
-            <Image
-              src={getAvatarUrl(senderAvatar)}
-              alt={senderName || 'User'}
-              width={32}
-              height={32}
-              className="w-full h-full object-cover"
-              unoptimized
-            />
+        {!isOwn && (
+          <div 
+            className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={(e) => onAvatarClick && onAvatarClick(userId, userName, userAvatar, e)}
+          >
+            {userAvatar ? (
+              <Image
+                src={getAvatarUrl(userAvatar)}
+                alt={userName}
+                width={32}
+                height={32}
+                className="w-full h-full object-cover"
+                unoptimized
+              />
+            ) : (
+              <div className="w-full h-full bg-purple-100 flex items-center justify-center text-purple-600 text-xs font-bold">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+            )}
           </div>
         )}
 
-        <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-          {/* Sender Name (for group messages) */}
-          {!isMine && senderName && (
-            <span className="text-[10px] font-bold text-gray-500 mb-1 ml-2 uppercase tracking-wider">
-              {senderName}
+        <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+          {/* Sender Name */}
+          {!isOwn && (
+            <span 
+              className="text-[10px] font-bold text-gray-500 mb-1 ml-2 uppercase tracking-wider cursor-pointer hover:text-purple-600"
+              onClick={(e) => onAvatarClick && onAvatarClick(userId, userName, userAvatar, e)}
+            >
+              {userName}
             </span>
           )}
 
           {/* Reply Quote */}
           {message.reply_to_content && (
             <div
-              className={`mb-2 p-2 rounded-lg text-xs border-l-4 max-w-full ${
-                isMine
+              className={`mb-1 p-2 rounded-xl text-xs border-l-4 max-w-full ${
+                isOwn
                   ? 'bg-white/10 border-white/30 text-white/80'
-                  : 'bg-gray-50 border-purple-500 text-gray-600'
+                  : 'bg-gray-100 border-purple-500 text-gray-600'
               }`}
             >
-              <p className="font-bold opacity-70 truncate">{message.reply_to_user?.name}</p>
+              <p className="font-bold opacity-70 truncate">{message.reply_to_user?.name || 'User'}</p>
               <p className="truncate">{message.reply_to_content}</p>
             </div>
           )}
@@ -80,47 +96,47 @@ export default function MessageBubble({
           {/* Message Bubble */}
           <div
             className={`relative px-4 py-3 shadow-sm transition-all duration-300 ${
-              isMine
-                ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-[1.5rem] rounded-tr-none hover:shadow-lg hover:shadow-purple-300'
-                : 'bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none hover:border-purple-200'
+              isOwn
+                ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-[1.5rem] rounded-tr-none'
+                : 'bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none'
             }`}
           >
             <p className="text-sm md:text-base leading-relaxed break-words whitespace-pre-wrap">
               {message.content}
             </p>
 
-            {/* Timestamp and Read Status */}
-            <div className={`flex items-center gap-1.5 mt-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
+            {/* Timestamp and Status */}
+            <div className={`flex items-center gap-1.5 mt-1.5 ${isOwn ? 'justify-end' : 'justify-start'}`}>
               <span className="text-[9px] font-bold opacity-60">
                 {formatTime(message.created_at || message.timestamp)}
               </span>
-              {isMine && (
+              {isOwn && (
                 <CheckCheck
                   size={12}
-                  className={`opacity-60 ${message.isRead ? 'text-blue-300' : 'text-white/40'}`}
+                  className="opacity-60"
                 />
               )}
             </div>
 
             {/* Hover Actions */}
             {isHovered && (
-              <div className={`absolute top-0 ${isMine ? '-left-14' : '-right-14'} flex gap-1 bg-white rounded-xl shadow-lg p-1 border border-gray-100`}>
+              <div className={`absolute top-0 ${isOwn ? '-left-12' : '-right-12'} flex flex-col gap-1`}>
                 {onReply && (
                   <button
                     onClick={() => onReply(message)}
-                    className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                    className="p-2 bg-white text-gray-500 hover:text-purple-600 rounded-full shadow-md border border-gray-100 transition-all hover:scale-110"
                     title="Reply"
                   >
-                    <Reply size={16} />
+                    <Reply size={14} />
                   </button>
                 )}
-                {isMine && onDelete && (
+                {isOwn && onDelete && (
                   <button
                     onClick={() => onDelete(message.id)}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 bg-white text-gray-500 hover:text-red-600 rounded-full shadow-md border border-gray-100 transition-all hover:scale-110"
                     title="Delete"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
                 )}
               </div>

@@ -29,7 +29,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const currentUserId = currentUser?.id || currentUser?.userId;
   const recipientId = recipient?.id || recipient?.userId;
   
-  const { messages: realtimeMessages, setMessages, recipientTyping, sendTyping: sendTypingStatus } = usePrivateChat(currentUserId, recipientId);
+  const { messages: realtimeMessages, setMessages, recipientTyping, sendTyping: sendTypingStatus } = usePrivateChat(recipientId, currentUserId);
 
   useEffect(() => {
     loadMessages();

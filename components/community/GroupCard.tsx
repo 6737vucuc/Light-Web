@@ -86,7 +86,9 @@ export default function GroupCard({ group, currentUser, onOpenChat }: GroupCardP
   };
 
   const DynamicIcon = ({ name, size = 24 }: { name: string; size?: number }) => {
-    const IconComponent = (LucideIcons as any)[name] || LucideIcons.Users;
+    // Prevent rendering issues if name is not a string or empty
+    const iconName = typeof name === 'string' && name ? name : 'Users';
+    const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.Users;
     return <IconComponent size={size} />;
   };
 

@@ -73,7 +73,8 @@ export default function CommunityPage() {
   };
 
   const DynamicIcon = ({ name, className, size = 24 }: { name: string, className?: string, size?: number }) => {
-    const IconComponent = (LucideIcons as any)[name] || LucideIcons.Users;
+    const iconName = typeof name === 'string' && name ? name : 'Users';
+    const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.Users;
     return <IconComponent className={className} size={size} />;
   };
 

@@ -50,10 +50,8 @@ export default function UserAvatarMenu({
   }, [isOpen, onClose]);
 
   const handleViewProfile = () => {
-    // Path matches app/[locale]/community/profile/[userId]/page.tsx
-    // The router from '@/i18n/navigation' handles the locale automatically if configured, 
-    // but here we ensure it works with the current path structure.
-    router.push(`/community/profile/${userId}`);
+    // Use the base profile path
+    router.push(`/profile/${userId}`);
     onClose();
   };
 

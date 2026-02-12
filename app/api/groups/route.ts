@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
       SELECT 
         cg.*,
         (SELECT COUNT(*)::int FROM group_members gm WHERE gm.group_id = cg.id) as "membersCount",
-        (SELECT COUNT(*)::int FROM group_messages gmsg WHERE gmsg.group_id = cg.id) as "messagesCount"
+        (SELECT COUNT(*)::int FROM group_members gm WHERE gm.group_id = cg.id) as "members_count",
+        (SELECT COUNT(*)::int FROM group_messages gmsg WHERE gmsg.group_id = cg.id) as "messagesCount",
+        (SELECT COUNT(*)::int FROM group_messages gmsg WHERE gmsg.group_id = cg.id) as "messages_count"
       FROM community_groups cg
       ORDER BY cg.created_at DESC
     `);
