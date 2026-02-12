@@ -38,7 +38,7 @@ export async function POST(
         userId: supportTickets.userId,
         subject: supportTickets.subject,
         message: supportTickets.message,
-        type: supportTickets.type,
+        type: supportTickets.category,
         createdAt: supportTickets.createdAt,
       })
       .from(supportTickets)

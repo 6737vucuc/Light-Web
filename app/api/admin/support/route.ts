@@ -24,12 +24,12 @@ export async function GET(request: NextRequest) {
         message: supportTickets.message,
         status: supportTickets.status,
         priority: supportTickets.priority,
-        category: supportTickets.category,
+        type: supportTickets.category,
         createdAt: supportTickets.createdAt,
         updatedAt: supportTickets.updatedAt,
-        userName: users.name,
-        userEmail: users.email,
-        userAvatar: users.avatar,
+        user_name: users.name,
+        user_email: users.email,
+        user_avatar: users.avatar,
       })
       .from(supportTickets)
       .leftJoin(users, eq(supportTickets.userId, users.id))
