@@ -15,7 +15,10 @@ import {
   Smile,
   MoreVertical,
   Paperclip,
-  User as UserIcon
+  User as UserIcon,
+  ArrowLeft,
+  Lock,
+  Loader2
 } from 'lucide-react';
 import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
@@ -23,14 +26,16 @@ import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 
-export default function EnhancedGroupChat({ group, currentUser, onBack, onTypingChange, onOnlineChange }: any) {
+export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   const toast = useToast();
   const locale = useParams()?.locale as string || 'ar';
-  const tMessages = useTranslations('messages');
+  const t = useTranslations('community');
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isMember, setIsMember] = useState(false);
+  const [checkingMembership, setCheckingMembership] = useState(true);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -39,7 +44,13 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', position: { x: 0, y: 0 } });
 
   useEffect(() => {
-    fetchMessages();
+    const init = async () => {
+      await checkMembership();
+      if (isMember) {
+        fetchMessages();
+      }
+    };
+    init();
     
     const channelName = RealtimeChatService.getGroupChannelName(group.id);
     const channel = supabase.channel(channelName, {
@@ -58,33 +69,51 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
       })
       .on('broadcast', { event: ChatEvent.TYPING }, ({ payload }) => {
         if (payload.userId === currentUser?.id) return;
-        
         setTypingUsers(prev => {
           const filtered = prev.filter(u => u.userId !== payload.userId);
-          const newList = payload.isTyping ? [...filtered, { userId: payload.userId, name: payload.userName }] : filtered;
-          if (onTypingChange) onTypingChange(newList);
-          return newList;
+          if (payload.isTyping) {
+            return [...filtered, payload];
+          }
+          return filtered;
         });
+      })
+      .on('broadcast', { event: 'MEMBER_JOINED' }, ({ payload }) => {
+        toast.show(`${payload.userName} joined the group`, 'info');
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [group.id, currentUser?.id]);
+  }, [group.id, currentUser?.id, isMember]);
+
+  const checkMembership = async () => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch(`/api/groups/${group.id}/membership`);
+      if (res.ok) {
+        const data = await res.json();
+        setIsMember(data.isMember);
+      }
+    } catch (error) {
+      console.error('Check membership error:', error);
+    } finally {
+      setCheckingMembership(false);
+    }
+  };
 
   const fetchMessages = async () => {
     try {
       const res = await fetch(`/api/groups/${group.id}/messages`);
       if (res.ok) {
         const data = await res.json();
-        // Reverse to show latest at bottom if API returns latest first
-        const fetchedMessages = data.messages || [];
-        setMessages(fetchedMessages.reverse());
+        setMessages(data.messages || []);
+        setTimeout(scrollToBottom, 100);
       }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
     } finally {
       setIsLoading(false);
-      setTimeout(scrollToBottom, 100);
     }
   };
 
@@ -93,12 +122,13 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!newMessage.trim() || isSending) return;
+    e?.preventDefault();
+    if (!newMessage.trim() || isSending || !currentUser || !isMember) return;
 
-    setIsSending(true);
     const content = newMessage.trim();
     setNewMessage('');
+    setIsSending(true);
+    handleTyping(false);
 
     try {
       const res = await fetch(`/api/groups/${group.id}/messages`, {
@@ -110,23 +140,19 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
         }),
       });
 
-      if (!res.ok) {
-        setNewMessage(content);
-        toast.error('Failed to send message');
-      } else {
-        setReplyTo(null);
-        handleTyping(false);
-      }
+      if (!res.ok) throw new Error('Failed to send');
+      setReplyTo(null);
     } catch (error) {
       console.error('Error sending message:', error);
       setNewMessage(content);
+      toast.show('Failed to send message', 'error');
     } finally {
       setIsSending(false);
     }
   };
 
   const handleTyping = (isTyping: boolean) => {
-    if (!currentUser) return;
+    if (!currentUser || !isMember) return;
     
     const channelName = RealtimeChatService.getGroupChannelName(group.id);
     const channel = supabase.channel(channelName);
@@ -147,64 +173,123 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     }
   };
 
-  const getAvatarUrl = (avatar?: string) => {
-    if (!avatar) return '/default-avatar.png';
-    if (avatar.startsWith('data:') || avatar.startsWith('http')) return avatar;
-    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
-  };
+  if (checkingMembership) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-white">
+        <Loader2 size={40} className="animate-spin text-purple-600 mb-4" />
+        <p className="text-gray-500 font-black uppercase tracking-widest text-xs">{t('loading')}</p>
+      </div>
+    );
+  }
+
+  if (!isMember) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-gray-50 p-8 text-center">
+        <div className="w-24 h-24 bg-white rounded-[2.5rem] shadow-xl flex items-center justify-center mb-8 text-gray-300">
+          <Lock size={48} />
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 mb-4">{group.name}</h2>
+        <p className="text-gray-500 font-medium max-w-xs mb-8 leading-relaxed">
+          {t('mustJoin')}
+        </p>
+        <button 
+          onClick={onBack}
+          className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-purple-600 transition-all shadow-xl shadow-gray-200"
+        >
+          {t('back')}
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full bg-[#f8f9fa] relative overflow-hidden">
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+    <div className="flex flex-col h-full bg-[#f0f2f5] relative overflow-hidden">
+      {/* WhatsApp Style Header */}
+      <div className="bg-[#f0f2f5] px-4 py-3 flex items-center justify-between border-b border-gray-200 z-20">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-full transition-colors md:hidden">
+            <ArrowLeft size={20} className="text-gray-600" />
+          </button>
+          <div 
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md"
+            style={{ backgroundColor: group.color || '#8B5CF6' }}
+          >
+            <UserIcon size={20} />
           </div>
-        ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full opacity-40">
-            <div className="w-20 h-20 bg-gray-200 rounded-3xl flex items-center justify-center mb-4">
-              <UserIcon size={40} className="text-gray-400" />
+          <div>
+            <h3 className="font-bold text-gray-900 leading-tight">{group.name}</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-green-600 font-bold uppercase tracking-wider">{t('online')}</span>
+              {typingUsers.length > 0 && (
+                <span className="text-[10px] text-purple-600 font-bold animate-pulse">
+                  {typingUsers[0].userName} {t('typing')}
+                </span>
+              )}
             </div>
-            <p className="font-bold text-gray-500">No messages yet. Start the conversation!</p>
           </div>
-        ) : (
-          messages.map((msg, idx) => (
-            <MessageBubble
-              key={msg.id || idx}
-              message={msg}
-              isMine={msg.userId === currentUser?.id}
-              onReply={() => setReplyTo(msg)}
-              senderName={msg.user?.name}
-              senderAvatar={msg.user?.avatar}
-            />
-          ))
-        )}
-        <div ref={messagesEndRef} />
+        </div>
+        <div className="flex items-center gap-1">
+          <button className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
+            <MoreVertical size={20} />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages Area - WhatsApp Background Pattern would go here */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar bg-[#e5ddd5] relative">
+        {/* Simple Background Pattern Overlay */}
+        <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+        
+        <div className="relative z-10">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full py-20">
+              <Loader2 size={32} className="animate-spin text-purple-600" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 opacity-40">
+              <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-4 shadow-sm">
+                <UserIcon size={40} className="text-gray-400" />
+              </div>
+              <p className="font-bold text-gray-600">No messages yet. Start the conversation!</p>
+            </div>
+          ) : (
+            messages.map((msg, idx) => (
+              <MessageBubble 
+                key={msg.id || idx} 
+                message={msg} 
+                isOwn={msg.userId === currentUser?.id}
+                onReply={setReplyTo}
+                onAvatarClick={(userId, userName, e) => {
+                  setAvatarMenu({
+                    isOpen: true,
+                    userId,
+                    userName,
+                    position: { x: e.clientX, y: e.clientY }
+                  });
+                }}
+              />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-gray-100">
+      <div className="bg-[#f0f2f5] p-3 md:p-4 border-t border-gray-200 z-20">
         {replyTo && (
-          <div className="mb-3 p-3 bg-purple-50 rounded-xl flex items-center justify-between animate-in slide-in-from-bottom-2">
+          <div className="mb-3 p-3 bg-white/80 backdrop-blur-sm rounded-2xl border-l-4 border-purple-500 flex items-center justify-between animate-in slide-in-from-bottom-2">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-purple-600">Replying to {replyTo.user?.name}</p>
-              <p className="text-sm text-gray-600 truncate">{replyTo.content}</p>
+              <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-0.5">Replying to {replyTo.userName}</p>
+              <p className="text-xs text-gray-500 truncate font-medium">{replyTo.content}</p>
             </div>
-            <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-purple-100 rounded-full text-purple-400">
-              <X size={18} />
+            <button onClick={() => setReplyTo(null)} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400">
+              <X size={16} />
             </button>
           </div>
         )}
-        
-        {typingUsers.length > 0 && (
-          <div className="mb-3">
-            <TypingIndicator typingUsers={typingUsers} />
-          </div>
-        )}
 
-        <form onSubmit={handleSendMessage} className="flex items-end gap-2">
-          <div className="flex-1 bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-purple-400 focus-within:ring-1 focus-within:ring-purple-400 transition-all flex flex-col">
+        <form onSubmit={handleSendMessage} className="flex items-end gap-2 max-w-6xl mx-auto">
+          <div className="flex-1 bg-white rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col overflow-hidden transition-all focus-within:shadow-md focus-within:border-purple-200">
             <textarea
               value={newMessage}
               onChange={(e) => {
@@ -217,20 +302,20 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
                   handleSendMessage();
                 }
               }}
-              placeholder="Type a message..."
-              className="w-full bg-transparent border-none focus:ring-0 p-3 text-sm md:text-base resize-none max-h-32 min-h-[44px]"
+              placeholder={t('typeMessage')}
+              className="w-full bg-transparent border-none focus:ring-0 p-4 text-sm md:text-base resize-none max-h-32 min-h-[56px] font-medium"
               rows={1}
             />
-            <div className="flex items-center justify-between px-2 pb-2">
+            <div className="flex items-center justify-between px-3 pb-3">
               <div className="flex items-center gap-1">
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors">
-                  <Smile size={20} />
+                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors rounded-full hover:bg-purple-50">
+                  <Smile size={22} />
                 </button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors">
-                  <Paperclip size={20} />
+                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors rounded-full hover:bg-purple-50">
+                  <Paperclip size={22} />
                 </button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors">
-                  <ImageIcon size={20} />
+                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors rounded-full hover:bg-purple-50">
+                  <ImageIcon size={22} />
                 </button>
               </div>
             </div>
@@ -238,20 +323,29 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
           <button
             type="submit"
             disabled={!newMessage.trim() || isSending}
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
-              newMessage.trim() && !isSending
-                ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 scale-100'
-                : 'bg-gray-100 text-gray-400 scale-95'
-            }`}
+            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg
+              ${newMessage.trim() && !isSending
+                ? 'bg-purple-600 text-white shadow-purple-200 scale-100 hover:bg-purple-700 hover:scale-105 active:scale-95'
+                : 'bg-white text-gray-300 scale-100'
+              }`}
           >
             {isSending ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <Loader2 size={24} className="animate-spin" />
             ) : (
-              <Send size={20} className={newMessage.trim() ? 'translate-x-0.5' : ''} />
+              <Send size={24} className={newMessage.trim() ? 'translate-x-0.5' : ''} />
             )}
           </button>
         </form>
       </div>
+
+      {avatarMenu.isOpen && (
+        <UserAvatarMenu 
+          userId={avatarMenu.userId}
+          userName={avatarMenu.userName}
+          position={avatarMenu.position}
+          onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })}
+        />
+      )}
     </div>
   );
 }

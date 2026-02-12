@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { communityGroups, groupMembers } from '@/lib/db/schema';
+import { communityGroups } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { eq, sql, count } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,12 +16,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all groups with real member counts in a single optimized query
+    // Get all groups with real member counts and messages count in a single optimized query
     const groups = await db.execute(sql`
       SELECT 
         cg.*,
-        (SELECT COUNT(*)::int FROM group_members gm WHERE gm.group_id = cg.id) as members_count,
-        COALESCE(cg.messages_count, 0) as messages_count
+        (SELECT COUNT(*)::int FROM group_members gm WHERE gm.group_id = cg.id) as "membersCount",
+        (SELECT COUNT(*)::int FROM group_messages gmsg WHERE gmsg.group_id = cg.id) as "messagesCount"
       FROM community_groups cg
       ORDER BY cg.created_at DESC
     `);
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       name,
       description: description || null,
       color: color || '#8B5CF6',
-      icon: icon || 'users',
+      icon: icon || 'Users',
       createdBy: user.userId,
       membersCount: 0,
       messagesCount: 0,
