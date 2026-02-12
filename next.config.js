@@ -43,11 +43,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-<<<<<<< HEAD
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://res.cloudinary.com https://neon-image-bucket.s3.us-east-1.amazonaws.com; font-src 'self'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
-=======
             value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co https://neon-image-bucket.s3.us-east-1.amazonaws.com https://neon-image-bucket.s3.amazonaws.com; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co wss://*.pusher.com https://*.pusher.com; frame-src 'self' https://www.youtube.com; object-src 'none'; upgrade-insecure-requests;"
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
           }
         ],
       },
