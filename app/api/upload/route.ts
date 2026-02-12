@@ -43,9 +43,16 @@ export async function POST(request: NextRequest) {
 
     // 4. Validate file size
     // Vercel Serverless Functions have a 4.5MB payload limit on Hobby plan.
-    const maxSize = 500 * 1024 * 1024; // 500MB (Internal limit)
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: 'File too large. Maximum size: 500MB' }, { status: 400 });
+    const isVideo = file.type.startsWith('video/');
+    const maxImageSize = 5 * 1024 * 1024; // 5MB for images
+    const maxVideoSize = 100 * 1024 * 1024; // 100MB for videos (Internal limit)
+    
+    const currentLimit = isVideo ? maxVideoSize : maxImageSize;
+
+    if (file.size > currentLimit) {
+      return NextResponse.json({ 
+        error: `File too large. Maximum size for ${isVideo ? 'videos' : 'images'} is ${isVideo ? '100MB' : '5MB'}` 
+      }, { status: 400 });
     }
 
     // 5. Convert to Buffer
@@ -56,9 +63,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     
     // 7. Determine bucket and path
-    // Using 'uploads' bucket as requested by user
     const bucketName = 'uploads';
-    const isVideo = file.type.startsWith('video/');
     
     // 8. Generate unique filename with original extension
     const timestamp = Date.now();
@@ -78,7 +83,6 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Supabase storage upload error:', error);
-      // If bucket doesn't exist, this will show in error.message
       return NextResponse.json({ error: `Supabase Storage error: ${error.message}` }, { status: 500 });
     }
 

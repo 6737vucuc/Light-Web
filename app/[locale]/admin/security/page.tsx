@@ -8,6 +8,19 @@ import { useToast } from '@/lib/contexts/ToastContext';
 
 interface SecurityLog {
   id: number;
+  userId: number;
+  event: string;
+  ipAddress: string;
+  userAgent: string;
+  location: string;
+  details: any;
+  createdAt: string;
+  userName: string;
+  userEmail: string;
+}
+
+interface UserSecurityInfo {
+  id: number;
   name: string;
   email: string;
   avatar?: string;
@@ -28,13 +41,14 @@ export default function SecurityDashboard() {
   const router = useRouter();
   const toast = useToast();
   const [logs, setLogs] = useState<SecurityLog[]>([]);
+  const [userSecurityInfo, setUserSecurityInfo] = useState<UserSecurityInfo[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
     lockedAccounts: 0,
     failedAttempts: 0,
     totalFailedAttempts: 0,
   });
-  const [recentLocked, setRecentLocked] = useState<SecurityLog[]>([]);
+  const [recentLocked, setRecentLocked] = useState<UserSecurityInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('24h');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -77,6 +91,8 @@ export default function SecurityDashboard() {
       if (response.ok) {
         const data = await response.json();
         setLogs(data.logs || []);
+        // For backward compatibility with the UI, we'll extract user info from logs if needed
+        // or use a separate endpoint if we had one. For now, let's adapt.
         setStats(data.stats || {});
         setRecentLocked(data.recentLocked || []);
       }
@@ -135,8 +151,9 @@ export default function SecurityDashboard() {
   };
 
   const filteredLogs = logs.filter(log =>
-    log.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    log.email.toLowerCase().includes(searchQuery.toLowerCase())
+    (log.userName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (log.userEmail?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (log.event?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   if (!isAuthenticated) {
@@ -323,8 +340,14 @@ export default function SecurityDashboard() {
           </div>
         </div>
 
-        {/* Security Logs Table */}
+        {/* Security Events Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-purple-600" />
+              Recent Security Events
+            </h2>
+          </div>
           <div className="overflow-x-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -333,108 +356,41 @@ export default function SecurityDashboard() {
             ) : filteredLogs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-500">
                 <Shield className="w-12 h-12 mb-3 text-gray-300" />
-                <p>No security logs found</p>
-                <p className="text-sm mt-1">Try adjusting your filters</p>
+                <p>No security events found</p>
               </div>
             ) : (
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Failed Attempts
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Last Failed Login
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredLogs.map((log) => {
-                    const isLocked = log.lockedUntil && new Date(log.lockedUntil) > new Date();
-                    
-                    return (
-                      <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-                              {log.avatar ? (
-                                <Image
-                                  src={getAvatarUrl(log.avatar)}
-                                  alt={log.name}
-                                  fill
-                                  className="object-cover"
-                                  unoptimized
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-purple-500 text-white font-bold">
-                                  {log.name.charAt(0).toUpperCase()}
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{log.name}</p>
-                              <p className="text-sm text-gray-500">{log.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                            log.failedLoginAttempts >= 5
-                              ? 'bg-red-100 text-red-800'
-                              : log.failedLoginAttempts >= 3
-                              ? 'bg-orange-100 text-orange-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {log.failedLoginAttempts} attempts
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4" />
-                            {formatDate(log.lastFailedLogin)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {isLocked ? (
-                            <div className="flex items-center gap-2">
-                              <Lock className="w-4 h-4 text-red-600" />
-                              <div>
-                                <p className="text-sm font-semibold text-red-600">Locked</p>
-                                <p className="text-xs text-gray-500">
-                                  {getRemainingTime(log.lockedUntil!)} remaining
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <Unlock className="w-4 h-4 text-green-600" />
-                              <span className="text-sm font-semibold text-green-600">Active</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {isLocked && (
-                            <button
-                              onClick={() => unlockAccount(log.id)}
-                              className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
-                            >
-                              <Unlock className="w-4 h-4" />
-                              Unlock
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {filteredLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          log.event === 'login_success' ? 'bg-green-100 text-green-800' :
+                          log.event === 'login_failed' ? 'bg-red-100 text-red-800' :
+                          log.event === 'account_locked' ? 'bg-black text-white' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {log.event.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{log.userName || 'Unknown'}</div>
+                        <div className="text-sm text-gray-500">{log.userEmail || 'N/A'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.ipAddress}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.location || 'Unknown'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(log.createdAt)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}

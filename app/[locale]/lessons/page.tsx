@@ -28,6 +28,7 @@ export default function LessonsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchLessons();
@@ -49,8 +50,11 @@ export default function LessonsPage() {
             .map((p: any) => p.lessonId)
         );
 
-        const lessonsWithProgress = (data.lessons || []).map((l: Lesson) => ({
+        const lessonsWithProgress = (data.lessons || []).map((l: any) => ({
           ...l,
+          imageUrl: l.imageUrl || l.imageurl,
+          videoUrl: l.videoUrl || l.videourl,
+          createdAt: l.createdAt || l.createdat,
           completed: completedIds.has(l.id)
         }));
 
@@ -114,6 +118,12 @@ export default function LessonsPage() {
     );
   }
 
+  const filteredLessons = lessons.filter(lesson => {
+    const matchesSearch = lesson.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         lesson.content.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
+  });
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -122,7 +132,42 @@ export default function LessonsPage() {
           <p className="text-xl text-gray-600 italic">{t('subtitle')}</p>
         </div>
 
-        {lessons.length === 0 ? (
+        {/* Overall Progress Indicator */}
+        {lessons.length > 0 && (
+          <div className="mb-10 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-black text-gray-900">Your Learning Progress</h3>
+              <span className="text-purple-600 font-black text-xl">
+                {Math.round((lessons.filter(l => l.completed).length / lessons.length) * 100)}%
+              </span>
+            </div>
+            <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-purple-500 to-indigo-600 transition-all duration-1000 ease-out"
+                style={{ width: `${(lessons.filter(l => l.completed).length / lessons.length) * 100}%` }}
+              />
+            </div>
+            <p className="mt-3 text-sm text-gray-500 font-medium">
+              You have completed <span className="text-purple-600 font-bold">{lessons.filter(l => l.completed).length}</span> out of <span className="font-bold">{lessons.length}</span> available lessons.
+            </p>
+          </div>
+        )}
+
+        {/* Search Bar */}
+        <div className="mb-10 flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+          <div className="relative w-full">
+            <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search your lessons..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        {filteredLessons.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
             <BookOpen className="mx-auto h-16 w-16 text-gray-300 mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('noLessons')}</h3>
@@ -132,7 +177,7 @@ export default function LessonsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {lessons.map((lesson) => (
+            {filteredLessons.map((lesson) => (
               <div
                 key={lesson.id}
                 className="bg-white rounded-2xl shadow-sm overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100 flex flex-col relative"
@@ -200,7 +245,22 @@ export default function LessonsPage() {
 
               {selectedLesson.videoUrl ? (
                 <div className="w-full aspect-video bg-black">
-                  <video src={selectedLesson.videoUrl} controls className="w-full h-full" poster={selectedLesson.imageUrl || undefined} />
+                  {selectedLesson.videoUrl.includes('youtube.com') || selectedLesson.videoUrl.includes('youtu.be') ? (
+                    <iframe 
+                      src={`https://www.youtube.com/embed/${selectedLesson.videoUrl.split('v=')[1]?.split('&')[0] || selectedLesson.videoUrl.split('/').pop()}`}
+                      className="w-full h-full"
+                      allowFullScreen
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    />
+                  ) : selectedLesson.videoUrl.includes('vimeo.com') ? (
+                    <iframe 
+                      src={`https://player.vimeo.com/video/${selectedLesson.videoUrl.split('/').pop()}`}
+                      className="w-full h-full"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video src={selectedLesson.videoUrl} controls className="w-full h-full" poster={selectedLesson.imageUrl || undefined} />
+                  )}
                 </div>
               ) : selectedLesson.imageUrl && (
                 <div className="relative w-full">

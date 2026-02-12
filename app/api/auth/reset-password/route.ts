@@ -20,9 +20,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        { error: 'Password must be at least 8 characters' },
+        { status: 400 }
+      );
+    }
+
+    // Check password complexity
+    const hasUpperCase = /[A-Z]/.test(newPassword);
+    const hasLowerCase = /[a-z]/.test(newPassword);
+    const hasNumbers = /\d/.test(newPassword);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+      return NextResponse.json(
+        { error: 'Password must contain uppercase, lowercase, and numbers' },
         { status: 400 }
       );
     }
@@ -48,11 +60,11 @@ export async function POST(request: NextRequest) {
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update user password
+    // Update user password using user_id from resetRecord
     await db
       .update(users)
       .set({ password: hashedPassword })
-      .where(eq(users.email, resetRecord.email));
+      .where(eq(users.id, resetRecord.user_id));
 
     // Delete used reset token
     await db

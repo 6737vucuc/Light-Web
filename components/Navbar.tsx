@@ -12,6 +12,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -21,12 +22,18 @@ export default function Navbar() {
   }, [pathname]);
 
   const checkAuth = async () => {
+    setLoading(true);
     try {
       const response = await fetch('/api/auth/me');
       if (response.ok) {
         const data = await response.json();
-        setUser(data.user);
-        setIsAuthenticated(true);
+        if (data.user) {
+          setUser(data.user);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
       } else {
         setIsAuthenticated(false);
         setUser(null);
@@ -34,18 +41,41 @@ export default function Navbar() {
     } catch (error) {
       setIsAuthenticated(false);
       setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      
+      // Clear all local storage and session storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear any indexed DB if used
+      if (window.indexedDB) {
+        const databases = await window.indexedDB.databases();
+        databases.forEach(db => {
+          if (db.name) {
+            window.indexedDB.deleteDatabase(db.name);
+          }
+        });
+      }
+      
       setIsAuthenticated(false);
       setUser(null);
       router.push('/');
       router.refresh();
     } catch (error) {
       console.error('Logout failed:', error);
+      // Still clear local data even if API call fails
+      localStorage.clear();
+      sessionStorage.clear();
+      setIsAuthenticated(false);
+      setUser(null);
+      router.push('/');
     }
   };
 
@@ -97,7 +127,9 @@ export default function Navbar() {
             {/* Language Switcher */}
             <LanguageSwitcher />
             
-            {!isAuthenticated ? (
+            {loading ? (
+              <div className="h-10 w-24 bg-gray-100 animate-pulse rounded-lg"></div>
+            ) : !isAuthenticated ? (
               <>
                 <Link
                   href="/auth/register"
@@ -150,7 +182,9 @@ export default function Navbar() {
                 </Link>
               ))}
               
-              {!isAuthenticated ? (
+              {loading ? (
+                <div className="h-10 w-full bg-gray-100 animate-pulse rounded-lg"></div>
+              ) : !isAuthenticated ? (
                 <>
                   <Link
                     href="/auth/register"

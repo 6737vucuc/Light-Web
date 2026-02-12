@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     // Verify if user is admin (optional but recommended)
     const user = await verifyAuth(request);
-    if (!user || !user.userId) {
+    if (!user || !user.userId || !user.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

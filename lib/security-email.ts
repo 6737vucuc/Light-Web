@@ -323,3 +323,293 @@ export async function sendAccountLockoutAlert(userName: string, userEmail: strin
     html: emailHtml,
   });
 }
+
+// Send 2FA Verification Code
+export async function send2FACodeAlert(
+  userName: string,
+  userEmail: string,
+  code: string
+) {
+  const transporter = createSecurityTransporter();
+  
+  const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #f3f4f6; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 25px; border: 1px solid #e5e7eb;">
+      <p style="color: #4b5563; margin: 0 0 15px 0; font-size: 16px; font-weight: bold;">Your Verification Code:</p>
+      <div style="font-size: 42px; font-weight: 900; letter-spacing: 10px; color: #9333ea; margin: 0;">${code}</div>
+      <p style="color: #9ca3af; margin: 15px 0 0 0; font-size: 14px;">This code will expire in 10 minutes.</p>
+    </div>
+
+    <h2 style="color: #1f2937; font-size: 20px; margin: 30px 0 15px 0;">🛡️ Security Information:</h2>
+    
+    <ul style="color: #4b5563; line-height: 1.8; margin-bottom: 25px;">
+      <li><strong>Purpose:</strong> Two-Factor Authentication (2FA)</li>
+      <li><strong>Time:</strong> ${new Date().toLocaleString()}</li>
+      <li><strong>Action:</strong> If you didn't request this code, please secure your account immediately.</li>
+    </ul>
+
+    <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+      <p style="color: #991b1b; margin: 0; font-size: 14px; line-height: 1.6;">
+        <strong>⚠️ Important:</strong> Never share this code with anyone. Our team will never ask for your 2FA code.
+      </p>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://light-of-life.com'}" 
+         style="display: inline-block; background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%); color: white; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+        Go to Website
+      </a>
+    </div>
+  `;
+  
+  const emailHtml = createSecurityEmailTemplate(
+    'Verification Code',
+    '🔑',
+    content,
+    '#9333ea'
+  );
+  
+  await transporter.sendMail({
+    from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+    to: userEmail,
+    subject: `🔑 ${code} is your verification code`,
+    html: emailHtml,
+  });
+  
+  console.log(`2FA code email sent to: ${userEmail}`);
+}
+
+/**
+ * Send Internal 2FA Code (Email Based)
+ */
+export async function sendInternal2FACode(
+  userName: string,
+  userEmail: string,
+  code: string,
+  location?: string,
+  browser?: string
+) {
+  try {
+    const transporter = createSecurityTransporter();
+    
+    const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #f3f4f6; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 25px;">
+      <p style="color: #4b5563; margin: 0 0 15px 0; font-size: 16px;">Your security verification code is:</p>
+      <h1 style="color: #9333ea; font-size: 48px; letter-spacing: 10px; margin: 0; font-weight: bold;">${code}</h1>
+      <p style="color: #9ca3af; margin: 15px 0 0 0; font-size: 14px;">This code will expire in 10 minutes.</p>
+    </div>
+
+    <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+      <h3 style="color: #1f2937; font-size: 16px; margin: 0 0 10px 0;">Attempt Details:</h3>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Location:</strong> ${location || 'Unknown'}</p>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Browser:</strong> ${browser || 'Unknown'}</p>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+    </div>
+
+    <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+      If you did not request this code, someone may be trying to access your account. 
+      Please change your password immediately and contact support.
+    </p>
+    `;
+    
+    const emailHtml = createSecurityEmailTemplate(
+      'Security Verification',
+      '🔐',
+      content,
+      '#9333ea'
+    );
+    
+    await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: `🔐 ${code} is your security code`,
+      html: emailHtml,
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to send internal 2FA email:', error);
+    return false;
+  }
+}
+
+/**
+ * Send New Trusted Device Alert
+ */
+export async function sendNewDeviceAlert(
+  userName: string,
+  userEmail: string,
+  deviceInfo: {
+    browser: string;
+    os: string;
+    ip: string;
+    location: string;
+  }
+) {
+  try {
+    const transporter = createSecurityTransporter();
+    
+    const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <p style="color: #065f46; margin: 0; font-size: 16px; line-height: 1.6;">
+        <strong>A new device has been added to your trusted devices list.</strong>
+      </p>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">Device:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${deviceInfo.browser} on ${deviceInfo.os}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">IP Address:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${deviceInfo.ip}</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #4b5563;">Location:</td>
+        <td style="padding: 12px; background-color: white; border: 1px solid #e5e7eb; color: #1f2937;">${deviceInfo.location}</td>
+      </tr>
+    </table>
+
+    <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+      If this was you, you can ignore this email. If not, please secure your account immediately.
+    </p>
+    `;
+    
+    const emailHtml = createSecurityEmailTemplate(
+      'New Trusted Device',
+      '📱',
+      content,
+      '#10b981'
+    );
+    
+    await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: '📱 New Trusted Device Added',
+      html: emailHtml,
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to send new device alert email:', error);
+    return false;
+  }
+}
+
+/**
+ * Send Alert when a trusted device is removed/revoked
+ */
+export async function sendDeviceRevokedAlert(
+  userName: string,
+  userEmail: string,
+  deviceInfo: {
+    name: string;
+    location: string;
+  }
+) {
+  try {
+    const transporter = createSecurityTransporter();
+    
+    const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <p style="color: #9a3412; margin: 0; font-size: 16px; line-height: 1.6;">
+        <strong>A device has been removed from your trusted devices list.</strong>
+      </p>
+    </div>
+
+    <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Device:</strong> ${deviceInfo.name}</p>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Location:</strong> ${deviceInfo.location}</p>
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Action:</strong> Trust Revoked</p>
+    </div>
+
+    <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+      This device will now require a security code for any future login attempts. 
+      If you did not perform this action, please review your security settings immediately.
+    </p>
+    `;
+    
+    const emailHtml = createSecurityEmailTemplate(
+      'Device Trust Revoked',
+      '🔓',
+      content,
+      '#f97316'
+    );
+    
+    await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: '🔓 Security Alert: Device Trust Revoked',
+      html: emailHtml,
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to send device revoked alert:', error);
+    return false;
+  }
+}
+
+/**
+ * Send Alert when account is frozen/locked by user
+ */
+export async function sendAccountFrozenAlert(
+  userName: string,
+  userEmail: string,
+  until?: string
+) {
+  try {
+    const transporter = createSecurityTransporter();
+    
+    const content = `
+    <p style="font-size: 18px; color: #1f2937; margin: 0 0 20px 0;">Hello ${userName},</p>
+    
+    <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+      <p style="color: #991b1b; margin: 0; font-size: 16px; line-height: 1.6;">
+        <strong>Your account has been frozen as requested.</strong>
+      </p>
+    </div>
+
+    <p style="color: #4b5563; line-height: 1.8; margin-bottom: 25px;">
+      As per your security request, we have temporarily disabled access to your account. 
+      No one (including you) will be able to log in until the freeze period expires.
+    </p>
+
+    <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+      <p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Status:</strong> Frozen (Self-Locked)</p>
+      ${until ? `<p style="color: #4b5563; margin: 5px 0; font-size: 14px;"><strong>Unlocks On:</strong> ${until}</p>` : ''}
+    </div>
+
+    <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+      This is a protective measure. If you did not request this, please contact our support team immediately.
+    </p>
+    `;
+    
+    const emailHtml = createSecurityEmailTemplate(
+      'Account Frozen',
+      '❄️',
+      content,
+      '#dc2626'
+    );
+    
+    await transporter.sendMail({
+      from: `"Light of Life Security" <${process.env.VPN_EMAIL_USER || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: '❄️ Security Alert: Account Frozen',
+      html: emailHtml,
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to send account frozen alert:', error);
+    return false;
+  }
+}

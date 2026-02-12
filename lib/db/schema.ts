@@ -33,6 +33,12 @@ export const users = pgTable('users', {
   authProvider: varchar('auth_provider', { length: 50 }).default('credentials'),
   emailVerifiedAt: timestamp('email_verified_at'),
   oauthData: jsonb('oauth_data'),
+  // Two-Factor Authentication
+  twoFactorEnabled: boolean('two_factor_enabled').default(false),
+  twoFactorSecret: text('two_factor_secret'),
+  twoFactorBackupCodes: jsonb('two_factor_backup_codes'),
+  twoFactorMethod: varchar('two_factor_method', { length: 20 }).default('authenticator'), // 'authenticator' or 'email'
+  twoFactorVerifiedAt: timestamp('two_factor_verified_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -75,7 +81,7 @@ export const supportReplies = pgTable('support_replies', {
 // Password Resets table
 export const passwordResets = pgTable('password_resets', {
   id: serial('id').primaryKey(),
-  email: varchar('email', { length: 255 }).notNull(),
+  user_id: integer('user_id').notNull(),
   token: varchar('token', { length: 255 }).notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
@@ -533,3 +539,44 @@ export const verses = pgTable('verses', {
 
 // NextAuth.js OAuth accounts table
 // Removed circular export causing build error
+
+// Trusted Devices/Sessions table
+export const trustedDevices = pgTable('trusted_devices', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  deviceId: varchar('device_id', { length: 255 }).notNull(),
+  deviceName: varchar('device_name', { length: 255 }),
+  browser: varchar('browser', { length: 100 }),
+  os: varchar('os', { length: 100 }),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  lastIp: varchar('last_ip', { length: 45 }),
+  location: varchar('location', { length: 255 }),
+  lastUsed: timestamp('last_used').defaultNow(),
+  isTrusted: boolean('is_trusted').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Internal 2FA Codes table (Email based)
+export const internalTwoFactorCodes = pgTable('internal_2fa_codes', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  code: varchar('code', { length: 6 }).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  isUsed: boolean('is_used').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Security Activity Logs table
+export const securityLogs = pgTable('security_logs', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  event: varchar('event', { length: 100 }).notNull(), // 'login_success', 'login_failed', '2fa_verified', 'device_trusted', 'password_changed', 'global_logout'
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  location: varchar('location', { length: 255 }),
+  details: jsonb('details'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Add lastLoginIp to users table for quick check
+// (Note: This would ideally be an alter table in a real migration)

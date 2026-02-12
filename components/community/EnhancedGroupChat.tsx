@@ -1,48 +1,31 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import {
-  ArrowLeft,
-  Send,
-  Image as ImageIcon,
-  MoreVertical,
-  Trash2,
-  Users,
-  X,
-  CheckCheck,
-  MessageSquare,
-  Phone,
-  LogOut,
-  Info
-} from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import { useToast } from '@/lib/contexts/ToastContext';
-import { supabase } from '@/lib/supabase/client';
+import { pusherClient } from '@/lib/pusher/client';
+import { 
+  Send, 
+  CheckCheck,
+  Reply,
+  X
+} from 'lucide-react';
+import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
 import ModernMessenger from './ModernMessenger';
 
-interface EnhancedGroupChatProps {
-  group: any;
-  currentUser: any;
-  onBack: () => void;
-}
-
-export default function EnhancedGroupChat({ group, currentUser, onBack }: EnhancedGroupChatProps) {
-  const router = useRouter();
-  const params = useParams();
+export default function EnhancedGroupChat({ group, currentUser, onBack, onTypingChange, onOnlineChange }: any) {
   const toast = useToast();
-  const locale = params?.locale as string || 'ar';
-  const t = useTranslations('community');
-  const tCommon = useTranslations('common');
+  const locale = useParams()?.locale as string || 'ar';
+  const tMessages = useTranslations('messages');
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [onlineMembersCount, setOnlineMembersCount] = useState(0);
-  const [totalMembers, setTotalMembers] = useState(group.membersCount || 0);
+  const [replyTo, setReplyTo] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
+<<<<<<< HEAD
   const [showUserProfile, setShowUserProfile] = useState<any>(null);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [avatarMenu, setAvatarMenu] = useState<{ isOpen: boolean; userId: number; userName: string; avatar: string | null; position: { x: number; y: number } }>({
@@ -54,60 +37,63 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   });
   const [activePrivateChat, setActivePrivateChat] = useState<any>(null);
   
+=======
+>>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const channelRef = useRef<any>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<any>(null);
+  const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', position: { x: 0, y: 0 } });
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
-    loadInitialData();
-    initializeRealtime();
+    fetchMessages();
     
+    // Use a public channel for maximum reliability during testing
+    const channelName = `chat-${group.id}`;
+    const channel = pusherClient.subscribe(channelName);
+
+    // Listen for new messages
+    channel.bind('new-message', (data: any) => {
+      console.log('Pusher message received:', data);
+      setMessages(prev => {
+        // Avoid duplicate messages for the sender
+        if (prev.some(m => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
+      setTimeout(scrollToBottom, 50);
+    });
+
+    // Listen for typing status
+    channel.bind('typing', (data: any) => {
+      console.log('Typing event received:', data);
+      if (data.userId === currentUser?.id) return;
+      
+      setTypingUsers(prev => {
+        const filtered = prev.filter(u => u.userId !== data.userId);
+        const newList = data.isTyping ? [...filtered, { userId: data.userId, name: data.userName }] : filtered;
+        if (onTypingChange) onTypingChange(newList);
+        return newList;
+      });
+    });
+
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
+      pusherClient.unsubscribe(channelName);
     };
-  }, [group.id]);
+  }, [group.id, currentUser?.id]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowGroupMenu(false);
-      }
-    };
-    if (showGroupMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showGroupMenu]);
-
-  const loadInitialData = async () => {
-    setIsLoading(true);
+  const fetchMessages = async () => {
     try {
       const res = await fetch(`/api/groups/${group.id}/messages`);
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
       }
-
-      const statsRes = await fetch(`/api/groups/${group.id}/stats`);
-      if (statsRes.ok) {
-        const stats = await statsRes.json();
-        setTotalMembers(stats.totalMembers || 0);
-        setOnlineMembersCount(stats.onlineMembers || 0);
-      }
-    } catch (error) {
-      console.error('Error loading initial data:', error);
     } finally {
       setIsLoading(false);
+      setTimeout(scrollToBottom, 100);
     }
   };
 
+<<<<<<< HEAD
   const initializeRealtime = () => {
     if (channelRef.current) return;
 
@@ -177,6 +163,22 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
       }
     });
 
+=======
+  const handleTyping = async (isTyping: boolean) => {
+    if (!currentUser) return;
+    
+    // Broadcast typing status via API for maximum reliability
+    try {
+      fetch(`/api/groups/${group.id}/typing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isTyping }),
+      });
+    } catch (error) {
+      console.error('Error broadcasting typing:', error);
+    }
+    
+>>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => handleTyping(false), 3000);
@@ -184,27 +186,63 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || isSending) return;
+    const content = newMessage.trim();
+    const tempId = Date.now();
+    setNewMessage('');
+    handleTyping(false);
     setIsSending(true);
-    
+
+    // Update local UI immediately (Optimistic UI)
+    const tempMsg = {
+      id: tempId,
+      tempId: tempId,
+      content,
+      userId: currentUser.id,
+      user_id: currentUser.id,
+      userName: currentUser.name,
+      userAvatar: currentUser.avatar,
+      created_at: new Date().toISOString(),
+      user: {
+        id: currentUser.id,
+        name: currentUser.name,
+        avatar: currentUser.avatar
+      },
+      reply_to_id: replyTo?.id,
+      reply_to_content: replyTo?.content,
+      reply_to_user_name: replyTo?.userName
+    };
+
+    setMessages(prev => [...prev, tempMsg]);
+    setTimeout(scrollToBottom, 50);
+
     try {
       const res = await fetch(`/api/groups/${group.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newMessage.trim() }),
+        body: JSON.stringify({ 
+          content, 
+          replyToId: replyTo?.id, 
+          replyToContent: replyTo?.content, 
+          replyToUserName: replyTo?.userName 
+        }),
       });
-
+      
       if (res.ok) {
-        setNewMessage('');
-        handleTyping(false);
+        const data = await res.json();
+        // Replace temp message with final message from DB
+        setMessages(prev => prev.map(m => m.tempId === tempId ? { ...data.message, user: tempMsg.user } : m));
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Error sending message');
     } finally {
       setIsSending(false);
+      setReplyTo(null);
     }
   };
 
+<<<<<<< HEAD
   const deleteMessage = async (messageId: number) => {
     const confirmed = await toast.confirm({
       title: t('deleteMessage'),
@@ -261,21 +299,16 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
     });
   };
 
+=======
+>>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const getAvatarUrl = (avatar?: string | null) => {
-    if (!avatar) return '/default-avatar.png';
-    if (avatar.startsWith('data:') || avatar.startsWith('http')) return avatar;
-    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
-  };
-
-  const formatTime = (date: any) => {
+  const formatTime = (date: string) => {
     if (!date) return '';
     const d = new Date(date);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString(locale === 'ar' ? 'ar-SA' : 'en-US', { 
+    return d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { 
       hour: 'numeric', 
       minute: '2-digit', 
       hour12: true 
@@ -283,9 +316,9 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   return (
-    <div className="flex flex-col h-full md:h-[calc(100vh-8rem)] bg-[#efeae2] md:rounded-2xl shadow-xl overflow-hidden border border-gray-200 relative">
-      {/* Avatar Menu */}
+    <div className="flex flex-col h-full bg-[#efeae2] relative">
       <UserAvatarMenu 
+<<<<<<< HEAD
         isOpen={avatarMenu.isOpen}
         userId={avatarMenu.userId}
         userName={avatarMenu.userName}
@@ -330,90 +363,71 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
               )}
             </div>
           </div>
+=======
+        isOpen={avatarMenu.isOpen} 
+        userId={avatarMenu.userId} 
+        userName={avatarMenu.userName} 
+        position={avatarMenu.position} 
+        onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })} 
+      />
+      
+      {selectedImage && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
+          <Image src={selectedImage} alt="Full" fill className="object-contain" unoptimized />
+>>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
         </div>
-        
-        <div className="flex items-center gap-1">
-          <button 
-            onClick={handleLeaveGroup}
-            className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-all md:hidden"
-            title={t('leaveGroup')}
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
-          <div className="relative">
-            <button 
-              onClick={() => setShowGroupMenu(!showGroupMenu)}
-              className="p-2.5 hover:bg-gray-200 rounded-xl text-gray-600 transition-all"
-            >
-              <MoreVertical className="w-5 h-5" />
-            </button>
-            
-            {showGroupMenu && (
-              <div ref={menuRef} className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-30 animate-in fade-in zoom-in-95 duration-200">
-                <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-gray-700 transition-colors">
-                  <Info className="w-5 h-5 text-purple-500" />
-                  <span className="text-sm font-black">{t('groupInfo')}</span>
-                </button>
-                <div className="h-px bg-gray-50 my-1 mx-2" />
-                <button 
-                  onClick={handleLeaveGroup}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-red-600 transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="text-sm font-black">{t('leaveGroup')}</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 relative z-10">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex justify-center p-10">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
           </div>
         ) : (
           messages.map((msg) => {
             const isOwn = msg.userId === currentUser?.id || msg.user_id === currentUser?.id;
-            const userName = msg.user?.name || msg.userName || 'User';
-            const userAvatar = msg.user?.avatar || msg.userAvatar || null;
-            
             return (
-              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2 group/msg`}>
+              <div key={msg.id} id={`msg-${msg.id}`} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2 group/msg`}>
                 {!isOwn && (
                   <button 
+<<<<<<< HEAD
                     onClick={(e) => handleAvatarClick(e, msg.userId || msg.user_id, userName, userAvatar)}
                     className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm hover:ring-2 hover:ring-purple-400 transition-all"
+=======
+                    onClick={(e) => setAvatarMenu({ isOpen: true, userId: msg.userId, userName: msg.user?.name, position: { x: e.clientX, y: e.clientY } })} 
+                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm"
+>>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
                   >
-                    <Image src={getAvatarUrl(userAvatar)} alt={userName} width={32} height={32} className="object-cover" unoptimized />
+                    <Image 
+                      src={msg.user?.avatar ? (msg.user.avatar.startsWith('http') ? msg.user.avatar : `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${msg.user.avatar}`) : '/default-avatar.png'} 
+                      alt="avatar" 
+                      width={32} 
+                      height={32} 
+                      className="object-cover" 
+                      unoptimized 
+                    />
                   </button>
                 )}
-                
                 <div className={`max-w-[80%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-                  {!isOwn && <span className="text-[10px] font-black text-purple-600 ml-2 mb-0.5">{userName}</span>}
-                  <div className={`relative px-4 py-2.5 rounded-2xl shadow-sm ${
-                    isOwn 
-                      ? 'bg-[#dcf8c6] text-gray-800 rounded-tr-none' 
-                      : 'bg-white text-gray-800 rounded-tl-none'
-                  }`}>
-                    <p className="text-sm font-medium whitespace-pre-wrap break-words">{msg.content}</p>
-                    <div className="flex items-center justify-end gap-1 mt-1">
-                      <span className="text-[9px] text-gray-500 font-bold">
-                        {formatTime(msg.created_at)}
-                      </span>
-                      {isOwn && <CheckCheck className="w-3 h-3 text-blue-500" />}
-                    </div>
-                    
-                    {isOwn && (
-                      <button 
-                        onClick={() => deleteMessage(msg.id)}
-                        className="absolute -left-10 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover/msg:opacity-100 transition-all"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  {!isOwn && <span className="text-[11px] font-black text-purple-700 ml-2 mb-1">{msg.user?.name}</span>}
+                  <div className={`relative px-4 py-2.5 rounded-2xl shadow-md border ${isOwn ? 'bg-[#dcf8c6] border-[#c7e9b0] rounded-tr-none' : 'bg-white border-gray-100 rounded-tl-none'}`}>
+                    {msg.reply_to_content && (
+                      <div className="mb-2 p-2 bg-black/5 border-l-4 border-purple-500 text-[11px] rounded">
+                        <p className="font-bold text-purple-700">{msg.reply_to_user_name}</p>
+                        <p className="text-gray-700 truncate">{msg.reply_to_content}</p>
+                      </div>
                     )}
+                    <p className="text-[15px] font-bold text-gray-900 break-words leading-relaxed">{msg.content}</p>
+                    <div className="flex justify-end items-center gap-1 mt-1.5">
+                      <span className="text-[10px] font-bold text-gray-500">{formatTime(msg.created_at || msg.timestamp)}</span>
+                      {isOwn && <CheckCheck className="w-3.5 h-3.5 text-blue-500" />}
+                    </div>
+                    <button 
+                      onClick={() => setReplyTo({ id: msg.id, content: msg.content, userName: msg.user?.name })} 
+                      className={`absolute ${isOwn ? '-left-10' : '-right-10'} top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition-all p-1.5 hover:bg-gray-200 rounded-full shadow-sm bg-white`}
+                    >
+                      <Reply size={16} className="text-purple-600" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -423,35 +437,35 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="bg-[#f0f2f5] p-3 flex items-center gap-3 z-20">
-        <button className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
-          <ImageIcon className="w-6 h-6" />
-        </button>
-        <div className="flex-1 relative">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => {
-              setNewMessage(e.target.value);
-              handleTyping(true);
-            }}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder={t('typeMessage')}
-            className="w-full bg-white px-5 py-3 rounded-2xl text-sm focus:outline-none shadow-sm font-black text-gray-900 placeholder:text-gray-400"
+      <div className="bg-[#f0f2f5] p-3 border-t border-gray-200">
+        {replyTo && (
+          <div className="flex justify-between items-center bg-white/90 p-2.5 rounded-xl border-l-4 border-purple-500 text-xs mb-2 animate-in slide-in-from-bottom-2 shadow-sm">
+            <div className="truncate">
+              <p className="font-black text-purple-700">{replyTo.userName}</p>
+              <p className="text-gray-600 font-medium truncate">{replyTo.content}</p>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors">
+              <X size={16} className="text-gray-500" />
+            </button>
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          <input 
+            type="text" 
+            value={newMessage} 
+            onChange={(e) => { setNewMessage(e.target.value); handleTyping(true); }} 
+            onKeyPress={(e) => e.key === 'Enter' && sendMessage()} 
+            placeholder={tMessages('typeMessage')} 
+            className="flex-1 bg-white px-4 py-3 rounded-2xl text-[15px] font-bold text-gray-900 outline-none shadow-sm border border-gray-100 focus:border-purple-300 transition-colors" 
           />
+          <button 
+            onClick={sendMessage} 
+            disabled={!newMessage.trim() || isSending}
+            className={`p-3 rounded-full transition-all ${newMessage.trim() ? 'bg-purple-600 text-white shadow-lg hover:scale-110 active:scale-95' : 'bg-gray-300 text-gray-500'}`}
+          >
+            <Send size={22}/>
+          </button>
         </div>
-        <button
-          onClick={sendMessage}
-          disabled={!newMessage.trim() || isSending}
-          className={`p-3 rounded-full transition-all shadow-md ${
-            newMessage.trim() && !isSending 
-              ? 'bg-purple-600 text-white hover:bg-purple-700' 
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          <Send className="w-5 h-5" />
-        </button>
       </div>
     </div>
   );

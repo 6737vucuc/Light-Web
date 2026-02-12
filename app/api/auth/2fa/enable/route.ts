@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
     }
     const { user } = authResult;
 
-    const { method } = await request.json(); // 'authenticator' or 'email'
+    const body = await request.json();
+    const method = body.method; // 'authenticator' or 'email'
 
     if (method === 'authenticator') {
       // Generate TOTP secret and QR code
@@ -33,7 +34,14 @@ export async function POST(request: NextRequest) {
       });
     } else if (method === 'email') {
       // Send verification code via email
-      await Email2FA.sendCode(user.email);
+      const sent = await Email2FA.sendCode(user.email, user.name);
+
+      if (!sent) {
+        return NextResponse.json(
+          { error: 'Failed to send verification email. Please try again later.' },
+          { status: 500 }
+        );
+      }
 
       return NextResponse.json({
         success: true,

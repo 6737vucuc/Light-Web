@@ -45,8 +45,18 @@ export async function GET(request: NextRequest) {
       )
     ).orderBy(desc(lessons.createdat));
 
+    // Map to ensure frontend receives the expected camelCase keys
+    const mappedLessons = filteredLessons.map(lesson => ({
+      ...lesson,
+      imageUrl: lesson.imageurl,
+      videoUrl: lesson.videourl,
+      createdAt: lesson.createdat,
+      updatedAt: lesson.updatedat,
+      createdBy: lesson.createdby
+    }));
+
     return NextResponse.json({ 
-      lessons: filteredLessons,
+      lessons: mappedLessons,
       userReligion: userReligion
     });
   } catch (error: any) {

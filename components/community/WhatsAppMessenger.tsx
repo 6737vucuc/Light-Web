@@ -111,18 +111,17 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
     });
 
     channel
-      .on('broadcast', { event: 'private-message' }, ({ payload }) => {
-        const newMsg = payload.message;
-        if (selectedConversation && newMsg.sender_id === selectedConversation.other_user_id) {
-          setMessages(prev => {
-            if (prev.find(m => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-          setTimeout(scrollToBottom, 100);
-        }
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'direct_messages',
+        filter: `receiver_id=eq.${currentUser.id}`
+      }, (payload) => {
+        console.log('New private message via Postgres:', payload.new);
         loadConversations();
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        console.log('Typing event received:', payload);
         if (selectedConversation && payload.senderId === selectedConversation.other_user_id) {
           setOtherUserTyping(payload.isTyping);
         }
@@ -178,7 +177,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
       .on('broadcast', { event: 'messages-read' }, ({ payload }) => {
         console.log('Messages read by other user:', payload);
         if (selectedConversation && payload.readerId === selectedConversation.other_user_id) {
-          setMessages(prev => prev.map(msg => ({ ...msg, is_read: true })));
+          setMessages((prev: any[]) => prev.map((msg: any) => ({ ...msg, is_read: true })));
         }
       })
       .subscribe((status) => {
@@ -637,7 +636,7 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
 
       if (res.ok) {
         const data = await res.json();
-        setMessages(prev => [...prev, data.message]);
+        setMessages((prev: any[]) => [...prev, data.message]);
         setTimeout(scrollToBottom, 100);
         loadConversations();
       }
@@ -658,15 +657,26 @@ export default function WhatsAppMessenger({ currentUser, initialUserId, fullPage
   };
 
   const broadcastTyping = (typing: boolean) => {
-    if (!selectedConversation) return;
-    fetch('/api/messages/typing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        receiverId: selectedConversation.other_user_id, 
-        isTyping: typing 
-      }),
-    }).catch(console.error);
+    if (!selectedConversation || !channelRef.current) return;
+    
+    // Use the existing channel to broadcast typing status
+    // The recipient is listening on 'user-{recipientId}', so we broadcast to that specific channel
+    const typingChannel = supabase.channel(`user-${selectedConversation.other_user_id}`);
+    typingChannel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        typingChannel.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: {
+            senderId: currentUser.id,
+            isTyping: typing 
+          }
+        });
+        // We can unsubscribe after sending to keep connections clean, 
+        // but for typing it's better to keep it or use the main channel.
+        // For now, let's ensure it sends.
+      }
+    });
   };
 
   const formatTime = (date: string) => {
