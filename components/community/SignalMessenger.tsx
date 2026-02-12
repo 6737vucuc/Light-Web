@@ -56,6 +56,9 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
   const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [remoteIsTyping, setRemoteIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<any>(null);
   const [isPeerReady, setIsPeerReady] = useState(false);
   
   // Voice Recording States
@@ -166,10 +169,42 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         });
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       })
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (payload.userId !== currentUser.id) {
+          setRemoteIsTyping(payload.isTyping);
+        }
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [currentUser?.id, selectedConv]);
+
+  const handleTyping = () => {
+    if (!selectedConv || !currentUser) return;
+    
+    const channelId = `chat-${Math.min(currentUser.id, selectedConv.id)}-${Math.max(currentUser.id, selectedConv.id)}`;
+    const channel = supabase.channel(channelId);
+    
+    if (!isTyping) {
+      setIsTyping(true);
+      channel.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: currentUser.id, isTyping: true }
+      });
+    }
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+      channel.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId: currentUser.id, isTyping: false }
+      });
+    }, 2000);
+  };
 
   // Load Messages
   useEffect(() => {
@@ -417,22 +452,26 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
         {selectedConv ? (
           <>
             {/* Header */}
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-white/90 backdrop-blur-xl sticky top-0 z-10">
+            <div className="p-6 bg-white border-b border-slate-50 flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-4">
-                <button onClick={() => setSelectedConv(null)} className="md:hidden p-2 hover:bg-slate-50 rounded-full text-slate-600"><ArrowLeft size={24} /></button>
+                <button onClick={onBack} className="p-2 hover:bg-slate-50 rounded-full transition-colors lg:hidden"><ArrowLeft size={20} /></button>
                 <div className="relative">
-                  <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-md border-2 border-purple-50">
-                    <Image src={selectedConv.avatar || '/default-avatar.png'} alt={selectedConv.name} width={48} height={48} className="object-cover" unoptimized />
+                  <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-purple-50 shadow-sm">
+                    <Image src={selectedConv.avatar || '/default-avatar.png'} alt={selectedConv.name} fill className="object-cover" unoptimized />
                   </div>
-                  {selectedConv.isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>}
+                  {selectedConv.isOnline && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-4 border-white rounded-full"></div>}
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 text-lg leading-tight">{selectedConv.name}</h3>
-                  <div className="flex items-center gap-1.5">
-                    <div className={`w-1.5 h-1.5 rounded-full ${selectedConv.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
-                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">{selectedConv.isOnline ? 'Active Now' : 'Offline'}</p>
-                  </div>
+                  <h3 className="font-black text-slate-900 tracking-tight">{selectedConv.name}</h3>
+                  {remoteIsTyping ? (
+                    <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest animate-pulse">Typing...</p>
+                  ) : (
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                      {selectedConv.isOnline ? 'Online Now' : 'Offline'}
+                    </p>
+                  )}
                 </div>
+              </div>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => startCall('audio')} className="p-3 text-slate-400 hover:bg-purple-50 hover:text-purple-600 rounded-2xl transition-all shadow-sm hover:shadow-md"><Phone size={22} /></button>
@@ -583,7 +622,10 @@ export default function SignalMessenger({ currentUser, initialUserId, fullPage =
                   placeholder={isUploading ? "Uploading file..." : "Write something beautiful..."}
                   value={newMessage}
                   disabled={isUploading}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    handleTyping();
+                  }}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                   className="flex-1 bg-transparent border-none outline-none text-base text-slate-700 py-2 font-medium placeholder:text-slate-300"
                 />

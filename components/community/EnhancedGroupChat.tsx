@@ -165,11 +165,17 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: Enhanc
   };
 
   const handleTyping = (isTyping: boolean) => {
-    fetch(`/api/groups/${group.id}/typing`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isTyping }),
-    }).catch(console.error);
+    if (!channelRef.current || !currentUser) return;
+
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'user-typing',
+      payload: { 
+        userId: currentUser.id, 
+        name: currentUser.name,
+        isTyping 
+      }
+    });
 
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
