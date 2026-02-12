@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePrivateChat } from '@/lib/hooks/usePrivateChat';
 import { 
-  X, Send, Phone, Video, Image as ImageIcon, 
+  X, Send, Image as ImageIcon, 
   Smile, Paperclip, CheckCheck, MessageSquare,
   User as UserIcon, MoreHorizontal
 } from 'lucide-react';
@@ -143,9 +143,6 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         </div>
         
         <div className="flex items-center gap-2">
-          <button className="p-2.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"><Phone size={20} /></button>
-          <button className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Video size={20} /></button>
-          <div className="w-px h-6 bg-gray-100 mx-1"></div>
           <button onClick={onClose} className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><X size={20} /></button>
         </div>
       </div>

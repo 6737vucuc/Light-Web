@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Phone, Video, MoreVertical } from 'lucide-react';
+import { X, MoreVertical } from 'lucide-react';
 import Image from 'next/image';
 import OnlineStatus from './OnlineStatus';
 
@@ -10,7 +10,6 @@ interface ChatHeaderProps {
   isTyping?: boolean;
   isOnline?: boolean;
   onClose: () => void;
-  onCall?: (type: 'voice' | 'video') => void;
 }
 
 export default function ChatHeader({
@@ -19,7 +18,6 @@ export default function ChatHeader({
   isTyping = false,
   isOnline = true,
   onClose,
-  onCall,
 }: ChatHeaderProps) {
   const getAvatarUrl = (avatar?: string) => {
     if (!avatar) return '/default-avatar.png';
@@ -62,25 +60,6 @@ export default function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        {onCall && (
-          <>
-            <button
-              onClick={() => onCall('voice')}
-              className="p-2.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
-              title="Voice Call"
-            >
-              <Phone size={20} />
-            </button>
-            <button
-              onClick={() => onCall('video')}
-              className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-              title="Video Call"
-            >
-              <Video size={20} />
-            </button>
-          </>
-        )}
-        <div className="w-px h-6 bg-gray-100 mx-1"></div>
         <button
           onClick={onClose}
           className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
