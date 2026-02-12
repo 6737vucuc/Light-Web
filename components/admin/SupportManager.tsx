@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { MessageCircle, Loader2, Mail, Clock, User, AlertCircle, CheckCircle, Heart, Wrench } from 'lucide-react';
 import { useToast } from '@/lib/contexts/ToastContext';
 
+// Version 1.0.5 - Forced Update
 interface SupportTicket {
   id: number;
   userId: number;
   subject: string;
   message: string;
-  type: 'technical' | 'testimony' | 'prayer';
+  type: string;
+  category?: string;
   status: string;
   priority: string;
   createdAt: string;
@@ -34,7 +36,8 @@ export default function SupportManager() {
 
   const fetchTickets = async () => {
     try {
-      const response = await fetch('/api/admin/support');
+      // Add timestamp to bypass cache
+      const response = await fetch(`/api/admin/support?t=${Date.now()}`);
       const data = await response.json();
       setTickets(data.tickets || []);
     } catch (error) {
@@ -77,29 +80,17 @@ export default function SupportManager() {
 
   const formatDateTime = (dateString: any) => {
     try {
-      const now = new Date();
-      let date: Date;
-
-      if (!dateString) {
-        date = now;
-      } else {
-        date = new Date(dateString);
-        
-        if (isNaN(date.getTime())) {
-          const num = typeof dateString === 'string' ? parseInt(dateString) : Number(dateString);
-          if (!isNaN(num)) {
-            date = new Date(num);
-          }
-        }
-        
-        if (isNaN(date.getTime())) {
-          date = now;
-        }
+      if (!dateString) return { date: 'No Date', time: '', full: 'No Date' };
+      
+      const date = new Date(dateString);
+      
+      if (isNaN(date.getTime())) {
+        return { date: 'Invalid Date', time: '', full: 'Invalid Date' };
       }
 
       const dateOptions: Intl.DateTimeFormatOptions = { 
         year: 'numeric', 
-        month: 'long', 
+        month: 'short', 
         day: 'numeric' 
       };
       const timeOptions: Intl.DateTimeFormatOptions = { 
@@ -114,71 +105,53 @@ export default function SupportManager() {
         full: `${date.toLocaleDateString('en-US', dateOptions)} at ${date.toLocaleTimeString('en-US', timeOptions)}`
       };
     } catch (e) {
-      const fallback = new Date();
-      return {
-        date: fallback.toLocaleDateString('en-US'),
-        time: fallback.toLocaleTimeString('en-US'),
-        full: fallback.toLocaleString('en-US')
-      };
+      return { date: 'Error', time: '', full: 'Error' };
     }
   };
 
   const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'technical':
-        return <Wrench className="w-5 h-5" />;
-      case 'testimony':
-        return <Heart className="w-5 h-5" />;
-      case 'prayer':
-        return <AlertCircle className="w-5 h-5" />;
-      default:
-        return <MessageCircle className="w-5 h-5" />;
-    }
+    const t = (type || '').toLowerCase();
+    if (t === 'technical') return <Wrench className="w-5 h-5" />;
+    if (t === 'testimony') return <Heart className="w-5 h-5" />;
+    if (t === 'prayer') return <AlertCircle className="w-5 h-5" />;
+    return <MessageCircle className="w-5 h-5" />;
   };
 
   const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'technical':
-        return 'bg-red-50 text-red-600 border-red-200';
-      case 'testimony':
-        return 'bg-green-50 text-green-600 border-green-200';
-      case 'prayer':
-        return 'bg-blue-50 text-blue-600 border-blue-200';
-      default:
-        return 'bg-gray-50 text-gray-600 border-gray-200';
-    }
+    const t = (type || '').toLowerCase();
+    if (t === 'technical') return 'bg-red-50 text-red-600 border-red-200';
+    if (t === 'testimony') return 'bg-green-50 text-green-600 border-green-200';
+    if (t === 'prayer') return 'bg-blue-50 text-blue-600 border-blue-200';
+    return 'bg-gray-50 text-gray-600 border-gray-200';
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'resolved':
-        return 'bg-green-100 text-green-700';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'in-progress':
-        return 'bg-blue-100 text-blue-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
+      case 'resolved': return 'bg-green-100 text-green-700';
+      case 'pending': return 'bg-yellow-100 text-yellow-700';
+      case 'in-progress': return 'bg-blue-100 text-blue-700';
+      default: return 'bg-gray-100 text-gray-700';
     }
+  };
+
+  // Helper to determine actual type for filtering and display
+  const getActualType = (ticket: SupportTicket) => {
+    const type = (ticket.type || ticket.category || '').toLowerCase();
+    const subject = (ticket.subject || '').toLowerCase();
+    const message = (ticket.message || '').toLowerCase();
+
+    if (type === 'prayer' || subject.includes('pray') || message.includes('pray') || subject.includes('صلاة') || message.includes('صلاة')) {
+      return 'prayer';
+    }
+    if (type === 'testimony' || subject.includes('testimony') || message.includes('testimony') || subject.includes('شهادة') || message.includes('شهادة')) {
+      return 'testimony';
+    }
+    return 'technical';
   };
 
   const filteredTickets = filter === 'all' 
     ? tickets 
-    : tickets.filter(t => {
-        const ticketType = (t.type || '').toLowerCase();
-        const filterType = filter.toLowerCase();
-        const subject = (t.subject || '').toLowerCase();
-        const message = (t.message || '').toLowerCase();
-
-        const isPrayer = ticketType === 'prayer' || subject.includes('pray') || message.includes('pray') || subject.includes('صلاة') || message.includes('صلاة');
-        const isTestimony = ticketType === 'testimony' || subject.includes('testimony') || message.includes('testimony') || subject.includes('شهادة') || message.includes('شهادة');
-        
-        if (filterType === 'prayer') return isPrayer;
-        if (filterType === 'testimony') return isTestimony && !isPrayer;
-        if (filterType === 'technical') return ticketType === 'technical' && !isPrayer && !isTestimony;
-        
-        return ticketType === filterType;
-      });
+    : tickets.filter(t => getActualType(t) === filter);
 
   return (
     <div className="space-y-6">
@@ -194,7 +167,7 @@ export default function SupportManager() {
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-lg font-bold transition-all ${
                 filter === f
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-purple-600 text-white shadow-lg scale-105'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -218,13 +191,7 @@ export default function SupportManager() {
         <div className="space-y-4">
           {filteredTickets.map((ticket) => {
             const { date, time, full } = formatDateTime(ticket.createdAt);
-            
-            const subject = (ticket.subject || '').toLowerCase();
-            const message = (ticket.message || '').toLowerCase();
-            let displayType = ticket.type;
-            
-            if (subject.includes('pray') || message.includes('pray') || subject.includes('صلاة') || message.includes('صلاة')) displayType = 'prayer';
-            else if (subject.includes('testimony') || message.includes('testimony') || subject.includes('شهادة') || message.includes('شهادة')) displayType = 'testimony';
+            const displayType = getActualType(ticket);
 
             return (
               <div
@@ -254,12 +221,12 @@ export default function SupportManager() {
 
                       <div className="flex flex-wrap gap-4 text-xs text-gray-500 font-medium">
                         <div className="flex items-center gap-1">
-                          <User size={14} />
-                          <span className="font-bold">{ticket.user_name}</span>
+                          <User size={14} className="text-gray-400" />
+                          <span className="font-bold">{ticket.user_name || 'Unknown User'}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Mail size={14} />
-                          <span className="font-bold">{ticket.user_email}</span>
+                          <Mail size={14} className="text-gray-400" />
+                          <span className="font-bold">{ticket.user_email || 'No Email'}</span>
                         </div>
                         <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
                           <Clock size={14} className="text-purple-500" />
@@ -285,7 +252,7 @@ export default function SupportManager() {
       )}
 
       {selectedTicket && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 rounded-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <h3 className="text-2xl font-black text-gray-900 mb-6">Reply to Support Request</h3>
 
@@ -300,8 +267,8 @@ export default function SupportManager() {
               </div>
               <div>
                 <p className="text-xs text-gray-500 font-bold uppercase mb-1">Type</p>
-                <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full border-2 ${getTypeColor(selectedTicket.type)}`}>
-                  {selectedTicket.type.charAt(0).toUpperCase() + selectedTicket.type.slice(1)}
+                <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full border-2 ${getTypeColor(getActualType(selectedTicket))}`}>
+                  {getActualType(selectedTicket).toUpperCase()}
                 </span>
               </div>
               <div>
@@ -319,9 +286,6 @@ export default function SupportManager() {
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:border-purple-600 focus:ring-2 focus:ring-purple-200 text-gray-900 font-medium resize-none"
                 placeholder="Type your reply here... This will be sent via email to the user."
               />
-              <p className="text-xs text-gray-500 font-medium mt-2">
-                💡 Tip: Your reply will be sent directly to {selectedTicket.user_email}
-              </p>
             </div>
 
             <div className="flex gap-4">
@@ -339,17 +303,7 @@ export default function SupportManager() {
                 disabled={replying}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {replying ? (
-                  <>
-                    <Loader2 className="animate-spin w-4 h-4" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Mail size={18} />
-                    Send Reply
-                  </>
-                )}
+                {replying ? <Loader2 className="animate-spin w-5 h-5" /> : <><Mail size={18} /> Send Reply</>}
               </button>
             </div>
           </div>

@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
         message: supportTickets.message,
         status: supportTickets.status,
         priority: supportTickets.priority,
-        type: supportTickets.category,
-        createdAt: supportTickets.createdAt,
-        updatedAt: supportTickets.updatedAt,
+        category: supportTickets.category,
+        created_at: supportTickets.createdAt,
+        updated_at: supportTickets.updatedAt,
         user_name: users.name,
         user_email: users.email,
         user_avatar: users.avatar,
@@ -49,8 +49,9 @@ export async function GET(request: NextRequest) {
 
       return {
         ...ticket,
-        createdAt: formatDate(ticket.createdAt),
-        updatedAt: formatDate(ticket.updatedAt),
+        type: ticket.category, // Map category to type for frontend
+        createdAt: formatDate(ticket.created_at),
+        updatedAt: formatDate(ticket.updated_at),
       };
     });
 
