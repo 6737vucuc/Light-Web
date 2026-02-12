@@ -76,26 +76,16 @@ export default function SupportManager() {
   };
 
   const formatDateTime = (dateString: any) => {
-    // If it's a number (timestamp), convert to Date
-    let date: Date;
-    
-    if (!dateString) {
-      return { date: 'Unknown Date', time: 'Unknown Time', full: 'Unknown' };
-    }
-
     try {
-      date = new Date(dateString);
+      const now = new Date();
+      let date = new Date(dateString);
       
-      // If invalid, try parsing as number
-      if (isNaN(date.getTime()) && typeof dateString === 'string') {
-        const num = parseInt(dateString);
-        if (!isNaN(num)) {
-          date = new Date(num);
+      if (!dateString || isNaN(date.getTime())) {
+        if (typeof dateString === 'string' && /^\d+$/.test(dateString)) {
+          date = new Date(parseInt(dateString));
+        } else {
+          date = now;
         }
-      }
-
-      if (isNaN(date.getTime())) {
-        return { date: 'Unknown Date', time: 'Unknown Time', full: 'Unknown' };
       }
 
       return {
@@ -110,7 +100,12 @@ export default function SupportManager() {
         })
       };
     } catch (e) {
-      return { date: 'Unknown Date', time: 'Unknown Time', full: 'Unknown' };
+      const fallback = new Date();
+      return {
+        date: fallback.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        time: fallback.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        full: fallback.toLocaleString('en-US')
+      };
     }
   };
 
@@ -156,13 +151,11 @@ export default function SupportManager() {
   const filteredTickets = filter === 'all' 
     ? tickets 
     : tickets.filter(t => {
-        // Normalize type for comparison
         const ticketType = (t.type || '').toLowerCase();
         const filterType = filter.toLowerCase();
         const subject = (t.subject || '').toLowerCase();
         const message = (t.message || '').toLowerCase();
 
-        // Heuristic: check subject and message for keywords if type is general or technical
         const isPrayerKeyword = subject.includes('pray') || message.includes('pray');
         const isTestimonyKeyword = subject.includes('testimony') || message.includes('testimony') || subject.includes('share');
 
@@ -172,19 +165,15 @@ export default function SupportManager() {
         if (filterType === 'testimony') {
           return ticketType === 'testimony' || (ticketType === 'general' && isTestimonyKeyword);
         }
-        
-        // For technical, if it has prayer keywords, maybe it shouldn't be in technical
         if (filterType === 'technical') {
           if (isPrayerKeyword) return false;
           return ticketType === 'technical';
         }
-
         return ticketType === filterType;
       });
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-3xl font-black text-gray-900 mb-2">Support Tickets</h2>
@@ -207,7 +196,6 @@ export default function SupportManager() {
         </div>
       </div>
 
-      {/* Tickets List */}
       {loading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="animate-spin text-purple-600 w-12 h-12" />
@@ -222,6 +210,15 @@ export default function SupportManager() {
         <div className="space-y-4">
           {filteredTickets.map((ticket) => {
             const { date, time, full } = formatDateTime(ticket.createdAt);
+            
+            // Force dynamic type detection for display
+            const subject = (ticket.subject || '').toLowerCase();
+            const message = (ticket.message || '').toLowerCase();
+            let displayType = ticket.type;
+            
+            if (subject.includes('pray') || message.includes('pray')) displayType = 'prayer';
+            else if (subject.includes('testimony') || message.includes('testimony')) displayType = 'testimony';
+
             return (
               <div
                 key={ticket.id}
@@ -229,29 +226,25 @@ export default function SupportManager() {
               >
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div className="flex items-start gap-4 flex-1">
-                    {/* Type Icon */}
-                    <div className={`p-3 rounded-2xl border-2 ${getTypeColor(ticket.type)}`}>
-                      {getTypeIcon(ticket.type)}
+                    <div className={`p-3 rounded-2xl border-2 ${getTypeColor(displayType)}`}>
+                      {getTypeIcon(displayType)}
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h4 className="font-black text-gray-900 truncate">{ticket.subject}</h4>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full border-2 ${getTypeColor(ticket.type)}`}>
-                          {ticket.type.charAt(0).toUpperCase() + ticket.type.slice(1)}
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full border-2 ${getTypeColor(displayType)}`}>
+                          {displayType.charAt(0).toUpperCase() + displayType.slice(1)}
                         </span>
                         <span className={`text-xs font-bold px-3 py-1 rounded-full ${getStatusColor(ticket.status)}`}>
                           {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
                         </span>
                       </div>
 
-                      {/* Message Preview */}
                       <p className="text-sm text-gray-600 font-medium mb-3 line-clamp-2">
                         {ticket.message}
                       </p>
 
-                      {/* Meta Info */}
                       <div className="flex flex-wrap gap-4 text-xs text-gray-500 font-medium">
                         <div className="flex items-center gap-1">
                           <User size={14} />
@@ -271,7 +264,6 @@ export default function SupportManager() {
                     </div>
                   </div>
 
-                  {/* Action Button */}
                   <button
                     onClick={() => setSelectedTicket(ticket)}
                     className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap"
@@ -285,13 +277,11 @@ export default function SupportManager() {
         </div>
       )}
 
-      {/* Reply Modal */}
       {selectedTicket && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 rounded-2xl">
           <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <h3 className="text-2xl font-black text-gray-900 mb-6">Reply to Support Request</h3>
 
-            {/* Original Request */}
             <div className="mb-6 p-6 bg-gray-50 rounded-2xl border-2 border-gray-200 space-y-3">
               <div>
                 <p className="text-xs text-gray-500 font-bold uppercase mb-1">Subject</p>
@@ -313,7 +303,6 @@ export default function SupportManager() {
               </div>
             </div>
 
-            {/* Reply Textarea */}
             <div className="mb-6">
               <label className="block text-sm font-bold text-gray-900 mb-3">Your Reply</label>
               <textarea
@@ -328,7 +317,6 @@ export default function SupportManager() {
               </p>
             </div>
 
-            {/* Actions */}
             <div className="flex gap-4">
               <button
                 onClick={() => {
