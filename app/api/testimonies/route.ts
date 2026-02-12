@@ -24,7 +24,14 @@ export async function GET(request: NextRequest) {
       .where(eq(supportTickets.type, 'testimony'))
       .orderBy(desc(supportTickets.createdAt));
 
-    return NextResponse.json({ testimonies });
+    // حماية من null أو undefined عند المستخدمين
+    const safeTestimonies = testimonies.map(t => ({
+      ...t,
+      userName: t.userName ?? null,
+      userAvatar: t.userAvatar ?? null,
+    }));
+
+    return NextResponse.json({ testimonies: safeTestimonies });
   } catch (error) {
     console.error('Get testimonies error:', error);
     return NextResponse.json(
