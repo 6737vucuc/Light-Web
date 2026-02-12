@@ -857,7 +857,7 @@ function SupportManager() {
     return colors[type] || 'bg-gray-50 text-gray-600 border-gray-200';
   };
 
-  const filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.type === filter);
+  const filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.category === filter);
 
   return (
     <div>
@@ -892,14 +892,14 @@ function SupportManager() {
               <div key={ticket.id} className="p-6 bg-white border-2 border-gray-100 rounded-3xl hover:border-purple-200 transition-all">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div className="flex items-start gap-4 flex-1">
-                    <div className={`p-3 rounded-2xl border-2 ${getTypeColor(ticket.type)}`}>
+                      <div className={`p-3 rounded-2xl border-2 ${getTypeColor(ticket.category)}`}>
                       <MessageCircle size={24}/>
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <h4 className="font-black text-gray-900">{ticket.subject}</h4>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full border-2 ${getTypeColor(ticket.type)}`}>
-                          {ticket.type?.charAt(0).toUpperCase() + ticket.type?.slice(1)}
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full border-2 ${getTypeColor(ticket.category)}`}>
+                          {ticket.category?.charAt(0).toUpperCase() + ticket.category?.slice(1)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 font-medium mb-2 line-clamp-2">{ticket.message}</p>
@@ -926,7 +926,7 @@ function SupportManager() {
             <h3 className="text-2xl font-black text-gray-900 mb-4">Reply to Support Request</h3>
             <div className="mb-6 p-4 bg-gray-50 rounded-2xl border-2 border-gray-200">
               <p className="text-sm text-gray-600 font-medium mb-2"><span className="font-bold">Subject:</span> {selectedTicket.subject}</p>
-              <p className="text-sm text-gray-600 font-medium mb-2"><span className="font-bold">Type:</span> {selectedTicket.type}</p>
+              <p className="text-sm text-gray-600 font-medium mb-2"><span className="font-bold">Type:</span> {selectedTicket.category}</p>
               <p className="text-sm text-gray-600 font-medium mb-2"><span className="font-bold">From:</span> {selectedTicket.user_name} ({selectedTicket.user_email})</p>
               <p className="text-sm text-gray-600 font-medium"><span className="font-bold">Message:</span></p>
               <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{selectedTicket.message}</p>

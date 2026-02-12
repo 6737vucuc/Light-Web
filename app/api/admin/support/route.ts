@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         message: supportTickets.message,
         status: supportTickets.status,
         priority: supportTickets.priority,
+        category: supportTickets.category,
         createdAt: supportTickets.createdAt,
         updatedAt: supportTickets.updatedAt,
         userName: users.name,
