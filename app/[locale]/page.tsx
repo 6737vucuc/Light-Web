@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Heart, BookOpen, Users, Shield } from 'lucide-react';
 import DailyVerse from '@/components/verses/DailyVerse';
 import DailyVerseSection from '@/components/verses/DailyVerseSection';
+import DailyTestimony from '@/components/testimonies/DailyTestimony';
 import VPNWarningModal from '@/components/VPNWarningModal';
 import { useTranslations } from 'next-intl';
 
@@ -76,6 +77,8 @@ export default function Home() {
       </section>
 
       {/* Daily Verse Section */}
+      {/* Daily Testimony Section */}
+      <DailyTestimony />
       <DailyVerseSection />
 
       {/* Features Section */}
