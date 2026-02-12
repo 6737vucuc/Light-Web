@@ -804,9 +804,25 @@ function SupportManager() {
     try {
       const response = await fetch('/api/admin/support');
       const data = await response.json();
-      setTickets(data.tickets || []);
+      
+      // Ensure all tickets have required fields with defaults
+      const processedTickets = (data.tickets || []).map((ticket: any) => ({
+        ...ticket,
+        id: ticket.id || Math.random(),
+        subject: ticket.subject || 'No Subject',
+        message: ticket.message || 'No Message',
+        category: ticket.category || 'technical',
+        userName: ticket.userName || 'Unknown User',
+        userEmail: ticket.userEmail || 'unknown@example.com',
+        createdAt: ticket.createdAt || new Date().toISOString(),
+        status: ticket.status || 'open',
+        priority: ticket.priority || 'normal',
+      }));
+      
+      setTickets(processedTickets);
     } catch (error) {
       console.error('Error fetching tickets:', error);
+      setTickets([]);
     } finally {
       setLoading(false);
     }
