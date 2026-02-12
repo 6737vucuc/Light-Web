@@ -306,5 +306,10 @@
     "sendReceiveMessages": "Envía y recibe mensajes sin necesidad de mantener tu teléfono conectado a Internet.",
     "searchMessages": "Buscar mensajes...",
     "allMessagesEncrypted": "Cifrado de extremo a extremo."
+  },
+  "footer": {
+    "developedBy": "Desarrollado por",
+    "allRightsReserved": "Todos los derechos reservados",
+    "mayTheLight": "Que la Luz del Señor esté siempre con ustedes"
   }
 }

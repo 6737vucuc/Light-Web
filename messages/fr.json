@@ -306,5 +306,10 @@
     "sendReceiveMessages": "Envoyez et recevez des messages.",
     "searchMessages": "Rechercher...",
     "allMessagesEncrypted": "Chiffré de bout en bout."
+  },
+  "footer": {
+    "developedBy": "Développé par",
+    "allRightsReserved": "Tous droits réservés",
+    "mayTheLight": "Que la Lumière du Seigneur soit toujours avec vous"
   }
 }

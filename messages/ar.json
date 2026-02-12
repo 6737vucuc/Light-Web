@@ -318,5 +318,10 @@
     "sendReceiveMessages": "أرسل واستقبل الرسائل دون الحاجة لإبقاء هاتفك متصلاً بالإنترنت.",
     "searchMessages": "ابحث عن رسالة...",
     "allMessagesEncrypted": "جميع رسائلك مشفرة تماماً لخصوصيتك."
+  },
+  "footer": {
+    "developedBy": "تم التطوير بواسطة",
+    "allRightsReserved": "جميع الحقوق محفوظة",
+    "mayTheLight": "ليكن نور الرب معكم دائماً"
   }
 }

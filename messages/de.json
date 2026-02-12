@@ -306,5 +306,10 @@
     "sendReceiveMessages": "Senden und empfangen Sie Nachrichten.",
     "searchMessages": "Nachrichten durchsuchen...",
     "allMessagesEncrypted": "Ende-zu-Ende verschlüsselt."
+  },
+  "footer": {
+    "developedBy": "Entwickelt von",
+    "allRightsReserved": "Alle Rechte vorbehalten",
+    "mayTheLight": "Möge das Licht des Herrn immer mit euch sein"
   }
 }

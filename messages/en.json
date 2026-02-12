@@ -316,5 +316,10 @@
     "sendReceiveMessages": "Send and receive messages without keeping your phone online.",
     "searchMessages": "Search messages...",
     "allMessagesEncrypted": "All your messages are end-to-end encrypted for your privacy."
+  },
+  "footer": {
+    "developedBy": "Developed by",
+    "allRightsReserved": "All Rights Reserved",
+    "mayTheLight": "May the Light of the Lord be with you always"
   }
 }
