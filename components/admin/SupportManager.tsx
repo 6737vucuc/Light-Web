@@ -78,32 +78,46 @@ export default function SupportManager() {
   const formatDateTime = (dateString: any) => {
     try {
       const now = new Date();
-      let date = new Date(dateString);
-      
-      if (!dateString || isNaN(date.getTime())) {
-        if (typeof dateString === 'string' && /^\d+$/.test(dateString)) {
-          date = new Date(parseInt(dateString));
-        } else {
+      let date: Date;
+
+      if (!dateString) {
+        date = now;
+      } else {
+        date = new Date(dateString);
+        
+        if (isNaN(date.getTime())) {
+          const num = typeof dateString === 'string' ? parseInt(dateString) : Number(dateString);
+          if (!isNaN(num)) {
+            date = new Date(num);
+          }
+        }
+        
+        if (isNaN(date.getTime())) {
           date = now;
         }
       }
 
+      const dateOptions: Intl.DateTimeFormatOptions = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      };
+      const timeOptions: Intl.DateTimeFormatOptions = { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true
+      };
+
       return {
-        date: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-        time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        full: date.toLocaleString('en-US', { 
-          year: 'numeric', 
-          month: 'short', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
+        date: date.toLocaleDateString('en-US', dateOptions),
+        time: date.toLocaleTimeString('en-US', timeOptions),
+        full: `${date.toLocaleDateString('en-US', dateOptions)} at ${date.toLocaleTimeString('en-US', timeOptions)}`
       };
     } catch (e) {
       const fallback = new Date();
       return {
-        date: fallback.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-        time: fallback.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        date: fallback.toLocaleDateString('en-US'),
+        time: fallback.toLocaleTimeString('en-US'),
         full: fallback.toLocaleString('en-US')
       };
     }
@@ -156,11 +170,9 @@ export default function SupportManager() {
         const subject = (t.subject || '').toLowerCase();
         const message = (t.message || '').toLowerCase();
 
-        // Keywords for intelligent classification
         const isPrayer = ticketType === 'prayer' || subject.includes('pray') || message.includes('pray') || subject.includes('صلاة') || message.includes('صلاة');
         const isTestimony = ticketType === 'testimony' || subject.includes('testimony') || message.includes('testimony') || subject.includes('شهادة') || message.includes('شهادة');
         
-        // Strict filtering based on tab
         if (filterType === 'prayer') return isPrayer;
         if (filterType === 'testimony') return isTestimony && !isPrayer;
         if (filterType === 'technical') return ticketType === 'technical' && !isPrayer && !isTestimony;
@@ -207,13 +219,12 @@ export default function SupportManager() {
           {filteredTickets.map((ticket) => {
             const { date, time, full } = formatDateTime(ticket.createdAt);
             
-            // Force dynamic type detection for display
             const subject = (ticket.subject || '').toLowerCase();
             const message = (ticket.message || '').toLowerCase();
             let displayType = ticket.type;
             
-            if (subject.includes('pray') || message.includes('pray')) displayType = 'prayer';
-            else if (subject.includes('testimony') || message.includes('testimony')) displayType = 'testimony';
+            if (subject.includes('pray') || message.includes('pray') || subject.includes('صلاة') || message.includes('صلاة')) displayType = 'prayer';
+            else if (subject.includes('testimony') || message.includes('testimony') || subject.includes('شهادة') || message.includes('شهادة')) displayType = 'testimony';
 
             return (
               <div
@@ -250,10 +261,10 @@ export default function SupportManager() {
                           <Mail size={14} />
                           <span className="font-bold">{ticket.user_email}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock size={14} />
-                          <span className="font-bold" title={full}>
-                            {date} at {time}
+                        <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+                          <Clock size={14} className="text-purple-500" />
+                          <span className="font-bold text-gray-700" title={full}>
+                            {date} • {time}
                           </span>
                         </div>
                       </div>
