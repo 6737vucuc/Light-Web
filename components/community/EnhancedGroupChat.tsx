@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { supabase } from '@/lib/supabase/client';
 import { ChatEvent, RealtimeChatService } from '@/lib/realtime/chat';
+import { usePresence } from '@/lib/hooks/usePresence';
 import { 
   Send, 
   CheckCheck,
@@ -18,7 +19,8 @@ import {
   User as UserIcon,
   ArrowLeft,
   Lock,
-  Loader2
+  Loader2,
+  Users
 } from 'lucide-react';
 import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
@@ -40,6 +42,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', avatar: null, position: { x: 0, y: 0 } });
+
+  // Use presence hook for online users
+  const { onlineMembers, onlineMembersCount } = usePresence(
+    group.id,
+    currentUser?.id || currentUser?.userId,
+    currentUser?.name,
+    currentUser?.avatar
+  );
 
   useEffect(() => {
     const init = async () => {
@@ -81,9 +91,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
           }
           return filtered;
         });
-      })
-      .on('broadcast', { event: 'MEMBER_JOINED' }, ({ payload }) => {
-        toast.show(`${payload.userName || payload.name} joined the group`, 'info');
       })
       .subscribe();
 
@@ -228,10 +235,13 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
           >
             <UserIcon size={20} />
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="font-bold text-gray-900 leading-tight">{group.name}</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-green-600 font-bold uppercase tracking-wider">{t('online')}</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <Users size={12} className="text-green-600" />
+                <span className="text-[10px] text-green-600 font-bold uppercase tracking-wider">{onlineMembersCount} {t('online')}</span>
+              </div>
               {typingUsers.length > 0 && (
                 <span className="text-[10px] text-purple-600 font-bold animate-pulse">
                   {typingUsers[0].name} {t('typing')}

@@ -1,16 +1,15 @@
+'use client';
+
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getPusherClient } from '@/lib/realtime/pusher-client';
+import { supabase } from '@/lib/supabase/client';
+import { RealtimeChatService, PresenceUser, ChatEvent } from '@/lib/realtime/chat';
 
 interface OnlineMember {
-  userId: number;
-  user: {
-    id: number;
-    name: string;
-    avatar?: string;
-    email: string;
-  };
-  lastSeen: Date;
-  sessionId: string;
+  userId: string | number;
+  userName: string;
+  avatar?: string;
+  status: 'online' | 'away' | 'offline';
+  lastSeen?: Date;
 }
 
 interface PresenceStats {
@@ -22,26 +21,31 @@ interface PresenceStats {
 }
 
 /**
- * Hook for managing real-time presence in a group
+ * Hook for managing real-time presence in a group using Supabase Realtime
  * Tracks online/offline status and broadcasts updates
  */
-export function usePresence(groupId: number, userId: number) {
+export function usePresence(
+  groupId: string | number,
+  userId: string | number,
+  userName?: string,
+  avatar?: string
+) {
   const [onlineMembers, setOnlineMembers] = useState<OnlineMember[]>([]);
   const [onlineMembersCount, setOnlineMembersCount] = useState(0);
   const [presenceStats, setPresenceStats] = useState<PresenceStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const pusherRef = useRef<any>(null);
-  const sessionIdRef = useRef<string>(`${userId}-${Date.now()}`);
+  const channelRef = useRef<any>(null);
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize presence
   useEffect(() => {
+    if (!groupId || !userId) return;
     initializePresence();
     return () => {
       cleanupPresence();
     };
-  }, [groupId, userId]);
+  }, [groupId, userId, userName, avatar]);
 
   const initializePresence = async () => {
     try {
@@ -57,14 +61,14 @@ export function usePresence(groupId: number, userId: number) {
       }
 
       // Update user's presence
-      await updatePresence(true);
+      await updatePresence('online');
 
-      // Setup Pusher for real-time updates
-      setupPusherListeners();
+      // Setup Supabase Realtime listeners
+      setupRealtimeListeners();
 
       // Poll for presence updates every 30 seconds
       presenceIntervalRef.current = setInterval(() => {
-        updatePresence(true);
+        updatePresence('online');
       }, 30000);
     } catch (error) {
       console.error('Error initializing presence:', error);
@@ -73,48 +77,93 @@ export function usePresence(groupId: number, userId: number) {
     }
   };
 
-  const updatePresence = useCallback(async (isOnline: boolean) => {
-    try {
-      await fetch(`/api/groups/${groupId}/presence`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'updatePresence',
-          userId,
-          isOnline,
-          sessionId: sessionIdRef.current,
-        }),
-      });
-    } catch (error) {
-      console.error('Error updating presence:', error);
-    }
-  }, [groupId, userId]);
+  const updatePresence = useCallback(
+    async (status: 'online' | 'away' | 'offline') => {
+      try {
+        await fetch(`/api/groups/${groupId}/presence`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            status,
+            userName,
+            avatar,
+          }),
+        });
 
-  const setupPusherListeners = () => {
-    try {
-      const pusher = getPusherClient();
-      if (!pusher) {
-        console.warn('Pusher client not available');
-        return;
+        // Broadcast presence update via Supabase Realtime
+        const channelName = RealtimeChatService.getGroupChannelName(groupId);
+        const channel = supabase.channel(channelName);
+        await channel.send({
+          type: 'broadcast',
+          event: ChatEvent.PRESENCE_UPDATE,
+          payload: {
+            userId,
+            userName,
+            avatar,
+            status,
+            lastSeen: new Date(),
+          },
+        });
+      } catch (error) {
+        console.error('Error updating presence:', error);
       }
-      const channelName = `group-${groupId}`;
-      const channel = pusher.subscribe(channelName);
+    },
+    [groupId, userId, userName, avatar]
+  );
+
+  const setupRealtimeListeners = () => {
+    try {
+      const channelName = RealtimeChatService.getGroupChannelName(groupId);
+      const channel = supabase.channel(channelName, {
+        config: {
+          broadcast: { self: true },
+        },
+      });
+
+      // Broadcast user joined
+      channel.send({
+        type: 'broadcast',
+        event: ChatEvent.USER_JOINED,
+        payload: {
+          userId,
+          userName,
+          avatar,
+          status: 'online',
+          lastSeen: new Date(),
+        },
+      });
 
       // Listen for presence updates
-      channel.bind('presence-update', (data: any) => {
-        // Refresh presence stats
-        refreshPresenceStats();
-      });
+      channel
+        .on('broadcast', { event: ChatEvent.PRESENCE_UPDATE }, ({ payload }) => {
+          setOnlineMembers(prev => {
+            const filtered = prev.filter(u => (u.userId || u.userId) !== payload.userId);
+            if (payload.status === 'online') {
+              return [...filtered, payload];
+            }
+            return filtered;
+          });
+          setOnlineMembersCount(prev => Math.max(0, prev + (payload.status === 'online' ? 1 : -1)));
+        })
+        .on('broadcast', { event: ChatEvent.USER_JOINED }, ({ payload }) => {
+          setOnlineMembers(prev => {
+            if (prev.some(u => (u.userId || u.userId) === payload.userId)) {
+              return prev;
+            }
+            return [...prev, payload];
+          });
+          setOnlineMembersCount(prev => prev + 1);
+        })
+        .on('broadcast', { event: ChatEvent.USER_LEFT }, ({ payload }) => {
+          setOnlineMembers(prev => prev.filter(u => (u.userId || u.userId) !== payload.userId));
+          setOnlineMembersCount(prev => Math.max(0, prev - 1));
+        })
+        .subscribe();
 
-      // Listen for members online update
-      channel.bind('members-online-update', (data: any) => {
-        setOnlineMembers(data.members || []);
-        setOnlineMembersCount(data.totalOnline || 0);
-      });
-
-      pusherRef.current = channel;
+      channelRef.current = channel;
     } catch (error) {
-      console.error('Error setting up Pusher listeners:', error);
+      console.error('Error setting up Realtime listeners:', error);
     }
   };
 
@@ -139,20 +188,28 @@ export function usePresence(groupId: number, userId: number) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'markOffline',
           userId,
-          sessionId: sessionIdRef.current,
+          status: 'offline',
         }),
       });
+
+      // Broadcast user left
+      if (channelRef.current) {
+        await channelRef.current.send({
+          type: 'broadcast',
+          event: ChatEvent.USER_LEFT,
+          payload: { userId },
+        });
+      }
 
       // Clear interval
       if (presenceIntervalRef.current) {
         clearInterval(presenceIntervalRef.current);
       }
 
-      // Unsubscribe from Pusher
-      if (pusherRef.current) {
-        pusherRef.current.unbind_all();
+      // Unsubscribe from Realtime
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
       }
     } catch (error) {
       console.error('Error cleaning up presence:', error);
@@ -160,12 +217,12 @@ export function usePresence(groupId: number, userId: number) {
   };
 
   const goOffline = useCallback(async () => {
-    await updatePresence(false);
+    await updatePresence('offline');
     await cleanupPresence();
   }, []);
 
   const goOnline = useCallback(async () => {
-    await updatePresence(true);
+    await updatePresence('online');
   }, []);
 
   return {
@@ -182,27 +239,52 @@ export function usePresence(groupId: number, userId: number) {
 /**
  * Hook for listening to presence changes in a group
  */
-export function usePresenceListener(groupId: number, onPresenceChange?: (members: OnlineMember[]) => void) {
+export function usePresenceListener(
+  groupId: string | number,
+  onPresenceChange?: (members: OnlineMember[]) => void
+) {
   const [onlineMembers, setOnlineMembers] = useState<OnlineMember[]>([]);
 
   useEffect(() => {
-    const pusher = getPusherClient();
-    if (!pusher) {
-      console.warn('Pusher client not available');
-      return;
-    }
-    const channel = pusher.subscribe(`group-${groupId}`);
+    if (!groupId) return;
 
-    const handlePresenceUpdate = (data: any) => {
-      setOnlineMembers(data.members || []);
-      onPresenceChange?.(data.members || []);
+    const channelName = RealtimeChatService.getGroupChannelName(groupId);
+    const channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: true },
+      },
+    });
+
+    const handlePresenceUpdate = (payload: any) => {
+      setOnlineMembers(prev => {
+        const filtered = prev.filter(u => (u.userId || u.userId) !== payload.userId);
+        if (payload.status === 'online') {
+          return [...filtered, payload];
+        }
+        return filtered;
+      });
+      onPresenceChange?.(onlineMembers);
     };
 
-    channel.bind('members-online-update', handlePresenceUpdate);
+    channel
+      .on('broadcast', { event: ChatEvent.PRESENCE_UPDATE }, ({ payload }) => {
+        handlePresenceUpdate(payload);
+      })
+      .on('broadcast', { event: ChatEvent.USER_JOINED }, ({ payload }) => {
+        setOnlineMembers(prev => {
+          if (prev.some(u => (u.userId || u.userId) === payload.userId)) {
+            return prev;
+          }
+          return [...prev, payload];
+        });
+      })
+      .on('broadcast', { event: ChatEvent.USER_LEFT }, ({ payload }) => {
+        setOnlineMembers(prev => prev.filter(u => (u.userId || u.userId) !== payload.userId));
+      })
+      .subscribe();
 
     return () => {
-      channel.unbind('members-online-update', handlePresenceUpdate);
-      pusher.unsubscribe(`group-${groupId}`);
+      supabase.removeChannel(channel);
     };
   }, [groupId, onPresenceChange]);
 

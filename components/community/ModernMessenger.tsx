@@ -5,7 +5,7 @@ import { usePrivateChat } from '@/lib/hooks/usePrivateChat';
 import { 
   X, Send, Image as ImageIcon, 
   Smile, Paperclip, CheckCheck, MessageSquare,
-  User as UserIcon, MoreHorizontal
+  User as UserIcon, MoreHorizontal, Loader2
 } from 'lucide-react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
@@ -23,6 +23,8 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const [isSending, setIsSending] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [recipientOnline, setRecipientOnline] = useState(false);
+  const [recipientLastSeen, setRecipientLastSeen] = useState<Date | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   
@@ -40,6 +42,53 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
       setTimeout(scrollToBottom, 50);
     }
   }, [realtimeMessages]);
+
+  // Setup Realtime listeners for online status
+  useEffect(() => {
+    if (!currentUserId || !recipientId) return;
+
+    const channelName = RealtimeChatService.getPrivateChannelName(currentUserId, recipientId);
+    const channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: true },
+      },
+    });
+
+    channel
+      .on('broadcast', { event: ChatEvent.ONLINE_STATUS }, ({ payload }) => {
+        if ((payload.userId || payload.user_id) === recipientId) {
+          setRecipientOnline(payload.isOnline);
+          if (!payload.isOnline) {
+            setRecipientLastSeen(payload.lastSeen || new Date());
+          }
+        }
+      })
+      .subscribe();
+
+    // Broadcast current user is online
+    channel.send({
+      type: 'broadcast',
+      event: ChatEvent.ONLINE_STATUS,
+      payload: {
+        userId: currentUserId,
+        isOnline: true,
+      },
+    });
+
+    return () => {
+      // Broadcast current user is offline
+      channel.send({
+        type: 'broadcast',
+        event: ChatEvent.ONLINE_STATUS,
+        payload: {
+          userId: currentUserId,
+          isOnline: false,
+          lastSeen: new Date(),
+        },
+      });
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, recipientId]);
 
   const loadMessages = async () => {
     try {
@@ -88,8 +137,6 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     }
   };
 
-
-
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNewMessage(e.target.value);
     
@@ -111,6 +158,20 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
+  const formatLastSeen = (date: Date | null) => {
+    if (!date) return '';
+    const now = new Date();
+    const diff = now.getTime() - new Date(date).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#f8f9fa] animate-in fade-in duration-500">
       {/* Header */}
@@ -126,16 +187,20 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                 </div>
               )}
             </div>
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
+            <div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${recipientOnline ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
           </div>
           <div>
             <h3 className="font-black text-gray-900 leading-none mb-1">{recipient.name}</h3>
             <div className="flex items-center gap-1.5">
               {recipientTyping ? (
                 <p className="text-[10px] text-purple-600 font-black animate-pulse uppercase tracking-widest">يكتب الآن...</p>
-              ) : (
+              ) : recipientOnline ? (
                 <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest flex items-center gap-1">
                   <span className="w-1 h-1 bg-emerald-500 rounded-full"></span> متصل الآن
+                </p>
+              ) : (
+                <p className="text-[10px] text-gray-500 font-medium">
+                  {recipientLastSeen ? `آخر ظهور ${formatLastSeen(recipientLastSeen)}` : 'غير متصل'}
                 </p>
               )}
             </div>
@@ -180,6 +245,17 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
             );
           })
         )}
+        {recipientTyping && (
+          <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none px-4 py-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -219,7 +295,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
             }`}
           >
             {isSending ? (
-              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <Loader2 size={24} className="animate-spin" />
             ) : (
               <Send size={24} className={newMessage.trim() ? 'translate-x-0.5' : ''} />
             )}
