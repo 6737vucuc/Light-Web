@@ -76,7 +76,15 @@ export default function SupportManager() {
   };
 
   const formatDateTime = (dateString: string) => {
+    if (!dateString) return { date: 'Unknown Date', time: 'Unknown Time', full: 'Unknown' };
+    
     const date = new Date(dateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return { date: 'Unknown Date', time: 'Unknown Time', full: 'Unknown' };
+    }
+
     return {
       date: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
       time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -131,7 +139,13 @@ export default function SupportManager() {
 
   const filteredTickets = filter === 'all' 
     ? tickets 
-    : tickets.filter(t => t.type === filter);
+    : tickets.filter(t => {
+        // Handle cases where type might be 'general' but we want to show it in its specific tab
+        // or handle legacy data mapping
+        if (filter === 'testimony' && (t.type === 'testimony' || t.type === 'general')) return true;
+        if (filter === 'prayer' && (t.type === 'prayer' || t.type === 'general')) return true;
+        return t.type === filter;
+      });
 
   return (
     <div className="space-y-6">

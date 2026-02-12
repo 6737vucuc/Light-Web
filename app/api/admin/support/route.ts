@@ -36,11 +36,22 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(supportTickets.createdAt));
 
     // Ensure dates are properly formatted as ISO strings
-    const formattedTickets = tickets.map(ticket => ({
-      ...ticket,
-      createdAt: ticket.createdAt ? new Date(ticket.createdAt).toISOString() : new Date().toISOString(),
-      updatedAt: ticket.updatedAt ? new Date(ticket.updatedAt).toISOString() : new Date().toISOString(),
-    }));
+    const formattedTickets = tickets.map(ticket => {
+      try {
+        return {
+          ...ticket,
+          createdAt: ticket.createdAt ? new Date(ticket.createdAt).toISOString() : new Date().toISOString(),
+          updatedAt: ticket.updatedAt ? new Date(ticket.updatedAt).toISOString() : new Date().toISOString(),
+        };
+      } catch (e) {
+        console.error('Date formatting error for ticket:', ticket.id, e);
+        return {
+          ...ticket,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    });
 
     return NextResponse.json({ tickets: formattedTickets });
   } catch (error) {

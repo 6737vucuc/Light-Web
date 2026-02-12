@@ -27,11 +27,11 @@ export async function POST(request: NextRequest) {
     // Map type to category
     const categoryMap: Record<string, string> = {
       technical: 'technical',
-      testimony: 'general',
-      prayer: 'general',
+      testimony: 'testimony',
+      prayer: 'prayer',
     };
 
-    const category = categoryMap[type] || 'general';
+    const category = categoryMap[type] || type || 'general';
 
     // Create support ticket
     const [ticket] = await db.insert(supportTickets).values({
