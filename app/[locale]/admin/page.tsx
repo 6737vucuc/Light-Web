@@ -840,12 +840,65 @@ function SupportManager() {
     }
   };
 
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return {
-      date: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-      time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-    };
+  const formatDateTime = (dateString: string | null | undefined) => {
+    if (!dateString) {
+      return {
+        date: 'Unknown Date',
+        time: 'Unknown Time',
+      };
+    }
+
+    try {
+      // Try to parse the date string
+      let date: Date;
+      
+      // If it's already a Date object, use it directly
+      if (dateString instanceof Date) {
+        date = dateString;
+      } else if (typeof dateString === 'string') {
+        // Try parsing as ISO string first
+        date = new Date(dateString);
+        
+        // If parsing failed, try alternative formats
+        if (isNaN(date.getTime())) {
+          // Try parsing timestamp in milliseconds
+          const timestamp = parseInt(dateString, 10);
+          if (!isNaN(timestamp)) {
+            date = new Date(timestamp);
+          } else {
+            // If all parsing fails, return default
+            return {
+              date: 'Invalid Date',
+              time: 'Invalid Time',
+            };
+          }
+        }
+      } else {
+        return {
+          date: 'Unknown Date',
+          time: 'Unknown Time',
+        };
+      }
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return {
+          date: 'Invalid Date',
+          time: 'Invalid Time',
+        };
+      }
+
+      return {
+        date: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      };
+    } catch (error) {
+      console.error('Error formatting date:', dateString, error);
+      return {
+        date: 'Error',
+        time: 'Error',
+      };
+    }
   };
 
   const getTypeColor = (type: string) => {
