@@ -862,24 +862,108 @@ function SupportManager() {
   return (
     <div>
       <SectionHeader title="Support Tickets" subtitle="Help users with their inquiries and issues" />
+      
+      {/* Filter Buttons */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {(['all', 'technical', 'testimony', 'prayer'] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-lg font-bold transition-all ${
+              filter === f
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-20"><Loader2 className="animate-spin text-purple-600 w-12 h-12" /></div>
-      ) : tickets.length === 0 ? (
+      ) : filteredTickets.length === 0 ? (
         <EmptyState icon={MessageCircle} title="No tickets" description="Your support queue is currently empty." />
       ) : (
         <div className="space-y-4">
-          {tickets.map(ticket => (
-            <div key={ticket.id} className="p-6 bg-white border-2 border-gray-100 rounded-3xl hover:border-purple-200 transition-all flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl"><MessageCircle size={24}/></div>
-                <div>
-                  <h4 className="font-black text-gray-900">{ticket.subject}</h4>
-                  <p className="text-sm text-gray-500 font-medium">From: {ticket.user_name} • {new Date(ticket.created_at).toLocaleDateString()}</p>
+          {filteredTickets.map(ticket => {
+            const { date, time } = formatDateTime(ticket.created_at);
+            return (
+              <div key={ticket.id} className="p-6 bg-white border-2 border-gray-100 rounded-3xl hover:border-purple-200 transition-all">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex items-start gap-4 flex-1">
+                    <div className={`p-3 rounded-2xl border-2 ${getTypeColor(ticket.type)}`}>
+                      <MessageCircle size={24}/>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <h4 className="font-black text-gray-900">{ticket.subject}</h4>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full border-2 ${getTypeColor(ticket.type)}`}>
+                          {ticket.type?.charAt(0).toUpperCase() + ticket.type?.slice(1)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 font-medium mb-2 line-clamp-2">{ticket.message}</p>
+                      <p className="text-xs text-gray-500 font-medium">From: <span className="font-bold">{ticket.user_name}</span> • <span className="font-bold">{date}</span> at <span className="font-bold">{time}</span></p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedTicket(ticket)}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap"
+                  >
+                    Reply
+                  </button>
                 </div>
               </div>
-              <button className="px-6 py-3 bg-gray-50 text-gray-700 rounded-xl font-bold hover:bg-purple-600 hover:text-white transition-all">Reply</button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Reply Modal */}
+      {selectedTicket && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <h3 className="text-2xl font-black text-gray-900 mb-4">Reply to Support Request</h3>
+            <div className="mb-6 p-4 bg-gray-50 rounded-2xl border-2 border-gray-200">
+              <p className="text-sm text-gray-600 font-medium mb-2"><span className="font-bold">Subject:</span> {selectedTicket.subject}</p>
+              <p className="text-sm text-gray-600 font-medium mb-2"><span className="font-bold">Type:</span> {selectedTicket.type}</p>
+              <p className="text-sm text-gray-600 font-medium mb-2"><span className="font-bold">From:</span> {selectedTicket.user_name} ({selectedTicket.user_email})</p>
+              <p className="text-sm text-gray-600 font-medium"><span className="font-bold">Message:</span></p>
+              <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{selectedTicket.message}</p>
             </div>
-          ))}
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-gray-900 mb-2">Your Reply</label>
+              <textarea
+                value={replyMessage}
+                onChange={(e) => setReplyMessage(e.target.value)}
+                rows={6}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:border-purple-600 focus:ring-2 focus:ring-purple-200 text-gray-900 font-medium"
+                placeholder="Type your reply here... This will be sent via email to the user."
+              />
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setSelectedTicket(null)}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReply}
+                disabled={replying}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
+              >
+                {replying ? (
+                  <>
+                    <Loader2 className="animate-spin inline mr-2 w-4 h-4" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Reply'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
