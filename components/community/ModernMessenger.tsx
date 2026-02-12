@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { usePrivateChat } from '@/lib/hooks/usePrivateChat';
 import { 
   X, Send, Phone, Video, Image as ImageIcon, 
   Smile, Paperclip, CheckCheck, MessageSquare,
@@ -18,52 +19,27 @@ interface ModernMessengerProps {
 }
 
 export default function ModernMessenger({ recipient, currentUser, onClose }: ModernMessengerProps) {
-  const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [recipientTyping, setRecipientTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   
   const currentUserId = currentUser?.id || currentUser?.userId;
   const recipientId = recipient?.id || recipient?.userId;
   
-  const channelId = RealtimeChatService.getPrivateChannelName(currentUserId, recipientId);
+  const { messages: realtimeMessages, setMessages, recipientTyping, sendTyping: sendTypingStatus } = usePrivateChat(currentUserId, recipientId);
 
   useEffect(() => {
     loadMessages();
-    
-    const channel = supabase.channel(channelId, {
-      config: {
-        broadcast: { self: true },
-      },
-    });
-
-    channel
-      .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
-        setMessages(prev => {
-          if (prev.some(m => m.id === payload.id)) return prev;
-          return [...prev, payload];
-        });
-        setTimeout(scrollToBottom, 50);
-      })
-      .on('broadcast', { event: ChatEvent.TYPING }, ({ payload }) => {
-        if (payload.userId === recipientId) {
-          setRecipientTyping(payload.isTyping);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [channelId, recipientId]);
+  }, [recipientId]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (realtimeMessages.length > 0) {
+      setTimeout(scrollToBottom, 50);
+    }
+  }, [realtimeMessages]);
 
   const loadMessages = async () => {
     try {
@@ -112,17 +88,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     }
   };
 
-  const sendTypingStatus = (typing: boolean) => {
-    const channel = supabase.channel(channelId);
-    channel.send({
-      type: 'broadcast',
-      event: ChatEvent.TYPING,
-      payload: { 
-        userId: currentUserId, 
-        isTyping: typing 
-      },
-    });
-  };
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNewMessage(e.target.value);
@@ -186,7 +152,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-        {messages.length === 0 ? (
+        {realtimeMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center opacity-30">
             <div className="w-20 h-20 bg-gray-200 rounded-[2rem] flex items-center justify-center mb-4">
               <MessageSquare size={40} className="text-gray-400" />
@@ -194,7 +160,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
             <p className="font-black text-gray-500">ابدأ محادثة جميلة مع {recipient.name}</p>
           </div>
         ) : (
-          messages.map((msg, idx) => {
+          realtimeMessages.map((msg, idx) => {
             const isMine = msg.senderId === currentUserId;
             return (
               <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>

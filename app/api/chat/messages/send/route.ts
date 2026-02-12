@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { directMessages } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
-import { RealtimeChatService } from '@/lib/realtime/chat';
+import { RealtimeChatService, ChatEvent } from '@/lib/realtime/chat';
+import { getSupabaseAdmin } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,15 +25,23 @@ export async function POST(request: NextRequest) {
 
     // Broadcast via Supabase Realtime
     const channelId = RealtimeChatService.getPrivateChannelName(user.userId, parseInt(recipientId));
-    await RealtimeChatService.sendMessage(channelId, {
-      id: newMessage.id,
-      senderId: user.userId,
-      senderName: user.name,
-      senderAvatar: user.avatar,
-      content: newMessage.content,
-      messageType: newMessage.messageType,
-      timestamp: newMessage.createdAt,
-      isRead: false,
+    const supabaseAdmin = getSupabaseAdmin();
+    const channel = supabaseAdmin.channel(channelId);
+
+    await channel.send({
+      type: 'broadcast',
+      event: ChatEvent.NEW_MESSAGE,
+      payload: {
+        id: newMessage.id,
+        senderId: user.userId,
+        senderName: user.name,
+        senderAvatar: user.avatar,
+        content: newMessage.content,
+        messageType: newMessage.messageType,
+        timestamp: newMessage.createdAt,
+        createdAt: newMessage.createdAt,
+        isRead: false,
+      },
     });
 
     return NextResponse.json({ success: true, message: newMessage });

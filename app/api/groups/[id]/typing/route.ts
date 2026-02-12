@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
 import { verifyAuth } from '@/lib/auth/verify';
+import { RealtimeChatService, ChatEvent } from '@/lib/realtime/chat';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,19 +30,23 @@ export async function POST(
       .maybeSingle();
     if (!isMember) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    // upsert حالة الكتابة في جدول typing_status
-    await supabaseAdmin
-      .from('typing_status')
-      .upsert({
-        group_id: groupId,
-        user_id: user.userId,
-        is_typing: isTyping,
-        started_at: new Date()
-      }, { onConflict: ['group_id', 'user_id'] });
+    // بث حالة الكتابة عبر Supabase Realtime Broadcast
+    const channelName = RealtimeChatService.getGroupChannelName(groupId);
+    const channel = supabaseAdmin.channel(channelName);
+
+    await channel.send({
+      type: 'broadcast',
+      event: ChatEvent.TYPING,
+      payload: {
+        userId: user.userId,
+        userName: user.name,
+        isTyping,
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Typing Status Error:', error);
+    console.error('Typing indicator error:', error);
     return NextResponse.json({ error: 'Failed to update typing status' }, { status: 500 });
   }
 }
