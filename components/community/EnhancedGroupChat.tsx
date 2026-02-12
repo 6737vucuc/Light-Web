@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
+import MessageBubble from './MessageBubble';
+import TypingIndicator from './TypingIndicator';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 export default function EnhancedGroupChat({ group, currentUser, onBack, onTypingChange, onOnlineChange }: any) {
@@ -167,47 +169,16 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
             <p className="font-bold text-gray-500">No messages yet. Start the conversation!</p>
           </div>
         ) : (
-          messages.map((msg, idx) => {
-            const isMine = msg.userId === currentUser?.id;
-            return (
-              <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                <div className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isMine ? 'items-end' : 'items-start'}`}>
-                  {!isMine && (
-                    <span className="text-[10px] font-bold text-gray-500 mb-1 ml-2 uppercase tracking-wider">
-                      {msg.user?.name || 'User'}
-                    </span>
-                  )}
-                  <div className={`relative group px-4 py-2.5 shadow-sm ${
-                    isMine 
-                      ? 'bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-2xl rounded-tr-none' 
-                      : 'bg-white text-gray-800 rounded-2xl rounded-tl-none border border-gray-100'
-                  }`}>
-                    {msg.reply_to_content && (
-                      <div className={`mb-2 p-2 rounded-lg text-xs border-l-4 ${isMine ? 'bg-white/10 border-white/30' : 'bg-gray-50 border-purple-500'}`}>
-                        <p className="font-bold opacity-70">{msg.reply_to_user?.name}</p>
-                        <p className="truncate">{msg.reply_to_content}</p>
-                      </div>
-                    )}
-                    <p className="text-sm md:text-base leading-relaxed break-words">{msg.content}</p>
-                    <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                      <span className={`text-[9px] font-medium opacity-60`}>
-                        {new Date(msg.timestamp || msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {isMine && <CheckCheck size={12} className="opacity-60" />}
-                    </div>
-                    
-                    {/* Hover Actions */}
-                    <button 
-                      onClick={() => setReplyTo(msg)}
-                      className={`absolute top-0 ${isMine ? '-left-10' : '-right-10'} p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-purple-600`}
-                    >
-                      <Reply size={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })
+          messages.map((msg, idx) => (
+            <MessageBubble
+              key={msg.id || idx}
+              message={msg}
+              isMine={msg.userId === currentUser?.id}
+              onReply={() => setReplyTo(msg)}
+              senderName={msg.user?.name}
+              senderAvatar={msg.user?.avatar}
+            />
+          ))
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -223,6 +194,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
             <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-purple-100 rounded-full text-purple-400">
               <X size={18} />
             </button>
+          </div>
+        )}
+        
+        {typingUsers.length > 0 && (
+          <div className="mb-3">
+            <TypingIndicator typingUsers={typingUsers} />
           </div>
         )}
 

@@ -19,6 +19,7 @@ import {
 import * as LucideIcons from 'lucide-react';
 import Image from 'next/image';
 import EnhancedGroupChat from '@/components/community/EnhancedGroupChat';
+import GroupCard from '@/components/community/GroupCard';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/lib/contexts/ToastContext';
 
@@ -230,57 +231,8 @@ export default function CommunityPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {groups.map((group, idx) => (
-                  <div
-                    key={group.id}
-                    onClick={() => setSelectedGroup(group)}
-                    className="group relative bg-white rounded-[2.5rem] p-8 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-gray-50 hover:border-purple-200 hover:shadow-[0_30px_60px_-20px_rgba(124,58,237,0.15)] transition-all duration-500 cursor-pointer overflow-hidden animate-in fade-in slide-in-from-bottom-5"
-                    style={{ animationDelay: `${idx * 100}ms` }}
-                  >
-                    {/* Background Accent */}
-                    <div 
-                      className="absolute top-0 right-0 w-32 h-32 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity"
-                      style={{ backgroundColor: group.color, borderRadius: '0 0 0 100%' }}
-                    ></div>
-
-                    <div className="flex items-start justify-between mb-8 relative z-10">
-                      <div 
-                        className="w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-xl transform group-hover:rotate-6 group-hover:scale-110 transition-all duration-500"
-                        style={{ 
-                          backgroundColor: group.color,
-                          boxShadow: `0 10px 25px -5px ${group.color}40`
-                        }}
-                      >
-                        <DynamicIcon name={group.icon} size={32} />
-                      </div>
-                      <div className="px-4 py-2 bg-gray-50 group-hover:bg-purple-50 rounded-2xl text-[10px] font-black text-gray-400 group-hover:text-purple-600 transition-colors uppercase tracking-widest">
-                        {group.members_count || 0} عضو
-                      </div>
-                    </div>
-
-                    <div className="relative z-10">
-                      <h4 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">
-                        {group.name}
-                      </h4>
-                      <p className="text-gray-500 text-sm font-medium line-clamp-2 leading-relaxed mb-8">
-                        {group.description || 'لا يوجد وصف متاح لهذه المجموعة حالياً.'}
-                      </p>
-
-                      <div className="flex items-center justify-between pt-6 border-t border-gray-50 group-hover:border-purple-50 transition-colors">
-                        <div className="flex -space-x-3">
-                          {[1, 2, 3].map((i) => (
-                            <div key={i} className="w-9 h-9 rounded-xl border-2 border-white bg-gray-100 overflow-hidden">
-                              <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300"></div>
-                            </div>
-                          ))}
-                          <div className="w-9 h-9 rounded-xl border-2 border-white bg-purple-50 flex items-center justify-center text-[10px] font-bold text-purple-600">
-                            +{group.members_count > 3 ? group.members_count - 3 : 0}
-                          </div>
-                        </div>
-                        <div className="w-10 h-10 bg-gray-50 group-hover:bg-purple-600 rounded-xl flex items-center justify-center text-gray-400 group-hover:text-white transition-all transform group-hover:translate-x-2">
-                          <ChevronRight size={20} />
-                        </div>
-                      </div>
-                    </div>
+                  <div key={group.id} className="animate-in fade-in slide-in-from-bottom-5" style={{ animationDelay: `${idx * 100}ms` }}>
+                    <GroupCard group={group} onSelect={setSelectedGroup} />
                   </div>
                 ))}
               </div>
