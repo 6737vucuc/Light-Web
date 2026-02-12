@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      logs,
+      logs: logs || [],
       stats: stats[0] || {
         totalLogs: 0,
         totalVPN: 0,
@@ -152,11 +152,11 @@ export async function GET(request: NextRequest) {
         criticalThreats: 0,
         highThreats: 0,
       },
-      serviceStats: serviceStats.reduce((acc: any, item) => {
+      serviceStats: (serviceStats || []).reduce((acc: any, item) => {
         acc[item.service || 'unknown'] = item.count;
         return acc;
       }, {}),
-      countryStats: countryStats.reduce((acc: any, item) => {
+      countryStats: (countryStats || []).reduce((acc: any, item) => {
         acc[item.countryCode || 'unknown'] = {
           country: item.country,
           count: item.count,
@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
         };
         return acc;
       }, {}),
-      recentHighRisk,
+      recentHighRisk: recentHighRisk || [],
       pagination: {
         limit,
         offset,

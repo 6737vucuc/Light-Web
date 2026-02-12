@@ -321,5 +321,13 @@
     "developedBy": "Developed by",
     "allRightsReserved": "All Rights Reserved",
     "mayTheLight": "May the Light of the Lord be with you always"
+  },
+  "language": {
+    "selectLanguage": "Select Language",
+    "ar": "العربية",
+    "en": "English",
+    "de": "Deutsch",
+    "es": "Español",
+    "fr": "Français"
   }
 }

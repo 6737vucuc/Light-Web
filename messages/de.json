@@ -311,5 +311,13 @@
     "developedBy": "Entwickelt von",
     "allRightsReserved": "Alle Rechte vorbehalten",
     "mayTheLight": "Möge das Licht des Herrn immer mit euch sein"
+  },
+  "language": {
+    "selectLanguage": "Sprache wählen",
+    "ar": "العربية",
+    "en": "English",
+    "de": "Deutsch",
+    "es": "Español",
+    "fr": "Français"
   }
 }

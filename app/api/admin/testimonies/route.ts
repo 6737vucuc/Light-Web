@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       userEmail: testimony.userEmail || '',
     }));
 
-    return NextResponse.json({ testimonies: formattedTestimonies });
+    return NextResponse.json({ testimonies: formattedTestimonies || [] });
   } catch (error) {
     console.error('Get testimonies error:', error);
     return NextResponse.json(

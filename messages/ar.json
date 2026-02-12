@@ -323,5 +323,13 @@
     "developedBy": "تم التطوير بواسطة",
     "allRightsReserved": "جميع الحقوق محفوظة",
     "mayTheLight": "ليكن نور الرب معكم دائماً"
+  },
+  "language": {
+    "selectLanguage": "اختر اللغة",
+    "ar": "العربية",
+    "en": "English",
+    "de": "Deutsch",
+    "es": "Español",
+    "fr": "Français"
   }
 }
