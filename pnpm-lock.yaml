@@ -60,13 +60,8 @@ importers:
         specifier: ^0.548.0
         version: 0.548.0(react@18.3.1)
       next:
-<<<<<<< HEAD
-        specifier: ^15.5.12
-        version: 15.5.12(@babel/core@7.28.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-=======
         specifier: ^14.2.35
         version: 14.2.35(@babel/core@7.28.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
       next-intl:
         specifier: 3.22.0
         version: 3.22.0(next@15.5.12(@babel/core@7.28.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
@@ -116,12 +111,6 @@ importers:
       '@types/nodemailer':
         specifier: ^7.0.3
         version: 7.0.5
-<<<<<<< HEAD
-      '@types/peerjs':
-        specifier: ^1.1.0
-        version: 1.1.0
-=======
->>>>>>> 98cae3d2ff15d52f43e52465d0dda46a1c404f9b
       '@types/pg':
         specifier: ^8.16.0
         version: 8.16.0
