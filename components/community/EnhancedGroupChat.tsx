@@ -4,16 +4,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/lib/contexts/ToastContext';
-import { pusherClient } from '@/lib/pusher/client';
+import { supabase } from '@/lib/supabase/client';
+import { ChatEvent, RealtimeChatService } from '@/lib/realtime/chat';
 import { 
   Send, 
   CheckCheck,
   Reply,
-  X
+  X,
+  Image as ImageIcon,
+  Smile,
+  MoreVertical,
+  Paperclip,
+  User as UserIcon
 } from 'lucide-react';
 import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
-import ModernMessenger from './ModernMessenger';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 export default function EnhancedGroupChat({ group, currentUser, onBack, onTypingChange, onOnlineChange }: any) {
   const toast = useToast();
@@ -25,44 +31,43 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
   const [isSending, setIsSending] = useState(false);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', position: { x: 0, y: 0 } });
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMessages();
     
-    // Use a public channel for maximum reliability during testing
-    const channelName = `chat-${group.id}`;
-    const channel = pusherClient.subscribe(channelName);
-
-    // Listen for new messages
-    channel.bind('new-message', (data: any) => {
-      console.log('Pusher message received:', data);
-      setMessages(prev => {
-        // Avoid duplicate messages for the sender
-        if (prev.some(m => m.id === data.id)) return prev;
-        return [...prev, data];
-      });
-      setTimeout(scrollToBottom, 50);
+    const channelName = RealtimeChatService.getGroupChannelName(group.id);
+    const channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: true },
+      },
     });
 
-    // Listen for typing status
-    channel.bind('typing', (data: any) => {
-      console.log('Typing event received:', data);
-      if (data.userId === currentUser?.id) return;
-      
-      setTypingUsers(prev => {
-        const filtered = prev.filter(u => u.userId !== data.userId);
-        const newList = data.isTyping ? [...filtered, { userId: data.userId, name: data.userName }] : filtered;
-        if (onTypingChange) onTypingChange(newList);
-        return newList;
-      });
-    });
+    channel
+      .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
+        setMessages(prev => {
+          if (prev.some(m => m.id === payload.id)) return prev;
+          return [...prev, payload];
+        });
+        setTimeout(scrollToBottom, 50);
+      })
+      .on('broadcast', { event: ChatEvent.TYPING }, ({ payload }) => {
+        if (payload.userId === currentUser?.id) return;
+        
+        setTypingUsers(prev => {
+          const filtered = prev.filter(u => u.userId !== payload.userId);
+          const newList = payload.isTyping ? [...filtered, { userId: payload.userId, name: payload.userName }] : filtered;
+          if (onTypingChange) onTypingChange(newList);
+          return newList;
+        });
+      })
+      .subscribe();
 
     return () => {
-      pusherClient.unsubscribe(channelName);
+      supabase.removeChannel(channel);
     };
   }, [group.id, currentUser?.id]);
 
@@ -71,7 +76,9 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
       const res = await fetch(`/api/groups/${group.id}/messages`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages || []);
+        // Reverse to show latest at bottom if API returns latest first
+        const fetchedMessages = data.messages || [];
+        setMessages(fetchedMessages.reverse());
       }
     } finally {
       setIsLoading(false);
@@ -79,19 +86,58 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     }
   };
 
-  const handleTyping = async (isTyping: boolean) => {
-    if (!currentUser) return;
-    
-    // Broadcast typing status via API for maximum reliability
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newMessage.trim() || isSending) return;
+
+    setIsSending(true);
+    const content = newMessage.trim();
+    setNewMessage('');
+
     try {
-      fetch(`/api/groups/${group.id}/typing`, {
+      const res = await fetch(`/api/groups/${group.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isTyping }),
+        body: JSON.stringify({
+          content,
+          replyToId: replyTo?.id
+        }),
       });
+
+      if (!res.ok) {
+        setNewMessage(content);
+        toast.error('Failed to send message');
+      } else {
+        setReplyTo(null);
+        handleTyping(false);
+      }
     } catch (error) {
-      console.error('Error broadcasting typing:', error);
+      console.error('Error sending message:', error);
+      setNewMessage(content);
+    } finally {
+      setIsSending(false);
     }
+  };
+
+  const handleTyping = (isTyping: boolean) => {
+    if (!currentUser) return;
+    
+    const channelName = RealtimeChatService.getGroupChannelName(group.id);
+    const channel = supabase.channel(channelName);
+    
+    channel.send({
+      type: 'broadcast',
+      event: ChatEvent.TYPING,
+      payload: { 
+        userId: currentUser.id, 
+        userName: currentUser.name, 
+        isTyping 
+      },
+    });
     
     if (isTyping) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -99,137 +145,63 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
     }
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || isSending) return;
-    const content = newMessage.trim();
-    const tempId = Date.now();
-    setNewMessage('');
-    handleTyping(false);
-    setIsSending(true);
-
-    // Update local UI immediately (Optimistic UI)
-    const tempMsg = {
-      id: tempId,
-      tempId: tempId,
-      content,
-      userId: currentUser.id,
-      user_id: currentUser.id,
-      userName: currentUser.name,
-      userAvatar: currentUser.avatar,
-      created_at: new Date().toISOString(),
-      user: {
-        id: currentUser.id,
-        name: currentUser.name,
-        avatar: currentUser.avatar
-      },
-      reply_to_id: replyTo?.id,
-      reply_to_content: replyTo?.content,
-      reply_to_user_name: replyTo?.userName
-    };
-
-    setMessages(prev => [...prev, tempMsg]);
-    setTimeout(scrollToBottom, 50);
-
-    try {
-      const res = await fetch(`/api/groups/${group.id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          content, 
-          replyToId: replyTo?.id, 
-          replyToContent: replyTo?.content, 
-          replyToUserName: replyTo?.userName 
-        }),
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        // Replace temp message with final message from DB
-        setMessages(prev => prev.map(m => m.tempId === tempId ? { ...data.message, user: tempMsg.user } : m));
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Error sending message');
-    } finally {
-      setIsSending(false);
-      setReplyTo(null);
-    }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const formatTime = (date: string) => {
-    if (!date) return '';
-    const d = new Date(date);
-    return d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
-    });
+  const getAvatarUrl = (avatar?: string) => {
+    if (!avatar) return '/default-avatar.png';
+    if (avatar.startsWith('data:') || avatar.startsWith('http')) return avatar;
+    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#efeae2] relative">
-      <UserAvatarMenu 
-        isOpen={avatarMenu.isOpen} 
-        userId={avatarMenu.userId} 
-        userName={avatarMenu.userName} 
-        position={avatarMenu.position} 
-        onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })} 
-      />
-      
-      {selectedImage && (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
-          <Image src={selectedImage} alt="Full" fill className="object-contain" unoptimized />
-        </div>
-      )}
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+    <div className="flex flex-col h-full bg-[#f8f9fa] relative overflow-hidden">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar">
         {isLoading ? (
-          <div className="flex justify-center p-10">
+          <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
           </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full opacity-40">
+            <div className="w-20 h-20 bg-gray-200 rounded-3xl flex items-center justify-center mb-4">
+              <UserIcon size={40} className="text-gray-400" />
+            </div>
+            <p className="font-bold text-gray-500">No messages yet. Start the conversation!</p>
+          </div>
         ) : (
-          messages.map((msg) => {
-            const isOwn = msg.userId === currentUser?.id || msg.user_id === currentUser?.id;
+          messages.map((msg, idx) => {
+            const isMine = msg.userId === currentUser?.id;
             return (
-              <div key={msg.id} id={`msg-${msg.id}`} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2 group/msg`}>
-                {!isOwn && (
-                  <button 
-                    onClick={(e) => setAvatarMenu({ isOpen: true, userId: msg.userId, userName: msg.user?.name, position: { x: e.clientX, y: e.clientY } })} 
-                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm"
-                  >
-                    <Image 
-                      src={msg.user?.avatar ? (msg.user.avatar.startsWith('http') ? msg.user.avatar : `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${msg.user.avatar}`) : '/default-avatar.png'} 
-                      alt="avatar" 
-                      width={32} 
-                      height={32} 
-                      className="object-cover" 
-                      unoptimized 
-                    />
-                  </button>
-                )}
-                <div className={`max-w-[80%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-                  {!isOwn && <span className="text-[11px] font-black text-purple-700 ml-2 mb-1">{msg.user?.name}</span>}
-                  <div className={`relative px-4 py-2.5 rounded-2xl shadow-md border ${isOwn ? 'bg-[#dcf8c6] border-[#c7e9b0] rounded-tr-none' : 'bg-white border-gray-100 rounded-tl-none'}`}>
+              <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                <div className={`flex flex-col max-w-[85%] md:max-w-[70%] ${isMine ? 'items-end' : 'items-start'}`}>
+                  {!isMine && (
+                    <span className="text-[10px] font-bold text-gray-500 mb-1 ml-2 uppercase tracking-wider">
+                      {msg.user?.name || 'User'}
+                    </span>
+                  )}
+                  <div className={`relative group px-4 py-2.5 shadow-sm ${
+                    isMine 
+                      ? 'bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-2xl rounded-tr-none' 
+                      : 'bg-white text-gray-800 rounded-2xl rounded-tl-none border border-gray-100'
+                  }`}>
                     {msg.reply_to_content && (
-                      <div className="mb-2 p-2 bg-black/5 border-l-4 border-purple-500 text-[11px] rounded">
-                        <p className="font-bold text-purple-700">{msg.reply_to_user_name}</p>
-                        <p className="text-gray-700 truncate">{msg.reply_to_content}</p>
+                      <div className={`mb-2 p-2 rounded-lg text-xs border-l-4 ${isMine ? 'bg-white/10 border-white/30' : 'bg-gray-50 border-purple-500'}`}>
+                        <p className="font-bold opacity-70">{msg.reply_to_user?.name}</p>
+                        <p className="truncate">{msg.reply_to_content}</p>
                       </div>
                     )}
-                    <p className="text-[15px] font-bold text-gray-900 break-words leading-relaxed">{msg.content}</p>
-                    <div className="flex justify-end items-center gap-1 mt-1.5">
-                      <span className="text-[10px] font-bold text-gray-500">{formatTime(msg.created_at || msg.timestamp)}</span>
-                      {isOwn && <CheckCheck className="w-3.5 h-3.5 text-blue-500" />}
+                    <p className="text-sm md:text-base leading-relaxed break-words">{msg.content}</p>
+                    <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                      <span className={`text-[9px] font-medium opacity-60`}>
+                        {new Date(msg.timestamp || msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {isMine && <CheckCheck size={12} className="opacity-60" />}
                     </div>
+                    
+                    {/* Hover Actions */}
                     <button 
-                      onClick={() => setReplyTo({ id: msg.id, content: msg.content, userName: msg.user?.name })} 
-                      className={`absolute ${isOwn ? '-left-10' : '-right-10'} top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition-all p-1.5 hover:bg-gray-200 rounded-full shadow-sm bg-white`}
+                      onClick={() => setReplyTo(msg)}
+                      className={`absolute top-0 ${isMine ? '-left-10' : '-right-10'} p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-purple-600`}
                     >
-                      <Reply size={16} className="text-purple-600" />
+                      <Reply size={16} />
                     </button>
                   </div>
                 </div>
@@ -240,35 +212,68 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onTyping
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="bg-[#f0f2f5] p-3 border-t border-gray-200">
+      {/* Input Area */}
+      <div className="p-4 bg-white border-t border-gray-100">
         {replyTo && (
-          <div className="flex justify-between items-center bg-white/90 p-2.5 rounded-xl border-l-4 border-purple-500 text-xs mb-2 animate-in slide-in-from-bottom-2 shadow-sm">
-            <div className="truncate">
-              <p className="font-black text-purple-700">{replyTo.userName}</p>
-              <p className="text-gray-600 font-medium truncate">{replyTo.content}</p>
+          <div className="mb-3 p-3 bg-purple-50 rounded-xl flex items-center justify-between animate-in slide-in-from-bottom-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-purple-600">Replying to {replyTo.user?.name}</p>
+              <p className="text-sm text-gray-600 truncate">{replyTo.content}</p>
             </div>
-            <button onClick={() => setReplyTo(null)} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors">
-              <X size={16} className="text-gray-500" />
+            <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-purple-100 rounded-full text-purple-400">
+              <X size={18} />
             </button>
           </div>
         )}
-        <div className="flex items-center gap-3">
-          <input 
-            type="text" 
-            value={newMessage} 
-            onChange={(e) => { setNewMessage(e.target.value); handleTyping(true); }} 
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()} 
-            placeholder={tMessages('typeMessage')} 
-            className="flex-1 bg-white px-4 py-3 rounded-2xl text-[15px] font-bold text-gray-900 outline-none shadow-sm border border-gray-100 focus:border-purple-300 transition-colors" 
-          />
-          <button 
-            onClick={sendMessage} 
+
+        <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+          <div className="flex-1 bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-purple-400 focus-within:ring-1 focus-within:ring-purple-400 transition-all flex flex-col">
+            <textarea
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                handleTyping(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder="Type a message..."
+              className="w-full bg-transparent border-none focus:ring-0 p-3 text-sm md:text-base resize-none max-h-32 min-h-[44px]"
+              rows={1}
+            />
+            <div className="flex items-center justify-between px-2 pb-2">
+              <div className="flex items-center gap-1">
+                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors">
+                  <Smile size={20} />
+                </button>
+                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors">
+                  <Paperclip size={20} />
+                </button>
+                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors">
+                  <ImageIcon size={20} />
+                </button>
+              </div>
+            </div>
+          </div>
+          <button
+            type="submit"
             disabled={!newMessage.trim() || isSending}
-            className={`p-3 rounded-full transition-all ${newMessage.trim() ? 'bg-purple-600 text-white shadow-lg hover:scale-110 active:scale-95' : 'bg-gray-300 text-gray-500'}`}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+              newMessage.trim() && !isSending
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 scale-100'
+                : 'bg-gray-100 text-gray-400 scale-95'
+            }`}
           >
-            <Send size={22}/>
+            {isSending ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Send size={20} className={newMessage.trim() ? 'translate-x-0.5' : ''} />
+            )}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

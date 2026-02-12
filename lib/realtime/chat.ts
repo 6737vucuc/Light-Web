@@ -28,6 +28,11 @@ export interface ChatMessage {
   isRead: boolean;
   isDelivered?: boolean;
   deliveredAt?: Date;
+  replyTo?: {
+    id: number;
+    content: string;
+    userName: string;
+  } | null;
 }
 
 export interface TypingIndicator {
@@ -66,23 +71,21 @@ export class RealtimeChatService {
     }
   }
 
-  // Send message deleted event
-  static async deleteMessage(
-    channelId: string,
-    messageId: number
+  // Send new group message event
+  static async sendGroupMessage(
+    groupId: number,
+    message: any
   ): Promise<void> {
     try {
+      const channelId = this.getGroupChannelName(groupId);
       const channel = this.getChannel(channelId);
       await channel.send({
         type: 'broadcast',
-        event: ChatEvent.MESSAGE_DELETED,
-        payload: {
-          messageId,
-          deletedAt: new Date(),
-        },
+        event: ChatEvent.NEW_MESSAGE,
+        payload: message,
       });
     } catch (error) {
-      console.error('Delete message error:', error);
+      console.error('Send group message error:', error);
     }
   }
 
@@ -100,110 +103,6 @@ export class RealtimeChatService {
       });
     } catch (error) {
       console.error('Typing indicator error:', error);
-    }
-  }
-
-  // Update online status
-  static async updateOnlineStatus(
-    userId: number,
-    status: OnlineStatus
-  ): Promise<void> {
-    try {
-      const channel = this.getChannel(`user-${userId}`);
-      await channel.send({
-        type: 'broadcast',
-        event: ChatEvent.ONLINE_STATUS,
-        payload: status,
-      });
-    } catch (error) {
-      console.error('Online status error:', error);
-    }
-  }
-
-  // Mark message as read
-  static async markAsRead(
-    channelId: string,
-    messageId: number,
-    userId: number
-  ): Promise<void> {
-    try {
-      const channel = this.getChannel(channelId);
-      await channel.send({
-        type: 'broadcast',
-        event: ChatEvent.MESSAGE_READ,
-        payload: {
-          messageId,
-          userId,
-          readAt: new Date(),
-        },
-      });
-    } catch (error) {
-      console.error('Mark as read error:', error);
-    }
-  }
-
-  // Call Methods
-  static async initiateCall(
-    recipientId: number,
-    data: { 
-      callerId: number;
-      callerPeerId: string; 
-      callerName: string; 
-      callerAvatar: string | null;
-      callType: 'voice' | 'video';
-    }
-  ): Promise<void> {
-    try {
-      const channel = this.getChannel(`user-${recipientId}`);
-      await channel.send({
-        type: 'broadcast',
-        event: ChatEvent.INCOMING_CALL,
-        payload: data,
-      });
-    } catch (error) {
-      console.error('Initiate call error:', error);
-    }
-  }
-
-  static async acceptCall(
-    callerId: number, 
-    data: { acceptorId: number; receiverPeerId: string }
-  ): Promise<void> {
-    try {
-      const channel = this.getChannel(`user-${callerId}`);
-      await channel.send({
-        type: 'broadcast',
-        event: ChatEvent.CALL_ACCEPTED,
-        payload: data,
-      });
-    } catch (error) {
-      console.error('Accept call error:', error);
-    }
-  }
-
-  static async rejectCall(callerId: number): Promise<void> {
-    try {
-      const channel = this.getChannel(`user-${callerId}`);
-      await channel.send({
-        type: 'broadcast',
-        event: ChatEvent.CALL_REJECTED,
-        payload: {},
-      });
-    } catch (error) {
-      console.error('Reject call error:', error);
-    }
-  }
-
-  static async endCall(recipientId: number, endedBy: number): Promise<void> {
-    try {
-      const channel = this.getChannel(`user-${recipientId}`);
-      await channel.send({
-        type: 'broadcast',
-        event: ChatEvent.CALL_ENDED,
-        payload: { endedBy },
-      });
-    } catch (error) {
-      console.error('End call error:', error);
     }
   }
 

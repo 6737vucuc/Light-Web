@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
 import { verifyAuth } from '@/lib/auth/verify';
+import { RealtimeChatService } from '@/lib/realtime/chat';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -182,6 +183,13 @@ export async function POST(
       reply_to_content: replyMessage?.content || null,
       reply_to_user: replyUser || null
     };
+
+    // Broadcast via Supabase Realtime
+    try {
+      await RealtimeChatService.sendGroupMessage(groupId, formattedMessage);
+    } catch (realtimeError) {
+      console.error('Realtime broadcast error:', realtimeError);
+    }
 
     return NextResponse.json({ success: true, message: formattedMessage });
   } catch (error: any) {

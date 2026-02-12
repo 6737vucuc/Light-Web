@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { ChatEvent, ChatMessage, TypingIndicator } from '@/lib/realtime/chat';
+import { ChatEvent, TypingIndicator } from '@/lib/realtime/chat';
 
 export function useRealtimeChat(channelId: string, currentUserId: number) {
   const [messages, setMessages] = useState<any[]>([]);
@@ -8,15 +8,20 @@ export function useRealtimeChat(channelId: string, currentUserId: number) {
   const channelRef = useRef<any>(null);
 
   useEffect(() => {
+    if (!channelId || channelId === 'private-chat-pending') return;
+
     const channel = supabase.channel(channelId, {
       config: {
-        broadcast: { self: false },
+        broadcast: { self: true },
       },
     });
 
     channel
       .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
-        setMessages((prev) => [...prev, payload]);
+        setMessages((prev) => {
+          if (prev.some(m => m.id === payload.id)) return prev;
+          return [...prev, payload];
+        });
       })
       .on('broadcast', { event: ChatEvent.MESSAGE_DELETED }, ({ payload }) => {
         setMessages((prev) => prev.filter((m) => m.id !== payload.messageId));
