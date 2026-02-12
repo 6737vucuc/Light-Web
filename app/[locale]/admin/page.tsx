@@ -12,6 +12,7 @@ import {
 import * as LucideIcons from 'lucide-react';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
+import SupportManager from '@/components/admin/SupportManager';
 import { useRouter } from 'next/navigation';
 
 export default function AdminPage() {
