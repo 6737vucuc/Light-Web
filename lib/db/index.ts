@@ -13,11 +13,6 @@ if (!databaseUrl) {
   console.warn('DATABASE_URL not set, using dummy connection for build');
 }
 
-// Disable SSL certificate verification for Supabase compatibility
-if (process.env.NODE_ENV === 'production') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
-
 // Singleton pattern for Pool to prevent connection leaks in Next.js hot-reloading
 const globalForPg = global as unknown as { pool: Pool };
 
