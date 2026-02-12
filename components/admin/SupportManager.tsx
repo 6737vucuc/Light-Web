@@ -156,19 +156,15 @@ export default function SupportManager() {
         const subject = (t.subject || '').toLowerCase();
         const message = (t.message || '').toLowerCase();
 
-        const isPrayerKeyword = subject.includes('pray') || message.includes('pray');
-        const isTestimonyKeyword = subject.includes('testimony') || message.includes('testimony') || subject.includes('share');
-
-        if (filterType === 'prayer') {
-          return ticketType === 'prayer' || (ticketType === 'general' && isPrayerKeyword) || (ticketType === 'technical' && isPrayerKeyword);
-        }
-        if (filterType === 'testimony') {
-          return ticketType === 'testimony' || (ticketType === 'general' && isTestimonyKeyword);
-        }
-        if (filterType === 'technical') {
-          if (isPrayerKeyword) return false;
-          return ticketType === 'technical';
-        }
+        // Keywords for intelligent classification
+        const isPrayer = ticketType === 'prayer' || subject.includes('pray') || message.includes('pray') || subject.includes('صلاة') || message.includes('صلاة');
+        const isTestimony = ticketType === 'testimony' || subject.includes('testimony') || message.includes('testimony') || subject.includes('شهادة') || message.includes('شهادة');
+        
+        // Strict filtering based on tab
+        if (filterType === 'prayer') return isPrayer;
+        if (filterType === 'testimony') return isTestimony && !isPrayer;
+        if (filterType === 'technical') return ticketType === 'technical' && !isPrayer && !isTestimony;
+        
         return ticketType === filterType;
       });
 
