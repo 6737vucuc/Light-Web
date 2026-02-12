@@ -383,7 +383,8 @@ export async function send2FACodeAlert(
 /**
  * Send Internal 2FA Code (Email Based)
  */
-export async function sendInternal2FACode(
+// تم تغيير الاسم من sendInternal2FACode إلى sendInternal2FACodeAlert
+export async function sendInternal2FACodeAlert(
   userName: string,
   userEmail: string,
   code: string,
