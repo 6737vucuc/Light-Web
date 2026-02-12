@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
 import { verifyAuth } from '@/lib/auth/verify';
-import { pusherServer } from '@/lib/pusher/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// ----------------- GET MESSAGES -----------------
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,7 +31,7 @@ export async function GET(
     // pagination params
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '20');
-    const before = url.searchParams.get('before'); // id الرسالة الأقدم التي بدأ منها التحميل
+    const before = url.searchParams.get('before');
 
     let query = supabaseAdmin
       .from('group_messages')
@@ -42,37 +42,56 @@ export async function GET(
         message_type,
         created_at,
         user_id,
-        user:users!group_messages_user_id_fkey(id, name, avatar),
-        reply_to_id,
-        reply_message:group_messages!group_messages_id_fkey(id, content, user_id),
-        reply_user:users!reply_message_user_id_fkey(id, name, avatar)
+        reply_to_id
       `)
       .eq('group_id', groupId)
-      .order('created_at', { ascending: false }) // أحدث الرسائل أولًا
+      .order('created_at', { ascending: false })
       .limit(limit);
 
     if (before) {
-      // جلب الرسائل الأقدم من الرسالة المحددة
       query = query.lt('id', parseInt(before));
     }
 
     const { data: messages, error } = await query;
     if (error) throw error;
 
-    const formattedMessages = (messages || []).map((msg: any) => ({
-      id: msg.id,
-      content: msg.content,
-      media_url: msg.media_url,
-      type: msg.message_type || 'text',
-      timestamp: msg.created_at,
-      created_at: msg.created_at,
-      userId: msg.user_id,
-      user_id: msg.user_id,
-      user: msg.user,
-      reply_to_id: msg.reply_to_id,
-      reply_to_content: msg.reply_message?.content || null,
-      reply_to_user: msg.reply_user || null
-    }));
+    // جلب بيانات المستخدم لكل رسالة
+    const userIds = [...new Set((messages || []).map((m: any) => m.user_id))];
+    const { data: users } = await supabaseAdmin
+      .from('users')
+      .select('id, name, avatar')
+      .in('id', userIds);
+
+    // جلب بيانات الردود إذا موجودة
+    const replyIds = [...new Set((messages || []).map((m: any) => m.reply_to_id).filter(Boolean))];
+    let replies: any[] = [];
+    if (replyIds.length > 0) {
+      const { data } = await supabaseAdmin
+        .from('group_messages')
+        .select('id, content, user_id')
+        .in('id', replyIds);
+      replies = data || [];
+    }
+
+    const formattedMessages = (messages || []).map((msg: any) => {
+      const user = users?.find(u => u.id === msg.user_id) || null;
+      const reply = replies.find(r => r.id === msg.reply_to_id) || null;
+      const replyUser = reply ? users?.find(u => u.id === reply.user_id) : null;
+
+      return {
+        id: msg.id,
+        content: msg.content,
+        media_url: msg.media_url,
+        type: msg.message_type || 'text',
+        timestamp: msg.created_at,
+        created_at: msg.created_at,
+        userId: msg.user_id,
+        user,
+        reply_to_id: msg.reply_to_id,
+        reply_to_content: reply?.content || null,
+        reply_to_user: replyUser || null
+      };
+    });
 
     return NextResponse.json({ messages: formattedMessages, limit });
   } catch (error: any) {
@@ -81,6 +100,7 @@ export async function GET(
   }
 }
 
+// ----------------- POST MESSAGE -----------------
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -92,8 +112,7 @@ export async function POST(
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await request.json();
-    const { content, messageType = 'text', mediaUrl = null, replyToId = null } = body;
+    const { content, messageType = 'text', mediaUrl = null, replyToId = null } = await request.json();
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -149,7 +168,6 @@ export async function POST(
       }
     }
 
-    // بث الرسالة عبر Pusher
     const formattedMessage = {
       id: newMessage.id,
       content: newMessage.content,
@@ -159,17 +177,11 @@ export async function POST(
       created_at: newMessage.created_at,
       userId: user.userId,
       user_id: user.userId,
-      user: userData || { id: user.userId, name: user.name, avatar: user.avatar },
+      user: userData,
       reply_to_id: replyToId,
       reply_to_content: replyMessage?.content || null,
       reply_to_user: replyUser || null
     };
-
-    try {
-      await pusherServer.trigger(`chat-${groupId}`, 'new-message', formattedMessage);
-    } catch (pusherError) {
-      console.error('Pusher Broadcast Error:', pusherError);
-    }
 
     return NextResponse.json({ success: true, message: formattedMessage });
   } catch (error: any) {
