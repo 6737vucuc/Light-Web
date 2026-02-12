@@ -788,15 +788,76 @@ function StatisticsManager() {
 
 // --- Support Manager ---
 function SupportManager() {
+  const toast = useToast();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [replying, setReplying] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'technical' | 'testimony' | 'prayer'>('all');
 
   useEffect(() => {
-    fetch('/api/admin/support').then(r => r.json()).then(data => {
-      setTickets(data.tickets || []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    fetchTickets();
   }, []);
+
+  const fetchTickets = async () => {
+    try {
+      const response = await fetch('/api/admin/support');
+      const data = await response.json();
+      setTickets(data.tickets || []);
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyMessage.trim()) {
+      toast.show('Please enter a reply message', 'error');
+      return;
+    }
+    if (!selectedTicket) return;
+    setReplying(true);
+    try {
+      const response = await fetch(`/api/admin/support/${selectedTicket.id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: replyMessage }),
+      });
+      if (response.ok) {
+        toast.show('Reply sent successfully', 'success');
+        setReplyMessage('');
+        setSelectedTicket(null);
+        fetchTickets();
+      } else {
+        toast.show('Failed to send reply', 'error');
+      }
+    } catch (error) {
+      toast.show('Error sending reply', 'error');
+    } finally {
+      setReplying(false);
+    }
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    };
+  };
+
+  const getTypeColor = (type: string) => {
+    const colors: { [key: string]: string } = {
+      technical: 'bg-red-50 text-red-600 border-red-200',
+      testimony: 'bg-green-50 text-green-600 border-green-200',
+      prayer: 'bg-blue-50 text-blue-600 border-blue-200',
+    };
+    return colors[type] || 'bg-gray-50 text-gray-600 border-gray-200';
+  };
+
+  const filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.type === filter);
 
   return (
     <div>
