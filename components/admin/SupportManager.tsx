@@ -75,27 +75,43 @@ export default function SupportManager() {
     }
   };
 
-  const formatDateTime = (dateString: string) => {
-    if (!dateString) return { date: 'Unknown Date', time: 'Unknown Time', full: 'Unknown' };
+  const formatDateTime = (dateString: any) => {
+    // If it's a number (timestamp), convert to Date
+    let date: Date;
     
-    const date = new Date(dateString);
-    
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
+    if (!dateString) {
       return { date: 'Unknown Date', time: 'Unknown Time', full: 'Unknown' };
     }
 
-    return {
-      date: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-      time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      full: date.toLocaleString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    };
+    try {
+      date = new Date(dateString);
+      
+      // If invalid, try parsing as number
+      if (isNaN(date.getTime()) && typeof dateString === 'string') {
+        const num = parseInt(dateString);
+        if (!isNaN(num)) {
+          date = new Date(num);
+        }
+      }
+
+      if (isNaN(date.getTime())) {
+        return { date: 'Unknown Date', time: 'Unknown Time', full: 'Unknown' };
+      }
+
+      return {
+        date: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        full: date.toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      };
+    } catch (e) {
+      return { date: 'Unknown Date', time: 'Unknown Time', full: 'Unknown' };
+    }
   };
 
   const getTypeIcon = (type: string) => {
@@ -140,11 +156,30 @@ export default function SupportManager() {
   const filteredTickets = filter === 'all' 
     ? tickets 
     : tickets.filter(t => {
-        // Handle cases where type might be 'general' but we want to show it in its specific tab
-        // or handle legacy data mapping
-        if (filter === 'testimony' && (t.type === 'testimony' || t.type === 'general')) return true;
-        if (filter === 'prayer' && (t.type === 'prayer' || t.type === 'general')) return true;
-        return t.type === filter;
+        // Normalize type for comparison
+        const ticketType = (t.type || '').toLowerCase();
+        const filterType = filter.toLowerCase();
+        const subject = (t.subject || '').toLowerCase();
+        const message = (t.message || '').toLowerCase();
+
+        // Heuristic: check subject and message for keywords if type is general or technical
+        const isPrayerKeyword = subject.includes('pray') || message.includes('pray');
+        const isTestimonyKeyword = subject.includes('testimony') || message.includes('testimony') || subject.includes('share');
+
+        if (filterType === 'prayer') {
+          return ticketType === 'prayer' || (ticketType === 'general' && isPrayerKeyword) || (ticketType === 'technical' && isPrayerKeyword);
+        }
+        if (filterType === 'testimony') {
+          return ticketType === 'testimony' || (ticketType === 'general' && isTestimonyKeyword);
+        }
+        
+        // For technical, if it has prayer keywords, maybe it shouldn't be in technical
+        if (filterType === 'technical') {
+          if (isPrayerKeyword) return false;
+          return ticketType === 'technical';
+        }
+
+        return ticketType === filterType;
       });
 
   return (
