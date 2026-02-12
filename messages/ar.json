@@ -56,7 +56,10 @@
     "leftSuccess": "لقد غادرت المجموعة",
     "online": "متصل الآن",
     "typing": "يكتب...",
-    "searchGroups": "البحث عن مجموعة..."
+    "searchGroups": "البحث عن مجموعة...",
+    "onlineNow": "متصل الآن",
+    "membersCount": "عضو",
+    "messagesCount": "رسالة"
   },
   "messages": {
     "title": "الرسائل",
@@ -91,6 +94,32 @@
     "yes": "نعم",
     "no": "لا",
     "connecting": "جاري الاتصال..."
+  },
+  "admin": {
+    "dashboard": "لوحة التحكم",
+    "managePlatform": "إدارة المنصة والمحتوى",
+    "lessons": "الدروس",
+    "groupsManagement": "إدارة المجموعات",
+    "reports": "البلاغات",
+    "statistics": "الإحصائيات",
+    "supportRequests": "طلبات الدعم",
+    "userManagement": "إدارة المستخدمين",
+    "vpnDetection": "كشف الـ VPN",
+    "manageLessons": "إدارة الدروس",
+    "createNewLesson": "إنشاء درس جديد",
+    "title": "العنوان",
+    "content": "المحتوى",
+    "manageGroups": "إدارة المجموعات",
+    "createNewGroup": "إنشاء مجموعة جديدة",
+    "groupName": "اسم المجموعة",
+    "description": "الوصف",
+    "color": "اللون",
+    "icon": "الأيقونة",
+    "saveGroup": "حفظ المجموعة",
+    "editGroup": "تعديل المجموعة",
+    "deleteGroup": "حذف المجموعة",
+    "members": "الأعضاء",
+    "messages": "الرسائل"
   },
   "vpn": {
     "warning": "تحذير أمني",

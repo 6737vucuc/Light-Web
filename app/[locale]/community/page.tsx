@@ -13,7 +13,8 @@ import {
   TrendingUp,
   Globe,
   Search,
-  Zap
+  Zap,
+  MessageSquare
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import Image from 'next/image';

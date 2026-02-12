@@ -308,55 +308,51 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
                 setNewMessage(e.target.value);
                 handleTyping(true);
               }}
+              placeholder={t('sendMessage')}
+              className="w-full p-3 md:p-4 bg-transparent resize-none border-none focus:ring-0 text-sm md:text-base text-gray-800 font-medium max-h-32"
+              rows={1}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSendMessage();
                 }
               }}
-              placeholder={t('typeMessage')}
-              className="w-full bg-transparent border-none focus:ring-0 p-4 text-sm md:text-base resize-none max-h-32 min-h-[56px] font-medium"
-              rows={1}
             />
-            <div className="flex items-center justify-between px-3 pb-3">
+            <div className="flex items-center justify-between px-3 py-2 bg-gray-50/50 border-t border-gray-50">
               <div className="flex items-center gap-1">
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors rounded-full hover:bg-purple-50">
-                  <Smile size={22} />
+                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all">
+                  <Smile size={20} />
                 </button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors rounded-full hover:bg-purple-50">
-                  <Paperclip size={22} />
+                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all">
+                  <ImageIcon size={20} />
                 </button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors rounded-full hover:bg-purple-50">
-                  <ImageIcon size={22} />
+                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all">
+                  <Paperclip size={20} />
                 </button>
               </div>
+              <button
+                type="submit"
+                disabled={!newMessage.trim() || isSending}
+                className={`p-2.5 rounded-xl transition-all shadow-lg shadow-purple-100 ${
+                  newMessage.trim() && !isSending 
+                    ? 'bg-purple-600 text-white hover:bg-purple-700 hover:scale-105 active:scale-95' 
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+              </button>
             </div>
           </div>
-          <button
-            type="submit"
-            disabled={!newMessage.trim() || isSending}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg
-              ${newMessage.trim() && !isSending
-                ? 'bg-purple-600 text-white shadow-purple-200 scale-100 hover:bg-purple-700 hover:scale-105 active:scale-95'
-                : 'bg-white text-gray-300 scale-100'
-              }`}
-          >
-            {isSending ? (
-              <Loader2 size={24} className="animate-spin" />
-            ) : (
-              <Send size={24} className={newMessage.trim() ? 'translate-x-0.5' : ''} />
-            )}
-          </button>
         </form>
       </div>
 
+      {/* Avatar Menu Overlay */}
       {avatarMenu.isOpen && (
         <UserAvatarMenu 
           userId={avatarMenu.userId}
           userName={avatarMenu.userName}
           avatar={avatarMenu.avatar}
           position={avatarMenu.position}
-          isOpen={avatarMenu.isOpen}
           onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })}
         />
       )}

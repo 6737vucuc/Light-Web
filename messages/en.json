@@ -56,7 +56,10 @@
     "leftSuccess": "You have left the group",
     "online": "Online Now",
     "typing": "Typing...",
-    "searchGroups": "Search for a group..."
+    "searchGroups": "Search for a group...",
+    "onlineNow": "Online Now",
+    "membersCount": "Members",
+    "messagesCount": "Messages"
   },
   "messages": {
     "title": "Messages",
@@ -91,6 +94,32 @@
     "yes": "Yes",
     "no": "No",
     "connecting": "Connecting..."
+  },
+  "admin": {
+    "dashboard": "Dashboard",
+    "managePlatform": "Manage platform and content",
+    "lessons": "Lessons",
+    "groupsManagement": "Groups Management",
+    "reports": "Reports",
+    "statistics": "Statistics",
+    "supportRequests": "Support Requests",
+    "userManagement": "User Management",
+    "vpnDetection": "VPN Detection",
+    "manageLessons": "Manage Lessons",
+    "createNewLesson": "Create New Lesson",
+    "title": "Title",
+    "content": "Content",
+    "manageGroups": "Manage Groups",
+    "createNewGroup": "Create New Group",
+    "groupName": "Group Name",
+    "description": "Description",
+    "color": "Color",
+    "icon": "Icon",
+    "saveGroup": "Save Group",
+    "editGroup": "Edit Group",
+    "deleteGroup": "Delete Group",
+    "members": "Members",
+    "messages": "Messages"
   },
   "vpn": {
     "warning": "Security Warning",
