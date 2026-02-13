@@ -1062,21 +1062,29 @@ function UsersManager() {
   };
 
   const handleDeleteUser = async (userId: number, name: string) => {
-    const confirmed = await toast.confirm({
-      title: 'Delete User Account',
-      message: `Are you sure you want to permanently delete ${name}'s account? This action cannot be undone.`,
-      confirmText: 'Delete Account',
-      type: 'danger'
-    });
-    
-    if (!confirmed) return;
+  const confirmed = await toast.confirm({
+    title: 'Delete User Account',
+    message: `Are you sure you want to permanently delete ${name}'s account? This action cannot be undone.`,
+    confirmText: 'Delete Account',
+    type: 'danger'
+  });
+  
+  if (!confirmed) return;
 
-    const response = await fetch(`/api/admin/users?id=${userId}`, { method: 'DELETE' });
-    if (response.ok) {
-      toast.success('User deleted');
-      fetchUsers();
-    }
-  };
+  const response = await fetch('/api/admin/users', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId })  // ← هنا الآن يرسل JSON
+  });
+
+  if (response.ok) {
+    toast.success('User deleted');
+    fetchUsers();
+  } else {
+    const data = await response.json().catch(() => ({}));
+    toast.error(data.error || 'Failed to delete user');
+  }
+};
 
   const handleBanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
