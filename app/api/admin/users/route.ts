@@ -70,7 +70,7 @@ export async function DELETE(request: NextRequest) {
       await rawSql`DELETE FROM typing_status WHERE user_id = ${userIdNum}`;
       await rawSql`DELETE FROM member_presence WHERE user_id = ${userIdNum}`;
       
-      await db.delete(group_activity_log).where(eq(group_activity_log.userId, userIdNum));
+      await rawSql`DELETE FROM group_activity_log WHERE user_id = ${userIdNum}`;
       await db.delete(group_messages).where(eq(group_messages.userId, userIdNum));
       await db.delete(group_members).where(eq(group_members.userId, userIdNum));
       
