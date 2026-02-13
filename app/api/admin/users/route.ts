@@ -61,8 +61,8 @@ export async function DELETE(request: NextRequest) {
     // Delete all related data in correct order
     try {
       // 1. Delete group related data
-      await db.delete(groupMessages).where(eq(groupMessages.userId, userIdNum));
-      await db.delete(groupMembers).where(eq(groupMembers.userId, userIdNum));
+      await db.delete(group_messages).where(eq(group_messages.userId, userIdNum));
+      await db.delete(group_members).where(eq(group_members.userId, userIdNum));
       
       // 2. Delete direct messages (both sent and received)
       await rawSql`DELETE FROM direct_messages WHERE sender_id = ${userIdNum} OR receiver_id = ${userIdNum}`;
