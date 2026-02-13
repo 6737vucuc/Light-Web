@@ -58,9 +58,10 @@ export async function DELETE(request: NextRequest) {
 
     const userIdNum = parseInt(userId);
 
-    // ✅ حذف جميع البيانات المرتبطة - بالترتيب الصحيح
+    // ✅ استخدم rawSql لكل الجداول - مية مية
     try {
       // ===== 1. الرسائل والمجموعات =====
+      await rawSql`DELETE FROM group_activity_log WHERE user_id = ${userIdNum}`;
       await rawSql`DELETE FROM group_message_pinned WHERE pinned_by = ${userIdNum}`;
       await rawSql`DELETE FROM group_message_read_receipts WHERE user_id = ${userIdNum}`;
       await rawSql`DELETE FROM message_edit_history WHERE edited_by = ${userIdNum}`;
@@ -70,9 +71,11 @@ export async function DELETE(request: NextRequest) {
       await rawSql`DELETE FROM typing_status WHERE user_id = ${userIdNum}`;
       await rawSql`DELETE FROM member_presence WHERE user_id = ${userIdNum}`;
       
-      await rawSql`DELETE FROM group_activity_log WHERE user_id = ${userIdNum}`;
-      await db.delete(group_messages).where(eq(group_messages.userId, userIdNum));
-      await db.delete(group_members).where(eq(group_members.userId, userIdNum));
+      // ✅ رسائل المجموعات
+      await rawSql`DELETE FROM group_messages WHERE user_id = ${userIdNum}`;
+      
+      // ✅ أعضاء المجموعات
+      await rawSql`DELETE FROM group_members WHERE user_id = ${userIdNum}`;
       
       // ===== 2. الرسائل المباشرة =====
       await rawSql`DELETE FROM direct_messages WHERE sender_id = ${userIdNum} OR receiver_id = ${userIdNum}`;
@@ -111,14 +114,10 @@ export async function DELETE(request: NextRequest) {
       await rawSql`DELETE FROM vpn_logs WHERE user_id = ${userIdNum}`;
       
       // ===== 11. المجموعات التي أنشأها =====
-      // خيار 1: حذف المجموعات (مع البيانات المرتبطة)
       await rawSql`DELETE FROM community_groups WHERE created_by = ${userIdNum}`;
       
-      // خيار 2: إلغاء الربط (إذا ما بدك تحذف المجموعات)
-      // await rawSql`UPDATE community_groups SET created_by = NULL WHERE created_by = ${userIdNum}`;
-      
       // ===== 12. أخيراً: حذف المستخدم =====
-      await db.delete(users).where(eq(users.id, userIdNum));
+      await rawSql`DELETE FROM users WHERE id = ${userIdNum}`;
 
       return NextResponse.json({ 
         success: true,
