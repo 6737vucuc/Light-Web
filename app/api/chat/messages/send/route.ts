@@ -15,14 +15,14 @@ export async function POST(request: NextRequest) {
 
     const { recipientId, content, messageType = 'text' } = await request.json();
 
-    const [newMessage] = await db.insert(directMessages).values({
-      senderId: user.userId,
-      recipientId: parseInt(recipientId),
-      content,
-      messageType,
-      isRead: false,
-    }).returning();
-
+  const [newMessage] = await db.insert(directMessages).values({
+  senderId: user.userId,
+  receiverId: parseInt(recipientId),
+  content,
+  messageType,
+  isRead: false,
+  isDeleted: false,
+}).returning();
     // Broadcast via Supabase Realtime
     try {
       const channelId = RealtimeChatService.getPrivateChannelName(user.userId, recipientId);
