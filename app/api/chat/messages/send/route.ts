@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       payload: {
         id: newMessage.id,
         senderId: user.userId,
+        recipientId: parseInt(recipientId),
         senderName: user.name,
         senderAvatar: user.avatar,
         content: newMessage.content,

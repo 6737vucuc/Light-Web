@@ -56,24 +56,27 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
 
     channel
       .on('broadcast', { event: ChatEvent.ONLINE_STATUS }, ({ payload }) => {
-        if ((payload.userId || payload.user_id) === recipientId) {
+        const payloadUserId = payload.userId || payload.user_id;
+        if (String(payloadUserId) === String(recipientId)) {
           setRecipientOnline(payload.isOnline);
           if (!payload.isOnline) {
             setRecipientLastSeen(payload.lastSeen || new Date());
           }
         }
       })
-      .subscribe();
-
-    // Broadcast current user is online
-    channel.send({
-      type: 'broadcast',
-      event: ChatEvent.ONLINE_STATUS,
-      payload: {
-        userId: currentUserId,
-        isOnline: true,
-      },
-    });
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Broadcast current user is online
+          channel.send({
+            type: 'broadcast',
+            event: ChatEvent.ONLINE_STATUS,
+            payload: {
+              userId: currentUserId,
+              isOnline: true,
+            },
+          });
+        }
+      });
 
     return () => {
       // Broadcast current user is offline

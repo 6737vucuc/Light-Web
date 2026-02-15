@@ -22,12 +22,23 @@ export function usePrivateChat(recipientId: number, currentUserId: number) {
     channel
       .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
         setMessages((prev) => {
-          if (prev.some(m => m.id === payload.id)) return prev;
+          // Normalize IDs for comparison
+          const payloadId = payload.id;
+          if (prev.some(m => (m.id === payloadId || m.tempId === payloadId))) return prev;
+          
+          // Ensure the message is relevant to this conversation
+          const isRelevant = 
+            (payload.senderId === currentUserId && payload.recipientId === recipientId) ||
+            (payload.senderId === recipientId && payload.recipientId === currentUserId);
+            
+          if (!isRelevant) return prev;
+          
           return [...prev, payload];
         });
       })
       .on('broadcast', { event: ChatEvent.TYPING }, ({ payload }) => {
-        if (payload.userId === recipientId) {
+        const payloadUserId = payload.userId || payload.user_id;
+        if (String(payloadUserId) === String(recipientId)) {
           setRecipientTyping(payload.isTyping);
           
           if (payload.isTyping && typingTimeoutRef.current) {
