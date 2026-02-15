@@ -89,7 +89,8 @@ export default function SupportManager() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             content: ticket.message,
-            religion: 'Christianity', // Default or extract from user profile if possible
+            religion: 'Christianity',
+            userId: ticket.userId,
           }),
         });
 
