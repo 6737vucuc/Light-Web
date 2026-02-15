@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
       category,
       status: 'open',
       priority: 'normal',
+      type: category, // Ensure type field is also populated
+      likes: 0,
     }).returning();
 
     return NextResponse.json({
