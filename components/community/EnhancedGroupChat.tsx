@@ -281,6 +281,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
                 isMine={(msg.userId || msg.user_id) === (currentUser?.id || currentUser?.userId)}
                 onReply={setReplyTo}
                 onAvatarClick={(userId, userName, avatar, e) => {
+                  // If it's the current user, don't show the menu
+                  const currentId = currentUser?.id || currentUser?.userId;
+                  if (userId === currentId) return;
+
                   setAvatarMenu({
                     isOpen: true,
                     userId,

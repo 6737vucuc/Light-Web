@@ -138,26 +138,30 @@ export function usePresence(
       channel
         .on('broadcast', { event: ChatEvent.PRESENCE_UPDATE }, ({ payload }) => {
           setOnlineMembers(prev => {
-            const filtered = prev.filter(u => (u.userId || u.userId) !== payload.userId);
+            const filtered = prev.filter(u => (u.userId || u.user_id) !== (payload.userId || payload.user_id));
             if (payload.status === 'online') {
-              return [...filtered, payload];
+              const updated = [...filtered, payload];
+              setOnlineMembersCount(updated.length);
+              return updated;
             }
+            setOnlineMembersCount(filtered.length);
             return filtered;
           });
-          setOnlineMembersCount(prev => Math.max(0, prev + (payload.status === 'online' ? 1 : -1)));
         })
         .on('broadcast', { event: ChatEvent.USER_JOINED }, ({ payload }) => {
           setOnlineMembers(prev => {
-            if (prev.some(u => (u.userId || u.userId) === payload.userId)) {
-              return prev;
-            }
-            return [...prev, payload];
+            const filtered = prev.filter(u => (u.userId || u.user_id) !== (payload.userId || payload.user_id));
+            const updated = [...filtered, payload];
+            setOnlineMembersCount(updated.length);
+            return updated;
           });
-          setOnlineMembersCount(prev => prev + 1);
         })
         .on('broadcast', { event: ChatEvent.USER_LEFT }, ({ payload }) => {
-          setOnlineMembers(prev => prev.filter(u => (u.userId || u.userId) !== payload.userId));
-          setOnlineMembersCount(prev => Math.max(0, prev - 1));
+          setOnlineMembers(prev => {
+            const updated = prev.filter(u => (u.userId || u.user_id) !== (payload.userId || payload.user_id));
+            setOnlineMembersCount(updated.length);
+            return updated;
+          });
         })
         .subscribe();
 
