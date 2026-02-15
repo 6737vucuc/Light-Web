@@ -166,8 +166,10 @@ export class RealtimeChatService {
 
   // Get channel name for private chat
   static getPrivateChannelName(user1Id: number | string, user2Id: number | string): string {
-    const [id1, id2] = [user1Id, user2Id].sort((a, b) => String(a).localeCompare(String(b)));
-    return `private-chat-${id1}-${id2}`;
+    const u1 = parseInt(String(user1Id));
+    const u2 = parseInt(String(user2Id));
+    const [id1, id2] = [u1, u2].sort((a, b) => a - b);
+    return `private_chat_${id1}_${id2}`;
   }
 
   // Get channel name for group chat

@@ -24,26 +24,31 @@ export async function POST(request: NextRequest) {
     }).returning();
 
     // Broadcast via Supabase Realtime
-    const channelId = RealtimeChatService.getPrivateChannelName(user.userId, parseInt(recipientId));
-    const supabaseAdmin = getSupabaseAdmin();
-    const channel = supabaseAdmin.channel(channelId);
+    try {
+      const channelId = RealtimeChatService.getPrivateChannelName(user.userId, parseInt(recipientId));
+      const supabaseAdmin = getSupabaseAdmin();
+      const channel = supabaseAdmin.channel(channelId);
 
-    await channel.send({
-      type: 'broadcast',
-      event: ChatEvent.NEW_MESSAGE,
-      payload: {
-        id: newMessage.id,
-        senderId: user.userId,
-        recipientId: parseInt(recipientId),
-        senderName: user.name,
-        senderAvatar: user.avatar,
-        content: newMessage.content,
-        messageType: newMessage.messageType,
-        timestamp: newMessage.createdAt,
-        createdAt: newMessage.createdAt,
-        isRead: false,
-      },
-    });
+      await channel.send({
+        type: 'broadcast',
+        event: ChatEvent.NEW_MESSAGE,
+        payload: {
+          id: newMessage.id,
+          senderId: user.userId,
+          recipientId: parseInt(recipientId),
+          senderName: user.name,
+          senderAvatar: user.avatar,
+          content: newMessage.content,
+          messageType: newMessage.messageType,
+          timestamp: newMessage.createdAt,
+          createdAt: newMessage.createdAt,
+          isRead: false,
+        },
+      });
+    } catch (broadcastError) {
+      console.error('Realtime broadcast error:', broadcastError);
+      // Continue even if broadcast fails, as message is saved in DB
+    }
 
     return NextResponse.json({ success: true, message: newMessage });
   } catch (error) {

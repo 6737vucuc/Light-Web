@@ -43,52 +43,47 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     }
   }, [realtimeMessages]);
 
-  // Setup Realtime listeners for online status
+  // Setup Realtime Presence for accurate online status
   useEffect(() => {
     if (!currentUserId || !recipientId) return;
 
     const channelName = RealtimeChatService.getPrivateChannelName(currentUserId, recipientId);
     const channel = supabase.channel(channelName, {
       config: {
-        broadcast: { self: true },
+        presence: { key: String(currentUserId) },
       },
     });
 
     channel
-      .on('broadcast', { event: ChatEvent.ONLINE_STATUS }, ({ payload }) => {
-        const payloadUserId = payload.userId || payload.user_id;
-        if (String(payloadUserId) === String(recipientId)) {
-          setRecipientOnline(payload.isOnline);
-          if (!payload.isOnline) {
-            setRecipientLastSeen(payload.lastSeen || new Date());
-          }
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const isRecipientOnline = Object.keys(state).includes(String(recipientId));
+        setRecipientOnline(isRecipientOnline);
+        if (!isRecipientOnline) {
+          setRecipientLastSeen(new Date());
         }
       })
-      .subscribe((status) => {
+      .on('presence', { event: 'join' }, ({ key }) => {
+        if (key === String(recipientId)) {
+          setRecipientOnline(true);
+        }
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        if (key === String(recipientId)) {
+          setRecipientOnline(false);
+          setRecipientLastSeen(new Date());
+        }
+      })
+      .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          // Broadcast current user is online
-          channel.send({
-            type: 'broadcast',
-            event: ChatEvent.ONLINE_STATUS,
-            payload: {
-              userId: currentUserId,
-              isOnline: true,
-            },
+          await channel.track({
+            userId: currentUserId,
+            online_at: new Date().toISOString(),
           });
         }
       });
 
     return () => {
-      // Broadcast current user is offline
-      channel.send({
-        type: 'broadcast',
-        event: ChatEvent.ONLINE_STATUS,
-        payload: {
-          userId: currentUserId,
-          isOnline: false,
-          lastSeen: new Date(),
-        },
-      });
       supabase.removeChannel(channel);
     };
   }, [currentUserId, recipientId]);
