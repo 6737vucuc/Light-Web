@@ -173,96 +173,100 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f8f9fa] animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="px-6 py-4 bg-white border-b border-gray-100 flex items-center justify-between shadow-sm relative z-10">
-        <div className="flex items-center gap-4">
+    <div className="flex flex-col h-full bg-[#f0f2f5] relative overflow-hidden">
+      {/* WhatsApp Style Header */}
+      <div className="bg-[#f0f2f5] px-4 py-3 flex items-center justify-between border-b border-gray-200 z-20">
+        <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-purple-50 shadow-md">
+            <div className="w-10 h-10 rounded-full overflow-hidden shadow-md">
               {recipient.avatar ? (
                 <Image src={getAvatarUrl(recipient.avatar)} alt={recipient.name} fill className="object-cover" unoptimized />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-500 text-white text-xl font-black">
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-500 text-white text-lg font-black">
                   {recipient.name?.charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
-            <div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${recipientOnline ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
+            <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[#f0f2f5] rounded-full ${recipientOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
           </div>
-          <div>
-            <h3 className="font-black text-gray-900 leading-none mb-1">{recipient.name}</h3>
+          <div className="flex-1">
+            <h3 className="font-bold text-gray-900 leading-tight">{recipient.name}</h3>
             <div className="flex items-center gap-1.5">
               {recipientTyping ? (
-                <p className="text-[10px] text-purple-600 font-black animate-pulse uppercase tracking-widest">يكتب الآن...</p>
+                <span className="text-[10px] text-purple-600 font-bold animate-pulse uppercase tracking-wider">يكتب الآن...</span>
               ) : recipientOnline ? (
-                <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest flex items-center gap-1">
-                  <span className="w-1 h-1 bg-emerald-500 rounded-full"></span> متصل الآن
-                </p>
+                <span className="text-[10px] text-green-600 font-bold uppercase tracking-wider flex items-center gap-1">متصل الآن</span>
               ) : (
-                <p className="text-[10px] text-gray-500 font-medium">
+                <span className="text-[10px] text-gray-500 font-medium">
                   {recipientLastSeen ? `آخر ظهور ${formatLastSeen(recipientLastSeen)}` : 'غير متصل'}
-                </p>
+                </span>
               )}
             </div>
           </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <button onClick={onClose} className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><X size={20} /></button>
+        <div className="flex items-center gap-1">
+          <button onClick={onClose} className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
+            <X size={20} />
+          </button>
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-        {realtimeMessages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center opacity-30">
-            <div className="w-20 h-20 bg-gray-200 rounded-[2rem] flex items-center justify-center mb-4">
-              <MessageSquare size={40} className="text-gray-400" />
+      {/* Messages Area - Styled like Group Chat */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar bg-[#e5ddd5] relative">
+        <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+        
+        <div className="relative z-10">
+          {realtimeMessages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 opacity-40">
+              <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-4 shadow-sm">
+                <MessageSquare size={40} className="text-gray-400" />
+              </div>
+              <p className="font-bold text-gray-600 text-center">ابدأ محادثة جميلة مع {recipient.name}</p>
             </div>
-            <p className="font-black text-gray-500">ابدأ محادثة جميلة مع {recipient.name}</p>
-          </div>
-        ) : (
-          realtimeMessages.map((msg, idx) => {
-            const isMine = msg.senderId === currentUserId;
-            return (
-              <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                <div className={`max-w-[80%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                  <div className={`relative px-4 py-3 shadow-sm ${
-                    isMine 
-                      ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-[1.5rem] rounded-tr-none' 
-                      : 'bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none'
-                  }`}>
-                    <p className="text-sm md:text-base leading-relaxed break-words">{msg.content}</p>
-                    <div className={`flex items-center gap-1.5 mt-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                      <span className="text-[9px] font-bold opacity-60">
-                        {new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {isMine && <CheckCheck size={12} className="opacity-60" />}
+          ) : (
+            realtimeMessages.map((msg, idx) => {
+              const isMine = msg.senderId === currentUserId;
+              return (
+                <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-4 animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                  <div className={`max-w-[85%] md:max-w-[70%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                    <div className={`relative px-4 py-3 shadow-sm transition-all duration-300 ${
+                      isMine 
+                        ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-[1.5rem] rounded-tr-none' 
+                        : 'bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none'
+                    }`}>
+                      <p className="text-sm md:text-base leading-relaxed break-words whitespace-pre-wrap">{msg.content}</p>
+                      <div className={`flex items-center gap-1.5 mt-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                        <span className="text-[9px] font-bold opacity-60">
+                          {new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {isMine && <CheckCheck size={12} className="opacity-60" />}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-        {recipientTyping && (
-          <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none px-4 py-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              );
+            })
+          )}
+          {recipientTyping && (
+            <div className="flex justify-start mb-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none px-4 py-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Input Area */}
-      <div className="p-6 bg-white border-t border-gray-100">
-        <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-          <div className="flex-1 bg-gray-50 rounded-[1.5rem] border border-gray-200 focus-within:border-purple-400 focus-within:ring-1 focus-within:ring-purple-400 transition-all flex flex-col overflow-hidden">
+      {/* Input Area - Styled like Group Chat */}
+      <div className="bg-[#f0f2f5] p-3 md:p-4 border-t border-gray-200 z-20">
+        <form onSubmit={handleSendMessage} className="flex items-end gap-3 max-w-4xl mx-auto">
+          <div className="flex-1 bg-white rounded-2xl border border-gray-200 focus-within:border-purple-400 transition-all flex items-end px-3 py-2">
+            <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><Smile size={22} /></button>
             <textarea
               value={newMessage}
               onChange={handleInputChange}
@@ -273,31 +277,24 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                 }
               }}
               placeholder="اكتب رسالتك هنا..."
-              className="w-full bg-transparent border-none focus:ring-0 p-4 text-sm md:text-base resize-none max-h-32 min-h-[56px]"
+              className="flex-1 bg-transparent border-none focus:ring-0 p-2 text-sm md:text-base resize-none max-h-32 min-h-[40px] text-gray-800"
               rows={1}
             />
-            <div className="flex items-center justify-between px-3 pb-3">
-              <div className="flex items-center gap-1">
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><Smile size={20} /></button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><Paperclip size={20} /></button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><ImageIcon size={20} /></button>
-              </div>
-              <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><MoreHorizontal size={20} /></button>
-            </div>
+            <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><Paperclip size={22} /></button>
           </div>
           <button
             type="submit"
             disabled={!newMessage.trim() || isSending}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
               newMessage.trim() && !isSending
                 ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 scale-100 active:scale-90'
                 : 'bg-gray-100 text-gray-400 scale-95'
             }`}
           >
             {isSending ? (
-              <Loader2 size={24} className="animate-spin" />
+              <Loader2 size={20} className="animate-spin" />
             ) : (
-              <Send size={24} className={newMessage.trim() ? 'translate-x-0.5' : ''} />
+              <Send size={20} className={newMessage.trim() ? 'translate-x-0.5' : ''} />
             )}
           </button>
         </form>
