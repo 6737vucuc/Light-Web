@@ -66,6 +66,8 @@ export const supportTickets = pgTable('support_tickets', {
   respondedAt: timestamp('responded_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+  likes: integer('likes').default(0),
+  type: varchar('type', { length: 50 }),
 });
 
 // Support Replies table
@@ -462,6 +464,7 @@ export const testimonies = pgTable('testimonies', {
   approvedAt: timestamp('approved_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+  likes: integer('likes').default(0),
 });
 
 // ========================================

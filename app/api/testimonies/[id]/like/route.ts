@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { supportTickets } from '@/lib/db/schema';
+import { testimonies, supportTickets } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
 import { eq } from 'drizzle-orm';
 
@@ -21,32 +21,50 @@ export async function POST(
     const { id } = await params;
     const testimonyId = parseInt(id);
 
-    // Get current testimony
-    const testimony = await db
-      .select({ likes: supportTickets.likes })
+    // Try to find in testimonies table first
+    const testimonyData = await db
+      .select({ id: testimonies.id, likes: testimonies.likes })
+      .from(testimonies)
+      .where(eq(testimonies.id, testimonyId))
+      .limit(1);
+
+    if (testimonyData.length > 0) {
+      const currentLikes = testimonyData[0].likes || 0;
+      await db
+        .update(testimonies)
+        .set({ likes: currentLikes + 1 })
+        .where(eq(testimonies.id, testimonyId));
+
+      return NextResponse.json({
+        message: 'Testimony liked successfully',
+        likes: currentLikes + 1,
+      });
+    }
+
+    // Fallback to supportTickets table for backward compatibility
+    const ticketData = await db
+      .select({ id: supportTickets.id, likes: supportTickets.likes })
       .from(supportTickets)
       .where(eq(supportTickets.id, testimonyId))
       .limit(1);
 
-    if (testimony.length === 0) {
-      return NextResponse.json(
-        { error: 'Testimony not found' },
-        { status: 404 }
-      );
+    if (ticketData.length > 0) {
+      const currentLikes = ticketData[0].likes || 0;
+      await db
+        .update(supportTickets)
+        .set({ likes: currentLikes + 1 })
+        .where(eq(supportTickets.id, testimonyId));
+
+      return NextResponse.json({
+        message: 'Testimony liked successfully',
+        likes: currentLikes + 1,
+      });
     }
 
-    const currentLikes = testimony[0].likes || 0;
-
-    // Update likes
-    await db
-      .update(supportTickets)
-      .set({ likes: currentLikes + 1 })
-      .where(eq(supportTickets.id, testimonyId));
-
-    return NextResponse.json({
-      message: 'Testimony liked successfully',
-      likes: currentLikes + 1,
-    });
+    return NextResponse.json(
+      { error: 'Testimony not found' },
+      { status: 404 }
+    );
   } catch (error) {
     console.error('Like testimony error:', error);
     return NextResponse.json(

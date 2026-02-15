@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
         userAvatar: users.avatar,
         content: testimonies.content,
         createdAt: testimonies.createdAt,
+        likes: testimonies.likes,
       })
       .from(testimonies)
       .leftJoin(users, eq(testimonies.userId, users.id))
