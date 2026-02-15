@@ -82,50 +82,29 @@ export default function SupportManager() {
   const handleTestimonyAction = async (ticket: SupportTicket, action: 'approve' | 'reject') => {
     setProcessing(true);
     try {
-      if (action === 'approve') {
-        // 1. Create testimony in testimonies table
-        const testimonyRes = await fetch('/api/testimonies', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: ticket.message,
-            religion: 'Christianity',
-            userId: ticket.userId,
-          }),
-        });
-
-        if (!testimonyRes.ok) throw new Error('Failed to create testimony');
-        
-        const testimonyData = await testimonyRes.json();
-        const testimonyId = testimonyData.testimony?.id;
-
-        // 2. Approve the testimony
-        if (testimonyId) {
-          await fetch(`/api/admin/testimonies/${testimonyId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isApproved: true }),
-          });
-        }
-      }
-
-      // 3. Update ticket status
-      const status = action === 'approve' ? 'resolved' : 'closed';
-      const response = await fetch(`/api/admin/support/${ticket.id}`, {
-        method: 'PATCH',
+      const endpoint = action === 'approve' 
+        ? `/api/admin/support/${ticket.id}/approve`
+        : `/api/admin/support/${ticket.id}/reject`;
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
       });
 
       if (response.ok) {
-        toast.show(action === 'approve' ? 'Testimony approved and published' : 'Testimony rejected', 'success');
+        toast.show(
+          action === 'approve' 
+            ? 'Testimonial approved successfully! It will appear on the homepage.' 
+            : 'Testimonial rejected successfully.', 
+          'success'
+        );
         fetchTickets();
       } else {
-        toast.show('Failed to update ticket status', 'error');
+        toast.show('Failed to process testimonial', 'error');
       }
     } catch (error) {
-      console.error('Error processing testimony:', error);
-      toast.show('Error processing testimony', 'error');
+      console.error('Error processing testimonial:', error);
+      toast.show('Error processing testimonial', 'error');
     } finally {
       setProcessing(false);
     }
@@ -310,7 +289,7 @@ export default function SupportManager() {
                         disabled={processing || ticket.status === 'resolved'}
                         className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50"
                       >
-                        {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Accept'}
+                        {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Approve'}
                       </button>
                       <button
                         onClick={() => handleTestimonyAction(ticket, 'reject')}

@@ -7,8 +7,9 @@ import Link from 'next/link';
 interface Testimony {
   id: number;
   userName: string;
-  content: string;
-  createdAt: string;
+  userAvatar?: string;
+  message: string;
+  approvedAt: string;
   likes: number;
 }
 
@@ -23,17 +24,17 @@ export default function DailyTestimony() {
 
   const loadTestimony = async () => {
     try {
-      const response = await fetch('/api/testimonies');
+      const response = await fetch('/api/testimonials');
       if (response.ok) {
         const data = await response.json();
-        if (data.testimonies && data.testimonies.length > 0) {
-          // Get a random testimony
-          const randomIndex = Math.floor(Math.random() * data.testimonies.length);
-          setTestimony(data.testimonies[randomIndex]);
+        if (data.testimonials && data.testimonials.length > 0) {
+          // Get a random testimonial
+          const randomIndex = Math.floor(Math.random() * data.testimonials.length);
+          setTestimony(data.testimonials[randomIndex]);
         }
       }
     } catch (error) {
-      console.error('Error loading testimony:', error);
+      console.error('Error loading testimonial:', error);
     } finally {
       setLoading(false);
     }
@@ -109,7 +110,7 @@ export default function DailyTestimony() {
 
           {/* Testimony content */}
           <p className="text-lg md:text-xl text-gray-900 font-bold leading-relaxed mb-8">
-            {testimony.content}
+            {testimony.message}
           </p>
 
           {/* Author and actions */}
@@ -117,7 +118,7 @@ export default function DailyTestimony() {
             <div>
               <p className="font-black text-gray-900">{testimony.userName}</p>
               <p className="text-sm text-gray-500 font-medium">
-                {new Date(testimony.createdAt).toLocaleDateString('en-US', {
+                {new Date(testimony.approvedAt).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',

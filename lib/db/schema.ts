@@ -68,6 +68,9 @@ export const supportTickets = pgTable('support_tickets', {
   updatedAt: timestamp('updated_at').defaultNow(),
   likes: integer('likes').default(0),
   type: varchar('type', { length: 50 }),
+  approved: boolean('approved').default(false),
+  approvedAt: timestamp('approved_at'),
+  approvedBy: integer('approved_by').references(() => users.id),
 });
 
 // Support Replies table
