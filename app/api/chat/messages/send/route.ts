@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
   isRead: false,
   isDeleted: false,
 }).returning();
+    
     // Broadcast via Supabase Realtime
     try {
       const channelId = RealtimeChatService.getPrivateChannelName(user.userId, recipientId);
