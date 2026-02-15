@@ -300,6 +300,18 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
         </div>
       </div>
 
+      {/* User Avatar Menu Overlay */}
+      {avatarMenu.isOpen && (
+        <UserAvatarMenu
+          userId={avatarMenu.userId}
+          userName={avatarMenu.userName}
+          avatar={avatarMenu.avatar}
+          isOpen={avatarMenu.isOpen}
+          position={avatarMenu.position}
+          onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })}
+        />
+      )}
+
       {/* Input Area */}
       <div className="bg-[#f0f2f5] p-3 md:p-4 border-t border-gray-200 z-20">
         {replyTo && (

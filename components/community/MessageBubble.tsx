@@ -49,7 +49,11 @@ export default function MessageBubble({
         {!isOwn && (
           <div 
             className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={(e) => onAvatarClick && onAvatarClick(userId, userName, userAvatar, e)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAvatarClick && onAvatarClick(userId, userName, userAvatar, e);
+            }}
           >
             {userAvatar ? (
               <Image
@@ -73,7 +77,11 @@ export default function MessageBubble({
           {!isOwn && (
             <span 
               className="text-[10px] font-bold text-gray-500 mb-1 ml-2 uppercase tracking-wider cursor-pointer hover:text-purple-600"
-              onClick={(e) => onAvatarClick && onAvatarClick(userId, userName, userAvatar, e)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAvatarClick && onAvatarClick(userId, userName, userAvatar, e);
+              }}
             >
               {userName}
             </span>
