@@ -169,7 +169,8 @@ export class RealtimeChatService {
     const u1 = parseInt(String(user1Id));
     const u2 = parseInt(String(user2Id));
     const [id1, id2] = [u1, u2].sort((a, b) => a - b);
-    return `private_chat_${id1}_${id2}`;
+    // Use a very simple and clear naming convention
+    return `private-chat-${id1}-${id2}`;
   }
 
   // Get channel name for group chat
