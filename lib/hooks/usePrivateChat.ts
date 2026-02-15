@@ -21,19 +21,50 @@ export function usePrivateChat(recipientId: number, currentUserId: number) {
 
     channel
       .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
+        const normalizedMsg = {
+          id: payload.id,
+          senderId: payload.senderId || payload.user_id || payload.sender_id,
+          recipientId: payload.recipientId || payload.recipient_id,
+          content: payload.content,
+          createdAt: payload.createdAt || payload.created_at || payload.timestamp,
+          messageType: payload.messageType || payload.message_type || 'text',
+          isRead: payload.isRead || payload.is_read || false
+        };
+
         setMessages((prev) => {
-          // Normalize IDs for comparison
-          const payloadId = payload.id;
-          if (prev.some(m => (m.id === payloadId || m.tempId === payloadId))) return prev;
+          if (prev.some(m => m.id === normalizedMsg.id)) return prev;
           
-          // Ensure the message is relevant to this conversation
           const isRelevant = 
-            (payload.senderId === currentUserId && payload.recipientId === recipientId) ||
-            (payload.senderId === recipientId && payload.recipientId === currentUserId);
+            (String(normalizedMsg.senderId) === String(currentUserId) && String(normalizedMsg.recipientId) === String(recipientId)) ||
+            (String(normalizedMsg.senderId) === String(recipientId) && String(normalizedMsg.recipientId) === String(currentUserId));
             
           if (!isRelevant) return prev;
-          
-          return [...prev, payload];
+          return [...prev, normalizedMsg];
+        });
+      })
+      // Absolute fallback: Listen to Postgres changes directly
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'direct_messages',
+        filter: `recipient_id=eq.${currentUserId}` 
+      }, (payload) => {
+        const newMsg = payload.new;
+        if (String(newMsg.sender_id) !== String(recipientId)) return;
+
+        const normalizedMsg = {
+          id: newMsg.id,
+          senderId: newMsg.sender_id,
+          recipientId: newMsg.recipient_id,
+          content: newMsg.content,
+          createdAt: newMsg.created_at,
+          messageType: newMsg.message_type,
+          isRead: newMsg.is_read
+        };
+
+        setMessages((prev) => {
+          if (prev.some(m => m.id === normalizedMsg.id)) return prev;
+          return [...prev, normalizedMsg];
         });
       })
       .on('broadcast', { event: ChatEvent.TYPING }, ({ payload }) => {
