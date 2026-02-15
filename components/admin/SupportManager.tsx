@@ -174,6 +174,8 @@ export default function SupportManager() {
 
     // FORCED TESTIMONY CHECK - Most aggressive check possible
     const isTestimony = 
+      type === 'testimony' ||
+      type === 'testimony faith' ||
       type.includes('test') || 
       type.includes('شهادة') || 
       type.includes('شهاده') || 
@@ -290,7 +292,7 @@ export default function SupportManager() {
                     </div>
                   </div>
 
-                  {displayType === 'testimony' ? (
+                  {displayType === 'testimony' || ticket.type?.toLowerCase().includes('test') ? (
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
                         <button
@@ -367,28 +369,27 @@ export default function SupportManager() {
               />
             </div>
 
-            {/* Extra Control Buttons inside Modal for redundancy */}
-            {getActualType(selectedTicket) === 'testimony' && (
-              <div className="mb-6 p-4 bg-purple-50 rounded-2xl border-2 border-purple-100">
-                <p className="text-xs font-black text-purple-600 uppercase tracking-widest mb-3">Testimonial Controls</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => handleTestimonyAction(selectedTicket, 'approve')}
-                    disabled={processing || selectedTicket.status === 'resolved'}
-                    className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <><CheckCircle size={18} /> Approve Testimony</>}
-                  </button>
-                  <button
-                    onClick={() => handleTestimonyAction(selectedTicket, 'reject')}
-                    disabled={processing || selectedTicket.status === 'closed'}
-                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <><AlertCircle size={18} /> Reject</>}
-                  </button>
-                </div>
+            {/* Forced Control Buttons inside Modal for absolute certainty */}
+            <div className="mb-6 p-4 bg-purple-50 rounded-2xl border-2 border-purple-100">
+              <p className="text-xs font-black text-purple-600 uppercase tracking-widest mb-3">Testimonial Controls (Force Displayed)</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleTestimonyAction(selectedTicket, 'approve')}
+                  disabled={processing || selectedTicket.status === 'resolved'}
+                  className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <><CheckCircle size={18} /> Approve</>}
+                </button>
+                <button
+                  onClick={() => handleTestimonyAction(selectedTicket, 'reject')}
+                  disabled={processing || selectedTicket.status === 'closed'}
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <><AlertCircle size={18} /> Reject</>}
+                </button>
               </div>
-            )}
+              <p className="text-[10px] text-purple-400 mt-2 font-medium italic">* Use these buttons if this ticket is a testimony to display it on homepage.</p>
+            </div>
 
             <div className="flex gap-4">
               <button
