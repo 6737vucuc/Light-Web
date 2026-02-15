@@ -172,30 +172,31 @@ export default function SupportManager() {
     const subject = (ticket.subject || '').toLowerCase();
     const message = (ticket.message || '').toLowerCase();
 
-    // Check for testimony first as it's the most specific
-    // We check for many variations of the word "testimony" and "شهادة"
-    if (type.includes('testimony') || 
-        type.includes('testim') ||
-        subject.includes('testimony') || 
-        message.includes('testimony') || 
-        subject.includes('شهادة') || 
-        message.includes('شهادة') ||
-        type.includes('share') ||
-        type.includes('test') || // Some systems might use 'test' as shorthand
-        type.includes('شهاده')) {
-      return 'testimony';
-    }
+    // FORCED TESTIMONY CHECK - Most aggressive check possible
+    const isTestimony = 
+      type.includes('test') || 
+      type.includes('شهادة') || 
+      type.includes('شهاده') || 
+      subject.toLowerCase().includes('test') || 
+      subject.includes('شهادة') || 
+      subject.includes('شهاده') ||
+      message.toLowerCase().includes('test') || 
+      message.includes('شهادة') || 
+      message.includes('شهاده') ||
+      type.includes('share');
+
+    if (isTestimony) return 'testimony';
     
-    if (type.includes('prayer') || 
-        type.includes('pray') ||
-        subject.includes('pray') || 
-        message.includes('pray') || 
-        subject.includes('صلاة') || 
-        message.includes('صلاة') ||
-        subject.includes('صلاه') ||
-        message.includes('صلاه')) {
-      return 'prayer';
-    }
+    const isPrayer = 
+      type.includes('pray') || 
+      subject.toLowerCase().includes('pray') || 
+      subject.includes('صلاة') || 
+      subject.includes('صلاه') ||
+      message.toLowerCase().includes('pray') || 
+      message.includes('صلاة') || 
+      message.includes('صلاه');
+
+    if (isPrayer) return 'prayer';
     
     return 'technical';
   };
@@ -365,6 +366,29 @@ export default function SupportManager() {
                 placeholder="Type your reply here... This will be sent via email to the user."
               />
             </div>
+
+            {/* Extra Control Buttons inside Modal for redundancy */}
+            {getActualType(selectedTicket) === 'testimony' && (
+              <div className="mb-6 p-4 bg-purple-50 rounded-2xl border-2 border-purple-100">
+                <p className="text-xs font-black text-purple-600 uppercase tracking-widest mb-3">Testimonial Controls</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleTestimonyAction(selectedTicket, 'approve')}
+                    disabled={processing || selectedTicket.status === 'resolved'}
+                    className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <><CheckCircle size={18} /> Approve Testimony</>}
+                  </button>
+                  <button
+                    onClick={() => handleTestimonyAction(selectedTicket, 'reject')}
+                    disabled={processing || selectedTicket.status === 'closed'}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <><AlertCircle size={18} /> Reject</>}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-4">
               <button
