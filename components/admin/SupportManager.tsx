@@ -173,20 +173,27 @@ export default function SupportManager() {
     const message = (ticket.message || '').toLowerCase();
 
     // Check for testimony first as it's the most specific
-    if (type === 'testimony' || 
+    // We check for many variations of the word "testimony" and "شهادة"
+    if (type.includes('testimony') || 
+        type.includes('testim') ||
         subject.includes('testimony') || 
         message.includes('testimony') || 
         subject.includes('شهادة') || 
         message.includes('شهادة') ||
-        type === 'share testimony') {
+        type.includes('share') ||
+        type.includes('test') || // Some systems might use 'test' as shorthand
+        type.includes('شهاده')) {
       return 'testimony';
     }
     
-    if (type === 'prayer' || 
+    if (type.includes('prayer') || 
+        type.includes('pray') ||
         subject.includes('pray') || 
         message.includes('pray') || 
         subject.includes('صلاة') || 
-        message.includes('صلاة')) {
+        message.includes('صلاة') ||
+        subject.includes('صلاه') ||
+        message.includes('صلاه')) {
       return 'prayer';
     }
     
@@ -283,20 +290,28 @@ export default function SupportManager() {
                   </div>
 
                   {displayType === 'testimony' ? (
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleTestimonyAction(ticket, 'approve')}
+                          disabled={processing || ticket.status === 'resolved'}
+                          className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50 shadow-lg shadow-green-100 flex items-center justify-center gap-2"
+                        >
+                          {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <><CheckCircle size={16} /> Approve</>}
+                        </button>
+                        <button
+                          onClick={() => handleTestimonyAction(ticket, 'reject')}
+                          disabled={processing || ticket.status === 'closed'}
+                          className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50 shadow-lg shadow-red-100 flex items-center justify-center gap-2"
+                        >
+                          {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <><AlertCircle size={16} /> Reject</>}
+                        </button>
+                      </div>
                       <button
-                        onClick={() => handleTestimonyAction(ticket, 'approve')}
-                        disabled={processing || ticket.status === 'resolved'}
-                        className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50"
+                        onClick={() => setSelectedTicket(ticket)}
+                        className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all text-xs flex items-center justify-center gap-2"
                       >
-                        {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Approve'}
-                      </button>
-                      <button
-                        onClick={() => handleTestimonyAction(ticket, 'reject')}
-                        disabled={processing || ticket.status === 'closed'}
-                        className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50"
-                      >
-                        {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Reject'}
+                        <Mail size={14} /> Reply via Email
                       </button>
                     </div>
                   ) : (
