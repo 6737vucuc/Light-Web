@@ -22,8 +22,11 @@ export function usePrivateChat(recipientId: number, currentUserId: number) {
     channel
       .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
         setMessages((prev) => {
+          // Check for existing message by ID or temporary ID
           if (prev.some(m => m.id === payload.id)) return prev;
-          return [...prev, payload];
+          // Filter out optimistic message with same content if it exists
+          const filtered = prev.filter(m => !(m.content === payload.content && m.senderId === payload.senderId && String(m.id).length > 10));
+          return [...filtered, payload];
         });
       })
       .on('broadcast', { event: ChatEvent.TYPING }, ({ payload }) => {

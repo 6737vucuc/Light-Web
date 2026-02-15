@@ -110,6 +110,18 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     setNewMessage('');
     sendTypingStatus(false);
 
+    // Optimistic update
+    const tempMsg = {
+      id: Date.now(),
+      senderId: currentUserId,
+      recipientId: recipientId,
+      content: content,
+      createdAt: new Date().toISOString(),
+      messageType: 'text',
+      isRead: false
+    };
+    setMessages(prev => [...prev, tempMsg]);
+
     try {
       const res = await fetch('/api/chat/messages/send', {
         method: 'POST',
@@ -122,13 +134,17 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
       });
 
       if (!res.ok) {
+        // Remove optimistic message on error
+        setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
         setNewMessage(content);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
       setNewMessage(content);
     } finally {
       setIsSending(false);
+      setTimeout(scrollToBottom, 100);
     }
   };
 
