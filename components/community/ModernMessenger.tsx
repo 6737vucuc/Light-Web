@@ -1,13 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { usePrivateChat } from '@/lib/hooks/usePrivateChat';
-import { 
-  X, Send, Smile, Paperclip, CheckCheck, MessageSquare, Loader2 
-} from 'lucide-react';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
 import { ChatEvent, RealtimeChatService } from '@/lib/realtime/chat';
+import { X, Send, Smile, Paperclip, CheckCheck, MessageSquare, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 
 interface ModernMessengerProps {
   recipient: any;
@@ -15,11 +12,23 @@ interface ModernMessengerProps {
   onClose: () => void;
 }
 
+interface Message {
+  id: number;
+  senderId: number;
+  recipientId: number;
+  content: string;
+  createdAt: string;
+  messageType: string;
+  isRead: boolean;
+  isDeleted?: boolean;
+}
+
 export default function ModernMessenger({ recipient, currentUser, onClose }: ModernMessengerProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
   const [recipientOnline, setRecipientOnline] = useState(false);
+  const [recipientTyping, setRecipientTyping] = useState(false);
   const [recipientLastSeen, setRecipientLastSeen] = useState<Date | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
@@ -27,97 +36,84 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const currentUserId = currentUser?.id || currentUser?.userId;
   const recipientId = recipient?.id || recipient?.userId;
 
-  const { messages: realtimeMessages, setMessages, recipientTyping, sendTyping: sendTypingStatus } =
-    usePrivateChat(recipientId, currentUserId);
-
-  // تحميل الرسائل عند تغيير المستلم
+  // Load messages from DB on mount or recipient change
   useEffect(() => {
-    loadMessages();
+    fetchMessages();
   }, [recipientId]);
 
+  // Scroll down on new messages
   useEffect(() => {
-    if (realtimeMessages.length > 0) scrollToBottom();
-  }, [realtimeMessages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  // إدارة الحالة المتصلة والRealtime
+  // Realtime subscription
   useEffect(() => {
     if (!currentUserId || !recipientId) return;
 
     const channelName = RealtimeChatService.getPrivateChannelName(currentUserId, recipientId);
     const channel = supabase.channel(channelName, { config: { broadcast: { self: true } } });
 
-    const handleOnlineStatus = ({ payload }: any) => {
-      if (String(payload.userId) === String(recipientId)) {
-        setRecipientOnline(payload.isOnline);
-        if (!payload.isOnline && payload.lastSeen) {
-          setRecipientLastSeen(new Date(payload.lastSeen));
-        }
-      }
-    };
-
     channel
-      .on('broadcast', { event: ChatEvent.ONLINE_STATUS }, handleOnlineStatus)
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          // إرسال حالة الاتصال الحالية عند الاشتراك
-          await channel.send({
-            type: 'broadcast',
-            event: ChatEvent.ONLINE_STATUS,
-            payload: { userId: currentUserId, isOnline: true, lastSeen: new Date().toISOString() }
-          });
+      .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
+        setMessages(prev => [...prev, payload]);
+      })
+      .on('broadcast', { event: ChatEvent.ONLINE_STATUS }, ({ payload }) => {
+        if (payload.userId === recipientId) {
+          setRecipientOnline(payload.isOnline);
+          if (!payload.isOnline) setRecipientLastSeen(new Date());
         }
+      })
+      .on('broadcast', { event: ChatEvent.TYPING_STATUS }, ({ payload }) => {
+        if (payload.userId === recipientId) setRecipientTyping(payload.isTyping);
+      })
+      .subscribe()
+      .then(() => {
+        channel.send({
+          type: 'broadcast',
+          event: ChatEvent.ONLINE_STATUS,
+          payload: { userId: currentUserId, isOnline: true },
+        });
       });
-
-    const handleBeforeUnload = async () => {
-      await channel.send({
-        type: 'broadcast',
-        event: ChatEvent.ONLINE_STATUS,
-        payload: { userId: currentUserId, isOnline: false, lastSeen: new Date().toISOString() }
-      });
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      handleBeforeUnload();
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      channel.send({
+        type: 'broadcast',
+        event: ChatEvent.ONLINE_STATUS,
+        payload: { userId: currentUserId, isOnline: false },
+      });
       supabase.removeChannel(channel);
     };
   }, [currentUserId, recipientId]);
 
-  const loadMessages = async () => {
+  const fetchMessages = async () => {
     try {
-      const res = await fetch(`/api/chat/messages/${recipientId}`);
+      const res = await fetch(`/api/chat/messages/${recipientId}?currentUserId=${currentUserId}`);
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
       }
-    } catch (error) {
-      console.error('Error loading messages:', error);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const sendMessage = async () => {
     if (!newMessage.trim() || isSending) return;
-
     setIsSending(true);
+
     const content = newMessage.trim();
     setNewMessage('');
-    sendTypingStatus(false);
 
-    const tempMsg = {
+    const tempMsg: Message = {
       id: Date.now(),
       senderId: currentUserId,
-      recipientId: recipientId,
-      content: content,
+      recipientId,
+      content,
       createdAt: new Date().toISOString(),
       messageType: 'text',
-      isRead: false
+      isRead: false,
     };
     setMessages(prev => [...prev, tempMsg]);
 
@@ -127,9 +123,9 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipientId, content, messageType: 'text' }),
       });
-      if (!res.ok) setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
-    } catch (error) {
-      console.error('Error sending message:', error);
+      if (!res.ok) throw new Error('Failed to send');
+    } catch (err) {
+      console.error(err);
       setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
       setNewMessage(content);
     } finally {
@@ -140,151 +136,102 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNewMessage(e.target.value);
+    sendTyping(true);
+  };
 
-    if (!isTyping) {
-      setIsTyping(true);
-      sendTypingStatus(true);
+  const sendTyping = (isTyping: boolean) => {
+    if (!currentUserId || !recipientId) return;
+    supabase.channel(RealtimeChatService.getPrivateChannelName(currentUserId, recipientId))
+      .send({ type: 'broadcast', event: ChatEvent.TYPING_STATUS, payload: { userId: currentUserId, isTyping } });
+  };
+
+  const deleteMessageForBoth = async (messageId: number) => {
+    try {
+      await fetch('/api/chat/messages/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId }),
+      });
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    } catch (err) {
+      console.error(err);
     }
-
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      setIsTyping(false);
-      sendTypingStatus(false);
-    }, 3000);
   };
 
-  const getAvatarUrl = (avatar?: string | null) => {
-    if (!avatar) return '/default-avatar.png';
-    if (avatar.startsWith('data:') || avatar.startsWith('http')) return avatar;
-    return `https://neon-image-bucket.s3.us-east-1.amazonaws.com/${avatar}`;
-  };
-
-  const formatLastSeen = (date: Date | null) => {
-    if (!date) return '';
-    const diff = new Date().getTime() - date.getTime();
-    const mins = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
+  const formatTime = (dateStr: string) =>
+    new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="flex flex-col h-full bg-[#f0f2f5] overflow-hidden relative">
-      {/* Header */}
-      <div className="bg-[#f0f2f5] px-4 py-3 flex items-center justify-between border-b border-gray-200 z-20">
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between p-3 border-b bg-gray-100">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full overflow-hidden shadow-md">
-              {recipient.avatar ? (
-                <Image src={getAvatarUrl(recipient.avatar)} alt={recipient.name} fill className="object-cover" unoptimized />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-500 text-white text-lg font-black">
-                  {recipient.name?.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
-            <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[#f0f2f5] rounded-full ${recipientOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+          <div className="relative w-10 h-10 rounded-full overflow-hidden">
+            {recipient.avatar ? (
+              <Image src={recipient.avatar} alt={recipient.name} fill className="object-cover" />
+            ) : (
+              <div className="bg-purple-500 text-white flex items-center justify-center">
+                {recipient.name.charAt(0)}
+              </div>
+            )}
+            <span
+              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-100 ${
+                recipientOnline ? 'bg-green-500' : 'bg-gray-400'
+              }`}
+            />
           </div>
-          <div className="flex-1">
-            <h3 className="font-bold text-gray-900">{recipient.name}</h3>
-            <div className="flex items-center gap-1.5">
-              {recipientTyping ? (
-                <span className="text-[10px] text-purple-600 font-bold animate-pulse uppercase tracking-wider">يكتب الآن...</span>
-              ) : recipientOnline ? (
-                <span className="text-[10px] text-green-600 font-bold uppercase tracking-wider">متصل الآن</span>
-              ) : (
-                <span className="text-[10px] text-gray-500 font-medium">
-                  {recipientLastSeen ? `آخر ظهور ${formatLastSeen(recipientLastSeen)}` : 'غير متصل'}
-                </span>
-              )}
+          <div>
+            <div className="font-bold">{recipient.name}</div>
+            <div className="text-xs">
+              {recipientTyping
+                ? 'Typing...'
+                : recipientOnline
+                ? 'Online'
+                : recipientLastSeen
+                ? `Last seen ${new Date(recipientLastSeen).toLocaleTimeString()}`
+                : 'Offline'}
             </div>
           </div>
         </div>
-        <button onClick={onClose} className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
-          <X size={20} />
-        </button>
+        <button onClick={onClose}><X /></button>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar bg-[#e5ddd5] relative">
-        <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-        <div className="relative z-10">
-          {realtimeMessages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 opacity-40">
-              <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-4 shadow-sm">
-                <MessageSquare size={40} className="text-gray-400" />
-              </div>
-              <p className="font-bold text-gray-600 text-center">ابدأ محادثة جميلة مع {recipient.name}</p>
-            </div>
-          ) : (
-            realtimeMessages.map((msg, idx) => {
-              const isMine = msg.senderId === currentUserId;
-              return (
-                <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-4`}>
-                  <div className={`max-w-[85%] md:max-w-[70%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                    <div className={`relative px-4 py-3 shadow-sm transition-all duration-300 ${
-                      isMine 
-                        ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-[1.5rem] rounded-tr-none' 
-                        : 'bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none'
-                    }`}>
-                      <p className="text-sm md:text-base leading-relaxed break-words whitespace-pre-wrap">{msg.content}</p>
-                      <div className={`flex items-center gap-1.5 mt-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                        <span className="text-[9px] font-bold opacity-60">
-                          {new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        {isMine && <CheckCheck size={12} className="opacity-60" />}
-                      </div>
-                    </div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {messages.map(msg => {
+          const isMine = msg.senderId === currentUserId;
+          return (
+            <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+              <div className="relative">
+                <div
+                  className={`px-3 py-2 rounded-lg ${isMine ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}
+                >
+                  <p>{msg.content}</p>
+                  <div className="text-xs flex justify-end items-center gap-1 mt-1">
+                    <span>{formatTime(msg.createdAt)}</span>
+                    {isMine && <button onClick={() => deleteMessageForBoth(msg.id)} className="text-red-400">Delete</button>}
                   </div>
                 </div>
-              );
-            })
-          )}
-          {recipientTyping && (
-            <div className="flex justify-start mb-4">
-              <div className="bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none px-4 py-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                </div>
               </div>
             </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+          );
+        })}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="bg-[#f0f2f5] p-3 md:p-4 border-t border-gray-200 z-20">
-        <form onSubmit={handleSendMessage} className="flex items-end gap-3 max-w-4xl mx-auto">
-          <div className="flex-1 bg-white rounded-2xl border border-gray-200 focus-within:border-purple-400 transition-all flex items-end px-3 py-2">
-            <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><Smile size={22} /></button>
-            <textarea
-              value={newMessage}
-              onChange={handleInputChange}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-              placeholder="اكتب رسالتك هنا..."
-              className="flex-1 bg-transparent border-none focus:ring-0 p-2 text-sm md:text-base resize-none max-h-32 min-h-[40px] text-gray-800"
-              rows={1}
-            />
-            <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><Paperclip size={22} /></button>
-          </div>
-          <button
-            type="submit"
-            disabled={!newMessage.trim() || isSending}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-              newMessage.trim() && !isSending
-                ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 scale-100 active:scale-90'
-                : 'bg-gray-100 text-gray-400 scale-95'
-            }`}
-          >
-            {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-          </button>
-        </form>
+      <div className="p-2 flex gap-2 border-t bg-gray-100">
+        <textarea
+          value={newMessage}
+          onChange={handleInputChange}
+          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
+          placeholder="Type your message..."
+          className="flex-1 p-2 rounded-lg border"
+        />
+        <button
+          onClick={sendMessage}
+          disabled={!newMessage.trim() || isSending}
+          className="px-3 rounded-lg bg-purple-600 text-white"
+        >
+          {isSending ? <Loader2 className="animate-spin" /> : <Send />}
+        </button>
       </div>
     </div>
   );
