@@ -20,22 +20,29 @@ export default function GlobalNotificationListener({ currentUser }: GlobalNotifi
   useEffect(() => {
     if (!currentUserId) return;
 
-    // Listen to the recipient's global notification channel
+    // The channel name must match exactly what the backend sends
     const notificationChannelName = `user-notifications:${currentUserId}`;
+    
+    console.log(`[NotificationListener] Subscribing to: ${notificationChannelName}`);
+
     const channel = supabase.channel(notificationChannelName, {
       config: {
         broadcast: { self: false },
       },
     });
+    
     channelRef.current = channel;
 
     channel
       .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
-        // IMPORTANT: Only show notification if the user is INSIDE the community/groups page
-        // and NOT already in the private messages page
+        console.log('[NotificationListener] Received payload:', payload);
+        
+        // Check if we are in the community page (as requested)
         const isCommunityPage = pathname.includes('/community');
         const isMessagesPage = pathname.includes('/messages');
         
+        console.log(`[NotificationListener] Path check - Community: ${isCommunityPage}, Messages: ${isMessagesPage}`);
+
         if (isCommunityPage && !isMessagesPage) {
           toast.show(
             <div className="flex items-center gap-3">
@@ -55,14 +62,19 @@ export default function GlobalNotificationListener({ currentUser }: GlobalNotifi
           try {
             const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
             audio.volume = 0.4;
-            audio.play().catch(() => {}); 
-          } catch (e) {}
+            audio.play().catch(err => console.error('[NotificationListener] Audio play error:', err)); 
+          } catch (e) {
+            console.error('[NotificationListener] Audio error:', e);
+          }
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[NotificationListener] Subscription status for ${notificationChannelName}:`, status);
+      });
 
     return () => {
       if (channelRef.current) {
+        console.log(`[NotificationListener] Unsubscribing from: ${notificationChannelName}`);
         supabase.removeChannel(channelRef.current);
       }
     };

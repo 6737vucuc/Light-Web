@@ -24,8 +24,6 @@ export async function POST(request: NextRequest) {
       isRead: false,
     }).returning();
 
-    // Broadcast via Supabase Realtime
-    const channelId = RealtimeChatService.getPrivateChannelName(user.userId, parseInt(recipientId));
     const supabaseAdmin = getSupabaseAdmin();
     
     const messagePayload = {
@@ -41,15 +39,17 @@ export async function POST(request: NextRequest) {
       isRead: false,
     };
 
-    // Broadcast to the private chat channel
-    await supabaseAdmin.channel(channelId).send({
+    // 1. Broadcast to the private chat channel (for the active conversation)
+    const chatChannelId = RealtimeChatService.getPrivateChannelName(user.userId, parseInt(recipientId));
+    await supabaseAdmin.channel(chatChannelId).send({
       type: 'broadcast',
       event: ChatEvent.NEW_MESSAGE,
       payload: messagePayload,
     });
 
-    // Also broadcast to the recipient's global notification channel
+    // 2. Broadcast to the recipient's global notification channel (for background alerts)
     const notificationChannelName = `user-notifications:${recipientId}`;
+    // We create a new channel instance to ensure it's fresh for this broadcast
     await supabaseAdmin.channel(notificationChannelName).send({
       type: 'broadcast',
       event: ChatEvent.NEW_MESSAGE,
