@@ -21,7 +21,10 @@ import {
   Lock,
   Loader2,
   Users,
-  Ban
+  Ban,
+  Phone,
+  Video,
+  Info
 } from 'lucide-react';
 import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
@@ -213,25 +216,25 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
   if (checkingMembership) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-white">
-        <Loader2 size={40} className="animate-spin text-purple-600 mb-4" />
-        <p className="text-gray-500 font-black uppercase tracking-widest text-xs">{t('loading')}</p>
+        <Loader2 size={40} className="animate-spin text-indigo-600 mb-4" />
+        <p className="text-slate-500 font-black uppercase tracking-widest text-xs">{t('loading')}</p>
       </div>
     );
   }
 
   if (!isMember) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-gray-50 p-8 text-center">
-        <div className="w-24 h-24 bg-white rounded-[2.5rem] shadow-xl flex items-center justify-center mb-8 text-gray-300">
+      <div className="flex flex-col items-center justify-center h-full bg-slate-50 p-8 text-center">
+        <div className="w-24 h-24 bg-white rounded-[2.5rem] shadow-xl flex items-center justify-center mb-8 text-slate-300">
           <Lock size={48} />
         </div>
-        <h2 className="text-2xl font-black text-gray-900 mb-4">{group.name}</h2>
-        <p className="text-gray-500 font-medium max-w-xs mb-8 leading-relaxed">
+        <h2 className="text-2xl font-black text-slate-900 mb-4">{group.name}</h2>
+        <p className="text-slate-500 font-medium max-w-xs mb-8 leading-relaxed">
           {t('mustJoin')}
         </p>
         <button 
           onClick={onBack}
-          className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-purple-600 transition-all shadow-xl shadow-gray-200"
+          className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200"
         >
           {t('back')}
         </button>
@@ -240,51 +243,58 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
   }
 
   return (
-    <div className={`flex flex-col h-full bg-[#f0f2f5] relative overflow-hidden ${isRtl ? 'rtl' : 'ltr'}`}>
-      {/* WhatsApp Style Header */}
-      <div className="bg-[#f0f2f5] px-4 py-2 flex items-center justify-between border-b border-gray-200 z-20">
+    <div className={`flex flex-col h-full bg-[#f8fafc] relative overflow-hidden ${isRtl ? 'rtl' : 'ltr'} font-sans`}>
+      {/* Modern Header - Glassmorphism */}
+      <div className="bg-white/70 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-slate-200/60 z-20 shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-            <ArrowLeft size={20} className="text-gray-600" />
+          <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+            <ArrowLeft size={22} className="text-slate-600" />
           </button>
           <div 
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm"
-            style={{ backgroundColor: group.color || '#8B5CF6' }}
+            className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-md border-2 border-white"
+            style={{ backgroundColor: group.color || '#6366f1' }}
           >
-            <Users size={20} />
+            <Users size={22} />
           </div>
           <div className="flex-1">
-            <h3 className="font-bold text-gray-900 leading-tight">{group.name}</h3>
+            <h3 className="font-black text-slate-900 leading-tight text-base tracking-tight">{group.name}</h3>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-emerald-600 font-bold uppercase tracking-wider">
-                {onlineMembersCount} {t('online')}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                <span className="text-[11px] text-emerald-600 font-black uppercase tracking-wider">
+                  {onlineMembersCount} {t('online')}
+                </span>
+              </div>
               {typingUsers.length > 0 && (
-                <span className="text-[11px] text-purple-600 font-medium animate-pulse">
+                <span className="text-[11px] text-indigo-600 font-black animate-pulse uppercase tracking-wider">
                   • {typingUsers[0].name} {t('typing')}
                 </span>
               )}
             </div>
           </div>
         </div>
-        <button className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
-          <MoreVertical size={20} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><Phone size={20} /></button>
+          <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><Video size={20} /></button>
+          <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all">
+            <MoreVertical size={20} />
+          </button>
+        </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-[#e5ddd5] relative custom-scrollbar" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')" }}>
+      {/* Messages Area - Modern Background */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-[#f8fafc] relative custom-scrollbar" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundBlendMode: 'overlay' }}>
         <div className="relative z-10">
           {isLoading ? (
             <div className="flex items-center justify-center h-full py-20">
-              <Loader2 size={32} className="animate-spin text-purple-600" />
+              <Loader2 size={32} className="animate-spin text-indigo-600" />
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 opacity-40">
               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm">
-                <MessageSquare size={32} className="text-gray-400" />
+                <MessageSquare size={32} className="text-slate-400" />
               </div>
-              <p className="font-bold text-gray-600">No messages yet</p>
+              <p className="font-black text-slate-600 uppercase tracking-widest text-xs">No messages yet</p>
             </div>
           ) : (
             messages.map((msg, idx) => (
@@ -294,6 +304,9 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
                 isOwn={String(msg.userId || msg.user_id) === String(currentId)}
                 onReply={setReplyTo}
                 onAvatarClick={(userId, userName, avatar, e) => {
+                  // Ensure we prevent default and stop propagation to avoid conflicts
+                  e.preventDefault();
+                  e.stopPropagation();
                   setAvatarMenu({
                     isOpen: true,
                     userId,
@@ -309,55 +322,57 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="bg-[#f0f2f5] p-2 flex flex-col gap-2 z-20">
+      {/* Modern Input Area */}
+      <div className="bg-white p-3 flex flex-col gap-2 z-20 border-t border-slate-200/60">
         {replyTo && (
-          <div className="mx-2 p-2 bg-white/80 backdrop-blur-sm rounded-xl border-l-4 border-purple-500 flex items-center justify-between animate-in slide-in-from-bottom-2">
+          <div className="mx-2 p-3 bg-slate-50 rounded-2xl border-l-4 border-indigo-500 flex items-center justify-between animate-in slide-in-from-bottom-2">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-0.5">Replying to {replyTo.user?.name || replyTo.userName}</p>
-              <p className="text-xs text-gray-500 truncate font-medium">{replyTo.content}</p>
+              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.1em] mb-0.5">Replying to {replyTo.user?.name || replyTo.userName}</p>
+              <p className="text-xs text-slate-500 truncate font-medium">{replyTo.content}</p>
             </div>
-            <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-gray-100 rounded-full text-gray-400">
+            <button onClick={() => setReplyTo(null)} className="p-1.5 hover:bg-slate-200 rounded-full text-slate-400 transition-colors">
               <X size={16} />
             </button>
           </div>
         )}
 
         {showEmojiPicker && (
-          <div className="absolute bottom-20 left-4 z-50 shadow-2xl">
+          <div className="absolute bottom-24 left-6 z-50 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
             <EmojiPicker 
               onEmojiClick={(emoji) => {
                 setNewMessage(prev => prev + emoji.emoji);
                 setShowEmojiPicker(false);
               }}
               theme={Theme.LIGHT}
-              width={300}
-              height={400}
+              width={320}
+              height={420}
             />
           </div>
         )}
 
-        <div className="flex items-center gap-2 px-2">
-          <button 
-            type="button" 
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"
-          >
-            <Smile size={24} />
-          </button>
-          
-          <button 
-            type="button" 
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"
-          >
-            <Paperclip size={24} />
-          </button>
+        <div className="flex items-center gap-3 px-2 max-w-6xl mx-auto w-full">
+          <div className="flex items-center gap-1">
+            <button 
+              type="button" 
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+            >
+              <Smile size={24} />
+            </button>
+            
+            <button 
+              type="button" 
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+            >
+              <Paperclip size={24} />
+            </button>
+          </div>
           
           <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" />
 
-          <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2">
-            <div className="flex-1 bg-white rounded-full px-4 py-2 flex items-center shadow-sm">
+          <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-3">
+            <div className="flex-1 bg-slate-100 rounded-2xl px-4 py-2.5 flex items-center transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100 border border-transparent focus-within:border-indigo-200">
               <textarea
                 value={newMessage}
                 onChange={(e) => {
@@ -365,7 +380,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
                   handleTyping(true);
                 }}
                 placeholder={tm('typeMessage')}
-                className="w-full bg-transparent border-none focus:ring-0 p-0 text-[15px] text-black font-medium resize-none max-h-32 min-h-[24px] placeholder-gray-500"
+                className="w-full bg-transparent border-none focus:ring-0 p-0 text-[15px] text-slate-900 font-medium resize-none max-h-32 min-h-[24px] placeholder-slate-400"
                 rows={1}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -379,25 +394,26 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
             <button
               type="submit"
               disabled={!newMessage.trim() || isSending}
-              className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                 newMessage.trim() && !isSending
-                  ? 'bg-[#00a884] text-white shadow-md'
-                  : 'bg-gray-300 text-gray-500'
+                  ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-100 hover:scale-105 active:scale-95'
+                  : 'bg-slate-100 text-slate-300'
               }`}
             >
-              {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className={isRtl ? 'rotate-180' : ''} />}
+              {isSending ? <Loader2 size={22} className="animate-spin" /> : <Send size={22} className={isRtl ? 'rotate-180' : ''} />}
             </button>
           </form>
         </div>
       </div>
 
-      {/* User Avatar Menu Overlay */}
+      {/* User Avatar Menu Overlay - Ensure it's outside the main flow */}
       {avatarMenu.isOpen && (
         <UserAvatarMenu 
           userId={avatarMenu.userId}
           userName={avatarMenu.userName}
           avatar={avatarMenu.avatar}
           position={avatarMenu.position}
+          isOpen={avatarMenu.isOpen}
           onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })}
           onSendMessage={onPrivateMessage}
         />
