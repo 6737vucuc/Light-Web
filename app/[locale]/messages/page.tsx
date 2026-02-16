@@ -23,15 +23,19 @@ function MessagesContent() {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
-          setCurrentUser(data.user || data);
+          const userData = data.user || data;
+          const normalizedUser = { ...userData, id: userData.userId || userData.id, userId: userData.userId || userData.id };
+          setCurrentUser(normalizedUser);
           setIsAuthenticated(true);
           
           // If userId is provided, fetch recipient info
           if (userId) {
             const userRes = await fetch(`/api/users/${userId}`);
             if (userRes.ok) {
-              const userData = await userRes.json();
-              setRecipient(userData.user || userData);
+              const rData = await userRes.json();
+              const rUser = rData.user || rData;
+              const normalizedRecipient = { ...rUser, id: rUser.userId || rUser.id, userId: rUser.userId || rUser.id };
+              setRecipient(normalizedRecipient);
             }
           }
           

@@ -43,26 +43,31 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
   const typingTimeoutRef = useRef<any>(null);
   const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', avatar: null, position: { x: 0, y: 0 } });
 
+  const currentId = currentUser ? (currentUser.userId || currentUser.id) : null;
+
   // Use presence hook for online users
   const { onlineMembers, onlineMembersCount } = usePresence(
     group.id,
-    currentUser?.id || currentUser?.userId,
+    currentId,
     currentUser?.name,
     currentUser?.avatar
   );
 
   useEffect(() => {
     const init = async () => {
+      if (!group.id || !currentId) return;
       const member = await checkMembership();
       if (member) {
         fetchMessages();
+      } else {
+        setIsLoading(false);
       }
     };
     init();
-  }, [group.id, currentUser?.id]);
+  }, [group.id, currentId]);
 
   useEffect(() => {
-    if (!isMember) return;
+    if (!isMember || !group.id) return;
 
     const channelName = RealtimeChatService.getGroupChannelName(group.id);
     const channel = supabase.channel(channelName, {
@@ -74,18 +79,17 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
     channel
       .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
         setMessages(prev => {
-          if (prev.some(m => m.id === payload.id)) return prev;
+          if (prev.some(m => String(m.id) === String(payload.id))) return prev;
           return [...prev, payload];
         });
         setTimeout(scrollToBottom, 50);
       })
       .on('broadcast', { event: ChatEvent.TYPING }, ({ payload }) => {
         const payloadUserId = payload.userId || payload.user_id;
-        const currentId = currentUser?.id || currentUser?.userId;
-        if (payloadUserId === currentId) return;
+        if (String(payloadUserId) === String(currentId)) return;
         
         setTypingUsers(prev => {
-          const filtered = prev.filter(u => (u.userId || u.user_id) !== payloadUserId);
+          const filtered = prev.filter(u => String(u.userId || u.user_id) !== String(payloadUserId));
           if (payload.isTyping) {
             return [...filtered, { userId: payloadUserId, name: payload.userName || payload.name }];
           }
@@ -97,7 +101,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [group.id, currentUser, isMember]);
+  }, [group.id, currentId, isMember]);
 
   const checkMembership = async () => {
     if (!currentUser) {
@@ -278,7 +282,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
               <MessageBubble 
                 key={msg.id || idx} 
                 message={msg} 
-                isMine={(msg.userId || msg.user_id) === (currentUser?.id || currentUser?.userId)}
+                isOwn={String(msg.userId || msg.user_id) === String(currentId)}
                 onReply={setReplyTo}
                 onAvatarClick={(userId, userName, avatar, e) => {
                   setAvatarMenu({

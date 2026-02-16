@@ -25,6 +25,7 @@ export async function verifyAuth(request: NextRequest) {
 
     // Return the basic info from token
     return {
+      id: payload.userId as number,
       userId: payload.userId as number,
       email: payload.email as string,
       isAdmin: payload.isAdmin as boolean,

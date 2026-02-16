@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { recipientId, content, messageType = 'text' } = await request.json();
+    const body = await request.json();
+    const { recipientId, content, messageType = 'text', tempId } = body;
 
     const [newMessage] = await db.insert(directMessages).values({
       senderId: user.userId,
@@ -26,13 +27,13 @@ export async function POST(request: NextRequest) {
     // Broadcast via Supabase Realtime
     const channelId = RealtimeChatService.getPrivateChannelName(user.userId, parseInt(recipientId));
     const supabaseAdmin = getSupabaseAdmin();
-    const channel = supabaseAdmin.channel(channelId);
-
-    await channel.send({
+    
+    await supabaseAdmin.channel(channelId).send({
       type: 'broadcast',
       event: ChatEvent.NEW_MESSAGE,
       payload: {
         id: newMessage.id,
+        clientId: tempId,
         senderId: user.userId,
         senderName: user.name,
         senderAvatar: user.avatar,

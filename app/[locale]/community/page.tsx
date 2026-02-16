@@ -129,6 +129,7 @@ export default function CommunityPage() {
     return '🌙';
   };
 
+  const currentId = currentUser ? (currentUser.userId || currentUser.id) : null;
   const userName = currentUser?.name?.split(' ')[0] || 'Friend';
 
   return (

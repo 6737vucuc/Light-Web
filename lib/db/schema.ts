@@ -420,7 +420,7 @@ export const lessonRatings = pgTable('lesson_ratings', {
 export const directMessages = pgTable('direct_messages', {
   id: serial('id').primaryKey(),
   senderId: integer('sender_id').references(() => users.id).notNull(),
-  receiverId: integer('receiver_id').references(() => users.id).notNull(),
+  recipientId: integer('receiver_id').references(() => users.id).notNull(),
   content: text('content'),
   messageType: varchar('message_type', { length: 20 }).default('text'),
   mediaUrl: text('media_url'),
@@ -436,7 +436,7 @@ export const directMessages = pgTable('direct_messages', {
 export const calls = pgTable('calls', {
   id: serial('id').primaryKey(),
   callerId: integer('caller_id').references(() => users.id).notNull(),
-  receiverId: integer('receiver_id').references(() => users.id).notNull(),
+  recipientId: integer('receiver_id').references(() => users.id).notNull(),
   callerPeerId: varchar('caller_peer_id', { length: 255 }),
   receiverPeerId: varchar('receiver_peer_id', { length: 255 }),
   status: varchar('status', { length: 50 }).default('ringing'), // 'ringing', 'connected', 'ended', 'rejected'

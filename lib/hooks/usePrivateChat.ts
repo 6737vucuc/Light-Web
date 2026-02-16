@@ -8,10 +8,10 @@ export function usePrivateChat(recipientId: number, currentUserId: number) {
   const channelRef = useRef<any>(null);
   const typingTimeoutRef = useRef<any>(null);
 
-  const channelId = RealtimeChatService.getPrivateChannelName(currentUserId, recipientId);
+  const channelId = (currentUserId && recipientId) ? RealtimeChatService.getPrivateChannelName(currentUserId, recipientId) : '';
 
   useEffect(() => {
-    if (!recipientId || !currentUserId) return;
+    if (!recipientId || !currentUserId || !channelId) return;
 
     const channel = supabase.channel(channelId, {
       config: {
@@ -22,12 +22,28 @@ export function usePrivateChat(recipientId: number, currentUserId: number) {
     channel
       .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
         setMessages((prev) => {
-          if (prev.some(m => m.id === payload.id)) return prev;
+          // 1. Check if real message already exists
+          if (prev.some(m => !String(m.id).startsWith('temp-') && String(m.id) === String(payload.id))) return prev;
+          
+          // 2. Look for matching optimistic message
+          const tempIndex = prev.findIndex(m => {
+            const isTemp = String(m.id).startsWith('temp-') || m.tempId;
+            if (!isTemp) return false;
+            if (payload.clientId && (String(m.id) === String(payload.clientId) || String(m.tempId) === String(payload.clientId))) return true;
+            return m.content === payload.content && String(m.senderId) === String(payload.senderId);
+          });
+          
+          if (tempIndex !== -1) {
+            const newMessages = [...prev];
+            newMessages[tempIndex] = payload;
+            return newMessages;
+          }
+          
           return [...prev, payload];
         });
       })
       .on('broadcast', { event: ChatEvent.TYPING }, ({ payload }) => {
-        if (payload.userId === recipientId) {
+        if (String(payload.userId) === String(recipientId)) {
           setRecipientTyping(payload.isTyping);
           
           if (payload.isTyping && typingTimeoutRef.current) {

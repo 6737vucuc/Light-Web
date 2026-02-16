@@ -138,7 +138,7 @@ export function usePresence(
       channel
         .on('broadcast', { event: ChatEvent.PRESENCE_UPDATE }, ({ payload }) => {
           setOnlineMembers(prev => {
-            const filtered = prev.filter(u => (u.userId || u.userId) !== payload.userId);
+            const filtered = prev.filter(u => String(u.userId) !== String(payload.userId));
             if (payload.status === 'online') {
               return [...filtered, payload];
             }
@@ -148,7 +148,7 @@ export function usePresence(
         })
         .on('broadcast', { event: ChatEvent.USER_JOINED }, ({ payload }) => {
           setOnlineMembers(prev => {
-            if (prev.some(u => (u.userId || u.userId) === payload.userId)) {
+            if (prev.some(u => String(u.userId) === String(payload.userId))) {
               return prev;
             }
             return [...prev, payload];
@@ -156,7 +156,7 @@ export function usePresence(
           setOnlineMembersCount(prev => prev + 1);
         })
         .on('broadcast', { event: ChatEvent.USER_LEFT }, ({ payload }) => {
-          setOnlineMembers(prev => prev.filter(u => (u.userId || u.userId) !== payload.userId));
+          setOnlineMembers(prev => prev.filter(u => String(u.userId) !== String(payload.userId)));
           setOnlineMembersCount(prev => Math.max(0, prev - 1));
         })
         .subscribe();
@@ -257,7 +257,7 @@ export function usePresenceListener(
 
     const handlePresenceUpdate = (payload: any) => {
       setOnlineMembers(prev => {
-        const filtered = prev.filter(u => (u.userId || u.userId) !== payload.userId);
+        const filtered = prev.filter(u => String(u.userId) !== String(payload.userId));
         if (payload.status === 'online') {
           return [...filtered, payload];
         }
@@ -272,14 +272,14 @@ export function usePresenceListener(
       })
       .on('broadcast', { event: ChatEvent.USER_JOINED }, ({ payload }) => {
         setOnlineMembers(prev => {
-          if (prev.some(u => (u.userId || u.userId) === payload.userId)) {
+          if (prev.some(u => String(u.userId) === String(payload.userId))) {
             return prev;
           }
           return [...prev, payload];
         });
       })
       .on('broadcast', { event: ChatEvent.USER_LEFT }, ({ payload }) => {
-        setOnlineMembers(prev => prev.filter(u => (u.userId || u.userId) !== payload.userId));
+        setOnlineMembers(prev => prev.filter(u => String(u.userId) !== String(payload.userId)));
       })
       .subscribe();
 

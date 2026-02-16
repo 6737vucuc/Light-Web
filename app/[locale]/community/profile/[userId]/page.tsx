@@ -46,7 +46,7 @@ export default function CommunityProfilePage() {
       if (currentUserResponse.ok) {
         const currentUserData = await currentUserResponse.json();
         setCurrentUser(currentUserData.user);
-        setIsOwnProfile(currentUserData.user.id === parseInt(userId));
+        setIsOwnProfile(String(currentUserData.user.id || currentUserData.user.userId) === String(userId));
       }
 
       // Get user info

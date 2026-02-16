@@ -38,7 +38,12 @@ export async function requireAuth(request: NextRequest) {
       return { error: 'Your account has been banned', status: 403 };
     }
 
-    return { user };
+    const formattedUser = {
+      ...user,
+      userId: user.id
+    };
+
+    return { user: formattedUser };
   } catch (error) {
     console.error('Auth middleware error:', error);
     return { error: 'Authentication failed', status: 500 };

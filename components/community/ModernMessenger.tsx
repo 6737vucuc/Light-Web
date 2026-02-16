@@ -28,13 +28,15 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   
-  const currentUserId = currentUser?.id || currentUser?.userId;
-  const recipientId = recipient?.id || recipient?.userId;
+  const currentUserId = currentUser ? (currentUser.userId || currentUser.id) : null;
+  const recipientId = recipient ? (recipient.userId || recipient.id) : null;
   
   const { messages: realtimeMessages, setMessages, recipientTyping, sendTyping: sendTypingStatus } = usePrivateChat(recipientId, currentUserId);
 
   useEffect(() => {
-    loadMessages();
+    if (recipientId) {
+      loadMessages();
+    }
   }, [recipientId]);
 
   useEffect(() => {
@@ -108,10 +110,24 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!newMessage.trim() || isSending) return;
+    if (!newMessage.trim() || isSending || !currentUserId || !recipientId) return;
 
     setIsSending(true);
     const content = newMessage.trim();
+    const tempId = `temp-${Date.now()}`;
+    
+    // Optimistic update
+    const tempMsg = {
+      id: tempId,
+      tempId: tempId,
+      senderId: currentUserId,
+      content: content,
+      createdAt: new Date().toISOString(),
+      timestamp: new Date().toISOString(),
+      isRead: false
+    };
+    setMessages(prev => [...prev, tempMsg]);
+    
     setNewMessage('');
     sendTypingStatus(false);
 
@@ -122,15 +138,18 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         body: JSON.stringify({
           recipientId: recipientId,
           content: content,
-          messageType: 'text'
+          messageType: 'text',
+          tempId: tempId
         }),
       });
 
       if (!res.ok) {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
         setNewMessage(content);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       setNewMessage(content);
     } finally {
       setIsSending(false);
@@ -223,7 +242,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
           </div>
         ) : (
           realtimeMessages.map((msg, idx) => {
-            const isMine = msg.senderId === currentUserId;
+            const isMine = String(msg.senderId) === String(currentUserId);
             return (
               <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                 <div className={`max-w-[80%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
