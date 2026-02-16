@@ -6,7 +6,7 @@ import {
   X, Send, Image as ImageIcon, 
   Smile, Paperclip, CheckCheck, MessageSquare,
   User as UserIcon, MoreHorizontal, Loader2, Trash2, Heart,
-  Ban, Play, FileText, Download, Bell
+  Ban, Play, FileText, Download, Bell, Phone, Video, Search, Info
 } from 'lucide-react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
@@ -103,13 +103,10 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         }
       })
       .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
-        // Show notification if message is from someone else and we are not looking at their chat
-        // In this component, we are already in the chat with recipientId
         if (String(payload.senderId) !== String(currentUserId) && String(payload.senderId) !== String(recipientId)) {
           setNotification({ sender: payload.senderName, content: payload.content });
           setTimeout(() => setNotification(null), 4000);
         }
-        // If message is from the person we are chatting with, mark as read
         if (String(payload.senderId) === String(recipientId)) {
           markMessagesAsRead();
         }
@@ -353,46 +350,56 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const reactions = ['❤️', '👍', '😂', '😮', '😢', '🙏'];
 
   return (
-    <div className={`flex flex-col h-full bg-[#f0f2f5] animate-in fade-in duration-500 ${isRtl ? 'rtl' : 'ltr'}`}>
-      {/* Real-time Notification Toast */}
+    <div className={`flex flex-col h-full bg-[#f8fafc] animate-in fade-in duration-500 ${isRtl ? 'rtl' : 'ltr'} font-sans`}>
+      {/* Modern Notification Toast */}
       {notification && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-white shadow-2xl border-l-4 border-emerald-500 rounded-xl px-4 py-3 flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 w-[90%] max-w-md">
-          <div className="bg-emerald-100 p-2 rounded-full flex-shrink-0">
-            <Bell className="w-5 h-5 text-emerald-600" />
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] bg-white/80 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white/20 rounded-2xl px-5 py-4 flex items-center gap-4 animate-in slide-in-from-top-6 duration-500 w-[92%] max-w-md">
+          <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-2.5 rounded-xl flex-shrink-0 shadow-lg shadow-emerald-100">
+            <Bell className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">New Message</p>
-            <p className="text-sm text-gray-800 font-bold truncate">{notification.sender}</p>
-            <p className="text-xs text-gray-500 truncate">{notification.content}</p>
+            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.1em] mb-0.5">New Message</p>
+            <p className="text-sm text-slate-900 font-black truncate">{notification.sender}</p>
+            <p className="text-xs text-slate-500 truncate font-medium">{notification.content}</p>
           </div>
-          <button onClick={() => setNotification(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+          <button onClick={() => setNotification(null)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors"><X size={18} /></button>
         </div>
       )}
 
-      {/* Header */}
-      <div className="px-6 py-3 bg-[#f0f2f5] border-b border-gray-200 flex items-center justify-between relative z-10">
+      {/* Modern Header - Glassmorphism */}
+      <div className="px-6 py-4 bg-white/70 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between relative z-10 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-300">
+          <div className="relative group cursor-pointer">
+            <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-white shadow-md group-hover:scale-105 transition-transform duration-300">
               {recipient.avatar ? (
                 <Image src={getAvatarUrl(recipient.avatar)} alt={recipient.name} fill className="object-cover" unoptimized />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-400 text-white text-lg font-bold">
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-400 to-slate-600 text-white text-xl font-black">
                   {recipient.name?.charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
-            <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[#f0f2f5] rounded-full ${recipientOnline ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
+            <div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full shadow-sm transition-colors duration-500 ${recipientOnline ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 leading-none">{recipient.name}</h3>
-            <div className="mt-1">
+            <h3 className="font-black text-slate-900 text-base tracking-tight leading-none mb-1.5">{recipient.name}</h3>
+            <div className="flex items-center">
               {recipientTyping ? (
-                <p className="text-[11px] text-emerald-600 font-medium">{t('typing')}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="flex gap-0.5">
+                    <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce"></span>
+                    <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                    <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                  </span>
+                  <p className="text-[11px] text-emerald-600 font-black uppercase tracking-wider">{t('typing')}</p>
+                </div>
               ) : recipientOnline ? (
-                <p className="text-[11px] text-gray-600">{t('online')}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                  <p className="text-[11px] text-emerald-600 font-black uppercase tracking-wider">{t('online')}</p>
+                </div>
               ) : (
-                <p className="text-[11px] text-gray-500">
+                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
                   {recipientLastSeen ? `${t('lastSeen')} ${formatLastSeen(recipientLastSeen)}` : t('offline')}
                 </p>
               )}
@@ -400,38 +407,43 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <button onClick={onClose} className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-all"><X size={20} /></button>
+        <div className="flex items-center gap-1">
+          <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><Phone size={20} /></button>
+          <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><Video size={20} /></button>
+          <div className="w-px h-6 bg-slate-200 mx-1"></div>
+          <button onClick={onClose} className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><X size={22} /></button>
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#e5ddd5] custom-scrollbar" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')" }}>
+      {/* Messages Area - Modern Background */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#f8fafc] custom-scrollbar relative">
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+        
         {realtimeMessages.map((msg, idx) => {
           const isMine = String(msg.senderId) === String(currentUserId);
           const isActive = activeMessageId === msg.id;
           const isDeleted = msg.content === 'MESSAGE_DELETED_BY_SENDER' || msg.isDeleted;
           
           return (
-            <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-1`}>
-              <div className={`max-w-[85%] flex flex-col ${isMine ? 'items-end' : 'items-start'} group relative`}>
-                {/* WhatsApp Style Reaction Menu */}
+            <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-2 animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+              <div className={`max-w-[82%] flex flex-col ${isMine ? 'items-end' : 'items-start'} group relative`}>
+                {/* Modern Reaction Menu */}
                 {isActive && !isDeleted && (
-                  <div className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} bg-white shadow-xl rounded-full px-2 py-1.5 flex gap-2 z-30 animate-in slide-in-from-bottom-2`}>
+                  <div className={`absolute -top-14 ${isMine ? 'right-0' : 'left-0'} bg-white/90 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] border border-slate-100 rounded-2xl px-3 py-2 flex gap-3 z-30 animate-in zoom-in-95 duration-200`}>
                     {reactions.map(emoji => (
                       <button 
                         key={emoji} 
                         onClick={() => handleAddReaction(msg.id, emoji)}
-                        className={`text-xl hover:scale-125 transition-transform ${msg.reaction === emoji ? 'bg-gray-100 rounded-full p-0.5' : ''}`}
+                        className={`text-xl hover:scale-125 transition-transform duration-200 ${msg.reaction === emoji ? 'bg-slate-100 rounded-xl p-1' : ''}`}
                       >
                         {emoji}
                       </button>
                     ))}
-                    <div className="w-px h-6 bg-gray-200 mx-1 self-center"></div>
+                    <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>
                     {isMine && (
                       <button 
                         onClick={() => handleDeleteForEveryone(msg.id)}
-                        className="p-1 text-red-500 hover:bg-red-50 rounded-full"
+                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -441,56 +453,65 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
 
                 <div 
                   onClick={() => !isDeleted && setActiveMessageId(isActive ? null : msg.id)}
-                  className={`relative px-3 py-1.5 shadow-sm cursor-pointer transition-all ${
+                  className={`relative px-4 py-3 shadow-sm cursor-pointer transition-all duration-300 hover:shadow-md ${
                   isDeleted 
-                    ? 'bg-gray-100/80 text-gray-500 italic border border-gray-200 rounded-lg'
+                    ? 'bg-slate-100 text-slate-400 italic border border-slate-200 rounded-2xl'
                     : isMine 
-                      ? 'bg-[#dcf8c6] text-gray-900 rounded-lg rounded-tr-none' 
-                      : 'bg-white text-gray-900 rounded-lg rounded-tl-none'
+                      ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white rounded-2xl rounded-tr-none' 
+                      : 'bg-white text-slate-900 rounded-2xl rounded-tl-none border border-slate-100'
                 }`}>
                   {isDeleted ? (
-                    <div className="flex items-center gap-2 text-xs">
-                      <Ban size={12} />
+                    <div className="flex items-center gap-2 text-xs font-medium">
+                      <Ban size={14} />
                       <span>{t('messageDeleted')}</span>
                     </div>
                   ) : (
                     <>
                       {msg.messageType === 'image' && msg.mediaUrl && (
-                        <div className="mb-1 rounded-md overflow-hidden max-w-xs">
-                          <Image src={msg.mediaUrl} alt="Media" width={300} height={300} className="object-cover" unoptimized />
+                        <div className="mb-2 rounded-xl overflow-hidden border border-white/20 shadow-sm">
+                          <Image src={msg.mediaUrl} alt="Media" width={320} height={320} className="object-cover hover:scale-105 transition-transform duration-500" unoptimized />
                         </div>
                       )}
                       {msg.messageType === 'video' && msg.mediaUrl && (
-                        <div className="mb-1 rounded-md overflow-hidden max-w-xs relative group">
+                        <div className="mb-2 rounded-xl overflow-hidden relative group border border-white/20 shadow-sm">
                           <video src={msg.mediaUrl} className="max-w-full h-auto" />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Play className="text-white fill-white" size={32} />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30">
+                              <Play className="text-white fill-white ml-1" size={24} />
+                            </div>
                           </div>
                         </div>
                       )}
                       {msg.messageType === 'file' && msg.mediaUrl && (
-                        <div className="mb-1 p-2 bg-black/5 rounded flex items-center gap-3">
-                          <FileText size={24} className="text-blue-500" />
-                          <span className="text-xs truncate max-w-[150px]">{msg.content}</span>
-                          <a href={msg.mediaUrl} download className="p-1 hover:bg-black/10 rounded"><Download size={16} /></a>
+                        <div className={`mb-2 p-3 rounded-xl flex items-center gap-4 ${isMine ? 'bg-white/10' : 'bg-slate-50'}`}>
+                          <div className={`p-2 rounded-lg ${isMine ? 'bg-white/20' : 'bg-blue-100 text-blue-600'}`}>
+                            <FileText size={20} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-black truncate">{msg.content}</p>
+                            <p className="text-[10px] opacity-60 uppercase font-bold">Document</p>
+                          </div>
+                          <a href={msg.mediaUrl} download className={`p-1.5 rounded-lg transition-colors ${isMine ? 'hover:bg-white/20' : 'hover:bg-slate-200'}`}><Download size={18} /></a>
                         </div>
                       )}
-                      <p className="text-[14.5px] leading-tight break-words text-black font-normal">{msg.content}</p>
+                      <p className={`text-[15px] leading-relaxed break-words font-medium ${isMine ? 'text-white' : 'text-slate-800'}`}>{msg.content}</p>
                     </>
                   )}
                   
                   {msg.reaction && !isDeleted && (
-                    <div className={`absolute -bottom-2 ${isMine ? 'left-1' : 'right-1'} bg-white shadow-sm rounded-full px-1 py-0.5 text-[10px] border border-gray-100`}>
+                    <div className={`absolute -bottom-2.5 ${isMine ? 'left-2' : 'right-2'} bg-white shadow-md rounded-full px-1.5 py-0.5 text-[11px] border border-slate-100 animate-in zoom-in-50`}>
                       {msg.reaction}
                     </div>
                   )}
                   
-                  <div className={`flex items-center gap-1 mt-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                    <span className="text-[10px] text-gray-500">
+                  <div className={`flex items-center gap-1.5 mt-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isMine ? 'text-white/70' : 'text-slate-400'}`}>
                       {new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {isMine && !isDeleted && (
-                      <CheckCheck size={13} className={msg.isRead ? "text-blue-500" : "text-gray-400"} />
+                      <div className="flex items-center">
+                        <CheckCheck size={14} className={msg.isRead ? "text-sky-300" : "text-white/40"} />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -501,38 +522,40 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="p-2 bg-[#f0f2f5] flex flex-col gap-2">
+      {/* Modern Input Area */}
+      <div className="p-4 bg-white border-t border-slate-200/60 z-20">
         {showEmojiPicker && (
-          <div className="absolute bottom-20 left-4 z-50 shadow-2xl">
+          <div className="absolute bottom-24 left-6 z-50 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
             <EmojiPicker 
               onEmojiClick={(emoji) => {
                 setNewMessage(prev => prev + emoji.emoji);
                 setShowEmojiPicker(false);
               }}
               theme={Theme.LIGHT}
-              width={300}
-              height={400}
+              width={320}
+              height={420}
             />
           </div>
         )}
         
-        <div className="flex items-center gap-2 px-2">
-          <button 
-            type="button" 
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"
-          >
-            <Smile size={24} />
-          </button>
-          
-          <button 
-            type="button" 
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"
-          >
-            <Paperclip size={24} />
-          </button>
+        <div className="flex items-center gap-3 max-w-6xl mx-auto">
+          <div className="flex items-center gap-1">
+            <button 
+              type="button" 
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+            >
+              <Smile size={24} />
+            </button>
+            
+            <button 
+              type="button" 
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+            >
+              <Paperclip size={24} />
+            </button>
+          </div>
           
           <input 
             type="file" 
@@ -542,8 +565,8 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
             accept="image/*,video/*"
           />
 
-          <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2">
-            <div className="flex-1 bg-white rounded-full px-4 py-2 flex items-center shadow-sm">
+          <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-3">
+            <div className="flex-1 bg-slate-100 rounded-2xl px-4 py-2.5 flex items-center transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100 border border-transparent focus-within:border-indigo-200">
               <textarea
                 value={newMessage}
                 onChange={handleInputChange}
@@ -554,7 +577,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                   }
                 }}
                 placeholder={t('typeMessage')}
-                className="w-full bg-transparent border-none focus:ring-0 p-0 text-[15px] text-black font-medium resize-none max-h-32 min-h-[24px] placeholder-gray-500"
+                className="w-full bg-transparent border-none focus:ring-0 p-0 text-[15px] text-slate-900 font-medium resize-none max-h-32 min-h-[24px] placeholder-slate-400"
                 rows={1}
               />
             </div>
@@ -562,16 +585,16 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
             <button
               type="submit"
               disabled={(!newMessage.trim() && !isUploading) || isSending}
-              className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                 (newMessage.trim() || isUploading) && !isSending
-                  ? 'bg-[#00a884] text-white shadow-md'
-                  : 'bg-gray-300 text-gray-500'
+                  ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-200 hover:scale-105 active:scale-95'
+                  : 'bg-slate-100 text-slate-300'
               }`}
             >
               {isSending || isUploading ? (
-                <Loader2 size={20} className="animate-spin" />
+                <Loader2 size={22} className="animate-spin" />
               ) : (
-                <Send size={20} className={`${isRtl ? 'rotate-180' : ''}`} />
+                <Send size={22} className={`${isRtl ? 'rotate-180' : ''} ml-0.5`} />
               )}
             </button>
           </form>

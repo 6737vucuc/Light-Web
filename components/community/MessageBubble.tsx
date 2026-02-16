@@ -43,28 +43,28 @@ export default function MessageBubble({
 
   return (
     <div
-      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group mb-2 px-2`}
+      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group mb-3 px-2 animate-in fade-in slide-in-from-bottom-1 duration-300`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'} max-w-[85%] md:max-w-[75%]`}>
-        {/* Avatar - Only show for others and not if it's a consecutive message (optional improvement) */}
+      <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'} max-w-[85%] md:max-w-[75%]`}>
+        {/* Modern Avatar */}
         {!isOwn && (
           <div 
-            className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity self-end mb-1"
+            className="w-10 h-10 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm cursor-pointer hover:scale-110 transition-transform self-end mb-1 border-2 border-white"
             onClick={(e) => onAvatarClick && onAvatarClick(userId, userName, userAvatar, e)}
           >
             {userAvatar ? (
               <Image
                 src={getAvatarUrl(userAvatar)}
                 alt={userName}
-                width={36}
-                height={36}
+                width={40}
+                height={40}
                 className="w-full h-full object-cover"
                 unoptimized
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+              <div className="w-full h-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-white text-sm font-black">
                 {userName.charAt(0).toUpperCase()}
               </div>
             )}
@@ -72,77 +72,77 @@ export default function MessageBubble({
         )}
 
         <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-          {/* Message Bubble */}
+          {/* Modern Message Bubble */}
           <div
-            className={`relative px-3 py-1.5 shadow-sm transition-all duration-300 ${
+            className={`relative px-4 py-2.5 shadow-sm transition-all duration-300 hover:shadow-md ${
               isDeleted 
-                ? 'bg-gray-100/80 text-gray-500 italic border border-gray-200 rounded-lg'
+                ? 'bg-slate-100 text-slate-400 italic border border-slate-200 rounded-2xl'
                 : isOwn
-                  ? 'bg-[#dcf8c6] text-gray-900 rounded-lg rounded-tr-none'
-                  : 'bg-white text-gray-900 rounded-lg rounded-tl-none'
+                  ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white rounded-2xl rounded-tr-none'
+                  : 'bg-white text-slate-800 rounded-2xl rounded-tl-none border border-slate-100'
             }`}
           >
-            {/* Sender Name - Inside bubble for groups like WhatsApp */}
+            {/* Sender Name - Modern Style */}
             {!isOwn && !isDeleted && (
               <p 
-                className="text-[11px] font-bold text-purple-600 mb-0.5 cursor-pointer hover:underline"
+                className="text-[11px] font-black text-indigo-600 mb-1 cursor-pointer hover:underline uppercase tracking-wider"
                 onClick={(e) => onAvatarClick && onAvatarClick(userId, userName, userAvatar, e)}
               >
                 {userName}
               </p>
             )}
 
-            {/* Reply Quote */}
+            {/* Modern Reply Quote */}
             {message.reply_to_content && !isDeleted && (
               <div
-                className={`mb-1.5 p-2 rounded-lg text-xs border-l-4 bg-black/5 border-purple-500 text-gray-600`}
+                className={`mb-2 p-2 rounded-xl text-xs border-l-4 bg-black/5 border-indigo-500 text-slate-600`}
               >
-                <p className="font-bold text-purple-700 truncate">{message.reply_to_user?.name || 'User'}</p>
-                <p className="truncate opacity-80">{message.reply_to_content}</p>
+                <p className="font-black text-indigo-700 truncate mb-0.5">{message.reply_to_user?.name || 'User'}</p>
+                <p className="truncate opacity-80 font-medium">{message.reply_to_content}</p>
               </div>
             )}
 
             {isDeleted ? (
-              <div className="flex items-center gap-2 text-xs py-1">
-                <Ban size={12} />
+              <div className="flex items-center gap-2 text-xs py-1 font-medium">
+                <Ban size={14} />
                 <span>{t('messageDeleted')}</span>
               </div>
             ) : (
-              <p className="text-[14.5px] leading-tight break-words whitespace-pre-wrap text-black">
+              <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap font-medium">
                 {message.content}
               </p>
             )}
 
             {/* Timestamp and Status */}
-            <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-              <span className="text-[10px] text-gray-500">
+            <div className={`flex items-center gap-1.5 mt-1.5 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isOwn ? 'text-white/70' : 'text-slate-400'}`}>
                 {formatTime(message.created_at || message.timestamp)}
               </span>
               {isOwn && !isDeleted && (
                 <CheckCheck
-                  size={13}
-                  className={message.isRead ? "text-blue-500" : "text-gray-400"}
+                  size={14}
+                  className={message.isRead ? "text-sky-300" : "text-white/40"}
                 />
               )}
             </div>
 
-            {/* Hover Actions */}
+            {/* Modern Hover Actions */}
             {isHovered && !isDeleted && (
-              <div className={`absolute top-0 ${isOwn ? '-left-10' : '-right-10'} flex flex-col gap-1 z-10`}>
+              <div className={`absolute top-0 ${isOwn ? '-left-12' : '-right-12'} flex flex-col gap-2 z-10 animate-in fade-in zoom-in-95`}>
                 {onReply && (
                   <button
                     onClick={() => onReply(message)}
-                    className="p-1.5 bg-white text-gray-500 hover:text-purple-600 rounded-full shadow-md border border-gray-100 transition-all hover:scale-110"
+                    className="p-2 bg-white text-slate-400 hover:text-indigo-600 rounded-xl shadow-lg border border-slate-100 transition-all hover:scale-110"
                   >
-                    <Reply size={14} />
+                    <Reply size={16} />
                   </button>
                 )}
                 {isOwn && onDelete && (
                   <button
                     onClick={() => onDelete(message.id)}
-                    className="p-1.5 bg-white text-gray-500 hover:text-red-600 rounded-full shadow-md border border-gray-100 transition-all hover:scale-110"
+                    className="p-2 bg-white text-slate-400 hover:text-rose-600 rounded-xl shadow-lg border border-slate-100 transition-all hover:scale-110"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 )}
               </div>
