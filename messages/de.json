@@ -64,9 +64,9 @@
   "messages": {
     "title": "Nachrichten",
     "noMessages": "Noch keine Nachrichten",
-    "typeMessage": "Nachricht eingeben...",
+    "typeMessage": "Schreibe eine Nachricht...",
     "send": "Senden",
-    "online": "Online",
+    "online": "Jetzt online",
     "offline": "Offline",
     "lastSeen": "Zuletzt gesehen",
     "typing": "schreibt...",
@@ -93,7 +93,16 @@
     "confirm": "Bestätigen",
     "yes": "Ja",
     "no": "Nein",
-    "connecting": "Verbinden..."
+    "connecting": "Verbinden...",
+    "justNow": "gerade eben",
+    "minutesAgo": "vor {n}m",
+    "hoursAgo": "vor {n}h",
+    "daysAgo": "vor {n}d",
+    "reaction": "Reaktion",
+    "poweredBy": "Unterstützt von Supabase Realtime",
+    "selectConversation": "Wähle eine Konversation",
+    "startConversation": "Beginne ein schönes Gespräch mit {name}",
+    "backToCommunity": "Zurück zur Community"
   },
   "admin": {
     "dashboard": "Dashboard",

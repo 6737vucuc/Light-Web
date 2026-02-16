@@ -6,8 +6,10 @@ import ModernMessenger from '@/components/community/ModernMessenger';
 import SecurityLoading from '@/components/SecurityLoading';
 import { ArrowLeft, MessageSquare, Home } from 'lucide-react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 
 function MessagesContent() {
+  const t = useTranslations('messages');
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams?.get('userId');
@@ -28,7 +30,6 @@ function MessagesContent() {
           setCurrentUser(normalizedUser);
           setIsAuthenticated(true);
           
-          // If userId is provided, fetch recipient info
           if (userId) {
             const userRes = await fetch(`/api/users/${userId}`);
             if (userRes.ok) {
@@ -63,7 +64,7 @@ function MessagesContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
-        <p className="text-gray-500 font-bold animate-pulse">Loading Messages...</p>
+        <p className="text-gray-500 font-bold animate-pulse">{t('connecting')}</p>
       </div>
     );
   }
@@ -78,15 +79,15 @@ function MessagesContent() {
                 onClick={() => router.push('/community')}
                 className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-white group"
               >
-                <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+                <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform rtl:rotate-180" />
               </button>
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-md">
                   <MessageSquare className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-black text-white tracking-tight">Modern Messenger</h1>
-                  <p className="text-purple-100 text-[10px] font-bold uppercase tracking-widest opacity-80">Powered by Supabase Realtime</p>
+                  <h1 className="text-xl font-black text-white tracking-tight">{t('title')}</h1>
+                  <p className="text-purple-100 text-[10px] font-bold uppercase tracking-widest opacity-80">{t('poweredBy')}</p>
                 </div>
               </div>
             </div>
@@ -122,16 +123,16 @@ function MessagesContent() {
             />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-8 text-center">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <div className="w-20 h-20 bg-gray-100 rounded-[2rem] flex items-center justify-center mb-4">
                 <MessageSquare size={40} className="text-gray-300" />
               </div>
-              <h2 className="text-xl font-black text-gray-800 mb-2">Select a conversation</h2>
-              <p className="max-w-xs font-medium">Go back to community and click on a user's avatar to start a private chat.</p>
+              <h2 className="text-xl font-black text-gray-800 mb-2">{t('selectConversation')}</h2>
+              <p className="max-w-xs font-medium">{t('noConversations')}</p>
               <button 
                 onClick={() => router.push('/community')}
                 className="mt-6 px-6 py-3 bg-purple-600 text-white rounded-2xl font-black shadow-lg shadow-purple-200 hover:scale-105 transition-all"
               >
-                Back to Community
+                {t('backToCommunity')}
               </button>
             </div>
           )}

@@ -77,7 +77,7 @@
     "noMessages": "No messages yet",
     "typeMessage": "Type a message...",
     "send": "Send",
-    "online": "Online",
+    "online": "Online Now",
     "offline": "Offline",
     "lastSeen": "Last seen",
     "typing": "Typing...",
@@ -104,7 +104,16 @@
     "confirm": "Confirm",
     "yes": "Yes",
     "no": "No",
-    "connecting": "Connecting..."
+    "connecting": "Connecting...",
+    "justNow": "just now",
+    "minutesAgo": "{n}m ago",
+    "hoursAgo": "{n}h ago",
+    "daysAgo": "{n}d ago",
+    "reaction": "Reaction",
+    "poweredBy": "Powered by Supabase Realtime",
+    "selectConversation": "Select a conversation",
+    "startConversation": "Start a beautiful conversation with {name}",
+    "backToCommunity": "Back to Community"
   },
   "admin": {
     "dashboard": "Dashboard",
