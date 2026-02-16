@@ -408,9 +408,6 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         </div>
         
         <div className="flex items-center gap-1">
-          <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><Phone size={20} /></button>
-          <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><Video size={20} /></button>
-          <div className="w-px h-6 bg-slate-200 mx-1"></div>
           <button onClick={onClose} className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><X size={22} /></button>
         </div>
       </div>

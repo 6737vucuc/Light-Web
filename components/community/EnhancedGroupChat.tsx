@@ -274,8 +274,6 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><Phone size={20} /></button>
-          <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"><Video size={20} /></button>
           <button className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all">
             <MoreVertical size={20} />
           </button>
