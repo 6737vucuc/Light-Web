@@ -38,6 +38,12 @@ export function usePresence(
   const channelRef = useRef<any>(null);
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Helper to update count based on unique members
+  const updateUniqueCount = (members: OnlineMember[]) => {
+    const uniqueIds = new Set(members.map(m => String(m.userId)));
+    setOnlineMembersCount(uniqueIds.size);
+  };
+
   // Initialize presence
   useEffect(() => {
     if (!groupId || !userId) return;
@@ -56,8 +62,9 @@ export function usePresence(
       if (statsResponse.ok) {
         const stats = await statsResponse.json();
         setPresenceStats(stats);
-        setOnlineMembers(stats.members || []);
-        setOnlineMembersCount(stats.onlineMembers || 0);
+        const members = stats.members || [];
+        setOnlineMembers(members);
+        updateUniqueCount(members);
       }
 
       // Update user's presence
@@ -139,25 +146,27 @@ export function usePresence(
         .on('broadcast', { event: ChatEvent.PRESENCE_UPDATE }, ({ payload }) => {
           setOnlineMembers(prev => {
             const filtered = prev.filter(u => String(u.userId) !== String(payload.userId));
-            if (payload.status === 'online') {
-              return [...filtered, payload];
-            }
-            return filtered;
+            const newMembers = payload.status === 'online' ? [...filtered, payload] : filtered;
+            updateUniqueCount(newMembers);
+            return newMembers;
           });
-          setOnlineMembersCount(prev => Math.max(0, prev + (payload.status === 'online' ? 1 : -1)));
         })
         .on('broadcast', { event: ChatEvent.USER_JOINED }, ({ payload }) => {
           setOnlineMembers(prev => {
             if (prev.some(u => String(u.userId) === String(payload.userId))) {
               return prev;
             }
-            return [...prev, payload];
+            const newMembers = [...prev, payload];
+            updateUniqueCount(newMembers);
+            return newMembers;
           });
-          setOnlineMembersCount(prev => prev + 1);
         })
         .on('broadcast', { event: ChatEvent.USER_LEFT }, ({ payload }) => {
-          setOnlineMembers(prev => prev.filter(u => String(u.userId) !== String(payload.userId)));
-          setOnlineMembersCount(prev => Math.max(0, prev - 1));
+          setOnlineMembers(prev => {
+            const newMembers = prev.filter(u => String(u.userId) !== String(payload.userId));
+            updateUniqueCount(newMembers);
+            return newMembers;
+          });
         })
         .subscribe();
 
@@ -173,8 +182,9 @@ export function usePresence(
       if (response.ok) {
         const stats = await response.json();
         setPresenceStats(stats);
-        setOnlineMembers(stats.members || []);
-        setOnlineMembersCount(stats.onlineMembers || 0);
+        const members = stats.members || [];
+        setOnlineMembers(members);
+        updateUniqueCount(members);
       }
     } catch (error) {
       console.error('Error refreshing presence stats:', error);
@@ -258,12 +268,10 @@ export function usePresenceListener(
     const handlePresenceUpdate = (payload: any) => {
       setOnlineMembers(prev => {
         const filtered = prev.filter(u => String(u.userId) !== String(payload.userId));
-        if (payload.status === 'online') {
-          return [...filtered, payload];
-        }
-        return filtered;
+        const newMembers = payload.status === 'online' ? [...filtered, payload] : filtered;
+        onPresenceChange?.(newMembers);
+        return newMembers;
       });
-      onPresenceChange?.(onlineMembers);
     };
 
     channel
@@ -275,11 +283,17 @@ export function usePresenceListener(
           if (prev.some(u => String(u.userId) === String(payload.userId))) {
             return prev;
           }
-          return [...prev, payload];
+          const newMembers = [...prev, payload];
+          onPresenceChange?.(newMembers);
+          return newMembers;
         });
       })
       .on('broadcast', { event: ChatEvent.USER_LEFT }, ({ payload }) => {
-        setOnlineMembers(prev => prev.filter(u => String(u.userId) !== String(payload.userId)));
+        setOnlineMembers(prev => {
+          const newMembers = prev.filter(u => String(u.userId) !== String(payload.userId));
+          onPresenceChange?.(newMembers);
+          return newMembers;
+        });
       })
       .subscribe();
 
