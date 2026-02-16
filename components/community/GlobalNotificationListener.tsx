@@ -20,11 +20,9 @@ export default function GlobalNotificationListener({ currentUser }: GlobalNotifi
   useEffect(() => {
     if (!currentUserId) return;
 
-    // Listen to all private messages for this user
-    // We use a wildcard or a specific pattern if supported, 
-    // but typically we listen to a user-specific notification channel
-    const channelName = `user-notifications:${currentUserId}`;
-    const channel = supabase.channel(channelName, {
+    // Listen to the recipient's global notification channel
+    const notificationChannelName = `user-notifications:${currentUserId}`;
+    const channel = supabase.channel(notificationChannelName, {
       config: {
         broadcast: { self: false },
       },
@@ -33,21 +31,19 @@ export default function GlobalNotificationListener({ currentUser }: GlobalNotifi
 
     channel
       .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
-        // Only show notification if:
-        // 1. The message is for the current user
-        // 2. The user is NOT currently in the messages page with this specific sender
+        // IMPORTANT: Only show notification if the user is INSIDE the community/groups page
+        // and NOT already in the private messages page
+        const isCommunityPage = pathname.includes('/community');
         const isMessagesPage = pathname.includes('/messages');
         
-        // If we are on the messages page, the ModernMessenger component handles its own notifications
-        // If we are elsewhere (like in a group), we show the global toast
-        if (!isMessagesPage) {
+        if (isCommunityPage && !isMessagesPage) {
           toast.show(
             <div className="flex items-center gap-3">
               <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600">
                 <Bell size={18} />
               </div>
               <div>
-                <p className="text-xs font-black text-indigo-600 uppercase tracking-wider mb-0.5">New Private Message</p>
+                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider mb-0.5">New Private Message</p>
                 <p className="text-sm font-bold text-slate-900">{payload.senderName}</p>
                 <p className="text-xs text-slate-500 truncate max-w-[200px]">{payload.content}</p>
               </div>
@@ -55,11 +51,11 @@ export default function GlobalNotificationListener({ currentUser }: GlobalNotifi
             'info'
           );
           
-          // Play a subtle notification sound if possible
+          // Play a subtle notification sound
           try {
             const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
             audio.volume = 0.4;
-            audio.play().catch(() => {}); // Ignore errors if browser blocks autoplay
+            audio.play().catch(() => {}); 
           } catch (e) {}
         }
       })
@@ -72,5 +68,5 @@ export default function GlobalNotificationListener({ currentUser }: GlobalNotifi
     };
   }, [currentUserId, pathname, toast]);
 
-  return null; // This component doesn't render anything
+  return null; 
 }
