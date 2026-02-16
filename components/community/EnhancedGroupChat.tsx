@@ -20,17 +20,21 @@ import {
   ArrowLeft,
   Lock,
   Loader2,
-  Users
+  Users,
+  Ban
 } from 'lucide-react';
 import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
 import MessageBubble from './MessageBubble';
-import TypingIndicator from './TypingIndicator';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivateMessage }: any) {
   const toast = useToast();
   const locale = useParams()?.locale as string || 'ar';
   const t = useTranslations('community');
+  const tm = useTranslations('messages');
+  const isRtl = locale === 'ar';
+  
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -39,14 +43,16 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
   const [checkingMembership, setCheckingMembership] = useState(true);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', avatar: null, position: { x: 0, y: 0 } });
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
-  const [avatarMenu, setAvatarMenu] = useState<any>({ isOpen: false, userId: '', userName: '', avatar: null, position: { x: 0, y: 0 } });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentId = currentUser ? (currentUser.userId || currentUser.id) : null;
 
-  // Use presence hook for online users
-  const { onlineMembers, onlineMembersCount } = usePresence(
+  const { onlineMembersCount } = usePresence(
     group.id,
     currentId,
     currentUser?.name,
@@ -95,6 +101,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
           }
           return filtered;
         });
+      })
+      .on('broadcast', { event: ChatEvent.MESSAGE_DELETED }, ({ payload }) => {
+        setMessages(prev => prev.map(m => {
+          if (String(m.id) === String(payload.messageId)) {
+            return { ...m, content: 'MESSAGE_DELETED_BY_SENDER', isDeleted: true };
+          }
+          return m;
+        }));
       })
       .subscribe();
 
@@ -226,45 +240,40 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f0f2f5] relative overflow-hidden">
+    <div className={`flex flex-col h-full bg-[#f0f2f5] relative overflow-hidden ${isRtl ? 'rtl' : 'ltr'}`}>
       {/* WhatsApp Style Header */}
-      <div className="bg-[#f0f2f5] px-4 py-3 flex items-center justify-between border-b border-gray-200 z-20">
+      <div className="bg-[#f0f2f5] px-4 py-2 flex items-center justify-between border-b border-gray-200 z-20">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-full transition-colors md:hidden">
+          <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
           <div 
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm"
             style={{ backgroundColor: group.color || '#8B5CF6' }}
           >
-            <UserIcon size={20} />
+            <Users size={20} />
           </div>
           <div className="flex-1">
             <h3 className="font-bold text-gray-900 leading-tight">{group.name}</h3>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <Users size={12} className="text-green-600" />
-                <span className="text-[10px] text-green-600 font-bold uppercase tracking-wider">{onlineMembersCount} {t('online')}</span>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-emerald-600 font-bold uppercase tracking-wider">
+                {onlineMembersCount} {t('online')}
+              </span>
               {typingUsers.length > 0 && (
-                <span className="text-[10px] text-purple-600 font-bold animate-pulse">
-                  {typingUsers[0].name} {t('typing')}
+                <span className="text-[11px] text-purple-600 font-medium animate-pulse">
+                  • {typingUsers[0].name} {t('typing')}
                 </span>
               )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button className="p-2.5 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
-            <MoreVertical size={20} />
-          </button>
-        </div>
+        <button className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors">
+          <MoreVertical size={20} />
+        </button>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar bg-[#e5ddd5] relative">
-        <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-        
+      <div className="flex-1 overflow-y-auto p-4 space-y-1 bg-[#e5ddd5] relative custom-scrollbar" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')" }}>
         <div className="relative z-10">
           {isLoading ? (
             <div className="flex items-center justify-center h-full py-20">
@@ -272,10 +281,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 opacity-40">
-              <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-4 shadow-sm">
-                <UserIcon size={40} className="text-gray-400" />
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+                <MessageSquare size={32} className="text-gray-400" />
               </div>
-              <p className="font-bold text-gray-600">No messages yet. Start the conversation!</p>
+              <p className="font-bold text-gray-600">No messages yet</p>
             </div>
           ) : (
             messages.map((msg, idx) => (
@@ -300,74 +309,89 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
         </div>
       </div>
 
-      {/* User Avatar Menu */}
-      <UserAvatarMenu 
-        {...avatarMenu} 
-        onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })}
-        onSendMessage={onPrivateMessage}
-      />
-
       {/* Input Area */}
-      <div className="bg-[#f0f2f5] p-3 md:p-4 border-t border-gray-200 z-20">
+      <div className="bg-[#f0f2f5] p-2 flex flex-col gap-2 z-20">
         {replyTo && (
-          <div className="mb-3 p-3 bg-white/80 backdrop-blur-sm rounded-2xl border-l-4 border-purple-500 flex items-center justify-between animate-in slide-in-from-bottom-2">
+          <div className="mx-2 p-2 bg-white/80 backdrop-blur-sm rounded-xl border-l-4 border-purple-500 flex items-center justify-between animate-in slide-in-from-bottom-2">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-0.5">Replying to {replyTo.user?.name || replyTo.userName}</p>
+              <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-0.5">Replying to {replyTo.user?.name || replyTo.userName}</p>
               <p className="text-xs text-gray-500 truncate font-medium">{replyTo.content}</p>
             </div>
-            <button onClick={() => setReplyTo(null)} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400">
+            <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-gray-100 rounded-full text-gray-400">
               <X size={16} />
             </button>
           </div>
         )}
 
-        <form onSubmit={handleSendMessage} className="flex items-end gap-2 max-w-6xl mx-auto">
-          <div className="flex-1 bg-white rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col overflow-hidden transition-all focus-within:shadow-md focus-within:border-purple-200">
-            <textarea
-              value={newMessage}
-              onChange={(e) => {
-                setNewMessage(e.target.value);
-                handleTyping(true);
+        {showEmojiPicker && (
+          <div className="absolute bottom-20 left-4 z-50 shadow-2xl">
+            <EmojiPicker 
+              onEmojiClick={(emoji) => {
+                setNewMessage(prev => prev + emoji.emoji);
+                setShowEmojiPicker(false);
               }}
-              placeholder={t('sendMessage')}
-              className="w-full p-3 md:p-4 bg-transparent resize-none border-none focus:ring-0 text-sm md:text-base text-gray-800 font-medium max-h-32"
-              rows={1}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
+              theme={Theme.LIGHT}
+              width={300}
+              height={400}
             />
-            <div className="flex items-center justify-between px-3 py-2 bg-gray-50/50 border-t border-gray-50">
-              <div className="flex items-center gap-1">
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all">
-                  <Smile size={20} />
-                </button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all">
-                  <ImageIcon size={20} />
-                </button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all">
-                  <Paperclip size={20} />
-                </button>
-              </div>
-              <button
-                type="submit"
-                disabled={!newMessage.trim() || isSending}
-                className={`p-2.5 rounded-xl transition-all shadow-lg shadow-purple-100 ${
-                  newMessage.trim() && !isSending 
-                    ? 'bg-purple-600 text-white hover:bg-purple-700 hover:scale-105 active:scale-95' 
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-              </button>
-            </div>
           </div>
-        </form>
+        )}
+
+        <div className="flex items-center gap-2 px-2">
+          <button 
+            type="button" 
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"
+          >
+            <Smile size={24} />
+          </button>
+          
+          <button 
+            type="button" 
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"
+          >
+            <Paperclip size={24} />
+          </button>
+          
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" />
+
+          <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2">
+            <div className="flex-1 bg-white rounded-full px-4 py-2 flex items-center shadow-sm">
+              <textarea
+                value={newMessage}
+                onChange={(e) => {
+                  setNewMessage(e.target.value);
+                  handleTyping(true);
+                }}
+                placeholder={tm('typeMessage')}
+                className="w-full bg-transparent border-none focus:ring-0 p-0 text-[15px] text-black font-medium resize-none max-h-32 min-h-[24px] placeholder-gray-500"
+                rows={1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={!newMessage.trim() || isSending}
+              className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+                newMessage.trim() && !isSending
+                  ? 'bg-[#00a884] text-white shadow-md'
+                  : 'bg-gray-300 text-gray-500'
+              }`}
+            >
+              {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className={isRtl ? 'rotate-180' : ''} />}
+            </button>
+          </form>
+        </div>
       </div>
 
-      {/* Avatar Menu Overlay */}
+      {/* User Avatar Menu Overlay */}
       {avatarMenu.isOpen && (
         <UserAvatarMenu 
           userId={avatarMenu.userId}
@@ -375,6 +399,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
           avatar={avatarMenu.avatar}
           position={avatarMenu.position}
           onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })}
+          onSendMessage={onPrivateMessage}
         />
       )}
     </div>
