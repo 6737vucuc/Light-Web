@@ -24,6 +24,7 @@ import * as LucideIcons from 'lucide-react';
 import Image from 'next/image';
 import EnhancedGroupChat from '@/components/community/EnhancedGroupChat';
 import GroupCard from '@/components/community/GroupCard';
+import GlobalNotificationListener from '@/components/community/GlobalNotificationListener';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/lib/contexts/ToastContext';
 
@@ -137,6 +138,9 @@ export default function CommunityPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#fcfaff] via-white to-[#f5f3ff] pb-20">
+      {/* Global Notification Listener */}
+      <GlobalNotificationListener currentUser={currentUser} />
+      
       {/* Welcome Section */}
       {showWelcome && (
         <div className="relative bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 pt-16 md:pt-24 pb-12 md:pb-16 overflow-hidden">

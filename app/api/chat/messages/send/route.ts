@@ -28,21 +28,32 @@ export async function POST(request: NextRequest) {
     const channelId = RealtimeChatService.getPrivateChannelName(user.userId, parseInt(recipientId));
     const supabaseAdmin = getSupabaseAdmin();
     
+    const messagePayload = {
+      id: newMessage.id,
+      clientId: tempId,
+      senderId: user.userId,
+      senderName: user.name,
+      senderAvatar: user.avatar,
+      content: newMessage.content,
+      messageType: newMessage.messageType,
+      timestamp: newMessage.createdAt,
+      createdAt: newMessage.createdAt,
+      isRead: false,
+    };
+
+    // Broadcast to the private chat channel
     await supabaseAdmin.channel(channelId).send({
       type: 'broadcast',
       event: ChatEvent.NEW_MESSAGE,
-      payload: {
-        id: newMessage.id,
-        clientId: tempId,
-        senderId: user.userId,
-        senderName: user.name,
-        senderAvatar: user.avatar,
-        content: newMessage.content,
-        messageType: newMessage.messageType,
-        timestamp: newMessage.createdAt,
-        createdAt: newMessage.createdAt,
-        isRead: false,
-      },
+      payload: messagePayload,
+    });
+
+    // Also broadcast to the recipient's global notification channel
+    const notificationChannelName = `user-notifications:${recipientId}`;
+    await supabaseAdmin.channel(notificationChannelName).send({
+      type: 'broadcast',
+      event: ChatEvent.NEW_MESSAGE,
+      payload: messagePayload,
     });
 
     return NextResponse.json({ success: true, message: newMessage });
