@@ -21,13 +21,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
     }
 
-    // Delete from database (only if sender is the current user)
-    await db.delete(directMessages).where(
-      and(
-        eq(directMessages.id, parseInt(messageId)),
-        eq(directMessages.senderId, user.userId)
-      )
-    );
+    // Update message content to "deleted" instead of removing it (WhatsApp style)
+    await db.update(directMessages)
+      .set({ 
+        content: 'MESSAGE_DELETED_BY_SENDER', 
+        isDeleted: true,
+        deletedAt: new Date()
+      })
+      .where(
+        and(
+          eq(directMessages.id, parseInt(messageId)),
+          eq(directMessages.senderId, user.userId)
+        )
+      );
 
     // Broadcast deletion via Supabase Realtime
     const channelId = RealtimeChatService.getPrivateChannelName(user.userId, parseInt(recipientId));
@@ -38,7 +44,8 @@ export async function POST(request: NextRequest) {
       event: ChatEvent.MESSAGE_DELETED,
       payload: {
         messageId: messageId,
-        deletedBy: user.userId
+        deletedBy: user.userId,
+        newContent: 'MESSAGE_DELETED_BY_SENDER'
       },
     });
 

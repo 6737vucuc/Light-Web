@@ -75,7 +75,7 @@
     "deleteMessage": "Supprimer le Message",
     "deleteForEveryone": "Supprimer pour tout le monde",
     "deleteMessageConfirm": "Êtes-vous sûr de vouloir supprimer ce message pour tous ?",
-    "messageDeleted": "Message supprimé pour tous",
+    "messageDeleted": "Ce message a été supprimé",
     "failedToDelete": "Échec de la suppression du message",
     "clearChat": "Effacer le Chat",
     "clearChatConfirm": "Êtes-vous sûr de vouloir effacer ce chat ? Cette action ne peut pas être annulée.",
@@ -102,7 +102,11 @@
     "poweredBy": "Propulsé par Supabase Realtime",
     "selectConversation": "Sélectionnez une conversation",
     "startConversation": "Commencez une belle conversation avec {name}",
-    "backToCommunity": "Retour à la communauté"
+    "backToCommunity": "Retour à la communauté",
+    "uploadMedia": "Télécharger des médias",
+    "image": "Image",
+    "video": "Vidéo",
+    "emoji": "Emoji"
   },
   "admin": {
     "dashboard": "Tableau de bord",

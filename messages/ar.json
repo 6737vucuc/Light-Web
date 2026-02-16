@@ -87,7 +87,7 @@
     "deleteMessage": "حذف الرسالة",
     "deleteForEveryone": "حذف لدى الجميع",
     "deleteMessageConfirm": "هل تريد حذف هذه الرسالة لدى الجميع؟",
-    "messageDeleted": "تم حذف الرسالة لدى الجميع",
+    "messageDeleted": "تم حذف هذه الرسالة",
     "failedToDelete": "فشل حذف الرسالة",
     "clearChat": "مسح المحادثة",
     "clearChatConfirm": "هل تريد مسح هذه المحادثة؟ لا يمكن التراجع عن هذا الإجراء.",
@@ -114,7 +114,11 @@
     "poweredBy": "مدعوم بواسطة Supabase Realtime",
     "selectConversation": "اختر محادثة",
     "startConversation": "ابدأ محادثة جميلة مع {name}",
-    "backToCommunity": "العودة للمجتمع"
+    "backToCommunity": "العودة للمجتمع",
+    "uploadMedia": "رفع وسائط",
+    "image": "صورة",
+    "video": "فيديو",
+    "emoji": "إيموجي"
   },
   "admin": {
     "dashboard": "لوحة التحكم",

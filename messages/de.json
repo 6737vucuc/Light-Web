@@ -75,7 +75,7 @@
     "deleteMessage": "Nachricht löschen",
     "deleteForEveryone": "Für alle löschen",
     "deleteMessageConfirm": "Sind Sie sicher, dass Sie diese Nachricht für alle löschen möchten?",
-    "messageDeleted": "Nachricht für alle gelöscht",
+    "messageDeleted": "Diese Nachricht wurde gelöscht",
     "failedToDelete": "Fehler beim Löschen der Nachricht",
     "clearChat": "Chat löschen",
     "clearChatConfirm": "Sind Sie sicher, dass Sie diesen Chat löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
@@ -102,7 +102,11 @@
     "poweredBy": "Unterstützt von Supabase Realtime",
     "selectConversation": "Wähle eine Konversation",
     "startConversation": "Beginne ein schönes Gespräch mit {name}",
-    "backToCommunity": "Zurück zur Community"
+    "backToCommunity": "Zurück zur Community",
+    "uploadMedia": "Medien hochladen",
+    "image": "Bild",
+    "video": "Video",
+    "emoji": "Emoji"
   },
   "admin": {
     "dashboard": "Dashboard",

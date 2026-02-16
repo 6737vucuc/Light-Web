@@ -5,12 +5,14 @@ import { usePrivateChat } from '@/lib/hooks/usePrivateChat';
 import { 
   X, Send, Image as ImageIcon, 
   Smile, Paperclip, CheckCheck, MessageSquare,
-  User as UserIcon, MoreHorizontal, Loader2, Trash2, Heart
+  User as UserIcon, MoreHorizontal, Loader2, Trash2, Heart,
+  Ban, Play, FileText, Download
 } from 'lucide-react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
 import { ChatEvent, RealtimeChatService } from '@/lib/realtime/chat';
 import { useTranslations, useLocale } from 'next-intl';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 interface ModernMessengerProps {
   recipient: any;
@@ -29,8 +31,12 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const [recipientOnline, setRecipientOnline] = useState(false);
   const [recipientLastSeen, setRecipientLastSeen] = useState<Date | null>(null);
   const [activeMessageId, setActiveMessageId] = useState<number | string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const currentUserId = currentUser ? (currentUser.userId || currentUser.id) : null;
   const recipientId = recipient ? (recipient.userId || recipient.id) : null;
@@ -69,7 +75,12 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         }
       })
       .on('broadcast', { event: ChatEvent.MESSAGE_DELETED }, ({ payload }) => {
-        setMessages(prev => prev.filter(m => String(m.id) !== String(payload.messageId)));
+        setMessages(prev => prev.map(m => {
+          if (String(m.id) === String(payload.messageId)) {
+            return { ...m, content: 'MESSAGE_DELETED_BY_SENDER', isDeleted: true };
+          }
+          return m;
+        }));
       })
       .on('broadcast', { event: 'message-reaction' }, ({ payload }) => {
         setMessages(prev => prev.map(m => {
@@ -138,12 +149,13 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent, contentOverride?: string, type: string = 'text', mediaUrl?: string) => {
     if (e) e.preventDefault();
-    if (!newMessage.trim() || isSending || !currentUserId || !recipientId) return;
+    const content = contentOverride || newMessage.trim();
+    if (!content && !mediaUrl) return;
+    if (isSending || !currentUserId || !recipientId) return;
 
     setIsSending(true);
-    const content = newMessage.trim();
     const tempId = `temp-${Date.now()}`;
     
     const tempMsg = {
@@ -151,13 +163,15 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
       tempId: tempId,
       senderId: currentUserId,
       content: content,
+      mediaUrl: mediaUrl,
+      messageType: type,
       createdAt: new Date().toISOString(),
       timestamp: new Date().toISOString(),
       isRead: false
     };
     setMessages(prev => [...prev, tempMsg]);
     
-    setNewMessage('');
+    if (!contentOverride) setNewMessage('');
     sendTypingStatus(false);
 
     try {
@@ -167,21 +181,49 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         body: JSON.stringify({
           recipientId: recipientId,
           content: content,
-          messageType: 'text',
+          messageType: type,
+          mediaUrl: mediaUrl,
           tempId: tempId
         }),
       });
 
       if (!res.ok) {
         setMessages(prev => prev.filter(m => m.id !== tempId));
-        setNewMessage(content);
+        if (!contentOverride) setNewMessage(content);
       }
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => prev.filter(m => m.id !== tempId));
-      setNewMessage(content);
+      if (!contentOverride) setNewMessage(content);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
+        handleSendMessage(undefined, file.name, type, data.url);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -196,7 +238,12 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
       });
       
       if (res.ok) {
-        setMessages(prev => prev.filter(m => String(m.id) !== String(messageId)));
+        setMessages(prev => prev.map(m => {
+          if (String(m.id) === String(messageId)) {
+            return { ...m, content: 'MESSAGE_DELETED_BY_SENDER', isDeleted: true };
+          }
+          return m;
+        }));
         setActiveMessageId(null);
       }
     } catch (error) {
@@ -262,33 +309,34 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     return t('daysAgo', { n: days });
   };
 
+  const reactions = ['❤️', '👍', '😂', '😮', '😢', '🙏'];
+
   return (
-    <div className={`flex flex-col h-full bg-[#f8f9fa] animate-in fade-in duration-500 ${isRtl ? 'rtl' : 'ltr'}`}>
-      <div className="px-6 py-4 bg-white border-b border-gray-100 flex items-center justify-between shadow-sm relative z-10">
+    <div className={`flex flex-col h-full bg-[#f0f2f5] animate-in fade-in duration-500 ${isRtl ? 'rtl' : 'ltr'}`}>
+      {/* Header */}
+      <div className="px-6 py-3 bg-[#f0f2f5] border-b border-gray-200 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-4">
           <div className="relative">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-purple-50 shadow-md">
+            <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-300">
               {recipient.avatar ? (
                 <Image src={getAvatarUrl(recipient.avatar)} alt={recipient.name} fill className="object-cover" unoptimized />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-500 text-white text-xl font-black">
+                <div className="w-full h-full flex items-center justify-center bg-gray-400 text-white text-lg font-bold">
                   {recipient.name?.charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
-            <div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${recipientOnline ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
+            <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[#f0f2f5] rounded-full ${recipientOnline ? 'bg-emerald-500' : 'bg-gray-400'}`}></div>
           </div>
           <div>
-            <h3 className="font-black text-gray-900 leading-none mb-1">{recipient.name}</h3>
-            <div className="flex items-center gap-1.5">
+            <h3 className="font-bold text-gray-900 leading-none">{recipient.name}</h3>
+            <div className="mt-1">
               {recipientTyping ? (
-                <p className="text-[10px] text-purple-600 font-black animate-pulse uppercase tracking-widest">{t('typing')}</p>
+                <p className="text-[11px] text-emerald-600 font-medium">{t('typing')}</p>
               ) : recipientOnline ? (
-                <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest flex items-center gap-1">
-                  <span className="w-1 h-1 bg-emerald-500 rounded-full"></span> {t('online')}
-                </p>
+                <p className="text-[11px] text-gray-600">{t('online')}</p>
               ) : (
-                <p className="text-[10px] text-gray-500 font-medium">
+                <p className="text-[11px] text-gray-500">
                   {recipientLastSeen ? `${t('lastSeen')} ${formatLastSeen(recipientLastSeen)}` : t('offline')}
                 </p>
               )}
@@ -297,128 +345,179 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         </div>
         
         <div className="flex items-center gap-2">
-          <button onClick={onClose} className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><X size={20} /></button>
+          <button onClick={onClose} className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-all"><X size={20} /></button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-        {realtimeMessages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center opacity-30">
-            <div className="w-20 h-20 bg-gray-200 rounded-[2rem] flex items-center justify-center mb-4">
-              <MessageSquare size={40} className="text-gray-400" />
-            </div>
-            <p className="font-black text-gray-500">{t('startConversation', { name: recipient.name })}</p>
-          </div>
-        ) : (
-          realtimeMessages.map((msg, idx) => {
-            const isMine = String(msg.senderId) === String(currentUserId);
-            const isActive = activeMessageId === msg.id;
-            
-            return (
-              <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                <div className={`max-w-[80%] flex flex-col ${isMine ? 'items-end' : 'items-start'} group relative`}>
-                  <div 
-                    onClick={() => setActiveMessageId(isActive ? null : msg.id)}
-                    className={`relative px-4 py-3 shadow-sm cursor-pointer transition-all hover:brightness-95 ${
-                    isMine 
-                      ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-[1.5rem] rounded-tr-none' 
-                      : 'bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none'
-                  }`}>
-                    <p className="text-sm md:text-base leading-relaxed break-words">{msg.content}</p>
-                    {msg.reaction && (
-                      <div className={`absolute -bottom-2 ${isMine ? 'left-0' : 'right-0'} bg-white shadow-md rounded-full px-1.5 py-0.5 text-xs border border-gray-100`}>
-                        {msg.reaction}
-                      </div>
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#e5ddd5] custom-scrollbar" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')" }}>
+        {realtimeMessages.map((msg, idx) => {
+          const isMine = String(msg.senderId) === String(currentUserId);
+          const isActive = activeMessageId === msg.id;
+          const isDeleted = msg.content === 'MESSAGE_DELETED_BY_SENDER' || msg.isDeleted;
+          
+          return (
+            <div key={msg.id || idx} className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-1`}>
+              <div className={`max-w-[85%] flex flex-col ${isMine ? 'items-end' : 'items-start'} group relative`}>
+                {/* WhatsApp Style Reaction Menu */}
+                {isActive && !isDeleted && (
+                  <div className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} bg-white shadow-xl rounded-full px-2 py-1.5 flex gap-2 z-30 animate-in slide-in-from-bottom-2`}>
+                    {reactions.map(emoji => (
+                      <button 
+                        key={emoji} 
+                        onClick={() => handleAddReaction(msg.id, emoji)}
+                        className="text-xl hover:scale-125 transition-transform"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                    <div className="w-px h-6 bg-gray-200 mx-1 self-center"></div>
+                    {isMine && (
+                      <button 
+                        onClick={() => handleDeleteForEveryone(msg.id)}
+                        className="p-1 text-red-500 hover:bg-red-50 rounded-full"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     )}
-                    <div className={`flex items-center gap-1.5 mt-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                      <span className="text-[9px] font-bold opacity-60">
-                        {new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {isMine && <CheckCheck size={12} className="opacity-60" />}
-                    </div>
                   </div>
+                )}
 
-                  {isActive && (
-                    <div className={`absolute top-0 ${isMine ? '-left-12' : '-right-12'} flex flex-col gap-2 z-20 animate-in zoom-in duration-200`}>
-                      {isMine ? (
-                        <button 
-                          onClick={() => handleDeleteForEveryone(msg.id)}
-                          className="p-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-colors"
-                          title={t('deleteForEveryone')}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={() => handleAddReaction(msg.id, '❤️')}
-                          className="p-2 bg-pink-500 text-white rounded-full shadow-lg hover:bg-pink-600 transition-colors"
-                          title={t('reaction')}
-                        >
-                          <Heart size={16} />
-                        </button>
+                <div 
+                  onClick={() => !isDeleted && setActiveMessageId(isActive ? null : msg.id)}
+                  className={`relative px-3 py-1.5 shadow-sm cursor-pointer transition-all ${
+                  isDeleted 
+                    ? 'bg-gray-100/80 text-gray-500 italic border border-gray-200 rounded-lg'
+                    : isMine 
+                      ? 'bg-[#dcf8c6] text-gray-900 rounded-lg rounded-tr-none' 
+                      : 'bg-white text-gray-900 rounded-lg rounded-tl-none'
+                }`}>
+                  {isDeleted ? (
+                    <div className="flex items-center gap-2 text-xs">
+                      <Ban size={12} />
+                      <span>{t('messageDeleted')}</span>
+                    </div>
+                  ) : (
+                    <>
+                      {msg.messageType === 'image' && msg.mediaUrl && (
+                        <div className="mb-1 rounded-md overflow-hidden max-w-xs">
+                          <Image src={msg.mediaUrl} alt="Media" width={300} height={300} className="object-cover" unoptimized />
+                        </div>
                       )}
+                      {msg.messageType === 'video' && msg.mediaUrl && (
+                        <div className="mb-1 rounded-md overflow-hidden max-w-xs relative group">
+                          <video src={msg.mediaUrl} className="max-w-full h-auto" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Play className="text-white fill-white" size={32} />
+                          </div>
+                        </div>
+                      )}
+                      {msg.messageType === 'file' && msg.mediaUrl && (
+                        <div className="mb-1 p-2 bg-black/5 rounded flex items-center gap-3">
+                          <FileText size={24} className="text-blue-500" />
+                          <span className="text-xs truncate max-w-[150px]">{msg.content}</span>
+                          <a href={msg.mediaUrl} download className="p-1 hover:bg-black/10 rounded"><Download size={16} /></a>
+                        </div>
+                      )}
+                      <p className="text-[14.5px] leading-tight break-words text-black font-normal">{msg.content}</p>
+                    </>
+                  )}
+                  
+                  {msg.reaction && !isDeleted && (
+                    <div className={`absolute -bottom-2 ${isMine ? 'left-1' : 'right-1'} bg-white shadow-sm rounded-full px-1 py-0.5 text-[10px] border border-gray-100`}>
+                      {msg.reaction}
                     </div>
                   )}
+                  
+                  <div className={`flex items-center gap-1 mt-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                    <span className="text-[10px] text-gray-500">
+                      {new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {isMine && !isDeleted && <CheckCheck size={13} className="text-blue-500" />}
+                  </div>
                 </div>
               </div>
-            );
-          })
-        )}
-        {recipientTyping && (
-          <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="bg-white text-gray-800 border border-gray-100 rounded-[1.5rem] rounded-tl-none px-4 py-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-              </div>
             </div>
-          </div>
-        )}
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-6 bg-white border-t border-gray-100">
-        <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-          <div className="flex-1 bg-gray-50 rounded-[1.5rem] border border-gray-200 focus-within:border-purple-400 focus-within:ring-1 focus-within:ring-purple-400 transition-all flex flex-col overflow-hidden">
-            <textarea
-              value={newMessage}
-              onChange={handleInputChange}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
+      {/* Input Area */}
+      <div className="p-2 bg-[#f0f2f5] flex flex-col gap-2">
+        {showEmojiPicker && (
+          <div className="absolute bottom-20 left-4 z-50 shadow-2xl">
+            <EmojiPicker 
+              onEmojiClick={(emoji) => {
+                setNewMessage(prev => prev + emoji.emoji);
+                setShowEmojiPicker(false);
               }}
-              placeholder={t('typeMessage')}
-              className="w-full bg-transparent border-none focus:ring-0 p-4 text-sm md:text-base resize-none max-h-32 min-h-[56px]"
-              rows={1}
+              theme={Theme.LIGHT}
+              width={300}
+              height={400}
             />
-            <div className="flex items-center justify-between px-3 pb-3">
-              <div className="flex items-center gap-1">
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><Smile size={20} /></button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><Paperclip size={20} /></button>
-                <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><ImageIcon size={20} /></button>
-              </div>
-              <button type="button" className="p-2 text-gray-400 hover:text-purple-600 transition-colors"><MoreHorizontal size={20} /></button>
-            </div>
           </div>
-          <button
-            type="submit"
-            disabled={!newMessage.trim() || isSending}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-              newMessage.trim() && !isSending
-                ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 scale-100 active:scale-90'
-                : 'bg-gray-100 text-gray-400 scale-95'
-            }`}
+        )}
+        
+        <div className="flex items-center gap-2 px-2">
+          <button 
+            type="button" 
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"
           >
-            {isSending ? (
-              <Loader2 size={24} className="animate-spin" />
-            ) : (
-              <Send size={24} className={`${newMessage.trim() ? (isRtl ? '-translate-x-0.5' : 'translate-x-0.5') : ''} ${isRtl ? 'rotate-180' : ''}`} />
-            )}
+            <Smile size={24} />
           </button>
-        </form>
+          
+          <button 
+            type="button" 
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"
+          >
+            <Paperclip size={24} />
+          </button>
+          
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+            accept="image/*,video/*"
+          />
+
+          <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2">
+            <div className="flex-1 bg-white rounded-full px-4 py-2 flex items-center shadow-sm">
+              <textarea
+                value={newMessage}
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                placeholder={t('typeMessage')}
+                className="w-full bg-transparent border-none focus:ring-0 p-0 text-[15px] text-black font-medium resize-none max-h-32 min-h-[24px] placeholder-gray-500"
+                rows={1}
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={(!newMessage.trim() && !isUploading) || isSending}
+              className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+                (newMessage.trim() || isUploading) && !isSending
+                  ? 'bg-[#00a884] text-white shadow-md'
+                  : 'bg-gray-300 text-gray-500'
+              }`}
+            >
+              {isSending || isUploading ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <Send size={20} className={`${isRtl ? 'rotate-180' : ''}`} />
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
