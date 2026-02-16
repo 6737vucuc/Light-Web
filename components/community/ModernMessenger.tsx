@@ -33,7 +33,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const [activeMessageId, setActiveMessageId] = useState<number | string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [notification, setNotification] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{sender: string, content: string} | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
@@ -48,6 +48,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   useEffect(() => {
     if (recipientId) {
       loadMessages();
+      markMessagesAsRead();
     }
   }, [recipientId]);
 
@@ -88,7 +89,6 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
       .on('broadcast', { event: 'message-reaction' }, ({ payload }) => {
         setMessages(prev => prev.map(m => {
           if (String(m.id) === String(payload.messageId)) {
-            // If the same user sends the same reaction, remove it (WhatsApp style)
             if (m.reaction === payload.reaction && String(payload.userId) === String(currentUserId)) {
               return { ...m, reaction: null };
             }
@@ -97,11 +97,21 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
           return m;
         }));
       })
-      .on('broadcast', { event: 'incoming-notification' }, ({ payload }) => {
-        // Real-time notification simulation
-        if (String(payload.recipientId) === String(currentUserId)) {
-          setNotification(`${payload.senderName}: ${payload.content}`);
-          setTimeout(() => setNotification(null), 3000);
+      .on('broadcast', { event: ChatEvent.MESSAGE_READ }, ({ payload }) => {
+        if (String(payload.readerId) === String(recipientId)) {
+          setMessages(prev => prev.map(m => ({ ...m, isRead: true })));
+        }
+      })
+      .on('broadcast', { event: ChatEvent.NEW_MESSAGE }, ({ payload }) => {
+        // Show notification if message is from someone else and we are not looking at their chat
+        // In this component, we are already in the chat with recipientId
+        if (String(payload.senderId) !== String(currentUserId) && String(payload.senderId) !== String(recipientId)) {
+          setNotification({ sender: payload.senderName, content: payload.content });
+          setTimeout(() => setNotification(null), 4000);
+        }
+        // If message is from the person we are chatting with, mark as read
+        if (String(payload.senderId) === String(recipientId)) {
+          markMessagesAsRead();
         }
       })
       .subscribe((status) => {
@@ -119,6 +129,8 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
 
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';
+      if (isVisible) markMessagesAsRead();
+      
       channel.send({
         type: 'broadcast',
         event: ChatEvent.ONLINE_STATUS,
@@ -159,6 +171,18 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     }
   };
 
+  const markMessagesAsRead = async () => {
+    try {
+      await fetch('/api/chat/messages/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientId }),
+      });
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -187,20 +211,6 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     
     if (!contentOverride) setNewMessage('');
     sendTypingStatus(false);
-
-    // Send real-time notification if recipient is not online in this channel
-    if (!recipientOnline && channelRef.current) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'incoming-notification',
-        payload: {
-          senderId: currentUserId,
-          senderName: currentUser.name,
-          recipientId: recipientId,
-          content: type === 'text' ? content : `Sent a ${type}`,
-        }
-      });
-    }
 
     try {
       const res = await fetch('/api/chat/messages/send', {
@@ -346,14 +356,16 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     <div className={`flex flex-col h-full bg-[#f0f2f5] animate-in fade-in duration-500 ${isRtl ? 'rtl' : 'ltr'}`}>
       {/* Real-time Notification Toast */}
       {notification && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[100] bg-white shadow-2xl border border-emerald-500 rounded-2xl px-4 py-3 flex items-center gap-3 animate-in slide-in-from-top-4 duration-300">
-          <div className="bg-emerald-100 p-2 rounded-full">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-white shadow-2xl border-l-4 border-emerald-500 rounded-xl px-4 py-3 flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 w-[90%] max-w-md">
+          <div className="bg-emerald-100 p-2 rounded-full flex-shrink-0">
             <Bell className="w-5 h-5 text-emerald-600" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">New Message</p>
-            <p className="text-sm text-gray-800 font-medium truncate max-w-[200px]">{notification}</p>
+            <p className="text-sm text-gray-800 font-bold truncate">{notification.sender}</p>
+            <p className="text-xs text-gray-500 truncate">{notification.content}</p>
           </div>
+          <button onClick={() => setNotification(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
         </div>
       )}
 
@@ -477,7 +489,9 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                     <span className="text-[10px] text-gray-500">
                       {new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {isMine && !isDeleted && <CheckCheck size={13} className="text-blue-500" />}
+                    {isMine && !isDeleted && (
+                      <CheckCheck size={13} className={msg.isRead ? "text-blue-500" : "text-gray-400"} />
+                    )}
                   </div>
                 </div>
               </div>
