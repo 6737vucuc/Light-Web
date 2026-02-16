@@ -27,7 +27,7 @@ import UserAvatarMenu from './UserAvatarMenu';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 
-export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
+export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivateMessage }: any) {
   const toast = useToast();
   const locale = useParams()?.locale as string || 'ar';
   const t = useTranslations('community');
@@ -299,6 +299,13 @@ export default function EnhancedGroupChat({ group, currentUser, onBack }: any) {
           <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* User Avatar Menu */}
+      <UserAvatarMenu 
+        {...avatarMenu} 
+        onClose={() => setAvatarMenu({ ...avatarMenu, isOpen: false })}
+        onSendMessage={onPrivateMessage}
+      />
 
       {/* Input Area */}
       <div className="bg-[#f0f2f5] p-3 md:p-4 border-t border-gray-200 z-20">

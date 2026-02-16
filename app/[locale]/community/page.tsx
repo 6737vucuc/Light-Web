@@ -109,7 +109,10 @@ export default function CommunityPage() {
         <EnhancedGroupChat 
           group={selectedGroup} 
           currentUser={currentUser} 
-          onBack={() => setSelectedGroup(null)} 
+          onBack={() => setSelectedGroup(null)}
+          onPrivateMessage={(user: any) => {
+            router.push(`/messages?userId=${user.id}`);
+          }}
         />
       </div>
     );

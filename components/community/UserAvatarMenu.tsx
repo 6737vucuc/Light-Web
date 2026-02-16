@@ -57,7 +57,7 @@ export default function UserAvatarMenu({
 
   const handleSendMessage = () => {
     if (onSendMessage) {
-      onSendMessage({ id: userId, name: userName, avatar: avatar });
+      onSendMessage({ id: userId as any, name: userName, avatar: avatar });
     } else {
       router.push(`/messages?userId=${userId}`);
       onClose();
@@ -122,19 +122,6 @@ export default function UserAvatarMenu({
             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-purple-50 rounded-xl transition-all group"
           >
             <div className="p-1.5 bg-purple-100 text-purple-600 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition-colors">
-              <MessageSquare className="w-4 h-4" />
-            </div>
-            <span className="text-sm font-bold text-gray-700">{t('sendMessage')}</span>
-          </button>
-
-          <button
-            onClick={() => {
-              router.push(`/messages?userId=${userId}`);
-              onClose();
-            }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50 rounded-xl transition-all group"
-          >
-            <div className="p-1.5 bg-indigo-100 text-indigo-600 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors">
               <MessageSquare className="w-4 h-4" />
             </div>
             <span className="text-sm font-bold text-gray-700">{t('privateMessage')}</span>
