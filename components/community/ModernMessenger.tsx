@@ -6,7 +6,7 @@ import {
   X, Send, Image as ImageIcon, 
   Smile, Paperclip, CheckCheck, MessageSquare,
   User as UserIcon, MoreHorizontal, Loader2, Trash2, Heart,
-  Ban, Play, FileText, Download
+  Ban, Play, FileText, Download, Bell
 } from 'lucide-react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
@@ -33,10 +33,12 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const [activeMessageId, setActiveMessageId] = useState<number | string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const channelRef = useRef<any>(null);
   
   const currentUserId = currentUser ? (currentUser.userId || currentUser.id) : null;
   const recipientId = recipient ? (recipient.userId || recipient.id) : null;
@@ -64,6 +66,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
         broadcast: { self: true },
       },
     });
+    channelRef.current = channel;
 
     channel
       .on('broadcast', { event: ChatEvent.ONLINE_STATUS }, ({ payload }) => {
@@ -85,10 +88,21 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
       .on('broadcast', { event: 'message-reaction' }, ({ payload }) => {
         setMessages(prev => prev.map(m => {
           if (String(m.id) === String(payload.messageId)) {
+            // If the same user sends the same reaction, remove it (WhatsApp style)
+            if (m.reaction === payload.reaction && String(payload.userId) === String(currentUserId)) {
+              return { ...m, reaction: null };
+            }
             return { ...m, reaction: payload.reaction };
           }
           return m;
         }));
+      })
+      .on('broadcast', { event: 'incoming-notification' }, ({ payload }) => {
+        // Real-time notification simulation
+        if (String(payload.recipientId) === String(currentUserId)) {
+          setNotification(`${payload.senderName}: ${payload.content}`);
+          setTimeout(() => setNotification(null), 3000);
+        }
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -174,6 +188,20 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
     if (!contentOverride) setNewMessage('');
     sendTypingStatus(false);
 
+    // Send real-time notification if recipient is not online in this channel
+    if (!recipientOnline && channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'incoming-notification',
+        payload: {
+          senderId: currentUserId,
+          senderName: currentUser.name,
+          recipientId: recipientId,
+          content: type === 'text' ? content : `Sent a ${type}`,
+        }
+      });
+    }
+
     try {
       const res = await fetch('/api/chat/messages/send', {
         method: 'POST',
@@ -254,23 +282,26 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
   const handleAddReaction = async (messageId: number | string, reaction: string) => {
     if (String(messageId).startsWith('temp-')) return;
     
+    const currentMsg = realtimeMessages.find(m => String(m.id) === String(messageId));
+    const isRemoving = currentMsg?.reaction === reaction;
+
     try {
       const channelName = RealtimeChatService.getPrivateChannelName(currentUserId, recipientId);
       await supabase.channel(channelName).send({
         type: 'broadcast',
         event: 'message-reaction',
-        payload: { messageId, reaction, userId: currentUserId }
+        payload: { messageId, reaction: isRemoving ? null : reaction, userId: currentUserId }
       });
       
       setMessages(prev => prev.map(m => {
         if (String(m.id) === String(messageId)) {
-          return { ...m, reaction };
+          return { ...m, reaction: isRemoving ? null : reaction };
         }
         return m;
       }));
       setActiveMessageId(null);
     } catch (error) {
-      console.error('Error adding reaction:', error);
+      console.error('Error handling reaction:', error);
     }
   };
 
@@ -313,6 +344,19 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
 
   return (
     <div className={`flex flex-col h-full bg-[#f0f2f5] animate-in fade-in duration-500 ${isRtl ? 'rtl' : 'ltr'}`}>
+      {/* Real-time Notification Toast */}
+      {notification && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[100] bg-white shadow-2xl border border-emerald-500 rounded-2xl px-4 py-3 flex items-center gap-3 animate-in slide-in-from-top-4 duration-300">
+          <div className="bg-emerald-100 p-2 rounded-full">
+            <Bell className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">New Message</p>
+            <p className="text-sm text-gray-800 font-medium truncate max-w-[200px]">{notification}</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-6 py-3 bg-[#f0f2f5] border-b border-gray-200 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-4">
@@ -366,7 +410,7 @@ export default function ModernMessenger({ recipient, currentUser, onClose }: Mod
                       <button 
                         key={emoji} 
                         onClick={() => handleAddReaction(msg.id, emoji)}
-                        className="text-xl hover:scale-125 transition-transform"
+                        className={`text-xl hover:scale-125 transition-transform ${msg.reaction === emoji ? 'bg-gray-100 rounded-full p-0.5' : ''}`}
                       >
                         {emoji}
                       </button>
