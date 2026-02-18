@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { supportTickets, users } from '@/lib/db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, or } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,12 @@ export async function GET(request: NextRequest) {
       .leftJoin(users, eq(supportTickets.userId, users.id))
       .where(
         and(
-          eq(supportTickets.type, 'testimony'),
+          or(
+            eq(supportTickets.type, 'testimony'),
+            eq(supportTickets.type, 'share testimony'),
+            eq(supportTickets.category, 'testimony'),
+            eq(supportTickets.category, 'share testimony')
+          ),
           eq(supportTickets.approved, true)
         )
       )

@@ -178,16 +178,35 @@ export default function SupportManager() {
 
   // Helper to determine actual type for filtering and display
   const getActualType = (ticket: SupportTicket) => {
-    const type = (ticket.type || ticket.category || '').toLowerCase();
+    const type = (ticket.type || '').toLowerCase();
+    const category = (ticket.category || '').toLowerCase();
     const subject = (ticket.subject || '').toLowerCase();
     const message = (ticket.message || '').toLowerCase();
 
-    // Check for Testimony first as requested
-    if (type === 'testimony' || type.includes('share testimony') || subject.includes('testimony') || message.includes('testimony') || subject.includes('شهادة') || message.includes('شهادة')) {
+    // Priority check for Testimony as requested
+    if (
+      type === 'testimony' || 
+      category === 'testimony' || 
+      type.includes('share testimony') || 
+      category.includes('share testimony') ||
+      subject.includes('testimony') || 
+      message.includes('testimony') || 
+      subject.includes('شهادة') || 
+      message.includes('شهادة')
+    ) {
       return 'testimony';
     }
     
-    if (type === 'prayer' || type.includes('prayer request') || subject.includes('pray') || message.includes('pray') || subject.includes('صلاة') || message.includes('صلاة')) {
+    if (
+      type === 'prayer' || 
+      category === 'prayer' ||
+      type.includes('prayer request') || 
+      category.includes('prayer request') ||
+      subject.includes('pray') || 
+      message.includes('pray') || 
+      subject.includes('صلاة') || 
+      message.includes('صلاة')
+    ) {
       return 'prayer';
     }
     
