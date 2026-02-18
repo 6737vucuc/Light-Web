@@ -77,8 +77,8 @@ export default function GroupCard({ group, currentUser, onOpenChat }: GroupCardP
     const confirmed = await toast.confirm({
       title: t('leaveGroup') || 'Leave Group',
       message: t('leaveGroupConfirm') || 'Are you sure you want to leave this group?',
-      confirmText: t('leave') || 'Leave',
-      cancelText: t('cancel') || 'Cancel',
+      confirmText: t('common.leave') || 'Leave',
+      cancelText: t('common.cancel') || 'Cancel',
       type: 'danger'
     });
     

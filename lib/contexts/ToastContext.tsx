@@ -92,10 +92,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const confirm = useCallback(
     (options: ConfirmOptions): Promise<boolean> => {
+      // Ensure fallback values for critical UI strings to prevent crashes
+      const safeOptions = {
+        ...options,
+        confirmText: options.confirmText || 'Confirm',
+        cancelText: options.cancelText || 'Cancel'
+      };
+      
       return new Promise((resolve) => {
         setConfirmDialog({
           isOpen: true,
-          options,
+          options: safeOptions,
           resolve,
         });
       });
