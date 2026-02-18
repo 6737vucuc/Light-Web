@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { MessageCircle, Loader2, Mail, Clock, User, AlertCircle, CheckCircle, Heart, Wrench } from 'lucide-react';
 import { useToast } from '@/lib/contexts/ToastContext';
 
-// Version 1.0.5 - Forced Update
 interface SupportTicket {
   id: number;
   userId: number;
@@ -37,7 +36,6 @@ export default function SupportManager() {
 
   const fetchTickets = async () => {
     try {
-      // Add timestamp to bypass cache
       const response = await fetch(`/api/admin/support?t=${Date.now()}`);
       const data = await response.json();
       setTickets(data.tickets || []);
@@ -175,33 +173,21 @@ export default function SupportManager() {
     }
   };
 
-  // Helper to determine actual type for filtering and display
   const getActualType = (ticket: SupportTicket) => {
     const type = (ticket.type || '').toLowerCase();
     const category = (ticket.category || '').toLowerCase();
     const subject = (ticket.subject || '').toLowerCase();
     const message = (ticket.message || '').toLowerCase();
 
-    // Log for debugging (only in development)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Ticket Type Check:', { id: ticket.id, type, category, subject });
-    }
-
-    // Priority check for Testimony as requested
-    // Added more variations to ensure it catches all possible values
     if (
       type === 'testimony' || 
       category === 'testimony' || 
-      type === 'share testimony' ||
-      category === 'share testimony' ||
       type.includes('testimony') || 
       category.includes('testimony') ||
       subject.includes('testimony') || 
       message.includes('testimony') || 
       subject.includes('شهادة') || 
-      message.includes('شهادة') ||
-      subject.includes('share testimony') ||
-      message.includes('share testimony')
+      message.includes('شهادة')
     ) {
       return 'testimony';
     }
@@ -209,8 +195,6 @@ export default function SupportManager() {
     if (
       type === 'prayer' || 
       category === 'prayer' ||
-      type.includes('prayer request') || 
-      category.includes('prayer request') ||
       subject.includes('pray') || 
       message.includes('pray') || 
       subject.includes('صلاة') || 
@@ -311,25 +295,7 @@ export default function SupportManager() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    {displayType === 'testimony' ? (
-                      <>
-                        <button
-                          onClick={() => handleTestimonyAction(ticket, 'approve')}
-                          disabled={processing || ticket.status === 'resolved'}
-                          className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50"
-                        >
-                          {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Approve'}
-                        </button>
-                        <button
-                          onClick={() => handleTestimonyAction(ticket, 'reject')}
-                          disabled={processing || ticket.status === 'closed'}
-                          className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50"
-                        >
-                          {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Reject'}
-                        </button>
-                      </>
-                              {/* Action Buttons */}
+                  {/* Action Buttons - Only Approve/Reject for Testimonies */}
                   <div className="flex gap-2">
                     {displayType === 'testimony' ? (
                       <>
@@ -360,112 +326,42 @@ export default function SupportManager() {
                       </button>
                     )}
                   </div>
-                </div>           <button
-                        onClick={() => handleTestimonyAction(ticket, 'reject')}
-                        disabled={processing || ticket.status === 'closed'}
-                        className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50"
-                      >
-                        {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Reject'}
-                      </button>
-                                   {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    {displayType === 'testimony' ? (
-                      <>
-                        <button
-                          onClick={() => handleTestimonyAction(ticket, 'approve')}
-                          disabled={processing}
-                          className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                        >
-                          {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle size={18} />}
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleTestimonyAction(ticket, 'reject')}
-                          disabled={processing}
-                          className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                        >
-                          {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle size={18} />}
-                          Reject
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => setSelectedTicket(ticket)}
-                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap flex items-center gap-2"
-                      >
-                        <Mail size={18} />
-                        Reply
-                      </button>
-                    )}
-                  </div>
-                </div>  )}
-=======
-                    )}
-                  </div>
->>>>>>> 859a9666c7e14ad9dc78dccb8bd42e088f0d5754
                 </div>
+
+                {/* Reply Modal */}
+                {selectedTicket?.id === ticket.id && (
+                  <div className="mt-6 pt-6 border-t-2 border-gray-100">
+                    <textarea
+                      value={replyMessage}
+                      onChange={(e) => setReplyMessage(e.target.value)}
+                      placeholder="Type your reply..."
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-600 resize-none"
+                      rows={4}
+                    />
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={handleReply}
+                        disabled={replying}
+                        className="px-6 py-2 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {replying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail size={18} />}
+                        Send Reply
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedTicket(null);
+                          setReplyMessage('');
+                        }}
+                        className="px-6 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
-        </div>
-      )}
-
-      {selectedTicket && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <h3 className="text-2xl font-black text-gray-900 mb-6">Reply to Support Request</h3>
-
-            <div className="mb-6 p-6 bg-gray-50 rounded-2xl border-2 border-gray-200 space-y-3">
-              <div>
-                <p className="text-xs text-gray-500 font-bold uppercase mb-1">Subject</p>
-                <p className="text-gray-900 font-bold">{selectedTicket.subject}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-bold uppercase mb-1">From</p>
-                <p className="text-gray-900 font-bold">{selectedTicket.user_name} ({selectedTicket.user_email})</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-bold uppercase mb-1">Type</p>
-                <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full border-2 ${getTypeColor(getActualType(selectedTicket))}`}>
-                  {getActualType(selectedTicket).toUpperCase()}
-                </span>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-bold uppercase mb-1">Message</p>
-                <p className="text-gray-700 font-medium whitespace-pre-wrap">{selectedTicket.message}</p>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-bold text-gray-900 mb-3">Your Reply</label>
-              <textarea
-                value={replyMessage}
-                onChange={(e) => setReplyMessage(e.target.value)}
-                rows={6}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:border-purple-600 focus:ring-2 focus:ring-purple-200 text-gray-900 font-medium resize-none"
-                placeholder="Type your reply here... This will be sent via email to the user."
-              />
-            </div>
-
-            <div className="flex gap-4">
-              <button
-                onClick={() => {
-                  setSelectedTicket(null);
-                  setReplyMessage('');
-                }}
-                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReply}
-                disabled={replying}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {replying ? <Loader2 className="animate-spin w-5 h-5" /> : <><Mail size={18} /> Send Reply</>}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
