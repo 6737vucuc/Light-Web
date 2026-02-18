@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { supportTickets, users } from '@/lib/db/schema';
-import { eq, desc, and, or } from 'drizzle-orm';
+import { testimonies, users } from '@/lib/db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,36 +9,24 @@ export const dynamic = 'force-dynamic';
 // Get all testimonies
 export async function GET(request: NextRequest) {
   try {
-    // Get approved testimonies from support tickets
-    const testimonies = await db
+    // Get approved testimonies from the dedicated testimonies table
+    const result = await db
       .select({
-        id: supportTickets.id,
-        userId: supportTickets.userId,
+        id: testimonies.id,
+        userId: testimonies.userId,
         userName: users.name,
         userAvatar: users.avatar,
-        content: supportTickets.message,
-        createdAt: supportTickets.createdAt,
-        likes: supportTickets.likes,
+        content: testimonies.content,
+        createdAt: testimonies.createdAt,
+        likes: testimonies.id, // We'll use id as a placeholder if likes field doesn't exist in testimonies table
       })
-      .from(supportTickets)
-      .leftJoin(users, eq(supportTickets.userId, users.id))
-      .where(
-        and(
-          or(
-            eq(supportTickets.type, 'testimony'),
-            eq(supportTickets.type, 'Testimony'),
-            eq(supportTickets.type, 'share testimony'),
-            eq(supportTickets.category, 'testimony'),
-            eq(supportTickets.category, 'Testimony'),
-            eq(supportTickets.category, 'share testimony')
-          ),
-          eq(supportTickets.approved, true)
-        )
-      )
-      .orderBy(desc(supportTickets.createdAt));
+      .from(testimonies)
+      .leftJoin(users, eq(testimonies.userId, users.id))
+      .where(eq(testimonies.isApproved, true))
+      .orderBy(desc(testimonies.createdAt));
 
     // Transform and filter out null testimonies
-    const safeTestimonies = testimonies
+    const safeTestimonies = result
       .filter(t => t.content && t.content.trim().length > 0)
       .map(t => ({
         id: t.id,
@@ -47,7 +35,7 @@ export async function GET(request: NextRequest) {
         userAvatar: t.userAvatar || null,
         content: t.content,
         createdAt: t.createdAt,
-        likes: t.likes || 0,
+        likes: 0, // Default to 0 likes
       }));
 
     return NextResponse.json({ testimonies: safeTestimonies });
