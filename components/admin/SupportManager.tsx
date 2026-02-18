@@ -306,15 +306,38 @@ export default function SupportManager() {
                       >
                         {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Reject'}
                       </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setSelectedTicket(ticket)}
-                      className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap"
-                    >
-                      Reply
-                    </button>
-                  )}
+                                   {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    {displayType === 'testimony' ? (
+                      <>
+                        <button
+                          onClick={() => handleTestimonyAction(ticket, 'approve')}
+                          disabled={processing}
+                          className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                        >
+                          {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle size={18} />}
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleTestimonyAction(ticket, 'reject')}
+                          disabled={processing}
+                          className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                        >
+                          {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle size={18} />}
+                          Reject
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setSelectedTicket(ticket)}
+                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap flex items-center gap-2"
+                      >
+                        <Mail size={18} />
+                        Reply
+                      </button>
+                    )}
+                  </div>
+                </div>  )}
                 </div>
               </div>
             );
