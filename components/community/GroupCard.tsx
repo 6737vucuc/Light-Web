@@ -57,8 +57,11 @@ export default function GroupCard({ group, currentUser, onOpenChat }: GroupCardP
       if (res.ok) {
         setIsMember(true);
         toast.success(t('joinedSuccess') || 'Successfully joined!');
-        // Refresh page or update state to show chat
-        window.location.reload();
+        // Update local state instead of full reload for speed
+        if (group) {
+          group.isMember = true;
+          group.membersCount = (group.membersCount || 0) + 1;
+        }
       } else {
         toast.error(data.error || 'Failed to join group');
       }

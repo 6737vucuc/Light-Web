@@ -24,7 +24,8 @@ import {
   Ban,
   Phone,
   Video,
-  Info
+  Info,
+  MessageSquare
 } from 'lucide-react';
 import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
@@ -55,12 +56,18 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
 
   const currentId = currentUser ? (currentUser.userId || currentUser.id) : null;
 
-  const presence = usePresence(
-    group?.id,
-    currentId,
-    currentUser?.name,
-    currentUser?.avatar
-  );
+  // Use a safer way to handle presence to avoid crashes
+  let presence: any = null;
+  try {
+    presence = usePresence(
+      group?.id,
+      currentId,
+      currentUser?.name,
+      currentUser?.avatar
+    );
+  } catch (e) {
+    console.error('Presence hook error:', e);
+  }
   
   const onlineMembersCount = presence?.onlineMembersCount || 0;
 
