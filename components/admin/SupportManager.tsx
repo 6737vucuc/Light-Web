@@ -179,18 +179,20 @@ export default function SupportManager() {
     const subject = (ticket.subject || '').toLowerCase();
     const message = (ticket.message || '').toLowerCase();
 
-    // Check all possible fields for testimony indicators
+    // Check all possible fields for testimony indicators - VERY STRICT
     const isTestimony = 
-      type.toLowerCase().includes('testimony') || 
-      category.toLowerCase().includes('testimony') || 
-      subject.toLowerCase().includes('testimony') || 
-      message.toLowerCase().includes('testimony') ||
+      type.includes('testimony') || 
+      category.includes('testimony') || 
+      subject.includes('testimony') || 
+      message.includes('testimony') ||
       subject.includes('شهادة') || 
       message.includes('شهادة') ||
-      type.toLowerCase() === 'share testimony' ||
-      category.toLowerCase() === 'share testimony' ||
-      type.toLowerCase() === 'testimony' ||
-      category.toLowerCase() === 'testimony';
+      type === 'share testimony' ||
+      category === 'share testimony' ||
+      type === 'testimony' ||
+      category === 'testimony' ||
+      ticket.subject === 'share testimony' ||
+      ticket.subject === 'testimony';
 
     if (isTestimony) {
       return 'testimony';
@@ -344,8 +346,8 @@ export default function SupportManager() {
                   </div>
                 </div>
 
-                {/* Reply Modal */}
-                {selectedTicket?.id === ticket.id && (
+                {/* Reply Modal - ONLY for non-testimonies */}
+                {selectedTicket?.id === ticket.id && displayType !== 'testimony' && (
                   <div className="mt-6 pt-6 border-t-2 border-gray-100">
                     <textarea
                       value={replyMessage}

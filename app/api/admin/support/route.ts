@@ -50,13 +50,13 @@ export async function GET(request: NextRequest) {
       };
       
       // Ensure type is explicitly set for frontend logic
-      const type = ticket.type || ticket.category || 'technical';
+      const type = (ticket.type || ticket.category || 'technical').toLowerCase();
       
       return {
         ...ticket,
         type: type,
         approved: !!ticket.approved,
-        category: ticket.category,
+        category: (ticket.category || '').toLowerCase(),
         createdAt: formatDate(ticket.created_at),
         updatedAt: formatDate(ticket.updated_at),
       };
