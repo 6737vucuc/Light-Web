@@ -183,16 +183,26 @@ export default function SupportManager() {
     const subject = (ticket.subject || '').toLowerCase();
     const message = (ticket.message || '').toLowerCase();
 
+    // Log for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Ticket Type Check:', { id: ticket.id, type, category, subject });
+    }
+
     // Priority check for Testimony as requested
+    // Added more variations to ensure it catches all possible values
     if (
       type === 'testimony' || 
       category === 'testimony' || 
-      type.includes('share testimony') || 
-      category.includes('share testimony') ||
+      type === 'share testimony' ||
+      category === 'share testimony' ||
+      type.includes('testimony') || 
+      category.includes('testimony') ||
       subject.includes('testimony') || 
       message.includes('testimony') || 
       subject.includes('شهادة') || 
-      message.includes('شهادة')
+      message.includes('شهادة') ||
+      subject.includes('share testimony') ||
+      message.includes('share testimony')
     ) {
       return 'testimony';
     }
