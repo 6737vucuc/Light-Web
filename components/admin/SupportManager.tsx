@@ -181,11 +181,13 @@ export default function SupportManager() {
 
     if (
       type === 'testimony' || 
+      type === 'Testimony' ||
       category === 'testimony' || 
-      type.includes('testimony') || 
-      category.includes('testimony') ||
-      subject.includes('testimony') || 
-      message.includes('testimony') || 
+      category === 'Testimony' ||
+      type.toLowerCase().includes('testimony') || 
+      category.toLowerCase().includes('testimony') ||
+      subject.toLowerCase().includes('testimony') || 
+      message.toLowerCase().includes('testimony') || 
       subject.includes('شهادة') || 
       message.includes('شهادة')
     ) {
@@ -298,24 +300,36 @@ export default function SupportManager() {
                   {/* Action Buttons - Only Approve/Reject for Testimonies */}
                   <div className="flex gap-2">
                     {displayType === 'testimony' ? (
-                      <>
-                        <button
-                          onClick={() => handleApprove(ticket.id)}
-                          disabled={processing === ticket.id}
-                          className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                        >
-                          {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle size={18} />}
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleReject(ticket.id)}
-                          disabled={processing === ticket.id}
-                          className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                        >
-                          {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle size={18} />}
-                          Reject
-                        </button>
-                      </>
+                      ticket.status === 'resolved' || (ticket as any).approved ? (
+                        <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-xl font-bold">
+                          <CheckCircle size={18} />
+                          Approved
+                        </span>
+                      ) : ticket.status === 'closed' ? (
+                        <span className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-xl font-bold">
+                          <AlertCircle size={18} />
+                          Rejected
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleApprove(ticket.id)}
+                            disabled={processing === ticket.id}
+                            className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                          >
+                            {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle size={18} />}
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReject(ticket.id)}
+                            disabled={processing === ticket.id}
+                            className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                          >
+                            {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle size={18} />}
+                            Reject
+                          </button>
+                        </>
+                      )
                     ) : (
                       <button
                         onClick={() => setSelectedTicket(ticket)}

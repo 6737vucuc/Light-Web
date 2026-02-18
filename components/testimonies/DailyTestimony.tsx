@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Heart, Share2, Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 interface Testimony {
   id: number;
@@ -13,6 +14,7 @@ interface Testimony {
 }
 
 export default function DailyTestimony() {
+  const t = useTranslations('home');
   const [testimony, setTestimony] = useState<Testimony | null>(null);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
@@ -95,7 +97,7 @@ export default function DailyTestimony() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-center gap-2 mb-6">
           <Sparkles className="w-5 h-5 text-purple-600" />
-          <h2 className="text-2xl font-black text-gray-900">Inspiring Testimony</h2>
+          <h2 className="text-2xl font-black text-gray-900">{t('inspiringTestimony')}</h2>
           <Sparkles className="w-5 h-5 text-purple-600" />
         </div>
 
@@ -150,7 +152,7 @@ export default function DailyTestimony() {
                 href="/testimonies"
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap ml-auto md:ml-0"
               >
-                View All <ArrowRight size={18} />
+                {t('viewAll')} <ArrowRight size={18} />
               </Link>
             </div>
           </div>

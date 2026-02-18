@@ -7,8 +7,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
   try {
     const ticketId = parseInt(params.id);
 
-    // Update the support ticket status to closed
+    // Update the support ticket status to closed and ensure it's not approved
     await db.update(supportTickets).set({
+      approved: false,
       status: 'closed',
       updatedAt: new Date(),
     }).where(eq(supportTickets.id, ticketId));

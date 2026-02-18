@@ -59,6 +59,11 @@ export const supportTickets = pgTable('support_tickets', {
   subject: varchar('subject', { length: 255 }).notNull(),
   message: text('message').notNull(),
   category: varchar('category', { length: 50 }).notNull(),
+  type: varchar('type', { length: 50 }).default('technical'),
+  approved: boolean('approved').default(false),
+  approvedAt: timestamp('approved_at'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  likes: integer('likes').default(0),
   status: varchar('status', { length: 20 }).default('open'), // 'open', 'in-progress', 'resolved', 'closed'
   priority: varchar('priority', { length: 20 }).default('normal'), // 'low', 'normal', 'high'
   assignedTo: integer('assigned_to'),

@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
         status: supportTickets.status,
         priority: supportTickets.priority,
         category: supportTickets.category,
+        type: supportTickets.type,
+        approved: supportTickets.approved,
         created_at: supportTickets.createdAt,
         updated_at: supportTickets.updatedAt,
         user_name: users.name,
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
       };
       
       // Ensure type is explicitly set for frontend logic
-      const type = ticket.category || 'technical';
+      const type = ticket.type || ticket.category || 'technical';
       
       return {
         ...ticket,

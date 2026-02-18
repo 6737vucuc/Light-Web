@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 // Get all testimonies
 export async function GET(request: NextRequest) {
   try {
+    // Get approved testimonies from support tickets
     const testimonies = await db
       .select({
         id: supportTickets.id,
@@ -25,8 +26,10 @@ export async function GET(request: NextRequest) {
         and(
           or(
             eq(supportTickets.type, 'testimony'),
+            eq(supportTickets.type, 'Testimony'),
             eq(supportTickets.type, 'share testimony'),
             eq(supportTickets.category, 'testimony'),
+            eq(supportTickets.category, 'Testimony'),
             eq(supportTickets.category, 'share testimony')
           ),
           eq(supportTickets.approved, true)
@@ -34,19 +37,25 @@ export async function GET(request: NextRequest) {
       )
       .orderBy(desc(supportTickets.createdAt));
 
-    // حماية من null أو undefined عند المستخدمين
-    const safeTestimonies = testimonies.map(t => ({
-      ...t,
-      userName: t.userName ?? null,
-      userAvatar: t.userAvatar ?? null,
-    }));
+    // Transform and filter out null testimonies
+    const safeTestimonies = testimonies
+      .filter(t => t.content && t.content.trim().length > 0)
+      .map(t => ({
+        id: t.id,
+        userId: t.userId,
+        userName: t.userName || 'Anonymous User',
+        userAvatar: t.userAvatar || null,
+        content: t.content,
+        createdAt: t.createdAt,
+        likes: t.likes || 0,
+      }));
 
     return NextResponse.json({ testimonies: safeTestimonies });
   } catch (error) {
     console.error('Get testimonies error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch testimonies' },
-      { status: 500 }
+      { error: 'Failed to fetch testimonies', testimonies: [] },
+      { status: 200 }
     );
   }
 }
