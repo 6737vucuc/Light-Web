@@ -73,11 +73,12 @@ export async function POST(
 
     // Send email reply
     try {
+      // Use Vercel environment variables: EMAIL_USER and EMAIL_PASS
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: process.env.GMAIL_USER,
-          pass: process.env.GMAIL_PASSWORD,
+          user: process.env.EMAIL_USER || process.env.GMAIL_USER,
+          pass: process.env.EMAIL_PASS || process.env.GMAIL_PASSWORD,
         },
       });
 
@@ -103,7 +104,7 @@ export async function POST(
       `;
 
       await transporter.sendMail({
-        from: process.env.GMAIL_USER,
+        from: process.env.EMAIL_USER || process.env.GMAIL_USER,
         to: userEmail,
         subject: `Re: ${ticketData.subject}`,
         html: emailContent,
