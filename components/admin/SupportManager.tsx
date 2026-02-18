@@ -182,12 +182,15 @@ export default function SupportManager() {
     const subject = (ticket.subject || '').toLowerCase();
     const message = (ticket.message || '').toLowerCase();
 
-    if (type === 'prayer' || subject.includes('pray') || message.includes('pray') || subject.includes('صلاة') || message.includes('صلاة')) {
-      return 'prayer';
-    }
-    if (type === 'testimony' || subject.includes('testimony') || message.includes('testimony') || subject.includes('شهادة') || message.includes('شهادة')) {
+    // Check for Testimony first as requested
+    if (type === 'testimony' || type.includes('share testimony') || subject.includes('testimony') || message.includes('testimony') || subject.includes('شهادة') || message.includes('شهادة')) {
       return 'testimony';
     }
+    
+    if (type === 'prayer' || type.includes('prayer request') || subject.includes('pray') || message.includes('pray') || subject.includes('صلاة') || message.includes('صلاة')) {
+      return 'prayer';
+    }
+    
     return 'technical';
   };
 
