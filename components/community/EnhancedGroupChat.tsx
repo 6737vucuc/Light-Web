@@ -24,7 +24,8 @@ import {
   Ban,
   Phone,
   Video,
-  Info
+  Info,
+  MessageSquare
 } from 'lucide-react';
 import Image from 'next/image';
 import UserAvatarMenu from './UserAvatarMenu';
@@ -55,16 +56,27 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
 
   const currentId = currentUser ? (currentUser.userId || currentUser.id) : null;
 
-  const { onlineMembersCount } = usePresence(
-    group.id,
-    currentId,
-    currentUser?.name,
-    currentUser?.avatar
-  );
+  // Use a safer way to handle presence to avoid crashes
+  let presence: any = null;
+  try {
+    presence = usePresence(
+      group?.id,
+      currentId,
+      currentUser?.name,
+      currentUser?.avatar
+    );
+  } catch (e) {
+    console.error('Presence hook error:', e);
+  }
+  
+  const onlineMembersCount = presence?.onlineMembersCount || 0;
 
   useEffect(() => {
     const init = async () => {
-      if (!group.id || !currentId) return;
+      if (!group?.id || !currentId) {
+        setIsLoading(false);
+        return;
+      }
       const member = await checkMembership();
       if (member) {
         fetchMessages();
@@ -73,7 +85,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
       }
     };
     init();
-  }, [group.id, currentId]);
+  }, [group?.id, currentId]);
 
   useEffect(() => {
     if (!isMember || !group.id) return;
@@ -262,12 +274,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                 <span className="text-[11px] text-emerald-600 font-black uppercase tracking-wider">
-                  {onlineMembersCount} {t('online')}
+                  {onlineMembersCount || 0} {t('online') || 'Online'}
                 </span>
               </div>
-              {typingUsers.length > 0 && (
+              {typingUsers && typingUsers.length > 0 && typingUsers[0] && (
                 <span className="text-[11px] text-indigo-600 font-black animate-pulse uppercase tracking-wider">
-                  • {typingUsers[0].name} {t('typing')}
+                  • {typingUsers[0].name || 'Someone'} {t('typing') || 'typing...'}
                 </span>
               )}
             </div>

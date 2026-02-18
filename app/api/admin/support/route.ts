@@ -46,10 +46,14 @@ export async function GET(request: NextRequest) {
           return new Date().toISOString();
         }
       };
-
+      
+      // Ensure type is explicitly set for frontend logic
+      const type = ticket.category || 'technical';
+      
       return {
         ...ticket,
-        type: ticket.category, // Map category to type for frontend
+        type: type,
+        category: ticket.category,
         createdAt: formatDate(ticket.created_at),
         updatedAt: formatDate(ticket.updated_at),
       };

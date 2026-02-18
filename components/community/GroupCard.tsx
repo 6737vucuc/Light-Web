@@ -45,21 +45,29 @@ export default function GroupCard({ group, currentUser, onOpenChat }: GroupCardP
   const handleJoin = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentUser) {
-      toast.show('Please sign in to join groups', 'error');
+      toast.error('Please sign in to join groups');
       return;
     }
     
     setActionLoading(true);
     try {
       const res = await fetch(`/api/groups/${group.id}/membership`, { method: 'POST' });
+      const data = await res.json();
+      
       if (res.ok) {
         setIsMember(true);
-        toast.show(t('joinedSuccess') || 'Successfully joined!', 'success');
+        toast.success(t('joinedSuccess') || 'Successfully joined!');
+        // Update local state instead of full reload for speed
+        if (group) {
+          group.isMember = true;
+          group.membersCount = (group.membersCount || 0) + 1;
+        }
       } else {
-        toast.show('Failed to join group', 'error');
+        toast.error(data.error || 'Failed to join group');
       }
     } catch (error) {
-      toast.show('An error occurred', 'error');
+      console.error('Join error:', error);
+      toast.error('An error occurred while joining');
     } finally {
       setActionLoading(false);
     }
@@ -67,19 +75,29 @@ export default function GroupCard({ group, currentUser, onOpenChat }: GroupCardP
 
   const handleLeave = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(t('leaveGroupConfirm') || 'Are you sure you want to leave this group?')) return;
+    
+    // Use Confirm Toast instead of browser confirm
+    const confirmed = await toast.confirm({
+      title: t('leaveGroup') || 'Leave Group',
+      message: t('leaveGroupConfirm') || 'Are you sure you want to leave this group?',
+      confirmText: t('common.leave') || 'Leave',
+      cancelText: t('common.cancel') || 'Cancel',
+      type: 'danger'
+    });
+    
+    if (!confirmed) return;
 
     setActionLoading(true);
     try {
       const res = await fetch(`/api/groups/${group.id}/membership`, { method: 'DELETE' });
       if (res.ok) {
         setIsMember(false);
-        toast.show(t('leftSuccess') || 'Left group successfully', 'success');
+        toast.success(t('leftSuccess') || 'Left group successfully');
       } else {
-        toast.show('Failed to leave group', 'error');
+        toast.error('Failed to leave group');
       }
     } catch (error) {
-      toast.show('An error occurred', 'error');
+      toast.error('An error occurred');
     } finally {
       setActionLoading(false);
     }

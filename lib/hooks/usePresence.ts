@@ -58,24 +58,30 @@ export function usePresence(
       setIsLoading(true);
 
       // Get initial presence stats
-      const statsResponse = await fetch(`/api/groups/${groupId}/presence`);
-      if (statsResponse.ok) {
-        const stats = await statsResponse.json();
-        setPresenceStats(stats);
-        const members = stats.members || [];
-        setOnlineMembers(members);
-        updateUniqueCount(members);
+      const statsResponse = await fetch(`/api/groups/${groupId}/presence`).catch(() => null);
+      if (statsResponse && statsResponse.ok) {
+        const stats = await statsResponse.json().catch(() => null);
+        if (stats) {
+          setPresenceStats(stats);
+          const members = stats.members || [];
+          setOnlineMembers(members);
+          updateUniqueCount(members);
+        }
       }
 
       // Update user's presence
-      await updatePresence('online');
+      if (userId) {
+        await updatePresence('online').catch(err => console.error('Initial presence update failed:', err));
+      }
 
       // Setup Supabase Realtime listeners
       setupRealtimeListeners();
 
       // Poll for presence updates every 30 seconds
       presenceIntervalRef.current = setInterval(() => {
-        updatePresence('online');
+        if (userId) {
+          updatePresence('online').catch(err => console.error('Interval presence update failed:', err));
+        }
       }, 30000);
     } catch (error) {
       console.error('Error initializing presence:', error);
