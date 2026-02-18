@@ -18,6 +18,7 @@ interface SupportTicket {
   user_name: string;
   user_email: string;
   user_avatar?: string;
+  approved?: boolean;
 }
 
 export default function SupportManager() {
@@ -120,23 +121,11 @@ export default function SupportManager() {
   const formatDateTime = (dateString: any) => {
     try {
       if (!dateString) return { date: 'No Date', time: '', full: 'No Date' };
-      
       const date = new Date(dateString);
-      
-      if (isNaN(date.getTime())) {
-        return { date: 'Invalid Date', time: '', full: 'Invalid Date' };
-      }
+      if (isNaN(date.getTime())) return { date: 'Invalid Date', time: '', full: 'Invalid Date' };
 
-      const dateOptions: Intl.DateTimeFormatOptions = { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-      };
-      const timeOptions: Intl.DateTimeFormatOptions = { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true
-      };
+      const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+      const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
 
       return {
         date: date.toLocaleDateString('en-US', dateOptions),
@@ -148,39 +137,13 @@ export default function SupportManager() {
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    const t = (type || '').toLowerCase();
-    if (t === 'technical') return <Wrench className="w-5 h-5" />;
-    if (t === 'testimony') return <Heart className="w-5 h-5" />;
-    if (t === 'prayer') return <AlertCircle className="w-5 h-5" />;
-    return <MessageCircle className="w-5 h-5" />;
-  };
-
-  const getTypeColor = (type: string) => {
-    const t = (type || '').toLowerCase();
-    if (t === 'technical') return 'bg-red-50 text-red-600 border-red-200';
-    if (t === 'testimony') return 'bg-green-50 text-green-600 border-green-200';
-    if (t === 'prayer') return 'bg-blue-50 text-blue-600 border-blue-200';
-    return 'bg-gray-50 text-gray-600 border-gray-200';
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'resolved': return 'bg-green-100 text-green-700';
-      case 'pending': return 'bg-yellow-100 text-yellow-700';
-      case 'in-progress': return 'bg-blue-100 text-blue-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const getActualType = (ticket: SupportTicket) => {
+  const isTestimonyType = (ticket: SupportTicket) => {
     const type = (ticket.type || '').toLowerCase();
     const category = (ticket.category || '').toLowerCase();
     const subject = (ticket.subject || '').toLowerCase();
     const message = (ticket.message || '').toLowerCase();
 
-    // Check all possible fields for testimony indicators - VERY STRICT
-    const isTestimony = 
+    return (
       type.includes('testimony') || 
       category.includes('testimony') || 
       subject.includes('testimony') || 
@@ -188,16 +151,18 @@ export default function SupportManager() {
       subject.includes('شهادة') || 
       message.includes('شهادة') ||
       type === 'share testimony' ||
-      category === 'share testimony' ||
-      type === 'testimony' ||
-      category === 'testimony' ||
-      ticket.subject === 'share testimony' ||
-      ticket.subject === 'testimony';
+      category === 'share testimony'
+    );
+  };
 
-    if (isTestimony) {
-      return 'testimony';
-    }
+  const getActualType = (ticket: SupportTicket) => {
+    if (isTestimonyType(ticket)) return 'testimony';
     
+    const type = (ticket.type || '').toLowerCase();
+    const category = (ticket.category || '').toLowerCase();
+    const subject = (ticket.subject || '').toLowerCase();
+    const message = (ticket.message || '').toLowerCase();
+
     if (
       type === 'prayer' || 
       category === 'prayer' ||
@@ -255,6 +220,7 @@ export default function SupportManager() {
           {filteredTickets.map((ticket) => {
             const { date, time, full } = formatDateTime(ticket.createdAt);
             const displayType = getActualType(ticket);
+            const isTestimony = displayType === 'testimony';
 
             return (
               <div
@@ -263,17 +229,31 @@ export default function SupportManager() {
               >
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div className="flex items-start gap-4 flex-1">
-                    <div className={`p-3 rounded-2xl border-2 ${getTypeColor(displayType)}`}>
-                      {getTypeIcon(displayType)}
+                    <div className={`p-3 rounded-2xl border-2 ${
+                      isTestimony ? 'bg-green-50 text-green-600 border-green-200' : 
+                      displayType === 'prayer' ? 'bg-blue-50 text-blue-600 border-blue-200' : 
+                      'bg-red-50 text-red-600 border-red-200'
+                    }`}>
+                      {isTestimony ? <Heart className="w-5 h-5" /> : 
+                       displayType === 'prayer' ? <AlertCircle className="w-5 h-5" /> : 
+                       <Wrench className="w-5 h-5" />}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h4 className="font-black text-gray-900 truncate">{ticket.subject}</h4>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full border-2 ${getTypeColor(displayType)}`}>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full border-2 ${
+                          isTestimony ? 'bg-green-50 text-green-600 border-green-200' : 
+                          displayType === 'prayer' ? 'bg-blue-50 text-blue-600 border-blue-200' : 
+                          'bg-red-50 text-red-600 border-red-200'
+                        }`}>
                           {displayType.charAt(0).toUpperCase() + displayType.slice(1)}
                         </span>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${getStatusColor(ticket.status)}`}>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                          ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 
+                          ticket.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
+                          'bg-gray-100 text-gray-700'
+                        }`}>
                           {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
                         </span>
                       </div>
@@ -283,95 +263,52 @@ export default function SupportManager() {
                       </p>
 
                       <div className="flex flex-wrap gap-4 text-xs text-gray-500 font-medium">
-                        <div className="flex items-center gap-1">
-                          <User size={14} className="text-gray-400" />
-                          <span className="font-bold">{ticket.user_name || 'Unknown User'}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Mail size={14} className="text-gray-400" />
-                          <span className="font-bold">{ticket.user_email || 'No Email'}</span>
-                        </div>
+                        <div className="flex items-center gap-1"><User size={14} /><span className="font-bold">{ticket.user_name}</span></div>
+                        <div className="flex items-center gap-1"><Mail size={14} /><span className="font-bold">{ticket.user_email}</span></div>
                         <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
                           <Clock size={14} className="text-purple-500" />
-                          <span className="font-bold text-gray-700" title={full}>
-                            {date} • {time}
-                          </span>
+                          <span className="font-bold text-gray-700">{date} • {time}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Action Buttons - Only Approve/Reject for Testimonies */}
                   <div className="flex gap-2">
-                    {displayType === 'testimony' ? (
-                      ticket.status === 'resolved' || (ticket as any).approved ? (
+                    {isTestimony ? (
+                      ticket.status === 'resolved' || ticket.approved ? (
                         <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-xl font-bold">
-                          <CheckCircle size={18} />
-                          Approved
+                          <CheckCircle size={18} /> Approved
                         </span>
                       ) : ticket.status === 'closed' ? (
                         <span className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-xl font-bold">
-                          <AlertCircle size={18} />
-                          Rejected
+                          <AlertCircle size={18} /> Rejected
                         </span>
                       ) : (
                         <>
-                          <button
-                            onClick={() => handleApprove(ticket.id)}
-                            disabled={processing === ticket.id}
-                            className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                          >
-                            {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle size={18} />}
-                            Approve
+                          <button onClick={() => handleApprove(ticket.id)} disabled={processing === ticket.id} className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 flex items-center gap-2 disabled:opacity-50">
+                            {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle size={18} />} Approve
                           </button>
-                          <button
-                            onClick={() => handleReject(ticket.id)}
-                            disabled={processing === ticket.id}
-                            className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                          >
-                            {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle size={18} />}
-                            Reject
+                          <button onClick={() => handleReject(ticket.id)} disabled={processing === ticket.id} className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 flex items-center gap-2 disabled:opacity-50">
+                            {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle size={18} />} Reject
                           </button>
                         </>
                       )
                     ) : (
-                      <button
-                        onClick={() => setSelectedTicket(ticket)}
-                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap flex items-center gap-2"
-                      >
-                        <Mail size={18} />
-                        Reply
+                      <button onClick={() => setSelectedTicket(ticket)} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg flex items-center gap-2">
+                        <Mail size={18} /> Reply
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Reply Modal - ONLY for non-testimonies */}
-                {selectedTicket?.id === ticket.id && displayType !== 'testimony' && (
+                {selectedTicket?.id === ticket.id && !isTestimony && (
                   <div className="mt-6 pt-6 border-t-2 border-gray-100">
-                    <textarea
-                      value={replyMessage}
-                      onChange={(e) => setReplyMessage(e.target.value)}
-                      placeholder="Type your reply..."
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-600 resize-none"
-                      rows={4}
-                    />
+                    <textarea value={replyMessage} onChange={(e) => setReplyMessage(e.target.value)} placeholder="Type your reply..." className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-600 resize-none" rows={4} />
                     <div className="flex gap-2 mt-4">
-                      <button
-                        onClick={handleReply}
-                        disabled={replying}
-                        className="px-6 py-2 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                      >
-                        {replying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail size={18} />}
-                        Send Reply
+                      <button onClick={handleReply} disabled={replying} className="px-6 py-2 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 flex items-center gap-2 disabled:opacity-50">
+                        {replying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail size={18} />} Send Reply
                       </button>
-                      <button
-                        onClick={() => {
-                          setSelectedTicket(null);
-                          setReplyMessage('');
-                        }}
-                        className="px-6 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-all"
-                      >
+                      <button onClick={() => { setSelectedTicket(null); setReplyMessage(''); }} className="px-6 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">
                         Cancel
                       </button>
                     </div>
