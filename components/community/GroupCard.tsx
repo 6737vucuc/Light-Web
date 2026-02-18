@@ -52,14 +52,19 @@ export default function GroupCard({ group, currentUser, onOpenChat }: GroupCardP
     setActionLoading(true);
     try {
       const res = await fetch(`/api/groups/${group.id}/membership`, { method: 'POST' });
+      const data = await res.json();
+      
       if (res.ok) {
         setIsMember(true);
         toast.success(t('joinedSuccess') || 'Successfully joined!');
+        // Refresh page or update state to show chat
+        window.location.reload();
       } else {
-        toast.error('Failed to join group');
+        toast.error(data.error || 'Failed to join group');
       }
     } catch (error) {
-      toast.error('An error occurred');
+      console.error('Join error:', error);
+      toast.error('An error occurred while joining');
     } finally {
       setActionLoading(false);
     }

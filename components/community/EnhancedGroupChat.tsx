@@ -56,7 +56,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
   const currentId = currentUser ? (currentUser.userId || currentUser.id) : null;
 
   const { onlineMembersCount } = usePresence(
-    group.id,
+    group?.id,
     currentId,
     currentUser?.name,
     currentUser?.avatar
@@ -64,7 +64,10 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
 
   useEffect(() => {
     const init = async () => {
-      if (!group.id || !currentId) return;
+      if (!group?.id || !currentId) {
+        setIsLoading(false);
+        return;
+      }
       const member = await checkMembership();
       if (member) {
         fetchMessages();
@@ -73,7 +76,7 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
       }
     };
     init();
-  }, [group.id, currentId]);
+  }, [group?.id, currentId]);
 
   useEffect(() => {
     if (!isMember || !group.id) return;

@@ -75,8 +75,13 @@ export async function POST(
     const channelName = RealtimeChatService.getGroupChannelName(groupId);
     await supabase.channel(channelName).send({
       type: 'broadcast',
-      event: 'MEMBER_JOINED',
-      payload: { userId: user.userId, userName: user.name }
+      event: ChatEvent.USER_JOINED,
+      payload: { 
+        userId: user.userId, 
+        userName: user.name,
+        status: 'online',
+        lastSeen: new Date()
+      }
     });
 
     return NextResponse.json({ success: true, message: 'Joined successfully' });
@@ -116,7 +121,7 @@ export async function DELETE(
       const channelName = RealtimeChatService.getGroupChannelName(groupId);
       await supabase.channel(channelName).send({
         type: 'broadcast',
-        event: 'MEMBER_LEFT',
+        event: ChatEvent.USER_LEFT,
         payload: { userId: user.userId, userName: user.name }
       });
     }
