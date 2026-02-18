@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { supportTickets, users } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,12 @@ export async function GET(request: NextRequest) {
       })
       .from(supportTickets)
       .leftJoin(users, eq(supportTickets.userId, users.id))
-      .where(eq(supportTickets.type, 'testimony'))
+      .where(
+        and(
+          eq(supportTickets.type, 'testimony'),
+          eq(supportTickets.approved, true)
+        )
+      )
       .orderBy(desc(supportTickets.createdAt));
 
     // حماية من null أو undefined عند المستخدمين

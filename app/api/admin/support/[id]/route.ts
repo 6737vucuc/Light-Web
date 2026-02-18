@@ -21,18 +21,26 @@ export async function PATCH(
     const { id } = await params;
     const ticketId = parseInt(id);
     const body = await request.json();
-    const { status } = body;
+    const { status, approved } = body;
 
-    if (!status) {
-      return NextResponse.json(
-        { error: 'Status is required' },
-        { status: 400 }
-      );
+    // Build update object dynamically
+    const updateData: any = { updatedAt: new Date() };
+    
+    if (status !== undefined) {
+      updateData.status = status;
+    }
+    
+    if (approved !== undefined) {
+      updateData.approved = approved;
+      if (approved) {
+        updateData.approvedAt = new Date();
+        updateData.approvedBy = user.id;
+      }
     }
 
     await db
       .update(supportTickets)
-      .set({ status, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(supportTickets.id, ticketId));
 
     return NextResponse.json({

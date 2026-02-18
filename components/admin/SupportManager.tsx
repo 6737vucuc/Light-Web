@@ -83,44 +83,34 @@ export default function SupportManager() {
     setProcessing(true);
     try {
       if (action === 'approve') {
-        // 1. Create testimony in testimonies table
-        const testimonyRes = await fetch('/api/testimonies', {
-          method: 'POST',
+        // Approve the testimony by updating the support ticket
+        const response = await fetch(`/api/admin/support/${ticket.id}`, {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: ticket.message,
-            religion: 'Christianity', // Default or extract from user profile if possible
+          body: JSON.stringify({ 
+            approved: true,
+            status: 'resolved'
           }),
         });
 
-        if (!testimonyRes.ok) throw new Error('Failed to create testimony');
-        
-        const testimonyData = await testimonyRes.json();
-        const testimonyId = testimonyData.testimony?.id;
-
-        // 2. Approve the testimony
-        if (testimonyId) {
-          await fetch(`/api/admin/testimonies/${testimonyId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isApproved: true }),
-          });
+        if (response.ok) {
+          toast.show('Testimony approved and published', 'success');
+          fetchTickets();
+        } else {
+          toast.show('Failed to approve testimony', 'error');
         }
-      }
-
-      // 3. Update ticket status
-      const status = action === 'approve' ? 'resolved' : 'closed';
-      const response = await fetch(`/api/admin/support/${ticket.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-
-      if (response.ok) {
-        toast.show(action === 'approve' ? 'Testimony approved and published' : 'Testimony rejected', 'success');
-        fetchTickets();
       } else {
-        toast.show('Failed to update ticket status', 'error');
+        // Reject: Delete the testimony from database
+        const response = await fetch(`/api/admin/support/${ticket.id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          toast.show('Testimony rejected and deleted', 'success');
+          fetchTickets();
+        } else {
+          toast.show('Failed to reject testimony', 'error');
+        }
       }
     } catch (error) {
       console.error('Error processing testimony:', error);
@@ -290,31 +280,33 @@ export default function SupportManager() {
                     </div>
                   </div>
 
-                  {displayType === 'testimony' ? (
-                    <div className="flex gap-2">
+                  <div className="flex gap-2">
+                    {displayType === 'testimony' ? (
+                      <>
+                        <button
+                          onClick={() => handleTestimonyAction(ticket, 'approve')}
+                          disabled={processing || ticket.status === 'resolved'}
+                          className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50"
+                        >
+                          {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Approve'}
+                        </button>
+                        <button
+                          onClick={() => handleTestimonyAction(ticket, 'reject')}
+                          disabled={processing || ticket.status === 'closed'}
+                          className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50"
+                        >
+                          {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Reject'}
+                        </button>
+                      </>
+                    ) : (
                       <button
-                        onClick={() => handleTestimonyAction(ticket, 'approve')}
-                        disabled={processing || ticket.status === 'resolved'}
-                        className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50"
+                        onClick={() => setSelectedTicket(ticket)}
+                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap"
                       >
-                        {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Accept'}
+                        Reply
                       </button>
-                      <button
-                        onClick={() => handleTestimonyAction(ticket, 'reject')}
-                        disabled={processing || ticket.status === 'closed'}
-                        className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all disabled:opacity-50"
-                      >
-                        {processing ? <Loader2 className="animate-spin w-4 h-4" /> : 'Reject'}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setSelectedTicket(ticket)}
-                      className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap"
-                    >
-                      Reply
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             );
