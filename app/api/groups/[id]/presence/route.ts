@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PresenceService } from '@/lib/services/presenceService';
+import { db } from '@/lib/db';
+import { eq, and } from 'drizzle-orm';
+import * as schema from '@/lib/db/schema';
 
 /**
  * Presence API Endpoint
@@ -13,7 +16,8 @@ export async function POST(
   try {
     const { id } = await params;
     const groupId = parseInt(id);
-    const { action, userId, isOnline, sessionId } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const { action, userId, isOnline, sessionId } = body;
 
     // Verify user is authenticated
     const authResponse = await fetch(new URL('/api/auth/me', request.url), {
@@ -24,15 +28,22 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { user } = await authResponse.json();
+    const authData = await authResponse.json();
+    const user = authData.user || authData;
+
+    if (!user || !user.id) {
+      return NextResponse.json({ error: 'Invalid user data' }, { status: 401 });
+    }
 
     // Verify user is member of the group
-    const memberResponse = await fetch(
-      new URL(`/api/groups/${groupId}/members/${user.id}`, request.url),
-      { headers: request.headers }
-    );
+    const member = await db.query.groupMembers.findFirst({
+      where: and(
+        eq(schema.groupMembers.groupId, groupId),
+        eq(schema.groupMembers.userId, user.id)
+      )
+    });
 
-    if (!memberResponse.ok) {
+    if (!member) {
       return NextResponse.json(
         { error: 'User is not a member of this group' },
         { status: 403 }

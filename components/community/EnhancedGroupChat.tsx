@@ -55,12 +55,14 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
 
   const currentId = currentUser ? (currentUser.userId || currentUser.id) : null;
 
-  const { onlineMembersCount } = usePresence(
+  const presence = usePresence(
     group?.id,
     currentId,
     currentUser?.name,
     currentUser?.avatar
   );
+  
+  const onlineMembersCount = presence?.onlineMembersCount || 0;
 
   useEffect(() => {
     const init = async () => {
@@ -265,12 +267,12 @@ export default function EnhancedGroupChat({ group, currentUser, onBack, onPrivat
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                 <span className="text-[11px] text-emerald-600 font-black uppercase tracking-wider">
-                  {onlineMembersCount} {t('online')}
+                  {onlineMembersCount || 0} {t('online') || 'Online'}
                 </span>
               </div>
-              {typingUsers.length > 0 && (
+              {typingUsers && typingUsers.length > 0 && typingUsers[0] && (
                 <span className="text-[11px] text-indigo-600 font-black animate-pulse uppercase tracking-wider">
-                  • {typingUsers[0].name} {t('typing')}
+                  • {typingUsers[0].name || 'Someone'} {t('typing') || 'typing...'}
                 </span>
               )}
             </div>
