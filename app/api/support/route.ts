@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
       subject: subject || type,
       message,
       category,
+      type: type,
+      approved: false,
       status: 'open',
       priority: 'normal',
     }).returning();

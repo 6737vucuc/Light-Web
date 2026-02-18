@@ -179,18 +179,20 @@ export default function SupportManager() {
     const subject = (ticket.subject || '').toLowerCase();
     const message = (ticket.message || '').toLowerCase();
 
-    if (
-      type === 'testimony' || 
-      type === 'Testimony' ||
-      category === 'testimony' || 
-      category === 'Testimony' ||
+    // Check all possible fields for testimony indicators
+    const isTestimony = 
       type.toLowerCase().includes('testimony') || 
-      category.toLowerCase().includes('testimony') ||
+      category.toLowerCase().includes('testimony') || 
       subject.toLowerCase().includes('testimony') || 
-      message.toLowerCase().includes('testimony') || 
+      message.toLowerCase().includes('testimony') ||
       subject.includes('شهادة') || 
-      message.includes('شهادة')
-    ) {
+      message.includes('شهادة') ||
+      type.toLowerCase() === 'share testimony' ||
+      category.toLowerCase() === 'share testimony' ||
+      type.toLowerCase() === 'testimony' ||
+      category.toLowerCase() === 'testimony';
+
+    if (isTestimony) {
       return 'testimony';
     }
     

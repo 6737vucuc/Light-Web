@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
       return {
         ...ticket,
         type: type,
+        approved: !!ticket.approved,
         category: ticket.category,
         createdAt: formatDate(ticket.created_at),
         updatedAt: formatDate(ticket.updated_at),
