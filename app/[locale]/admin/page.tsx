@@ -794,6 +794,7 @@ function SupportManager() {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [replying, setReplying] = useState(false);
+  const [processing, setProcessing] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | 'technical' | 'testimony' | 'prayer'>('all');
 
   useEffect(() => {
@@ -926,6 +927,40 @@ function SupportManager() {
     return colors[type] || 'bg-gray-50 text-gray-600 border-gray-200';
   };
 
+  const handleApprove = async (ticketId: number) => {
+    setProcessing(ticketId);
+    try {
+      const response = await fetch(`/api/admin/support/${ticketId}/approve`, { method: 'POST' });
+      if (response.ok) {
+        toast.show('Testimony approved!', 'success');
+        fetchTickets();
+      } else {
+        toast.show('Failed to approve', 'error');
+      }
+    } catch (error) {
+      toast.show('Error approving', 'error');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleReject = async (ticketId: number) => {
+    setProcessing(ticketId);
+    try {
+      const response = await fetch(`/api/admin/support/${ticketId}/reject`, { method: 'POST' });
+      if (response.ok) {
+        toast.show('Testimony rejected', 'success');
+        fetchTickets();
+      } else {
+        toast.show('Failed to reject', 'error');
+      }
+    } catch (error) {
+      toast.show('Error rejecting', 'error');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   const filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.category === filter);
 
   return (
@@ -975,12 +1010,39 @@ function SupportManager() {
                       <p className="text-xs text-gray-500 font-medium">From: <span className="font-bold">{ticket.user_name}</span> • <span className="font-bold">{date}</span> at <span className="font-bold">{time}</span></p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setSelectedTicket(ticket)}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap"
-                  >
-                    Reply
-                  </button>
+                  <div className="flex gap-2">
+                    {ticket.category === 'testimony' ? (
+                      ticket.status === 'resolved' || ticket.approved ? (
+                        <span className="px-4 py-2 bg-green-100 text-green-700 rounded-xl font-bold flex items-center gap-2">
+                          <CheckCircle size={18}/> Approved
+                        </span>
+                      ) : (
+                        <>
+                          <button 
+                            onClick={() => handleApprove(ticket.id)} 
+                            disabled={processing === ticket.id}
+                            className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 flex items-center gap-2 transition-all disabled:opacity-50"
+                          >
+                            {processing === ticket.id ? <Loader2 className="animate-spin w-4 h-4"/> : <CheckCircle size={18}/>} Approve
+                          </button>
+                          <button 
+                            onClick={() => handleReject(ticket.id)} 
+                            disabled={processing === ticket.id}
+                            className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 flex items-center gap-2 transition-all disabled:opacity-50"
+                          >
+                            {processing === ticket.id ? <Loader2 className="animate-spin w-4 h-4"/> : <AlertCircle size={18}/>} Reject
+                          </button>
+                        </>
+                      )
+                    ) : (
+                      <button 
+                        onClick={() => setSelectedTicket(ticket)}
+                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all whitespace-nowrap flex items-center gap-2"
+                      >
+                        <Mail size={18}/> Reply
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
