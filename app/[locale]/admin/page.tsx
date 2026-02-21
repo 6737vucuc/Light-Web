@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   BookOpen, Heart, Users, MessageCircle, Calendar, Shield,
-  Plus, Edit, Trash2, Check, X, Loader2, Ban, UserX, Upload, Image as ImageIcon, Video, AlertTriangle, Quote,
+  Plus, Edit, Trash2, Check, X, Loader2, Ban, UserX, Upload, Image as ImageIcon, Video, AlertTriangle, Quote, CheckCircle, AlertCircle, Mail,
   TrendingUp, Globe, Flag, MessageSquare, Search, Filter, MoreVertical, RefreshCw, Star, Clock,
   Hash, Zap, Bell, Music, Camera, Map, Award, Coffee, Book, Smile, Heart as HeartIcon, Sun, Moon, Cloud, Ghost, 
   Gamepad, Code, Terminal, Database, Cpu, Globe as GlobeIcon, Briefcase, GraduationCap, ShoppingBag, Gift,
