@@ -84,6 +84,7 @@ export default function Navbar() {
     { href: '/lessons', label: t('common.lessons') },
     { href: '/support', label: t('common.support') },
     { href: '/community', label: t('common.community') },
+    { href: '/testimonies', label: t('common.testimonies') },
   ];
 
   if (isAuthenticated) {
