@@ -1,9 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Heart, Share2, MessageCircle, Loader2, ArrowRight, Sparkles } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
+import { 
+  Heart, 
+  Share2, 
+  Loader2, 
+  Quote, 
+  User, 
+  Calendar,
+  ShieldCheck,
+  ArrowLeft,
+  Sparkles,
+  ArrowRight
+} from 'lucide-react';
 import { useToast } from '@/lib/contexts/ToastContext';
+import { useTranslations } from 'next-intl';
 
 interface Testimony {
   id: number;
@@ -13,268 +25,211 @@ interface Testimony {
   content: string;
   createdAt: string;
   likes: number;
-  liked?: boolean;
 }
 
 export default function TestimoniesPage() {
   const toast = useToast();
-  const t = useTranslations('testimonies');
+  const router = useRouter();
   const [testimonies, setTestimonies] = useState<Testimony[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [liked, setLiked] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
-    loadTestimonies();
+    checkAuthAndFetch();
   }, []);
 
-  const loadTestimonies = async () => {
+  const checkAuthAndFetch = async () => {
     try {
-      const response = await fetch('/api/testimonies');
-      if (response.ok) {
-        const data = await response.json();
-        setTestimonies(data.testimonies || []);
+      // 1. Security Check: Only logged in users can see this page
+      const authRes = await fetch('/api/auth/me');
+      if (!authRes.ok) {
+        router.push('/auth/login?callbackUrl=/testimonies');
+        return;
       }
+      const authData = await authRes.json();
+      setUser(authData.user);
+
+      // 2. Fetch Testimonies
+      const res = await fetch('/api/testimonies');
+      const data = await res.json();
+      setTestimonies(data.testimonies || []);
     } catch (error) {
-      console.error('Error loading testimonies:', error);
+      console.error('Error:', error);
+      toast.show('Failed to load data', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLike = async (testimonyId: number) => {
-    try {
-      const response = await fetch(`/api/testimonies/${testimonyId}/like`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        setLiked((prev) => ({
-          ...prev,
-          [testimonyId]: !prev[testimonyId],
-        }));
-        
-        setTestimonies((prev) =>
-          prev.map((t) =>
-            t.id === testimonyId
-              ? { ...t, likes: t.likes + (liked[testimonyId] ? -1 : 1) }
-              : t
-          )
-        );
-      }
-    } catch (error) {
-      toast.show('Error liking testimony', 'error');
-    }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
-
-  const handleShare = async (testimony: Testimony) => {
-    const shareText = `"${testimony.content}" - ${testimony.userName}`;
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Inspiring Testimony',
-          text: shareText,
-        });
-      } catch (error) {
-        console.error('Share error:', error);
-      }
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(shareText);
-      toast.show('Testimony copied to clipboard', 'success');
-    }
-  };
-
-  const currentTestimony = testimonies[currentIndex];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#fcfaff] via-white to-[#f5f3ff] flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600 font-bold">Loading testimonies...</p>
+          <p className="text-gray-600 font-bold">Loading inspiring stories...</p>
         </div>
       </div>
     );
   }
 
-  if (testimonies.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#fcfaff] via-white to-[#f5f3ff] flex items-center justify-center px-4">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Heart className="w-10 h-10 text-purple-600" />
-          </div>
-          <h2 className="text-2xl font-black text-gray-900 mb-3">No Testimonies Yet</h2>
-          <p className="text-gray-600 font-medium mb-6">
-            Be the first to share your inspiring testimony with the community!
-          </p>
-          <button className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all">
-            Share Your Story
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const currentTestimony = testimonies[currentIndex];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fcfaff] via-white to-[#f5f3ff] py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Sparkles className="w-6 h-6 text-purple-600" />
-            <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">
-              Inspiring Testimonies
-            </h1>
-            <Sparkles className="w-6 h-6 text-purple-600" />
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-br from-purple-700 via-indigo-800 to-blue-900 text-white py-20 px-4 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-400 rounded-full translate-x-1/3 translate-y-1/3 blur-3xl"></div>
+        </div>
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full mb-6 border border-white/20">
+            <ShieldCheck size={18} className="text-green-400" />
+            <span className="text-xs font-black uppercase tracking-widest">Protected Community Area</span>
           </div>
-          <p className="text-gray-600 text-lg font-medium max-w-2xl mx-auto">
-            Discover stories of faith, hope, and transformation from our community
+          <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">Inspiring <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-200">Stories</span></h1>
+          <p className="text-xl text-purple-100 font-medium max-w-2xl mx-auto leading-relaxed">
+            Real stories of transformation, hope, and faith from our global community members.
           </p>
         </div>
+      </div>
 
-        {/* Main Testimony Card */}
-        {currentTestimony && (
-          <div className="mb-12">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-purple-200/50 p-8 md:p-12 border border-purple-100/50 relative overflow-hidden">
-              {/* Decorative background */}
-              <div className="absolute top-0 right-0 w-40 h-40 bg-purple-100/30 rounded-full blur-3xl -z-10"></div>
-              <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-100/30 rounded-full blur-3xl -z-10"></div>
+      {/* Main Content */}
+      <div className="max-w-5xl mx-auto px-4 -mt-10 relative z-20">
+        {testimonies.length === 0 ? (
+          <div className="bg-white rounded-[2.5rem] p-20 text-center shadow-xl border-2 border-gray-100">
+            <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-300">
+              <Quote size={40} />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">No testimonies yet</h2>
+            <p className="text-gray-500 font-medium">Be the first to share your journey with the community.</p>
+            <button 
+              onClick={() => router.push('/support')}
+              className="mt-8 px-8 py-4 bg-purple-600 text-white rounded-2xl font-black hover:bg-purple-700 transition-all shadow-lg shadow-purple-200"
+            >
+              SHARE YOUR STORY
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Featured Testimony */}
+            {currentTestimony && (
+              <div className="mb-12">
+                <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-purple-200/50 p-8 md:p-12 border-2 border-purple-100/50 relative overflow-hidden">
+                  <Quote className="absolute top-8 right-12 text-purple-50 w-24 h-24 -z-10" />
+                  
+                  <p className="text-2xl md:text-3xl text-gray-900 font-bold leading-relaxed mb-10 italic">
+                    "{currentTestimony.content}"
+                  </p>
 
-              {/* Quote mark */}
-              <div className="text-6xl text-purple-200 font-black mb-4 leading-none">"</div>
+                  <div className="flex items-center justify-between pt-8 border-t border-gray-100">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-black text-2xl shadow-lg border-2 border-white">
+                        {currentTestimony.userAvatar ? (
+                          <img src={currentTestimony.userAvatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          currentTestimony.userName?.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-black text-gray-900 text-xl">{currentTestimony.userName}</p>
+                        <p className="text-sm text-gray-500 font-bold flex items-center gap-2">
+                          <Calendar size={14} />
+                          {formatDate(currentTestimony.createdAt)}
+                        </p>
+                      </div>
+                    </div>
 
-              {/* Testimony content */}
-              <p className="text-xl md:text-2xl text-gray-900 font-bold leading-relaxed mb-8">
-                {currentTestimony.content}
-              </p>
-
-              {/* Author info */}
-              <div className="flex items-center justify-between pt-8 border-t border-gray-200">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-black text-lg">
-                    {currentTestimony.userName?.charAt(0).toUpperCase()}
+                    <div className="flex gap-3">
+                      <button className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:text-red-500 transition-all border-2 border-transparent hover:border-red-100">
+                        <Heart size={24} />
+                      </button>
+                      <button className="p-4 bg-purple-50 text-purple-600 rounded-2xl hover:bg-purple-100 transition-all border-2 border-transparent hover:border-purple-200">
+                        <Share2 size={24} />
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-black text-gray-900">{currentTestimony.userName}</p>
-                    <p className="text-sm text-gray-500 font-medium">
-                      {new Date(currentTestimony.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleLike(currentTestimony.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${
-                      liked[currentTestimony.id]
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600'
-                    }`}
-                  >
-                    <Heart
-                      size={20}
-                      className={liked[currentTestimony.id] ? 'fill-current' : ''}
-                    />
-                    <span className="text-sm">{currentTestimony.likes}</span>
-                  </button>
-                  <button
-                    onClick={() => handleShare(currentTestimony)}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-600 rounded-xl font-bold hover:bg-purple-200 transition-all"
-                  >
-                    <Share2 size={20} />
-                  </button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between mb-12">
-          <button
-            onClick={() => setCurrentIndex((prev) => (prev === 0 ? testimonies.length - 1 : prev - 1))}
-            className="px-6 py-3 bg-white text-purple-600 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all border border-purple-200"
-          >
-            ← Previous
-          </button>
-
-          <div className="text-center">
-            <p className="text-gray-600 font-bold">
-              {currentIndex + 1} of {testimonies.length}
-            </p>
-            <div className="flex gap-2 mt-3 justify-center">
-              {testimonies.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentIndex(idx)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    idx === currentIndex ? 'bg-purple-600 w-8' : 'bg-gray-300'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <button
-            onClick={() => setCurrentIndex((prev) => (prev === testimonies.length - 1 ? 0 : prev + 1))}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-          >
-            Next <ArrowRight size={20} />
-          </button>
-        </div>
-
-        {/* Recent Testimonies Grid */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-black text-gray-900 mb-6">Recent Testimonies</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {testimonies.slice(0, 6).map((testimony) => (
-              <div
-                key={testimony.id}
-                onClick={() => setCurrentIndex(testimonies.indexOf(testimony))}
-                className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all cursor-pointer border border-gray-100 hover:border-purple-200 group"
+            {/* Navigation Controls */}
+            <div className="flex items-center justify-between mb-16 px-4">
+              <button
+                onClick={() => setCurrentIndex((prev) => (prev === 0 ? testimonies.length - 1 : prev - 1))}
+                className="px-8 py-4 bg-white text-purple-600 rounded-2xl font-black shadow-lg hover:shadow-xl transition-all border-2 border-purple-100 flex items-center gap-2"
               >
-                <p className="text-gray-700 font-medium line-clamp-3 mb-4 group-hover:text-purple-600 transition-colors">
-                  "{testimony.content}"
-                </p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white font-black text-sm">
-                      {testimony.userName?.charAt(0).toUpperCase()}
-                    </div>
-                    <p className="font-bold text-gray-900 text-sm">{testimony.userName}</p>
-                  </div>
-                  <Heart
-                    size={18}
-                    className={`${
-                      liked[testimony.id] ? 'fill-red-500 text-red-500' : 'text-gray-400'
+                ← PREV
+              </button>
+
+              <div className="hidden md:flex gap-2">
+                {testimonies.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentIndex(idx)}
+                    className={`h-3 rounded-full transition-all ${
+                      idx === currentIndex ? 'bg-purple-600 w-12' : 'bg-gray-300 w-3 hover:bg-gray-400'
                     }`}
                   />
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* CTA */}
-        <div className="mt-16 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-[2.5rem] p-8 md:p-12 text-center shadow-2xl shadow-purple-200/50 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10 pointer-events-none">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full blur-3xl"></div>
-          </div>
+              <button
+                onClick={() => setCurrentIndex((prev) => (prev === testimonies.length - 1 ? 0 : prev + 1))}
+                className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-black shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+              >
+                NEXT <ArrowRight size={20} />
+              </button>
+            </div>
+
+            {/* Recent Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {testimonies.map((item, idx) => (
+                <div 
+                  key={item.id} 
+                  onClick={() => setCurrentIndex(idx)}
+                  className={`bg-white rounded-3xl p-6 shadow-md border-2 transition-all cursor-pointer hover:scale-[1.02] ${
+                    idx === currentIndex ? 'border-purple-500 shadow-purple-100' : 'border-gray-100 hover:border-purple-200'
+                  }`}
+                >
+                  <p className="text-gray-700 font-medium line-clamp-3 mb-6 italic">"{item.content}"</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 font-black text-sm">
+                      {item.userName?.charAt(0).toUpperCase()}
+                    </div>
+                    <p className="font-bold text-gray-900 text-sm">{item.userName}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Footer CTA */}
+      <div className="max-w-5xl mx-auto px-4 mt-20">
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-[3rem] p-12 text-center text-white shadow-2xl shadow-purple-200 relative overflow-hidden">
           <div className="relative z-10">
-            <h3 className="text-3xl font-black text-white mb-4">Share Your Testimony</h3>
-            <p className="text-white/80 text-lg font-medium max-w-2xl mx-auto mb-8">
-              Your story can inspire others. Share how your faith has transformed your life.
+            <Sparkles className="w-12 h-12 mx-auto mb-6 text-purple-200" />
+            <h3 className="text-3xl font-black mb-4">Your Story Matters</h3>
+            <p className="text-purple-100 font-medium mb-10 max-w-xl mx-auto">
+              Have you experienced a miracle or a life-changing moment? Share it with our community today.
             </p>
-            <button className="px-8 py-4 bg-white text-purple-600 rounded-2xl font-black uppercase tracking-wider hover:shadow-xl hover:scale-105 transition-all">
-              Share Your Story
+            <button 
+              onClick={() => router.push('/support')}
+              className="px-10 py-5 bg-white text-purple-600 rounded-[2rem] font-black uppercase tracking-widest hover:shadow-2xl transition-all hover:scale-105"
+            >
+              SUBMIT TESTIMONY
             </button>
           </div>
         </div>
