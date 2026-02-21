@@ -95,7 +95,7 @@ export default function TestimoniesPage() {
           </div>
           <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">Inspiring <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-200">Stories</span></h2>
           <p className="text-xl text-purple-100 font-medium max-w-2xl mx-auto leading-relaxed">
-            Faith journeys full of love and turning back to God, showing how Jesus changes lives and gives hope and strength through every challenge
+            Faith journeys full of love and turning back to God showing how Jesus changes lives and gives hope and strength through every challenge
           </p>
         </div>
       </div>
