@@ -86,20 +86,22 @@ export default function TestimoniesPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-purple-700 via-indigo-800 to-blue-900 text-white py-20 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-400 rounded-full translate-x-1/3 translate-y-1/3 blur-3xl"></div>
-        </div>
+<div className="bg-gradient-to-br from-purple-700 via-indigo-800 to-blue-900 text-white py-20 px-4 relative overflow-hidden">
+  <div className="absolute inset-0 opacity-10">
+    <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+    <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-400 rounded-full translate-x-1/3 translate-y-1/3 blur-3xl"></div>
+  </div>
 
-        <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">
-          Inspiring <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-200">Stories</span>
-        </h2>
-        <p className="text-xl text-purple-100 font-medium max-w-2xl mx-auto leading-relaxed">
-          Faith journeys full of love and turning back to God showing how Jesus changes lives and gives hope and strength through every challenge
-        </p>
-      </div>
+  <div className="relative z-10 max-w-4xl mx-auto text-center">
+    <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">
+      Inspiring <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-200">Stories</span>
+    </h2>
 
+    <p className="text-xl text-purple-100 font-medium leading-relaxed">
+      Faith journeys full of love and turning back to God showing how Jesus changes lives and gives hope and strength through every challenge
+    </p>
+  </div>
+</div>
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 -mt-10 relative z-20">
         {testimonies.length === 0 ? (
