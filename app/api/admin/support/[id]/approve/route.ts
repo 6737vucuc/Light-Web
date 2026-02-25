@@ -22,7 +22,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
     });
 
     // 3. Insert into the dedicated testimonies table with isApproved = true
-    // Ensure all required fields are present and isApproved is explicitly true
     await db.insert(testimonies).values({
       userId: ticket.userId,
       content: ticket.message,
@@ -33,8 +32,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
       updatedAt: new Date(),
     });
 
-    // 4. Delete the support ticket from the database after approval
-    await db.delete(supportTickets).where(eq(supportTickets.id, ticketId));
+    // 4. Update the support ticket status to 'resolved' and set approved to true
+    // This keeps the ticket in the dashboard but marks it as Approved
+    await db.update(supportTickets).set({
+      approved: true,
+      status: 'resolved',
+      updatedAt: new Date(),
+    }).where(eq(supportTickets.id, ticketId));
 
     return NextResponse.json({ 
       message: 'Testimony approved and published successfully!',
