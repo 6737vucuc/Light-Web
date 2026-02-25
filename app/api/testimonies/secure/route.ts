@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. FETCH APPROVED TESTIMONIES
-    // Use leftJoin to ensure we get testimonies even if user data is missing
+    // Removed 'religion' column from select because it doesn't exist in the current DB schema on Vercel
     const result = await db
       .select({
         id: testimonies.id,
@@ -68,7 +68,6 @@ export async function GET(request: NextRequest) {
         userName: users.name,
         userAvatar: users.avatar,
         content: testimonies.content,
-        religion: testimonies.religion,
         createdAt: testimonies.createdAt,
         approvedAt: testimonies.approvedAt,
         isApproved: testimonies.isApproved,
@@ -93,7 +92,7 @@ export async function GET(request: NextRequest) {
           userName: t.userName || 'Anonymous User',
           userAvatar: t.userAvatar || null,
           content: t.content,
-          religion: t.religion || 'Christian',
+          religion: 'Christian', // Default fallback since column is missing
           createdAt: t.createdAt,
           approvedAt: t.approvedAt,
           likes: 0,
