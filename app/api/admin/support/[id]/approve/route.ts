@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { supportTickets, testimonies, users } from '@/lib/db/schema';
+import { supportTickets, testimonies } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -17,8 +17,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     // 2. Insert into the dedicated testimonies table with isApproved = true
-    // Note: We removed 'religion' column because it doesn't exist in the current DB schema on Vercel
-    // based on the runtime error logs provided.
+    // We have removed 'religion' from the schema to match the actual database on Vercel
     await db.insert(testimonies).values({
       userId: ticket.userId,
       content: ticket.message,
@@ -26,7 +25,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       approvedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any); // Use 'as any' to bypass type checking for missing 'religion' if schema says it's required
+    });
 
     // 3. Update the support ticket status to 'resolved' and set approved to true
     // This keeps the ticket in the dashboard but marks it as Approved

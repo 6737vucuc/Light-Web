@@ -461,7 +461,6 @@ export const testimonies = pgTable('testimonies', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   content: text('content').notNull(),
-  religion: varchar('religion', { length: 50 }).notNull(),
   isApproved: boolean('is_approved').default(false),
   approvedBy: integer('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
