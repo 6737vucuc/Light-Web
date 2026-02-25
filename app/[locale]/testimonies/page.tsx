@@ -12,7 +12,11 @@ import {
   ShieldCheck,
   ArrowLeft,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  AlertCircle,
+  Lock,
+  CheckCircle,
+  Zap
 } from 'lucide-react';
 import { useToast } from '@/lib/contexts/ToastContext';
 import { useTranslations } from 'next-intl';
@@ -23,8 +27,18 @@ interface Testimony {
   userName: string;
   userAvatar?: string;
   content: string;
+  religion?: string;
   createdAt: string;
+  approvedAt?: string;
   likes: number;
+}
+
+interface SecurityInfo {
+  vpnDetected: boolean;
+  rateLimit?: {
+    remaining: number;
+    resetTime: string;
+  };
 }
 
 export default function TestimoniesPage() {
@@ -34,6 +48,8 @@ export default function TestimoniesPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [securityInfo, setSecurityInfo] = useState<SecurityInfo | null>(null);
+  const [vpnWarning, setVpnWarning] = useState(false);
 
   useEffect(() => {
     checkAuthAndFetch();
@@ -50,10 +66,35 @@ export default function TestimoniesPage() {
       const authData = await authRes.json();
       setUser(authData.user);
 
-      // 2. Fetch Testimonies
-      const res = await fetch('/api/testimonies');
+      // 2. Fetch Testimonies with Security Checks
+      const res = await fetch('/api/testimonies/secure');
+      
+      if (res.status === 401) {
+        router.push('/auth/login?callbackUrl=/testimonies');
+        return;
+      }
+
+      if (res.status === 403) {
+        const data = await res.json();
+        setVpnWarning(true);
+        toast.show('VPN/Proxy access is not allowed. Please disable it.', 'error');
+        return;
+      }
+
+      if (res.status === 429) {
+        const data = await res.json();
+        toast.show(`Too many requests. Please try again in ${data.retryAfter} seconds.`, 'error');
+        return;
+      }
+
       const data = await res.json();
       setTestimonies(data.testimonies || []);
+      setSecurityInfo(data.security);
+
+      // Show security info if VPN was detected
+      if (data.security?.vpnDetected) {
+        console.warn('VPN connection detected but allowed');
+      }
     } catch (error) {
       console.error('Error:', error);
       toast.show('Failed to load data', 'error');
@@ -70,12 +111,40 @@ export default function TestimoniesPage() {
     });
   };
 
+  if (vpnWarning) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-[2.5rem] p-12 max-w-md shadow-2xl border-2 border-red-200">
+          <div className="flex justify-center mb-6">
+            <div className="p-4 bg-red-100 rounded-full">
+              <AlertCircle className="w-12 h-12 text-red-600" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-black text-gray-900 text-center mb-4">Access Denied</h2>
+          <p className="text-gray-600 font-medium text-center mb-8">
+            VPN/Proxy connections are not allowed for security reasons. Please disable your VPN and try again.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full px-6 py-3 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 transition-all"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <Loader2 className="w-12 h-12 animate-spin text-purple-600 absolute inset-2" />
+            <div className="w-16 h-16 border-4 border-purple-100 rounded-full"></div>
+          </div>
           <p className="text-gray-600 font-bold">Loading inspiring stories...</p>
+          <p className="text-sm text-gray-500 mt-2">Applying security checks...</p>
         </div>
       </div>
     );
@@ -85,26 +154,61 @@ export default function TestimoniesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Security Badge */}
+      {securityInfo && (
+        <div className="fixed top-4 right-4 z-50">
+          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-lg border-2 border-green-200">
+            <ShieldCheck className="w-5 h-5 text-green-600" />
+            <span className="text-xs font-bold text-green-700">Secure Connection</span>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
-<div className="bg-gradient-to-br from-purple-700 via-indigo-800 to-blue-900 text-white py-20 px-4 relative overflow-hidden">
-  <div className="absolute inset-0 opacity-10">
-    <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
-    <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-400 rounded-full translate-x-1/3 translate-y-1/3 blur-3xl"></div>
-  </div>
+      <div className="bg-gradient-to-br from-purple-700 via-indigo-800 to-blue-900 text-white py-20 px-4 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-400 rounded-full translate-x-1/3 translate-y-1/3 blur-3xl"></div>
+        </div>
 
-  <div className="relative z-10 max-w-4xl mx-auto text-center">
-    <h2 className="text-4xl sm:text-5xl md:text-7xl font-black mb-6 tracking-tight whitespace-nowrap">
-  Inspiring{" "}
-  <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-200">
-    Stories
-  </span>
-</h2>
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <Lock className="w-6 h-6 text-purple-300" />
+            <span className="text-sm font-black text-purple-300 uppercase tracking-widest">
+              Secure & Verified
+            </span>
+            <Lock className="w-6 h-6 text-purple-300" />
+          </div>
 
-    <p className="text-xl text-purple-100 font-medium leading-relaxed">
-      Faith journeys full of love and turning back to God showing how Jesus changes lives and gives hope and strength through every challenge
-    </p>
-  </div>
-</div>
+          <h2 className="text-4xl sm:text-5xl md:text-7xl font-black mb-6 tracking-tight">
+            Inspiring{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-200">
+              Stories
+            </span>
+          </h2>
+
+          <p className="text-xl text-purple-100 font-medium leading-relaxed max-w-2xl mx-auto">
+            Faith journeys full of love and turning back to God showing how Jesus changes lives and gives hope and strength through every challenge
+          </p>
+
+          {/* Security Features */}
+          <div className="mt-12 grid grid-cols-3 gap-4 max-w-2xl mx-auto">
+            <div className="flex flex-col items-center gap-2">
+              <ShieldCheck className="w-6 h-6 text-green-400" />
+              <span className="text-xs font-bold text-purple-200">VPN Protected</span>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <Zap className="w-6 h-6 text-yellow-400" />
+              <span className="text-xs font-bold text-purple-200">Rate Limited</span>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <Lock className="w-6 h-6 text-blue-400" />
+              <span className="text-xs font-bold text-purple-200">Encrypted</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 -mt-10 relative z-20">
         {testimonies.length === 0 ? (
@@ -127,7 +231,13 @@ export default function TestimoniesPage() {
             {currentTestimony && (
               <div className="mb-12">
                 <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-purple-200/50 p-8 md:p-12 border-2 border-purple-100/50 relative overflow-hidden">
-                  <Quote className="absolute top-8 right-12 text-purple-50 w-24 h-24 -z-10" />
+                  {/* Verified Badge */}
+                  <div className="absolute top-6 right-6 flex items-center gap-2 px-4 py-2 bg-green-50 rounded-full border-2 border-green-200">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-xs font-black text-green-700">Verified</span>
+                  </div>
+
+                  <Quote className="absolute top-8 left-8 text-purple-50 w-24 h-24 -z-10" />
                   
                   <p className="text-2xl md:text-3xl text-gray-900 font-bold leading-relaxed mb-10 italic">
                     "{currentTestimony.content}"
@@ -137,7 +247,7 @@ export default function TestimoniesPage() {
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-black text-2xl shadow-lg border-2 border-white">
                         {currentTestimony.userAvatar ? (
-                          <img src={currentTestimony.userAvatar} alt="" className="w-full h-full object-cover" />
+                          <img src={currentTestimony.userAvatar} alt="" className="w-full h-full object-cover rounded-xl" />
                         ) : (
                           currentTestimony.userName?.charAt(0).toUpperCase()
                         )}
@@ -148,6 +258,11 @@ export default function TestimoniesPage() {
                           <Calendar size={14} />
                           {formatDate(currentTestimony.createdAt)}
                         </p>
+                        {currentTestimony.religion && (
+                          <p className="text-xs text-purple-600 font-bold mt-1">
+                            {currentTestimony.religion}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -199,16 +314,26 @@ export default function TestimoniesPage() {
                 <div 
                   key={item.id} 
                   onClick={() => setCurrentIndex(idx)}
-                  className={`bg-white rounded-3xl p-6 shadow-md border-2 transition-all cursor-pointer hover:scale-[1.02] ${
+                  className={`bg-white rounded-3xl p-6 shadow-md border-2 transition-all cursor-pointer hover:scale-[1.02] relative ${
                     idx === currentIndex ? 'border-purple-500 shadow-purple-100' : 'border-gray-100 hover:border-purple-200'
                   }`}
                 >
+                  {/* Verified Badge */}
+                  <div className="absolute top-4 right-4 p-2 bg-green-50 rounded-full border border-green-200">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  </div>
+
                   <p className="text-gray-700 font-medium line-clamp-3 mb-6 italic">"{item.content}"</p>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 font-black text-sm">
                       {item.userName?.charAt(0).toUpperCase()}
                     </div>
-                    <p className="font-bold text-gray-900 text-sm">{item.userName}</p>
+                    <div>
+                      <p className="font-bold text-gray-900 text-sm">{item.userName}</p>
+                      {item.religion && (
+                        <p className="text-xs text-purple-600 font-bold">{item.religion}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -233,6 +358,14 @@ export default function TestimoniesPage() {
               SUBMIT TESTIMONY
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Security Info Footer */}
+      <div className="max-w-5xl mx-auto px-4 mt-12 text-center">
+        <div className="flex items-center justify-center gap-2 text-gray-600 font-medium">
+          <ShieldCheck className="w-5 h-5 text-green-600" />
+          <span>This page is protected with advanced security measures including VPN detection, rate limiting, and threat detection.</span>
         </div>
       </div>
     </div>

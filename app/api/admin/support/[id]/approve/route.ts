@@ -21,24 +21,19 @@ export async function POST(request: Request, { params }: { params: { id: string 
       where: eq(users.id, ticket.userId),
     });
 
-    // 3. Insert into the dedicated testimonies table
+    // 3. Insert into the dedicated testimonies table with isApproved = true
     await db.insert(testimonies).values({
       userId: ticket.userId,
       content: ticket.message,
-      religion: user?.religion || 'Christian', // Default to Christian if not set
+      religion: user?.religion || 'Christian',
       isApproved: true,
       approvedAt: new Date(),
     });
 
-    // 4. Update the support ticket with approval status
-    await db.update(supportTickets).set({
-      approved: true,
-      approvedAt: new Date(),
-      status: 'resolved',
-      updatedAt: new Date(),
-    }).where(eq(supportTickets.id, ticketId));
+    // 4. Delete the support ticket from the database after approval
+    await db.delete(supportTickets).where(eq(supportTickets.id, ticketId));
 
-    return NextResponse.json({ message: 'Testimony approved and copied to dedicated table!' });
+    return NextResponse.json({ message: 'Testimony approved and published successfully!' });
   } catch (error) {
     console.error('Error approving testimony:', error);
     return new NextResponse('Internal Server Error', { status: 500 });

@@ -7,14 +7,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
   try {
     const ticketId = parseInt(params.id);
 
-    // Update the support ticket status to closed and ensure it's not approved
-    await db.update(supportTickets).set({
-      approved: false,
-      status: 'closed',
-      updatedAt: new Date(),
-    }).where(eq(supportTickets.id, ticketId));
+    // Delete the support ticket permanently from the database
+    await db.delete(supportTickets).where(eq(supportTickets.id, ticketId));
 
-    return NextResponse.json({ message: 'Testimony rejected and ticket closed' });
+    return NextResponse.json({ message: 'Testimony rejected and deleted permanently' });
   } catch (error) {
     console.error('Error rejecting testimony:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
