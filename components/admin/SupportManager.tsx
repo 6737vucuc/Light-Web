@@ -37,7 +37,14 @@ export default function SupportManager() {
 
   const fetchTickets = async () => {
     try {
-      const response = await fetch(`/api/admin/support?t=${Date.now()}`);
+      // Add timestamp to prevent caching
+      const response = await fetch(`/api/admin/support?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Pragma': 'no-cache',
+          'Cache-Control': 'no-cache'
+        }
+      });
       const data = await response.json();
       setTickets(data.tickets || []);
     } catch (error) {
@@ -87,9 +94,11 @@ export default function SupportManager() {
 
       if (response.ok) {
         toast.show('Testimony approved and published!', 'success');
-        fetchTickets();
+        // Immediately refresh tickets to show Approved status
+        await fetchTickets();
       } else {
-        toast.show('Failed to approve testimony', 'error');
+        const errorData = await response.json().catch(() => ({}));
+        toast.show(errorData.error || 'Failed to approve testimony', 'error');
       }
     } catch (error) {
       toast.show('Error approving testimony', 'error');
@@ -106,8 +115,8 @@ export default function SupportManager() {
       });
 
       if (response.ok) {
-        toast.show('Testimony rejected', 'success');
-        fetchTickets();
+        toast.show('Testimony rejected and deleted', 'success');
+        await fetchTickets();
       } else {
         toast.show('Failed to reject testimony', 'error');
       }
@@ -221,6 +230,8 @@ export default function SupportManager() {
             const { date, time, full } = formatDateTime(ticket.createdAt);
             const displayType = getActualType(ticket);
             const isTestimony = displayType === 'testimony';
+            // Check both status and approved flag
+            const isApproved = ticket.status === 'resolved' || ticket.approved === true;
 
             return (
               <div
@@ -250,11 +261,11 @@ export default function SupportManager() {
                           {displayType.charAt(0).toUpperCase() + displayType.slice(1)}
                         </span>
                         <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                          ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 
+                          isApproved ? 'bg-green-100 text-green-700' : 
                           ticket.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
                           'bg-gray-100 text-gray-700'
                         }`}>
-                          {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+                          {isApproved ? 'Approved' : ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
                         </span>
                       </div>
 
@@ -275,26 +286,26 @@ export default function SupportManager() {
 
                   <div className="flex gap-2">
                     {isTestimony ? (
-                      ticket.status === 'resolved' || ticket.approved ? (
-                        <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-xl font-bold">
+                      isApproved ? (
+                        <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-xl font-bold border-2 border-green-200">
                           <CheckCircle size={18} /> Approved
                         </span>
                       ) : ticket.status === 'closed' ? (
-                        <span className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-xl font-bold">
+                        <span className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-xl font-bold border-2 border-red-200">
                           <AlertCircle size={18} /> Rejected
                         </span>
                       ) : (
                         <>
-                          <button onClick={() => handleApprove(ticket.id)} disabled={processing === ticket.id} className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 flex items-center gap-2 disabled:opacity-50">
+                          <button onClick={() => handleApprove(ticket.id)} disabled={processing === ticket.id} className="px-4 py-2 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 transition-all hover:scale-105 shadow-md">
                             {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle size={18} />} Approve
                           </button>
-                          <button onClick={() => handleReject(ticket.id)} disabled={processing === ticket.id} className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 flex items-center gap-2 disabled:opacity-50">
+                          <button onClick={() => handleReject(ticket.id)} disabled={processing === ticket.id} className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 flex items-center gap-2 disabled:opacity-50 transition-all hover:scale-105 shadow-md">
                             {processing === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle size={18} />} Reject
                           </button>
                         </>
                       )
                     ) : (
-                      <button onClick={() => setSelectedTicket(ticket)} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg flex items-center gap-2">
+                      <button onClick={() => setSelectedTicket(ticket)} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg flex items-center gap-2 transition-all hover:scale-105">
                         <Mail size={18} /> Reply
                       </button>
                     )}
