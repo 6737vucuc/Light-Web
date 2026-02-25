@@ -462,6 +462,7 @@ export const testimonies = pgTable('testimonies', {
   userId: integer('user_id').references(() => users.id).notNull(),
   content: text('content').notNull(),
   isApproved: boolean('is_approved').default(false),
+  likes: integer('likes').default(0),
   approvedBy: integer('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
   createdAt: timestamp('created_at').defaultNow(),

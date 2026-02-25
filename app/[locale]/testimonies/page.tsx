@@ -27,7 +27,6 @@ interface Testimony {
   userName: string;
   userAvatar?: string;
   content: string;
-  religion?: string;
   createdAt: string;
   approvedAt?: string;
   likes: number;
@@ -50,6 +49,7 @@ export default function TestimoniesPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [securityInfo, setSecurityInfo] = useState<SecurityInfo | null>(null);
   const [vpnWarning, setVpnWarning] = useState(false);
+  const [liking, setLiking] = useState<number | null>(null);
 
   useEffect(() => {
     checkAuthAndFetch();
@@ -75,7 +75,6 @@ export default function TestimoniesPage() {
       }
 
       if (res.status === 403) {
-        const data = await res.json();
         setVpnWarning(true);
         toast.show('VPN/Proxy access is not allowed. Please disable it.', 'error');
         return;
@@ -95,6 +94,34 @@ export default function TestimoniesPage() {
       toast.show('Failed to load data', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLike = async (id: number) => {
+    if (liking === id) return;
+    setLiking(id);
+    try {
+      const res = await fetch(`/api/testimonies/${id}/like`, {
+        method: 'POST',
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setTestimonies(prev => prev.map(t => 
+          t.id === id ? { ...t, likes: data.likes } : t
+        ));
+        toast.show('Thank you for your support!', 'success');
+      } else if (res.status === 403) {
+        toast.show('VPN/Proxy not allowed for interactions', 'error');
+      } else if (res.status === 429) {
+        toast.show('Too many likes. Please wait.', 'error');
+      } else {
+        toast.show('Failed to like testimony', 'error');
+      }
+    } catch (error) {
+      toast.show('Error liking testimony', 'error');
+    } finally {
+      setLiking(null);
     }
   };
 
@@ -145,16 +172,6 @@ export default function TestimoniesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Security Badge */}
-      {securityInfo && (
-        <div className="fixed top-4 right-4 z-50">
-          <div className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md border border-green-100">
-            <ShieldCheck className="w-4 h-4 text-green-500" />
-            <span className="text-xs font-bold text-green-600">Secure Connection</span>
-          </div>
-        </div>
-      )}
-
       {/* Hero Section - Matching Project Colors (Purple-600 to Blue-500) */}
       <div className="bg-gradient-to-r from-purple-600 to-blue-500 text-white py-24 px-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
@@ -230,18 +247,20 @@ export default function TestimoniesPage() {
                             <Calendar size={12} />
                             {formatDate(currentTestimony.createdAt)}
                           </p>
-                          {currentTestimony.religion && (
-                            <span className="text-[10px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-md font-bold">
-                              {currentTestimony.religion}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
 
                     <div className="flex gap-2">
-                      <button className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:text-red-500 transition-all hover:bg-red-50">
-                        <Heart size={20} />
+                      <button 
+                        onClick={() => handleLike(currentTestimony.id)}
+                        disabled={liking === currentTestimony.id}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+                          liking === currentTestimony.id ? 'bg-gray-100 text-gray-400' : 'bg-red-50 text-red-500 hover:bg-red-100'
+                        }`}
+                      >
+                        {liking === currentTestimony.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart size={20} className={currentTestimony.likes > 0 ? 'fill-current' : ''} />}
+                        <span className="font-bold">{currentTestimony.likes}</span>
                       </button>
                       <button className="p-3 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-100 transition-all">
                         <Share2 size={20} />
@@ -292,13 +311,19 @@ export default function TestimoniesPage() {
                   }`}
                 >
                   <p className="text-gray-600 text-sm font-medium line-clamp-3 mb-6 italic">"{item.content}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-sm">
-                      {item.userName?.charAt(0).toUpperCase()}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-sm">
+                        {item.userName?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 text-sm">{item.userName}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">{formatDate(item.createdAt)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-gray-900 text-sm">{item.userName}</p>
-                      <p className="text-[10px] text-gray-400 font-medium">{formatDate(item.createdAt)}</p>
+                    <div className="flex items-center gap-1 text-red-500 font-bold text-xs">
+                      <Heart size={14} className={item.likes > 0 ? 'fill-current' : ''} />
+                      {item.likes}
                     </div>
                   </div>
                 </div>
