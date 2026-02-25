@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/client';
 import { verifyAuth } from '@/lib/auth/verify';
 import { RealtimeChatService } from '@/lib/realtime/chat';
+import { checkRateLimit, RateLimitConfigs, getClientIdentifier } from '@/lib/security/rate-limit';
+import { detectVPN, getClientIP, shouldBlockIP } from '@/lib/security/vpn-detection';
+import { ThreatDetection } from '@/lib/security/threat-detection';
+import { InputValidator } from '@/lib/security/input-validation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,6 +21,13 @@ export async function GET(
 
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Apply rate limiting for reading messages
+    const clientIdentifier = getClientIdentifier(request);
+    const rateLimit = checkRateLimit(clientIdentifier, RateLimitConfigs.API);
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -113,7 +124,72 @@ export async function POST(
     const user = await verifyAuth(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // 1. RATE LIMITING - Strict for message sending
+    const clientIdentifier = getClientIdentifier(request);
+    const rateLimit = checkRateLimit(clientIdentifier, RateLimitConfigs.API);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many messages. Please wait before sending another message.' }, 
+        { status: 429 }
+      );
+    }
+
+    // 2. VPN DETECTION
+    const clientIP = getClientIP(request);
+    const vpnDetection = await detectVPN(clientIP);
+    if (vpnDetection.isSuspicious && shouldBlockIP(vpnDetection)) {
+      ThreatDetection.logThreat({
+        userId: user.userId,
+        ipAddress: clientIP,
+        threatType: 'vpn_message_attempt',
+        severity: 'medium',
+        description: `VPN/Proxy message attempt in group ${groupId}`,
+        timestamp: new Date(),
+        blocked: true,
+      });
+      return NextResponse.json(
+        { error: 'VPN/Proxy connections are not allowed for sending messages.' }, 
+        { status: 403 }
+      );
+    }
+
+    // 3. THREAT DETECTION - Check for bot-like behavior
+    const userAgent = request.headers.get('user-agent') || '';
+    if (ThreatDetection.detectBot(userAgent, {})) {
+      ThreatDetection.logThreat({
+        userId: user.userId,
+        ipAddress: clientIP,
+        threatType: 'bot_message_activity',
+        severity: 'low',
+        description: `Bot-like message activity detected`,
+        timestamp: new Date(),
+        blocked: false,
+      });
+    }
+
     const { content, messageType = 'text', mediaUrl = null, replyToId = null } = await request.json();
+
+    // 4. INPUT VALIDATION - Sanitize message content
+    if (!content || !content.trim()) {
+      return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
+    }
+
+    if (!InputValidator.isValidContent(content, 5000)) {
+      return NextResponse.json({ error: 'Message is too long' }, { status: 400 });
+    }
+
+    if (InputValidator.containsMaliciousPattern(content)) {
+      ThreatDetection.logThreat({
+        userId: user.userId,
+        ipAddress: clientIP,
+        threatType: 'malicious_message_content',
+        severity: 'high',
+        description: `Malicious pattern detected in message`,
+        timestamp: new Date(),
+        blocked: true,
+      });
+      return NextResponse.json({ error: 'Message contains invalid content' }, { status: 400 });
+    }
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -132,7 +208,7 @@ export async function POST(
       .insert({
         group_id: groupId,
         user_id: user.userId,
-        content,
+        content: content.trim(),
         message_type: messageType,
         media_url: mediaUrl,
         reply_to_id: replyToId
