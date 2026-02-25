@@ -14,11 +14,6 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/testimonies/secure
  * Fetch approved testimonies with advanced security checks
- * - VPN Detection
- * - Rate Limiting
- * - Threat Detection
- * - Input Validation
- * - Authentication Check
  */
 export async function GET(request: NextRequest) {
   try {
@@ -54,53 +49,18 @@ export async function GET(request: NextRequest) {
     const clientIP = getClientIP(request);
     const vpnDetection = await detectVPN(clientIP);
     
-    if (vpnDetection.isSuspicious) {
-      // Log VPN detection for security monitoring
-      console.warn('SECURITY: VPN/Proxy detected for testimonies access', {
-        userId: user.id,
-        ip: clientIP,
-        type: vpnDetection.isVPN ? 'VPN' : vpnDetection.isProxy ? 'Proxy' : 'Other',
-        country: vpnDetection.country,
-        service: vpnDetection.service,
-      });
-
-      // Block if using VPN/Proxy/Tor
-      if (shouldBlockIP(vpnDetection)) {
-        ThreatDetection.logThreat({
-          userId: user.id,
-          ipAddress: clientIP,
-          threatType: 'vpn_access_attempt',
-          severity: 'medium',
-          description: `VPN/Proxy access attempt to testimonies: ${vpnDetection.service || 'Unknown'}`,
-          timestamp: new Date(),
-          blocked: true,
-        });
-
-        return NextResponse.json(
-          {
-            error: 'Access denied. VPN/Proxy connections are not allowed for security reasons.',
-            details: 'Please disable your VPN and try again.',
-          },
-          { status: 403 }
-        );
-      }
+    if (vpnDetection.isSuspicious && shouldBlockIP(vpnDetection)) {
+      return NextResponse.json(
+        {
+          error: 'Access denied. VPN/Proxy connections are not allowed for security reasons.',
+          details: 'Please disable your VPN and try again.',
+        },
+        { status: 403 }
+      );
     }
 
-    // 4. THREAT DETECTION - Check for suspicious patterns
-    const userAgent = request.headers.get('user-agent') || '';
-    if (ThreatDetection.detectBot(userAgent, {})) {
-      ThreatDetection.logThreat({
-        userId: user.id,
-        ipAddress: clientIP,
-        threatType: 'bot_activity',
-        severity: 'medium',
-        description: 'Bot activity detected accessing testimonies',
-        timestamp: new Date(),
-        blocked: false,
-      });
-    }
-
-    // 5. FETCH APPROVED TESTIMONIES
+    // 4. FETCH APPROVED TESTIMONIES
+    // Use leftJoin to ensure we get testimonies even if user data is missing
     const result = await db
       .select({
         id: testimonies.id,
@@ -111,25 +71,19 @@ export async function GET(request: NextRequest) {
         religion: testimonies.religion,
         createdAt: testimonies.createdAt,
         approvedAt: testimonies.approvedAt,
-        likes: testimonies.id,
+        isApproved: testimonies.isApproved,
       })
       .from(testimonies)
       .leftJoin(users, eq(testimonies.userId, users.id))
       .where(eq(testimonies.isApproved, true))
       .orderBy(desc(testimonies.createdAt));
 
-    // 6. VALIDATE AND SANITIZE CONTENT
+    // 5. VALIDATE AND SANITIZE CONTENT
     const safeTestimonies = result
       .filter(t => t.content && t.content.trim().length > 0)
       .map(t => {
-        // Validate content length
-        if (!InputValidator.isValidContent(t.content, 5000)) {
-          return null;
-        }
-
-        // Check for malicious patterns
+        // Basic sanitization and validation
         if (InputValidator.containsMaliciousPattern(t.content)) {
-          console.warn('Malicious pattern detected in testimony:', t.id);
           return null;
         }
 
@@ -147,14 +101,6 @@ export async function GET(request: NextRequest) {
       })
       .filter(t => t !== null);
 
-    // 7. LOG SUCCESSFUL ACCESS
-    console.log('Testimonies accessed securely', {
-      userId: user.id,
-      ip: clientIP,
-      count: safeTestimonies.length,
-      timestamp: new Date().toISOString(),
-    });
-
     return NextResponse.json({
       testimonies: safeTestimonies,
       security: {
@@ -167,16 +113,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Get testimonies error:', error);
-    
-    ThreatDetection.logThreat({
-      ipAddress: getClientIP(request),
-      threatType: 'api_error',
-      severity: 'low',
-      description: `Error fetching testimonies: ${error instanceof Error ? error.message : 'Unknown'}`,
-      timestamp: new Date(),
-      blocked: false,
-    });
-
     return NextResponse.json(
       { error: 'Failed to fetch testimonies', testimonies: [] },
       { status: 500 }

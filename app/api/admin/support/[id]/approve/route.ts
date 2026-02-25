@@ -22,20 +22,29 @@ export async function POST(request: Request, { params }: { params: { id: string 
     });
 
     // 3. Insert into the dedicated testimonies table with isApproved = true
+    // Ensure all required fields are present and isApproved is explicitly true
     await db.insert(testimonies).values({
       userId: ticket.userId,
       content: ticket.message,
       religion: user?.religion || 'Christian',
       isApproved: true,
       approvedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     // 4. Delete the support ticket from the database after approval
     await db.delete(supportTickets).where(eq(supportTickets.id, ticketId));
 
-    return NextResponse.json({ message: 'Testimony approved and published successfully!' });
+    return NextResponse.json({ 
+      message: 'Testimony approved and published successfully!',
+      success: true 
+    });
   } catch (error) {
     console.error('Error approving testimony:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return new NextResponse(
+      JSON.stringify({ error: 'Internal Server Error', details: error instanceof Error ? error.message : 'Unknown error' }), 
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }
