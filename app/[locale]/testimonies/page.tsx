@@ -43,6 +43,7 @@ interface SecurityInfo {
 export default function TestimoniesPage() {
   const toast = useToast();
   const router = useRouter();
+  const t = useTranslations();
   const [testimonies, setTestimonies] = useState<Testimony[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
@@ -76,13 +77,13 @@ export default function TestimoniesPage() {
 
       if (res.status === 403) {
         setVpnWarning(true);
-        toast.show('VPN/Proxy access is not allowed. Please disable it.', 'error');
+        toast.show(t('vpn.detected'), 'error');
         return;
       }
 
       if (res.status === 429) {
         const data = await res.json();
-        toast.show(`Too many requests. Please try again in ${data.retryAfter} seconds.`, 'error');
+        toast.show(`${t('common.error')}. ${t('common.loading')}`, 'error');
         return;
       }
 
@@ -91,7 +92,7 @@ export default function TestimoniesPage() {
       setSecurityInfo(data.security);
     } catch (error) {
       console.error('Error:', error);
-      toast.show('Failed to load data', 'error');
+      toast.show(t('common.error'), 'error');
     } finally {
       setLoading(false);
     }
@@ -110,16 +111,16 @@ export default function TestimoniesPage() {
         setTestimonies(prev => prev.map(t => 
           t.id === id ? { ...t, likes: data.likes } : t
         ));
-        toast.show('Thank you for your support!', 'success');
+        toast.show(t('common.success'), 'success');
       } else if (res.status === 403) {
-        toast.show('VPN/Proxy not allowed for interactions', 'error');
+        toast.show(t('vpn.detected'), 'error');
       } else if (res.status === 429) {
-        toast.show('Too many likes. Please wait.', 'error');
+        toast.show(t('common.error'), 'error');
       } else {
-        toast.show('Failed to like testimony', 'error');
+        toast.show(t('common.error'), 'error');
       }
     } catch (error) {
-      toast.show('Error liking testimony', 'error');
+      toast.show(t('common.error'), 'error');
     } finally {
       setLiking(null);
     }
@@ -142,15 +143,15 @@ export default function TestimoniesPage() {
               <AlertCircle className="w-12 h-12 text-red-500" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-4">Access Denied</h2>
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-4">{t('vpn.warning')}</h2>
           <p className="text-gray-600 font-medium text-center mb-8">
-            VPN/Proxy connections are not allowed for security reasons. Please disable your VPN and try again.
+            {t('vpn.detected')}
           </p>
           <button
             onClick={() => window.location.reload()}
             className="w-full px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all"
           >
-            Try Again
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -162,7 +163,7 @@ export default function TestimoniesPage() {
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600 font-bold">Loading inspiring stories...</p>
+          <p className="text-gray-600 font-bold">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -180,19 +181,12 @@ export default function TestimoniesPage() {
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center">
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <ShieldCheck className="w-5 h-5 text-purple-200" />
-            <span className="text-xs font-bold text-purple-100 uppercase tracking-widest">
-              Verified Testimonies
-            </span>
-          </div>
-
           <h1 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">
-            Inspiring Stories
+            {t('testimonies.title')}
           </h1>
 
           <p className="text-xl text-white/90 font-medium leading-relaxed max-w-2xl mx-auto">
-            Faith journeys full of love and turning back to God showing how Jesus changes lives and gives hope and strength through every challenge
+            {t('testimonies.subtitle')}
           </p>
         </div>
       </div>
@@ -204,13 +198,13 @@ export default function TestimoniesPage() {
             <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
               <Quote size={40} />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">No testimonies yet</h2>
-            <p className="text-gray-500 font-medium">Be the first to share your journey with the community.</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('testimonies.noTestimonies')}</h2>
+            <p className="text-gray-500 font-medium">{t('testimonies.shareYourOwn')}</p>
             <button 
               onClick={() => router.push('/support')}
               className="mt-8 px-8 py-4 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-100"
             >
-              SHARE YOUR STORY
+              {t('support.shareTestimony')}
             </button>
           </div>
         ) : (
@@ -219,21 +213,21 @@ export default function TestimoniesPage() {
             {currentTestimony && (
               <div className="mb-12">
                 <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-gray-100 relative overflow-hidden">
-                  {/* Verified Badge */}
-                  <div className="absolute top-6 right-6 flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100">
-                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                    <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">Verified</span>
+                  {/* Verified Badge - Improved Design */}
+                  <div className="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 bg-green-50 rounded-full border border-green-200 shadow-sm">
+                    <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
+                    <span className="text-[9px] font-bold text-green-700 uppercase tracking-wider">{t('testimonies.verified')}</span>
                   </div>
 
                   <Quote className="absolute top-8 left-8 text-purple-50 w-20 h-20 -z-10" />
                   
-                  <p className="text-xl md:text-2xl text-gray-800 font-medium leading-relaxed mb-10 italic">
+                  <p className="text-xl md:text-2xl text-gray-800 font-medium leading-relaxed mb-10 italic pt-2">
                     "{currentTestimony.content}"
                   </p>
 
                   <div className="flex items-center justify-between pt-8 border-t border-gray-50">
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0">
                         {currentTestimony.userAvatar ? (
                           <img src={currentTestimony.userAvatar} alt="" className="w-full h-full object-cover rounded-xl" />
                         ) : (
@@ -300,30 +294,42 @@ export default function TestimoniesPage() {
               </button>
             </div>
 
-            {/* Recent Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {testimonies.map((item, idx) => (
+            {/* All Testimonies Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4">
+              {testimonies.map((testimony, idx) => (
                 <div 
-                  key={item.id} 
+                  key={testimony.id}
                   onClick={() => setCurrentIndex(idx)}
-                  className={`bg-white rounded-2xl p-6 shadow-sm border transition-all cursor-pointer hover:shadow-md relative ${
-                    idx === currentIndex ? 'border-purple-500 ring-1 ring-purple-500' : 'border-gray-100 hover:border-purple-200'
-                  }`}
+                  className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all cursor-pointer border border-gray-100 hover:border-purple-200 relative group"
                 >
-                  <p className="text-gray-600 text-sm font-medium line-clamp-3 mb-6 italic">"{item.content}"</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-sm">
-                        {item.userName?.charAt(0).toUpperCase()}
+                  {/* Small Verified Badge */}
+                  <div className="absolute top-3 right-3 flex items-center gap-0.5 px-2 py-0.5 bg-green-50 rounded-full border border-green-200">
+                    <CheckCircle className="w-2.5 h-2.5 text-green-600" />
+                    <span className="text-[8px] font-bold text-green-700 uppercase">{t('testimonies.verified')}</span>
+                  </div>
+
+                  <p className="text-gray-700 font-medium line-clamp-3 mb-4 pt-1">
+                    "{testimony.content}"
+                  </p>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                        {testimony.userAvatar ? (
+                          <img src={testimony.userAvatar} alt="" className="w-full h-full object-cover rounded-lg" />
+                        ) : (
+                          testimony.userName?.charAt(0).toUpperCase()
+                        )}
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900 text-sm">{item.userName}</p>
-                        <p className="text-[10px] text-gray-400 font-medium">{formatDate(item.createdAt)}</p>
+                        <p className="text-sm font-bold text-gray-900">{testimony.userName}</p>
+                        <p className="text-xs text-gray-400">{formatDate(testimony.createdAt)}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-red-500 font-bold text-xs">
-                      <Heart size={14} className={item.likes > 0 ? 'fill-current' : ''} />
-                      {item.likes}
+
+                    <div className="flex items-center gap-1 text-red-500">
+                      <Heart size={16} className={testimony.likes > 0 ? 'fill-current' : ''} />
+                      <span className="text-sm font-bold">{testimony.likes}</span>
                     </div>
                   </div>
                 </div>
@@ -331,33 +337,6 @@ export default function TestimoniesPage() {
             </div>
           </>
         )}
-      </div>
-
-      {/* Footer CTA - Matching Project Colors */}
-      <div className="max-w-5xl mx-auto px-4 mt-20">
-        <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-3xl p-12 text-center text-white shadow-xl relative overflow-hidden">
-          <div className="relative z-10">
-            <Sparkles className="w-10 h-10 mx-auto mb-6 text-white/50" />
-            <h3 className="text-3xl font-bold mb-4">Your Story Matters</h3>
-            <p className="text-white/80 font-medium mb-10 max-w-xl mx-auto">
-              Have you experienced a miracle or a life-changing moment? Share it with our community today.
-            </p>
-            <button 
-              onClick={() => router.push('/support')}
-              className="px-10 py-4 bg-white text-purple-600 rounded-xl font-bold hover:bg-gray-50 transition-all hover:scale-105 shadow-lg"
-            >
-              SUBMIT TESTIMONY
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Security Info Footer */}
-      <div className="max-w-5xl mx-auto px-4 mt-12 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full text-gray-500 text-[10px] font-bold uppercase tracking-wider">
-          <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
-          <span>Protected by Advanced Security System</span>
-        </div>
       </div>
     </div>
   );

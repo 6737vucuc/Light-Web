@@ -347,5 +347,14 @@
     "de": "Deutsch",
     "es": "Español",
     "fr": "Français"
+  },
+  "testimonies": {
+    "title": "Testimonies",
+    "subtitle": "Real stories of lives transformed by God's grace",
+    "verified": "Verified",
+    "likes": "Likes",
+    "noTestimonies": "No testimonies available yet",
+    "shareYourOwn": "Share your own testimony",
+    "securityBadge": "Secure & Protected Connection"
   }
 }

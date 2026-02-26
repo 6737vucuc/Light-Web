@@ -349,5 +349,14 @@
     "de": "Deutsch",
     "es": "Español",
     "fr": "Français"
+  },
+  "testimonies": {
+    "title": "الشهادات",
+    "subtitle": "قصص حقيقية عن تغيير الحياة بنعمة الله",
+    "verified": "موثق",
+    "likes": "إعجاب",
+    "noTestimonies": "لا توجد شهادات متاحة حالياً",
+    "shareYourOwn": "شارك شهادتك الخاصة",
+    "securityBadge": "اتصال آمن ومحمي"
   }
 }
