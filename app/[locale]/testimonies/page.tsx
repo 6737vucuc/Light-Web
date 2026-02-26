@@ -181,6 +181,13 @@ export default function TestimoniesPage() {
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <ShieldCheck className="w-5 h-5 text-purple-200" />
+            <span className="text-xs font-bold text-purple-100 uppercase tracking-widest">
+              {t('testimonies.securityBadge')}
+            </span>
+          </div>
+
           <h1 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">
             {t('testimonies.title')}
           </h1>
