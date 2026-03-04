@@ -12,7 +12,10 @@ export type SecurityEventType =
   | 'vpn_blocked'
   | 'suspicious_activity'
   | 'report_submitted'
-  | 'admin_action';
+  | 'admin_action'
+  | 'unauthorized_access_attempt'
+  | 'idor_attempt'
+  | 'critical_error';
 
 export interface SecurityEvent {
   type: SecurityEventType;
@@ -197,5 +200,37 @@ export function logAdminAction(adminId: number, action: string, targetUserId?: n
     userId: adminId,
     details: { action, targetUserId, ...details },
     severity: 'medium',
+  });
+}
+
+export function logUnauthorizedAccess(userId: number | undefined, path: string, ipAddress: string) {
+  securityLogger.log({
+    type: 'unauthorized_access_attempt',
+    userId,
+    ipAddress,
+    details: { path },
+    severity: 'high',
+  });
+}
+
+export function logIDORAttempt(userId: number, attemptedResourceId: string, resourceType: string, ipAddress: string) {
+  securityLogger.log({
+    type: 'idor_attempt',
+    userId,
+    ipAddress,
+    details: { attemptedResourceId, resourceType },
+    severity: 'critical',
+  });
+}
+
+export function logCriticalError(error: any, context: string) {
+  securityLogger.log({
+    type: 'critical_error',
+    details: { 
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      context 
+    },
+    severity: 'critical',
   });
 }

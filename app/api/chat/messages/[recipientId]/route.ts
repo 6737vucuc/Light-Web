@@ -18,6 +18,12 @@ export async function GET(
     const { recipientId } = await params;
     const targetId = parseInt(recipientId);
 
+    // IDOR Protection: The query naturally restricts messages to the authenticated user's conversations.
+    // However, we can add an explicit check or log for security auditing.
+    if (isNaN(targetId)) {
+      return NextResponse.json({ error: 'Invalid recipient ID' }, { status: 400 });
+    }
+
     const messages = await db.query.directMessages.findMany({
       where: or(
         and(eq(directMessages.senderId, user.userId), eq(directMessages.recipientId, targetId)),

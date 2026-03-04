@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/middleware';
+import { logIDORAttempt, logCriticalError } from '@/lib/security/security-logger';
+import { getClientIP } from '@/lib/security/vpn-detection';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -12,7 +15,20 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const authResult = await requireAuth(request);
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+    }
+    const { user: authenticatedUser } = authResult;
+
     const userId = parseInt(id);
+
+    // IDOR Protection: Ensure the authenticated user can only access their own profile
+    // or if they are an admin, they can access any profile.
+    if (authenticatedUser.id !== userId && !authenticatedUser.isAdmin) {
+      logIDORAttempt(authenticatedUser.id, id, 'user_profile', getClientIP(request));
+      return NextResponse.json({ error: 'Unauthorized access to user profile' }, { status: 403 });
+    }
 
     if (isNaN(userId)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
@@ -39,7 +55,7 @@ export async function GET(
 
     return NextResponse.json({ user: formattedUser });
   } catch (error) {
-    console.error('Error fetching user:', error);
+    logCriticalError(error, 'GET /api/users/[id]');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
