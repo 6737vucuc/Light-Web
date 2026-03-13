@@ -20,11 +20,11 @@ export const SecurityHeaders = {
   // Enhanced Content Security Policy
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self'",
-    "img-src 'self' data: https: blob:",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https: blob: https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co https://neon-image-bucket.s3.us-east-1.amazonaws.com https://neon-image-bucket.s3.amazonaws.com",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.neon.tech", // Supabase + Neon DB
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.neon.tech https://res.cloudinary.com wss://*.pusher.com https://*.pusher.com", // Supabase + Neon DB + Cloudinary + Pusher
     "media-src 'self' https:",
     "object-src 'none'",
     "frame-ancestors 'none'",
