@@ -43,7 +43,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co https://neon-image-bucket.s3.us-east-1.amazonaws.com https://neon-image-bucket.s3.amazonaws.com; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co wss://*.pusher.com https://*.pusher.com; frame-src 'self' https://www.youtube.com; object-src 'none'; upgrade-insecure-requests;"
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co https://neon-image-bucket.s3.us-east-1.amazonaws.com https://neon-image-bucket.s3.amazonaws.com; font-src 'self' data:; connect-src 'self' https://res.cloudinary.com https://lzqyucohnjtubivlmdkw.supabase.co wss://*.pusher.com https://*.pusher.com https://*.neon.tech; frame-src 'self' https://www.youtube.com; object-src 'none'; upgrade-insecure-requests;"
           }
         ],
       },
