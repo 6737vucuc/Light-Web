@@ -6,7 +6,8 @@
  */
 
 import { NextRequest } from 'next/server';
-import { validateSecureInput, logSecurityEvent } from './advanced-protection';
+import { sanitizeInput } from './advanced-protection';
+import { securityLogger } from './security-logger';
 import { getClientIdentifier } from './rate-limit';
 
 /**
@@ -169,11 +170,11 @@ export class WAF {
 
     // 2. Check IP blacklist
     if (this.isIPBlacklisted(clientId)) {
-      logSecurityEvent({
-        type: 'WAF_BLOCKED_IP',
-        severity: 'HIGH',
-        ip: clientId,
-        details: 'IP is blacklisted',
+      securityLogger.log({
+        type: 'unauthorized_access_attempt',
+        severity: 'high',
+        ipAddress: clientId,
+        details: { reason: 'IP is blacklisted' },
       });
 
       return {
@@ -185,11 +186,11 @@ export class WAF {
 
     // 3. Check malicious user agent
     if (this.isMaliciousUserAgent(userAgent)) {
-      logSecurityEvent({
-        type: 'WAF_BLOCKED_USER_AGENT',
-        severity: 'MEDIUM',
-        ip: clientId,
-        details: `Malicious user agent: ${userAgent}`,
+      securityLogger.log({
+        type: 'unauthorized_access_attempt',
+        severity: 'medium',
+        ipAddress: clientId,
+        details: { reason: `Malicious user agent: ${userAgent}` },
       });
 
       return {
@@ -201,11 +202,11 @@ export class WAF {
 
     // 4. Check suspicious URL patterns
     if (this.hasSuspiciousURL(fullURL)) {
-      logSecurityEvent({
-        type: 'WAF_BLOCKED_URL',
-        severity: 'HIGH',
-        ip: clientId,
-        details: `Suspicious URL: ${fullURL}`,
+      securityLogger.log({
+        type: 'unauthorized_access_attempt',
+        severity: 'high',
+        ipAddress: clientId,
+        details: { reason: `Suspicious URL: ${fullURL}` },
       });
 
       return {
@@ -223,11 +224,11 @@ export class WAF {
         return severityLevels[sig.severity] > severityLevels[max] ? sig.severity : max;
       }, 'LOW' as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL');
 
-      logSecurityEvent({
-        type: 'WAF_ATTACK_SIGNATURE',
-        severity: maxSeverity,
-        ip: clientId,
-        details: `Attack signatures detected: ${urlSignatures.map(s => s.name).join(', ')}`,
+      securityLogger.log({
+        type: 'unauthorized_access_attempt',
+        severity: maxSeverity.toLowerCase() as any,
+        ipAddress: clientId,
+        details: { reason: `Attack signatures detected: ${urlSignatures.map(s => s.name).join(', ')}` },
       });
 
       return {
@@ -240,11 +241,11 @@ export class WAF {
     // 6. Check HTTP method
     const allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'];
     if (!allowedMethods.includes(request.method)) {
-      logSecurityEvent({
-        type: 'WAF_INVALID_METHOD',
-        severity: 'MEDIUM',
-        ip: clientId,
-        details: `Invalid HTTP method: ${request.method}`,
+      securityLogger.log({
+        type: 'unauthorized_access_attempt',
+        severity: 'medium',
+        ipAddress: clientId,
+        details: { reason: `Invalid HTTP method: ${request.method}` },
       });
 
       return {
@@ -263,11 +264,11 @@ export class WAF {
    */
   static blacklistIP(ip: string): void {
     IP_BLACKLIST.add(ip);
-    logSecurityEvent({
-      type: 'IP_BLACKLISTED',
-      severity: 'HIGH',
-      ip,
-      details: 'IP added to blacklist',
+    securityLogger.log({
+      type: 'admin_action',
+      severity: 'high',
+      ipAddress: ip,
+      details: { action: 'IP_BLACKLISTED', details: 'IP added to blacklist' },
     });
   }
 
