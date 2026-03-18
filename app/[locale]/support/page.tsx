@@ -254,21 +254,7 @@ export default function SupportPage() {
           </form>
         </div>
 
-        {/* Trust Info - Minimalist */}
-        <div className="mt-20 flex flex-wrap justify-center gap-x-12 gap-y-8 opacity-30 hover:opacity-60 transition-opacity duration-700">
-          <div className="flex items-center gap-2.5">
-            <ShieldCheck className="h-4 w-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Secure SSL</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <Zap className="h-4 w-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Fast Response</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <HelpCircle className="h-4 w-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">24/7 Support</span>
-          </div>
-        </div>
+
       </div>
     </div>
   );
