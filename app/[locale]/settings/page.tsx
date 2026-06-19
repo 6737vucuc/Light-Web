@@ -53,7 +53,7 @@ export default function SettingsPage() {
   const [likesNotif, setLikesNotif] = useState(true);
   const [commentsNotif, setCommentsNotif] = useState(true);
   const [followsNotif, setFollowsNotif] = useState(true);
-  const [messagesNotif, setMessagesNotif] = useState(true);
+
 
   // Blocked Users
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);

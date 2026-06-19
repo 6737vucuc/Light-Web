@@ -99,25 +99,7 @@ export default function NotificationsPage() {
     }
   };
 
-  const handleMessage = async (userId: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    try {
-      // Create or get conversation
-      const response = await fetch('/api/messages/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ otherUserId: userId }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        router.push(`/messages?conversation=${data.conversationId}`);
-      }
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-    }
-  };
+
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
@@ -304,13 +286,7 @@ export default function NotificationsPage() {
                         Follow Back
                       </button>
                     )}
-                    <button
-                      onClick={(e) => handleMessage(notification.userId, e)}
-                      className="px-4 py-1.5 bg-gray-200 text-gray-900 text-sm font-semibold rounded-full hover:bg-gray-300 transition-colors flex items-center gap-1"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      Message
-                    </button>
+
                   </div>
                 )}
               </div>
