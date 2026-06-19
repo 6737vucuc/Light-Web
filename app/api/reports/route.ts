@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { reports } from '@/lib/db/schema';
 import { verifyAuth } from '@/lib/auth/verify';
+import { filterProfanity, isContentSafe } from '@/lib/content/profanity-filter';
 import { checkRateLimit, RateLimitConfigs, getClientIdentifier } from '@/lib/security/rate-limit';
 import { detectVPN, getClientIP, shouldBlockIP } from '@/lib/security/vpn-detection';
 import { ThreatDetection } from '@/lib/security/threat-detection';
@@ -64,6 +65,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { reportedUserId, messageId, groupId, reason } = body;
 
+    // تصفية المحتوى من الكلمات النابية
+    const { cleaned: cleanedReason, isFlagged } = filterProfanity(reason);
+
     // 4. INPUT VALIDATION
     if (!reportedUserId || !reason) {
       return NextResponse.json(
@@ -72,9 +76,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!InputValidator.isValidContent(reason, 1000)) {
+    if (!InputValidator.isValidContent(cleanedReason, 1000)) {
       return NextResponse.json(
         { error: 'Report reason is too long' },
+        { status: 400 }
+      );
+    }
+
+    // التحقق من سلامة المحتوى
+    if (isFlagged) {
+      return NextResponse.json(
+        { error: 'Report contains inappropriate content. Please revise and try again.' },
         { status: 400 }
       );
     }
@@ -125,7 +137,7 @@ export async function POST(request: NextRequest) {
       reportedUserId: parseInt(reportedUserId),
       messageId: messageId || null,
       groupId: groupId || null,
-      reason: reason.trim(),
+      reason: cleanedReason.trim(),
       status: 'pending',
     }).returning();
 
