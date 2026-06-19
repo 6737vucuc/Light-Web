@@ -1,9 +1,7 @@
 'use client';
-
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { ChatEvent } from '@/lib/realtime/chat';
 
 interface GlobalNotificationListenerProps {
   currentUser: any;
