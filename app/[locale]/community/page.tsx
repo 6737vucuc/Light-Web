@@ -168,25 +168,8 @@ export default function CommunityPage() {
       )}
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 md:px-6 -mt-8 md:-mt-12 relative z-20">
-        {/* Search Bar */}
-        <div className="mb-8 md:mb-12">
-          <div className="max-w-2xl mx-auto relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-blue-400 rounded-[1.5rem] md:rounded-[2rem] blur-xl opacity-20 group-focus-within:opacity-40 transition-opacity"></div>
-            <div className="relative flex items-center bg-white rounded-[1.5rem] md:rounded-[2rem] p-2 shadow-2xl border border-purple-100/50 hover:border-purple-200 transition-all">
-              <div className="pl-4 md:pl-6 pr-3 md:pr-4 text-purple-400">
-                <Search size={20} className="md:w-6 md:h-6" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('searchGroups')}
-                className="flex-1 bg-transparent border-none focus:ring-0 text-gray-900 font-bold placeholder:text-gray-400 py-3 md:py-4 text-sm md:text-base"
-              />
-            </div>
-          </div>
-        </div>
+      <div className="max-w-4xl mx-auto px-4 md:px-6 mt-4 relative z-20">
+
 
         {/* Post Composer */}
         <PostComposer currentUser={currentUser} onPostCreated={handlePostCreated} />
