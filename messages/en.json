@@ -72,7 +72,30 @@
     "searchGroups": "Search for a group...",
     "onlineNow": "Online Now",
     "membersCount": "Members",
-    "messagesCount": "Messages"
+    "messagesCount": "Messages",
+    "feed": "Feed",
+    "newPost": "New Post",
+    "whatsOnYourMind": "What's on your mind?",
+    "post": "Post",
+    "posting": "Posting...",
+    "like": "Like",
+    "dislike": "Dislike",
+    "likes": "Likes",
+    "dislikes": "Dislikes",
+    "noPosts": "No posts yet. Be the first to share!",
+    "postCreated": "Post published successfully!",
+    "postFailed": "Failed to publish post",
+    "deletePost": "Delete Post",
+    "deletePostConfirm": "Are you sure you want to delete this post?",
+    "postDeleted": "Post deleted successfully",
+    "addImage": "Add Image",
+    "community": "Community",
+    "communityFeed": "Community Feed",
+    "shareWithCommunity": "Share with the community...",
+    "justNow": "just now",
+    "minutesAgo": "{n}m ago",
+    "hoursAgo": "{n}h ago",
+    "daysAgo": "{n}d ago"
   },
   "messages": {
     "title": "Messages",
@@ -119,7 +142,8 @@
     "uploadMedia": "Upload media",
     "image": "Image",
     "video": "Video",
-    "emoji": "Emoji"
+    "emoji": "Emoji",
+    "leave": "Leave"
   },
   "admin": {
     "dashboard": "Dashboard",
@@ -338,7 +362,8 @@
   "footer": {
     "developedBy": "Developed by",
     "allRightsReserved": "All Rights Reserved",
-    "mayTheLight": "May the Light of the Lord be with you always"
+    "mayTheLight": "May the Light of the Lord be with you always",
+    "Engineer Anwar": "Engineer Anwar"
   },
   "language": {
     "selectLanguage": "Select Language",

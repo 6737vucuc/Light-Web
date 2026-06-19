@@ -29,7 +29,8 @@
     "no": "Nein",
     "leave": "Verlassen",
     "country": "Land",
-    "note": "Hinweis"
+    "note": "Hinweis",
+    "testimonies": "Zeugnisse"
   },
   "community": {
     "title": "Gemeinschaft",
@@ -60,7 +61,49 @@
     "searchGroups": "Gruppe suchen...",
     "onlineNow": "Jetzt online",
     "membersCount": "Mitglieder",
-    "messagesCount": "Nachrichten"
+    "messagesCount": "Nachrichten",
+    "goodMorning": "Guten Morgen",
+    "goodAfternoon": "Guten Tag",
+    "goodEvening": "Guten Abend",
+    "welcomeMessage": "Willkommen in der Light Web Community. Treten Sie Gruppen bei und vernetzen Sie sich.",
+    "groupsAvailable": "Gruppen verfügbar",
+    "connections": "Verbindungen",
+    "realtime": "Echtzeit",
+    "secure": "Sicher",
+    "available": "Verfügbar",
+    "lastSeen": "Zuletzt gesehen",
+    "privateMessage": "Private Nachricht",
+    "offline": "Offline",
+    "back": "Zurück",
+    "loading": "Laden...",
+    "endToEndEncrypted": "Ende-zu-Ende verschlüsselt",
+    "noMessages": "Noch keine Nachrichten",
+    "typeMessage": "Nachricht eingeben...",
+    "messageDeleted": "Diese Nachricht wurde gelöscht",
+    "noConversations": "Noch keine Gespräche",
+    "justNow": "gerade eben",
+    "feed": "Feed",
+    "newPost": "Neuer Beitrag",
+    "whatsOnYourMind": "Was denkst du?",
+    "post": "Posten",
+    "posting": "Wird gepostet...",
+    "like": "Gefällt mir",
+    "dislike": "Gefällt mir nicht",
+    "likes": "Gefällt mir",
+    "dislikes": "Gefällt mir nicht",
+    "noPosts": "Noch keine Beiträge. Sei der Erste!",
+    "postCreated": "Beitrag erfolgreich veröffentlicht!",
+    "postFailed": "Beitrag konnte nicht veröffentlicht werden",
+    "deletePost": "Beitrag löschen",
+    "deletePostConfirm": "Möchten Sie diesen Beitrag wirklich löschen?",
+    "postDeleted": "Beitrag erfolgreich gelöscht",
+    "addImage": "Bild hinzufügen",
+    "community": "Gemeinschaft",
+    "communityFeed": "Community Feed",
+    "shareWithCommunity": "Mit der Community teilen...",
+    "minutesAgo": "vor {n}m",
+    "hoursAgo": "vor {n}h",
+    "daysAgo": "vor {n}d"
   },
   "messages": {
     "title": "Nachrichten",
@@ -182,7 +225,9 @@
     "securePrivateDesc": "Ende-zu-Ende-verschlüsselte Nachrichten",
     "beginJourney": "Beginnen Sie Ihre Reise mit Christus",
     "joinThousands": "Schließen Sie sich Tausenden von Gläubigen an",
-    "continue": "Fortfahren"
+    "continue": "Fortfahren",
+    "inspiringTestimony": "Inspirierendes Zeugnis",
+    "viewAll": "Alle anzeigen"
   },
   "auth": {
     "welcomeBack": "Willkommen zurück",
@@ -333,5 +378,14 @@
     "de": "Deutsch",
     "es": "Español",
     "fr": "Français"
+  },
+  "testimonies": {
+    "title": "Inspirierende Geschichten",
+    "subtitle": "Glaubensreisen voller Liebe und Rückkehr zu Gott",
+    "verified": "Verifiziert",
+    "likes": "Gefällt mir",
+    "noTestimonies": "Noch keine Zeugnisse verfügbar",
+    "shareYourOwn": "Teile dein eigenes Zeugnis",
+    "securityBadge": "Verifizierte Zeugnisse"
   }
 }

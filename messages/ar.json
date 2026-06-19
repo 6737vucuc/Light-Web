@@ -73,7 +73,37 @@
     "searchGroups": "البحث عن مجموعة...",
     "onlineNow": "متصل الآن",
     "membersCount": "عضو",
-    "messagesCount": "رسالة"
+    "messagesCount": "رسالة",
+    "back": "رجوع",
+    "loading": "جاري التحميل...",
+    "endToEndEncrypted": "مشفر من طرف إلى طرف",
+    "noMessages": "لا توجد رسائل بعد",
+    "typeMessage": "اكتب رسالة...",
+    "messageDeleted": "تم حذف هذه الرسالة",
+    "noConversations": "لا توجد محادثات بعد",
+    "justNow": "الآن",
+    "feed": "المنشورات",
+    "newPost": "منشور جديد",
+    "whatsOnYourMind": "ما الذي يدور في ذهنك؟",
+    "post": "نشر",
+    "posting": "جاري النشر...",
+    "like": "إعجاب",
+    "dislike": "عدم إعجاب",
+    "likes": "إعجابات",
+    "dislikes": "عدم إعجاب",
+    "noPosts": "لا توجد منشورات بعد. كن أول من يشارك!",
+    "postCreated": "تم نشر المنشور بنجاح!",
+    "postFailed": "فشل نشر المنشور",
+    "deletePost": "حذف المنشور",
+    "deletePostConfirm": "هل أنت متأكد أنك تريد حذف هذا المنشور؟",
+    "postDeleted": "تم حذف المنشور بنجاح",
+    "addImage": "إضافة صورة",
+    "community": "المجتمع",
+    "communityFeed": "منشورات المجتمع",
+    "shareWithCommunity": "شارك مع المجتمع...",
+    "minutesAgo": "منذ {n} دقيقة",
+    "hoursAgo": "منذ {n} ساعة",
+    "daysAgo": "منذ {n} يوم"
   },
   "messages": {
     "title": "الرسائل",
@@ -306,7 +336,8 @@
     "uploadAvatar": "رفع صورة",
     "avatarUpdated": "تم تحديث الصورة بنجاح",
     "male": "ذكر",
-    "female": "أنثى"
+    "female": "أنثى",
+    "country": "البلد"
   },
   "settings": {
     "title": "الإعدادات",
@@ -338,7 +369,7 @@
   },
   "footer": {
     "developedBy": "تم التطوير بواسطة",
-    "Engineer Anwar": "المهندس أنور", 
+    "Engineer Anwar": "المهندس أنور",
     "allRightsReserved": "جميع الحقوق محفوظة",
     "mayTheLight": "ليكن نور الرب معكم دائماً"
   },

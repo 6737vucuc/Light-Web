@@ -29,7 +29,8 @@
     "no": "Non",
     "leave": "Quitter",
     "country": "Pays",
-    "note": "Note"
+    "note": "Note",
+    "testimonies": "Témoignages"
   },
   "community": {
     "title": "Communauté",
@@ -60,7 +61,49 @@
     "searchGroups": "Rechercher un groupe...",
     "onlineNow": "En ligne maintenant",
     "membersCount": "Membres",
-    "messagesCount": "Messages"
+    "messagesCount": "Messages",
+    "goodMorning": "Bonjour",
+    "goodAfternoon": "Bon après-midi",
+    "goodEvening": "Bonsoir",
+    "welcomeMessage": "Bienvenue dans la communauté Light Web. Rejoignez des groupes et connectez-vous.",
+    "groupsAvailable": "Groupes disponibles",
+    "connections": "Connexions",
+    "realtime": "Temps réel",
+    "secure": "Sécurisé",
+    "available": "Disponible",
+    "lastSeen": "Vu pour la dernière fois",
+    "privateMessage": "Message privé",
+    "offline": "Hors ligne",
+    "back": "Retour",
+    "loading": "Chargement...",
+    "endToEndEncrypted": "Chiffrement de bout en bout",
+    "noMessages": "Pas encore de messages",
+    "typeMessage": "Écrire un message...",
+    "messageDeleted": "Ce message a été supprimé",
+    "noConversations": "Pas encore de conversations",
+    "justNow": "à l'instant",
+    "feed": "Fil d'actualité",
+    "newPost": "Nouvelle publication",
+    "whatsOnYourMind": "À quoi pensez-vous?",
+    "post": "Publier",
+    "posting": "Publication...",
+    "like": "J'aime",
+    "dislike": "Je n'aime pas",
+    "likes": "J'aime",
+    "dislikes": "Je n'aime pas",
+    "noPosts": "Pas encore de publications. Soyez le premier!",
+    "postCreated": "Publication créée avec succès!",
+    "postFailed": "Échec de la publication",
+    "deletePost": "Supprimer la publication",
+    "deletePostConfirm": "Êtes-vous sûr de vouloir supprimer cette publication?",
+    "postDeleted": "Publication supprimée avec succès",
+    "addImage": "Ajouter une image",
+    "community": "Communauté",
+    "communityFeed": "Fil de la communauté",
+    "shareWithCommunity": "Partager avec la communauté...",
+    "minutesAgo": "il y a {n}m",
+    "hoursAgo": "il y a {n}h",
+    "daysAgo": "il y a {n}j"
   },
   "messages": {
     "title": "Messages",
@@ -182,7 +225,9 @@
     "securePrivateDesc": "Messagerie chiffrée de bout en bout",
     "beginJourney": "Commencez Votre Voyage avec Christ",
     "joinThousands": "Rejoignez des milliers de croyants",
-    "continue": "Continuer"
+    "continue": "Continuer",
+    "inspiringTestimony": "Témoignage Inspirant",
+    "viewAll": "Voir tout"
   },
   "auth": {
     "welcomeBack": "Bon Retour",
@@ -333,5 +378,14 @@
     "de": "Deutsch",
     "es": "Español",
     "fr": "Français"
+  },
+  "testimonies": {
+    "title": "Histoires Inspirantes",
+    "subtitle": "Des parcours de foi remplis d'amour et de retour à Dieu",
+    "verified": "Vérifié",
+    "likes": "J'aime",
+    "noTestimonies": "Pas encore de témoignages disponibles",
+    "shareYourOwn": "Partagez votre propre témoignage",
+    "securityBadge": "Témoignages Vérifiés"
   }
 }

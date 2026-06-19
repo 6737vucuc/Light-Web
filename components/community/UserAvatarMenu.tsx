@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from '@/i18n/navigation';
-import { AlertTriangle, User, X, MessageSquare } from 'lucide-react';
+import { AlertTriangle, User, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface UserAvatarMenuProps {
@@ -50,18 +50,8 @@ export default function UserAvatarMenu({
   }, [isOpen, onClose]);
 
   const handleViewProfile = () => {
-    // Use the base profile path
     router.push(`/profile/${userId}`);
     onClose();
-  };
-
-  const handleSendMessage = () => {
-    if (onSendMessage) {
-      onSendMessage({ id: userId as any, name: userName, avatar: avatar });
-    } else {
-      router.push(`/messages?userId=${userId}`);
-      onClose();
-    }
   };
 
   const handleReport = async () => {
@@ -97,7 +87,7 @@ export default function UserAvatarMenu({
 
   // Adjust position to keep menu on screen
   const menuWidth = 220;
-  const menuHeight = 180;
+  const menuHeight = 140;
   const adjustedX = Math.min(position.x, typeof window !== 'undefined' ? window.innerWidth - menuWidth - 20 : position.x);
   const adjustedY = Math.min(position.y, typeof window !== 'undefined' ? window.innerHeight - menuHeight - 20 : position.y);
 
@@ -117,16 +107,6 @@ export default function UserAvatarMenu({
         </div>
 
         <div className="p-1.5 space-y-1">
-          <button
-            onClick={handleSendMessage}
-            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-purple-50 rounded-xl transition-all group"
-          >
-            <div className="p-1.5 bg-purple-100 text-purple-600 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition-colors">
-              <MessageSquare className="w-4 h-4" />
-            </div>
-            <span className="text-sm font-bold text-gray-700">{t('privateMessage')}</span>
-          </button>
-
           <button
             onClick={handleViewProfile}
             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-blue-50 rounded-xl transition-all group"
