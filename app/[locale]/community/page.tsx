@@ -9,6 +9,7 @@ import PostCard from '@/components/community/PostCard';
 import GlobalNotificationListener from '@/components/community/GlobalNotificationListener';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/lib/contexts/ToastContext';
+import { useInfiniteScroll } from '@/lib/hooks/useInfiniteScroll';
 
 export default function CommunityPage() {
   const toast = useToast();
@@ -23,6 +24,9 @@ export default function CommunityPage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showWelcome, setShowWelcome] = useState(true);
+  const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     checkAuth();
@@ -51,17 +55,40 @@ export default function CommunityPage() {
     }
   };
 
-  const loadPosts = async () => {
+  const loadPosts = async (pageNum: number = 1) => {
     try {
-      const response = await fetch(`/api/posts?t=${Date.now()}`);
+      const response = await fetch(`/api/posts?page=${pageNum}&limit=10&t=${Date.now()}`);
       if (response.ok) {
         const data = await response.json();
-        setPosts(data.posts || []);
+        if (pageNum === 1) {
+          setPosts(data.posts || []);
+        } else {
+          setPosts((prev) => [...prev, ...(data.posts || [])]);
+        }
+        setHasMore((data.posts || []).length === 10);
       }
     } catch (error) {
       console.error('Error loading posts:', error);
     }
   };
+
+  const loadMorePosts = async () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      await loadPosts(nextPage);
+      setPage(nextPage);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  const { observerTarget } = useInfiniteScroll({
+    onLoadMore: loadMorePosts,
+    isLoading: isLoadingMore,
+    hasMore,
+  });
 
   const handlePostCreated = (newPost: any) => {
     setPosts([newPost, ...posts]);
@@ -187,20 +214,33 @@ export default function CommunityPage() {
               </p>
             </div>
           ) : (
-            filteredPosts.map((post, idx) => (
-              <div
-                key={post.id}
-                className="animate-in fade-in slide-in-from-bottom-4 duration-500"
-                style={{ animationDelay: `${idx * 50}ms` }}
-              >
-                <PostCard
-                  post={post}
-                  currentUserId={currentId}
-                  isAdmin={currentUser?.isAdmin}
-                  onDelete={handlePostDeleted}
-                />
-              </div>
-            ))
+            <>
+              {filteredPosts.map((post, idx) => (
+                <div
+                  key={post.id}
+                  className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+                  style={{ animationDelay: `${idx * 50}ms` }}
+                >
+                  <PostCard
+                    post={post}
+                    currentUserId={currentId}
+                    isAdmin={currentUser?.isAdmin}
+                    onDelete={handlePostDeleted}
+                  />
+                </div>
+              ))}
+              
+              {hasMore && (
+                <div ref={observerTarget} className="flex justify-center py-8">
+                  {isLoadingMore && (
+                    <div className="flex items-center gap-2 text-purple-600">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="text-sm font-medium">Loading more posts...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
